@@ -12,7 +12,8 @@
 <meta name="apple-mobile-web-app-title" content="Focus">
 <title>Focus — Task Manager</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* ===== CSS VARIABLES ===== */
 :root {
@@ -422,7 +423,8 @@ function openDB() {
       if (!db.objectStoreNames.contains('savedViews')) db.createObjectStore('savedViews', { keyPath: 'id' });
     };
     req.onsuccess = (e) => { db = e.target.result; resolve(db); };
-    req.onerror = (e) => reject(e.target.error);
+    req.onerror = (e) => { console.error('IndexedDB error:', e.target.error); reject(e.target.error); };
+    req.onblocked = () => { console.warn('IndexedDB blocked'); };
   });
 }
 
@@ -698,7 +700,7 @@ function getFilteredTasks(view, filters = {}) {
   switch (view) {
     case 'inbox': tasks = tasks.filter(t => t.status === 'inbox'); break;
     case 'today': tasks = tasks.filter(t => t.status !== 'completed' && (isDueToday(t.dueAt) || isDueToday(t.startAt) || t.flagged)); break;
-    case 'upcoming': tasks = tasks.filter(t => t.status !== 'completed' && t.dueAt && t.dueAt > t && t.dueAt <= getNext7Days().at(-1)); break;
+    case 'upcoming': tasks = tasks.filter(t => t.status !== 'completed' && t.dueAt && t.dueAt > t && t.dueAt <= getNext7Days().slice(-1)[0]); break;
     case 'flagged': tasks = tasks.filter(t => t.status !== 'completed' && t.flagged); break;
     case 'completed': tasks = tasks.filter(t => t.status === 'completed'); break;
     case 'project': tasks = tasks.filter(t => t.projectId === appState.currentProjectId); break;
@@ -1991,7 +1993,15 @@ async function main() {
   render();
 }
 
-main().catch(console.error);
+main().catch(err => {
+  console.error(err);
+  document.getElementById('app').innerHTML = 
+    '<div style="padding:40px;font-family:sans-serif;color:#e85d3a">' +
+    '<h2>読み込みエラー</h2><pre style="font-size:12px;color:#666;white-space:pre-wrap">' + 
+    (err && err.message ? err.message : String(err)) + '</pre>' +
+    '<p style="color:#666;font-size:13px">ブラウザのコンソールで詳細を確認してください</p>' +
+    '</div>';
+});
 
 // Service Worker登録
 if ('serviceWorker' in navigator) {
