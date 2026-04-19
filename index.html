@@ -327,7 +327,13 @@ img{max-width:100%}
   .three-col .task-drawer.closed{display:flex}
 }
 @media(max-width:700px){
-  .sidebar{position:fixed;left:0;top:0;height:100%;z-index:150;transform:translateX(-100%)}
+  .sidebar{
+    position:fixed;left:0;top:0;height:100%;
+    z-index:150;
+    transform:translateX(-100%);
+    width:min(280px,85vw);
+    min-width:0;
+  }
   .sidebar.open{transform:translateX(0)}
   .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:140;display:none}
   .sidebar-overlay.visible{display:block}
@@ -341,6 +347,11 @@ img{max-width:100%}
   .board-wrap{padding:12px}
   .review-section{padding:12px}
   .filter-bar{padding:8px 12px}
+  /* モバイルでサイドバーをレイアウトから除外 */
+  #app{display:block;position:relative}
+  .three-col{display:block}
+  .main-area{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  .content-area{flex:1;overflow-y:auto}
 }
 @media(min-width:1100px){
   .three-col .task-drawer{display:flex!important}

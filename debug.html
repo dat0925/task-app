@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debug</title>
+</head>
+<body style="font-family:sans-serif;padding:20px;background:#f5f5f5">
+<h2 id="status">🔄 デバッグ中...</h2>
+<div id="log" style="font-size:12px;line-height:1.8;font-family:monospace"></div>
+<script>
+const log = document.getElementById('log');
+function L(msg, ok) {
+  log.innerHTML += '<div style="color:'+(ok===false?'red':ok===true?'green':'#333')+'">'+(ok===true?'✓ ':ok===false?'✗ ':'  ')+msg+'</div>';
+  console.log(msg);
+}
+
+// 実際のコードの各セクションを順番にテスト
+const DB_NAME = 'focus-task-db';
+const DB_VERSION = 1;
+let db;
+let useLocalStorage = false;
+
+L('--- Step 1: 変数定義 ---');
+try {
+  let appState = { tasks:[], projects:[], sections:[], tags:[], savedViews:[], currentView:'inbox', darkMode:false };
+  L('appState定義: OK', true);
+} catch(e) { L('appState定義: NG - '+e.message, false); }
+
+L('--- Step 2: openDB ---');
+async function testDB() {
+  try {
+    await new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('tasks')) {
+          db.createObjectStore('tasks', { keyPath: 'id' });
+        }
+        ['projects','sections','tags','savedViews'].forEach(s => {
+          if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
+        });
+      };
+      req.onsuccess = (e) => { db = e.target.result; resolve(); };
+      req.onerror = (e) => reject(e.target.error);
+      setTimeout(() => reject(new Error('DB timeout')), 5000);
+    });
+    L('openDB: OK', true);
+  } catch(e) { L('openDB: NG - '+e.message, false); return; }
+
+  L('--- Step 3: dbGetAll ---');
+  try {
+    const tx = db.transaction('tasks', 'readonly');
+    const result = await new Promise((res,rej) => {
+      const req = tx.objectStore('tasks').getAll();
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+    L('dbGetAll tasks: OK ('+result.length+'件)', true);
+  } catch(e) { L('dbGetAll: NG - '+e.message, false); }
+
+  L('--- Step 4: uid/now/today関数 ---');
+  try {
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+    function now() { return new Date().toISOString(); }
+    function today() { return new Date().toISOString().split('T')[0]; }
+    L('uid: '+uid(), true);
+    L('now: '+now(), true);
+    L('today: '+today(), true);
+  } catch(e) { L('utils: NG - '+e.message, false); }
+
+  L('--- Step 5: render関数テスト ---');
+  try {
+    const app = document.getElementById('app-test');
+    if (app) app.innerHTML = '<div style="background:var(--accent,#e85d3a);color:#fff;padding:8px;border-radius:6px">Render Test OK</div>';
+    L('innerHTML設定: OK', true);
+  } catch(e) { L('render: NG - '+e.message, false); }
+
+  document.getElementById('status').textContent = '✅ デバッグ完了 - ログを確認してください';
+}
+
+testDB().catch(e => {
+  document.getElementById('status').textContent = '❌ 致命的エラー: '+e.message;
+  L('致命的エラー: '+e.message, false);
+});
+</script>
+<div id="app-test" style="margin-top:16px"></div>
+</body>
+</html>
