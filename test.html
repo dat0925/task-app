@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テスト</title>
+</head>
+<body style="font-family:sans-serif;padding:20px;background:#f0f0f0">
+<h2 id="status">🔄 テスト中...</h2>
+<div id="log" style="font-size:13px;line-height:2"></div>
+<script>
+const log = document.getElementById('log');
+const status = document.getElementById('status');
+
+function addLog(msg, ok) {
+  log.innerHTML += '<div style="color:' + (ok ? 'green' : 'red') + '">' + (ok ? '✓ ' : '✗ ') + msg + '</div>';
+}
+
+async function runTests() {
+  // 1. JS動作確認
+  addLog('JavaScript動作: OK', true);
+
+  // 2. localStorage
+  try {
+    localStorage.setItem('test', '1');
+    localStorage.removeItem('test');
+    addLog('localStorage: OK', true);
+  } catch(e) {
+    addLog('localStorage: NG - ' + e.message, false);
+  }
+
+  // 3. IndexedDB
+  try {
+    await new Promise((resolve, reject) => {
+      const req = indexedDB.open('test-db', 1);
+      req.onsuccess = () => { req.result.close(); resolve(); };
+      req.onerror = (e) => reject(e.target.error);
+      setTimeout(() => reject(new Error('timeout')), 3000);
+    });
+    addLog('IndexedDB: OK', true);
+  } catch(e) {
+    addLog('IndexedDB: NG - ' + e.message, false);
+  }
+
+  // 4. fetch
+  try {
+    await fetch('https://fonts.googleapis.com/css2?family=DM+Sans', { mode: 'no-cors' });
+    addLog('外部リソース(fetch): OK', true);
+  } catch(e) {
+    addLog('外部リソース(fetch): NG - ' + e.message, false);
+  }
+
+  status.textContent = '✅ テスト完了';
+}
+
+runTests().catch(e => {
+  status.textContent = '❌ エラー: ' + e.message;
+});
+</script>
+</body>
+</html>
