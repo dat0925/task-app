@@ -405,53 +405,107 @@ let appState = {
   collapsed: {},
 };
 
-// ==================== INDEXED DB ====================
+// ==================== STORAGE LAYER (IndexedDB + localStorage fallback) ====================
+let useLocalStorage = false;
+
+function lsGet(store) {
+  try {
+    return JSON.parse(localStorage.getItem('focus_' + store) || '[]');
+  } catch(e) { return []; }
+}
+function lsSet(store, data) {
+  try { localStorage.setItem('focus_' + store, JSON.stringify(data)); } catch(e) {}
+}
+
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('tasks')) {
-        const ts = db.createObjectStore('tasks', { keyPath: 'id' });
-        ts.createIndex('status', 'status');
-        ts.createIndex('projectId', 'projectId');
-        ts.createIndex('dueAt', 'dueAt');
-      }
-      if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('sections')) db.createObjectStore('sections', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('tags')) db.createObjectStore('tags', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('savedViews')) db.createObjectStore('savedViews', { keyPath: 'id' });
-    };
-    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
-    req.onerror = (e) => { console.error('IndexedDB error:', e.target.error); reject(e.target.error); };
-    req.onblocked = () => { console.warn('IndexedDB blocked'); };
+    if (!window.indexedDB) { useLocalStorage = true; resolve(null); return; }
+    try {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('tasks')) {
+          const ts = db.createObjectStore('tasks', { keyPath: 'id' });
+          ts.createIndex('status', 'status');
+          ts.createIndex('projectId', 'projectId');
+          ts.createIndex('dueAt', 'dueAt');
+        }
+        if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('sections')) db.createObjectStore('sections', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('tags')) db.createObjectStore('tags', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('savedViews')) db.createObjectStore('savedViews', { keyPath: 'id' });
+      };
+      req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+      req.onerror = (e) => {
+        console.warn('IndexedDB unavailable, falling back to localStorage:', e.target.error);
+        useLocalStorage = true; resolve(null);
+      };
+      req.onblocked = () => { useLocalStorage = true; resolve(null); };
+      setTimeout(() => { if (!db && !useLocalStorage) { useLocalStorage = true; resolve(null); } }, 3000);
+    } catch(e) {
+      console.warn('IndexedDB error, using localStorage:', e);
+      useLocalStorage = true; resolve(null);
+    }
   });
 }
 
 function dbGetAll(store) {
+  if (useLocalStorage) return Promise.resolve(lsGet(store));
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readonly');
-    const req = tx.objectStore(store).getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    try {
+      const tx = db.transaction(store, 'readonly');
+      const req = tx.objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => { useLocalStorage = true; resolve(lsGet(store)); };
+    } catch(e) { useLocalStorage = true; resolve(lsGet(store)); }
   });
 }
 
 function dbPut(store, item) {
+  if (useLocalStorage) {
+    const all = lsGet(store);
+    const idx = all.findIndex(x => x.id === item.id);
+    if (idx >= 0) all[idx] = item; else all.push(item);
+    lsSet(store, all);
+    return Promise.resolve(item.id);
+  }
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readwrite');
-    const req = tx.objectStore(store).put(item);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    try {
+      const tx = db.transaction(store, 'readwrite');
+      const req = tx.objectStore(store).put(item);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => {
+        useLocalStorage = true;
+        const all = lsGet(store);
+        const idx = all.findIndex(x => x.id === item.id);
+        if (idx >= 0) all[idx] = item; else all.push(item);
+        lsSet(store, all);
+        resolve(item.id);
+      };
+    } catch(e) {
+      useLocalStorage = true;
+      const all = lsGet(store);
+      const idx = all.findIndex(x => x.id === item.id);
+      if (idx >= 0) all[idx] = item; else all.push(item);
+      lsSet(store, all);
+      resolve(item.id);
+    }
   });
 }
 
 function dbDelete(store, id) {
+  if (useLocalStorage) {
+    const all = lsGet(store).filter(x => x.id !== id);
+    lsSet(store, all);
+    return Promise.resolve();
+  }
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(store, 'readwrite');
-    const req = tx.objectStore(store).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
+    try {
+      const tx = db.transaction(store, 'readwrite');
+      const req = tx.objectStore(store).delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => { useLocalStorage = true; resolve(); };
+    } catch(e) { useLocalStorage = true; resolve(); }
   });
 }
 
