@@ -1,0 +1,44 @@
+{
+  "name": "Focus — Task Manager",
+  "short_name": "Focus",
+  "description": "高機能タスク管理PWA - Inbox, Today, Forecast, Review",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f6f3",
+  "theme_color": "#0f0f0f",
+  "lang": "ja",
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Inbox",
+      "short_name": "Inbox",
+      "url": "/task/?view=inbox",
+      "description": "Inboxを開く"
+    },
+    {
+      "name": "Today",
+      "short_name": "Today",
+      "url": "/task/?view=today",
+      "description": "Todayを開く"
+    }
+  ]
+}

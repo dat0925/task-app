@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f0f0f">
+<meta name="description" content="高機能タスク管理PWA - Inbox, Today, Forecast, Review">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Focus">
+<title>Focus — Task Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ===== CSS VARIABLES ===== */
+:root {
+  --bg: #f7f6f3;
+  --bg2: #eeecea;
+  --bg3: #e5e3df;
+  --surface: #ffffff;
+  --surface2: #f0efec;
+  --border: #d8d6d1;
+  --border2: #c8c5bf;
+  --text: #1a1917;
+  --text2: #6b6760;
+  --text3: #9b9891;
+  --accent: #e85d3a;
+  --accent2: #c44a29;
+  --accent-bg: #fdf0ec;
+  --blue: #3b82f6;
+  --blue-bg: #eff6ff;
+  --green: #16a34a;
+  --green-bg: #f0fdf4;
+  --yellow: #d97706;
+  --yellow-bg: #fffbeb;
+  --purple: #7c3aed;
+  --purple-bg: #f5f3ff;
+  --p1: #ef4444;
+  --p2: #f97316;
+  --p3: #3b82f6;
+  --p4: #9ca3af;
+  --sidebar-w: 240px;
+  --drawer-w: 380px;
+  --radius: 8px;
+  --radius2: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow2: 0 4px 16px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08);
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --transition: 150ms cubic-bezier(0.4,0,0.2,1);
+}
+[data-theme="dark"] {
+  --bg: #111110;
+  --bg2: #191918;
+  --bg3: #222220;
+  --surface: #1c1c1b;
+  --surface2: #242423;
+  --border: #2e2e2c;
+  --border2: #3a3a38;
+  --text: #f0ede8;
+  --text2: #8a8680;
+  --text3: #5a5754;
+  --accent: #f0714e;
+  --accent2: #e85d3a;
+  --accent-bg: #2a1a14;
+  --blue: #60a5fa;
+  --blue-bg: #1e2a3a;
+  --green: #4ade80;
+  --green-bg: #1a2e1e;
+  --yellow: #fbbf24;
+  --yellow-bg: #2a2010;
+  --purple: #a78bfa;
+  --purple-bg: #221a3a;
+  --p1: #f87171;
+  --p2: #fb923c;
+  --p3: #60a5fa;
+  --p4: #6b7280;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow2: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* ===== RESET & BASE ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px;-webkit-text-size-adjust:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh;overflow-x:hidden;transition:background var(--transition),color var(--transition)}
+button{font-family:var(--font);cursor:pointer;border:none;background:none;color:inherit}
+input,textarea,select{font-family:var(--font);color:inherit}
+a{color:inherit;text-decoration:none}
+ul,ol{list-style:none}
+img{max-width:100%}
+
+/* ===== LAYOUT ===== */
+#app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:transform var(--transition),width var(--transition)}
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.content-area{flex:1;overflow-y:auto;padding:0}
+.task-drawer{width:var(--drawer-w);min-width:var(--drawer-w);background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);position:absolute;right:0;top:0;height:100%;z-index:50}
+.task-drawer.open{transform:translateX(0);position:relative}
+.three-col{display:flex;flex:1;overflow:hidden}
+.three-col .main-area{flex:1}
+.three-col .task-drawer{position:relative;transform:none}
+.three-col .task-drawer.closed{display:none}
+
+/* ===== SIDEBAR ===== */
+.sidebar-header{padding:16px 14px 8px;display:flex;align-items:center;gap:8px}
+.app-logo{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;flex-shrink:0}
+.app-name{font-size:15px;font-weight:600;letter-spacing:-0.2px}
+.sidebar-search{padding:8px 12px}
+.sidebar-search input{width:100%;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text);outline:none;transition:border-color var(--transition)}
+.sidebar-search input:focus{border-color:var(--accent)}
+.sidebar-search input::placeholder{color:var(--text3)}
+.sidebar-nav{flex:1;overflow-y:auto;padding:4px 8px}
+.nav-section{margin-bottom:16px}
+.nav-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);padding:4px 8px;margin-bottom:2px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius);cursor:pointer;font-size:13.5px;font-weight:400;color:var(--text2);transition:background var(--transition),color var(--transition);position:relative;user-select:none}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--surface);color:var(--text);font-weight:500;box-shadow:var(--shadow)}
+.nav-item .count{margin-left:auto;font-size:11px;color:var(--text3);background:var(--bg3);padding:1px 6px;border-radius:10px;min-width:20px;text-align:center}
+.nav-item.active .count{background:var(--accent-bg);color:var(--accent)}
+.nav-icon{width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;opacity:0.7}
+.nav-item.active .nav-icon{opacity:1}
+.project-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sidebar-footer{padding:12px 8px;border-top:1px solid var(--border)}
+
+/* ===== TOP BAR ===== */
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);min-height:56px;flex-shrink:0}
+.topbar-title{font-size:18px;font-weight:600;letter-spacing:-0.3px}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:var(--radius);font-size:13px;font-weight:500;transition:background var(--transition),transform var(--transition);cursor:pointer}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{color:var(--text2)}
+.btn-ghost:hover{background:var(--bg2);color:var(--text)}
+.btn-sm{padding:5px 9px;font-size:12px}
+.icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius);color:var(--text2);transition:background var(--transition),color var(--transition)}
+.icon-btn:hover{background:var(--bg2);color:var(--text)}
+
+/* ===== QUICK ADD ===== */
+.quick-add-bar{padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--border)}
+.quick-add-wrap{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius2);transition:border-color var(--transition),box-shadow var(--transition)}
+.quick-add-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.quick-add-wrap input{flex:1;background:none;border:none;outline:none;font-size:14px;color:var(--text)}
+.quick-add-wrap input::placeholder{color:var(--text3)}
+.qa-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.qa-chip{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;transition:opacity var(--transition)}
+.qa-chip:hover{opacity:0.8}
+.qa-chip.date{background:var(--blue-bg);color:var(--blue)}
+.qa-chip.tag{background:var(--purple-bg);color:var(--purple)}
+.qa-chip.priority{background:var(--accent-bg);color:var(--accent)}
+.qa-chip.project{background:var(--green-bg);color:var(--green)}
+
+/* ===== TASK LIST ===== */
+.task-list{padding:8px 20px 80px}
+.task-section-header{display:flex;align-items:center;gap:8px;padding:12px 0 4px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3);cursor:pointer;user-select:none}
+.task-section-header:hover{color:var(--text2)}
+.task-section-header .chevron{transition:transform var(--transition)}
+.task-section-header.collapsed .chevron{transform:rotate(-90deg)}
+.task-group{display:flex;flex-direction:column;gap:1px}
+.task-row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:var(--radius);background:var(--surface);border:1px solid transparent;cursor:pointer;transition:background var(--transition),border-color var(--transition),box-shadow var(--transition);margin-bottom:2px;position:relative}
+.task-row:hover{background:var(--surface2);border-color:var(--border)}
+.task-row.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.task-row.completed .task-title{text-decoration:line-through;color:var(--text3)}
+.task-row.dragging{opacity:0.5;transform:scale(0.98)}
+.task-row.drag-over{border-color:var(--accent);background:var(--accent-bg)}
+.task-check{width:18px;height:18px;min-width:18px;border-radius:50%;border:2px solid var(--border2);background:none;display:flex;align-items:center;justify-content:center;transition:all var(--transition);margin-top:1px;cursor:pointer;flex-shrink:0}
+.task-check:hover{border-color:var(--accent);background:var(--accent-bg)}
+.task-check.done{background:var(--green);border-color:var(--green)}
+.task-check.done::after{content:'✓';font-size:10px;color:#fff;font-weight:700}
+.p1 .task-check{border-color:var(--p1)}
+.p1 .task-check:hover{background:rgba(239,68,68,0.1)}
+.p2 .task-check{border-color:var(--p2)}
+.p3 .task-check{border-color:var(--p3)}
+.task-body{flex:1;min-width:0}
+.task-title{font-size:13.5px;font-weight:400;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.task-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap}
+.meta-chip{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text3);padding:1px 5px;border-radius:4px;background:var(--bg2)}
+.meta-chip.due-today{background:var(--yellow-bg);color:var(--yellow)}
+.meta-chip.due-overdue{background:rgba(239,68,68,0.1);color:var(--p1)}
+.meta-chip.due-soon{background:var(--yellow-bg);color:var(--yellow)}
+.meta-chip.project{background:var(--green-bg);color:var(--green)}
+.meta-chip.tag{background:var(--purple-bg);color:var(--purple)}
+.flag-icon{color:var(--accent);font-size:12px}
+.repeat-icon{color:var(--blue);font-size:11px}
+.task-row .drag-handle{position:absolute;left:-4px;top:50%;transform:translateY(-50%);opacity:0;color:var(--text3);font-size:14px;cursor:grab;transition:opacity var(--transition)}
+.task-row:hover .drag-handle{opacity:1}
+.subtask-indent{padding-left:28px}
+.subtask-count{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:3px}
+
+/* ===== EMPTY STATE ===== */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:0.4}
+.empty-title{font-size:16px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.empty-desc{font-size:13px;color:var(--text3);max-width:280px;line-height:1.6}
+
+/* ===== TASK DRAWER ===== */
+.drawer-header{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.drawer-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:var(--text2);transition:background var(--transition)}
+.drawer-close:hover{background:var(--bg2);color:var(--text)}
+.drawer-body{flex:1;overflow-y:auto;padding:16px}
+.drawer-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.field-group{margin-bottom:14px}
+.field-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3);margin-bottom:5px}
+.field-input{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:13.5px;color:var(--text);outline:none;transition:border-color var(--transition)}
+.field-input:focus{border-color:var(--accent);background:var(--surface)}
+.field-textarea{min-height:80px;resize:vertical;line-height:1.5}
+.field-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239b9891' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.priority-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.priority-btn{padding:7px 0;text-align:center;border-radius:var(--radius);border:1.5px solid var(--border);font-size:12px;font-weight:500;cursor:pointer;transition:all var(--transition);background:var(--bg)}
+.priority-btn:hover{border-color:var(--border2)}
+.priority-btn.active{color:#fff}
+.priority-btn[data-p="1"].active{background:var(--p1);border-color:var(--p1)}
+.priority-btn[data-p="2"].active{background:var(--p2);border-color:var(--p2)}
+.priority-btn[data-p="3"].active{background:var(--p3);border-color:var(--p3)}
+.priority-btn[data-p="4"].active{background:var(--p4);border-color:var(--p4)}
+.tag-select{display:flex;flex-wrap:wrap;gap:5px}
+.tag-opt{padding:4px 10px;border-radius:20px;font-size:12px;border:1.5px solid var(--border);cursor:pointer;transition:all var(--transition);background:var(--bg);color:var(--text2)}
+.tag-opt:hover{border-color:var(--border2);color:var(--text)}
+.tag-opt.selected{border-color:var(--purple);background:var(--purple-bg);color:var(--purple)}
+.subtask-list{display:flex;flex-direction:column;gap:4px}
+.subtask-item{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg2);border-radius:6px}
+.subtask-item input{flex:1;background:none;border:none;outline:none;font-size:13px}
+.toggle-field{display:flex;align-items:center;justify-content:space-between;padding:8px 0;cursor:pointer}
+.toggle{width:36px;height:20px;background:var(--border2);border-radius:10px;position:relative;transition:background var(--transition)}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform var(--transition)}
+.toggle.on::after{transform:translateX(16px)}
+.drawer-actions{display:flex;gap:6px;flex-wrap:wrap}
+.action-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;background:var(--bg2);color:var(--text2);transition:background var(--transition),color var(--transition)}
+.action-btn:hover{background:var(--bg3);color:var(--text)}
+.action-btn.danger:hover{background:rgba(239,68,68,0.1);color:var(--p1)}
+
+/* ===== VIEWS ===== */
+.view-tabs{display:flex;gap:2px;padding:0 20px;border-bottom:1px solid var(--border);background:var(--surface)}
+.view-tab{padding:10px 14px;font-size:13px;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;transition:color var(--transition),border-color var(--transition);margin-bottom:-1px}
+.view-tab:hover{color:var(--text2)}
+.view-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ===== FORECAST ===== */
+.forecast-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:20px}
+.forecast-day{background:var(--surface);border-radius:var(--radius2);border:1px solid var(--border);overflow:hidden}
+.forecast-day-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:8px}
+.forecast-date{font-size:20px;font-weight:700;color:var(--text)}
+.forecast-weekday{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3)}
+.forecast-day.today .forecast-day-header{background:var(--accent);border-bottom-color:var(--accent2)}
+.forecast-day.today .forecast-date,.forecast-day.today .forecast-weekday{color:#fff}
+.forecast-tasks{padding:8px}
+.forecast-task{font-size:12px;padding:4px 6px;border-radius:5px;margin-bottom:3px;display:flex;align-items:center;gap:5px;cursor:pointer;transition:background var(--transition)}
+.forecast-task:hover{background:var(--bg2)}
+.forecast-task.due{color:var(--p1)}
+.forecast-task.start{color:var(--blue)}
+.forecast-task.deadline{color:var(--yellow)}
+
+/* ===== BOARD ===== */
+.board-wrap{display:flex;gap:14px;padding:20px;overflow-x:auto;min-height:400px;align-items:flex-start}
+.board-col{min-width:240px;max-width:280px;background:var(--bg2);border-radius:var(--radius2);padding:12px;flex-shrink:0}
+.board-col-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.board-col-title{font-size:13px;font-weight:600}
+.board-col-count{font-size:11px;background:var(--bg3);color:var(--text3);padding:1px 6px;border-radius:10px}
+.board-card{background:var(--surface);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;cursor:pointer;border:1px solid var(--border);transition:box-shadow var(--transition),transform var(--transition)}
+.board-card:hover{box-shadow:var(--shadow2);transform:translateY(-1px)}
+.board-card-title{font-size:13px;font-weight:400;line-height:1.4;margin-bottom:6px}
+.board-add-btn{width:100%;padding:8px;border-radius:var(--radius);border:1.5px dashed var(--border);font-size:12px;color:var(--text3);cursor:pointer;text-align:center;transition:border-color var(--transition),color var(--transition)}
+.board-add-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ===== REVIEW ===== */
+.review-section{padding:20px}
+.review-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:16px;margin-bottom:12px}
+.review-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.review-card-title{font-size:14px;font-weight:600}
+.review-badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.review-badge.overdue{background:rgba(239,68,68,0.1);color:var(--p1)}
+.review-badge.stale{background:var(--yellow-bg);color:var(--yellow)}
+.review-badge.onhold{background:var(--bg3);color:var(--text3)}
+.review-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2)}
+.review-item:last-child{border-bottom:none}
+.review-complete-btn{background:var(--green-bg);color:var(--green);border:1.5px solid var(--green);padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;transition:background var(--transition)}
+.review-complete-btn:hover{background:var(--green);color:#fff}
+
+/* ===== FILTER BAR ===== */
+.filter-bar{padding:10px 20px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filter-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font-size:12px;font-weight:500;background:var(--bg2);color:var(--text2);border:1.5px solid var(--border);cursor:pointer;transition:all var(--transition)}
+.filter-chip:hover{border-color:var(--border2);color:var(--text)}
+.filter-chip.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
+.filter-chip .remove{margin-left:2px;opacity:0.6;font-size:14px;line-height:1}
+.filter-chip .remove:hover{opacity:1}
+
+/* ===== MODAL ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border-radius:var(--radius2);padding:24px;max-width:480px;width:100%;box-shadow:var(--shadow2);transform:translateY(8px);transition:transform 0.2s}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:16px}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+
+/* ===== TOAST ===== */
+.toast-container{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--text);color:var(--bg);padding:10px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow2);pointer-events:all;animation:toastIn 0.2s ease,toastOut 0.2s ease 2.8s forwards;white-space:nowrap}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateY(10px)}}
+.toast-undo{background:var(--accent);color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)}
+
+/* ===== MOBILE ===== */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:80;padding:0 0 env(safe-area-inset-bottom)}
+.mobile-nav-items{display:flex;align-items:stretch}
+.mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 6px;font-size:10px;font-weight:500;color:var(--text3);cursor:pointer;transition:color var(--transition);gap:4px}
+.mobile-nav-item.active{color:var(--accent)}
+.mobile-nav-item svg{width:22px;height:22px}
+.hamburger{display:none}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.task-row,.board-card,.review-card,.forecast-day{animation:fadeIn 0.15s ease both}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+  .task-drawer{position:fixed;right:0;top:0;height:100%;width:min(var(--drawer-w),100vw);z-index:200}
+  .three-col .task-drawer.closed{display:flex}
+}
+@media(max-width:700px){
+  .sidebar{position:fixed;left:0;top:0;height:100%;z-index:150;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:140;display:none}
+  .sidebar-overlay.visible{display:block}
+  .hamburger{display:flex}
+  .mobile-nav{display:block}
+  .topbar{padding:10px 14px}
+  .topbar-title{font-size:16px}
+  .quick-add-bar{padding:10px 14px}
+  .task-list{padding:6px 12px 100px}
+  .forecast-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));padding:12px}
+  .board-wrap{padding:12px}
+  .review-section{padding:12px}
+  .filter-bar{padding:8px 12px}
+}
+@media(min-width:1100px){
+  .three-col .task-drawer{display:flex!important}
+}
+
+/* ===== UTILS ===== */
+.divider{height:1px;background:var(--border);margin:8px 0}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600}
+.text-sm{font-size:12px}
+.text-xs{font-size:11px}
+.text-muted{color:var(--text3)}
+.flex{display:flex}
+.flex-col{flex-direction:column}
+.items-center{align-items:center}
+.gap-2{gap:8px}
+.gap-1{gap:4px}
+.ml-auto{margin-left:auto}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.section-add{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius);font-size:13px;color:var(--text3);cursor:pointer;margin-top:4px;transition:background var(--transition),color var(--transition)}
+.section-add:hover{background:var(--bg2);color:var(--text)}
+.repeat-rule-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.repeat-btn{padding:6px;text-align:center;border-radius:6px;border:1.5px solid var(--border);font-size:11px;cursor:pointer;transition:all var(--transition);background:var(--bg);color:var(--text2)}
+.repeat-btn:hover{border-color:var(--border2);color:var(--text)}
+.repeat-btn.active{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.search-input-wrap{position:relative;flex:1;max-width:400px}
+.search-input-wrap input{width:100%;padding:8px 12px 8px 34px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);font-size:13.5px;color:var(--text);outline:none;transition:border-color var(--transition)}
+.search-input-wrap input:focus{border-color:var(--accent);background:var(--surface)}
+.search-input-wrap .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:15px}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- App will be rendered by JS -->
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<script>
+// ==================== DATA MODEL ====================
+const DB_NAME = 'focus-task-db';
+const DB_VERSION = 1;
+
+let db;
+let appState = {
+  tasks: [],
+  projects: [],
+  sections: [],
+  tags: [],
+  savedViews: [],
+  currentView: 'inbox',
+  currentProjectId: null,
+  selectedTaskId: null,
+  drawerOpen: false,
+  darkMode: localStorage.getItem('darkMode') === 'true',
+  searchQuery: '',
+  filters: {},
+  currentLayout: 'list', // list | board
+  undoStack: [],
+  sidebarOpen: false,
+  collapsed: {},
+};
+
+// ==================== INDEXED DB ====================
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('tasks')) {
+        const ts = db.createObjectStore('tasks', { keyPath: 'id' });
+        ts.createIndex('status', 'status');
+        ts.createIndex('projectId', 'projectId');
+        ts.createIndex('dueAt', 'dueAt');
+      }
+      if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('sections')) db.createObjectStore('sections', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('tags')) db.createObjectStore('tags', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('savedViews')) db.createObjectStore('savedViews', { keyPath: 'id' });
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function dbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbPut(store, item) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(item);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbDelete(store, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ==================== UTILS ====================
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function now() { return new Date().toISOString(); }
+function today() { return new Date().toISOString().split('T')[0]; }
+
+function parseDateHuman(str) {
+  const d = new Date();
+  const jp = {
+    '今日': 0, 'きょう': 0, 'today': 0,
+    '明日': 1, 'あした': 1, 'tomorrow': 1,
+    '明後日': 2,
+  };
+  for (const [k, v] of Object.entries(jp)) {
+    if (str.toLowerCase().includes(k)) {
+      d.setDate(d.getDate() + v);
+      return d.toISOString().split('T')[0];
+    }
+  }
+  // 来週月曜
+  const weekdays = ['日','月','火','水','木','金','土'];
+  for (let i = 0; i < weekdays.length; i++) {
+    const patterns = [`来週${weekdays[i]}`, `毎週${weekdays[i]}`, `next ${['sun','mon','tue','wed','thu','fri','sat'][i]}`];
+    if (patterns.some(p => str.toLowerCase().includes(p.toLowerCase()))) {
+      const diff = (i - d.getDay() + 7) % 7 || 7;
+      d.setDate(d.getDate() + diff + 7);
+      return d.toISOString().split('T')[0];
+    }
+    if (str.includes(weekdays[i] + '曜') || str.includes(weekdays[i])) {
+      const diff = (i - d.getDay() + 7) % 7 || 7;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString().split('T')[0];
+    }
+  }
+  // YYYY-MM-DD, M/D
+  const iso = str.match(/(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})/);
+  if (iso) return new Date(iso[1]).toISOString().split('T')[0];
+  const md = str.match(/(\d{1,2})[\/月](\d{1,2})/);
+  if (md) {
+    d.setMonth(parseInt(md[1]) - 1);
+    d.setDate(parseInt(md[2]));
+    return d.toISOString().split('T')[0];
+  }
+  return null;
+}
+
+function parseQuickAdd(input) {
+  let title = input;
+  const result = { title: '', projectId: null, tagIds: [], priority: 4, dueAt: null, startAt: null, flagged: false };
+
+  // priority !高 !1 !2 !3 !4
+  const priMap = { '高': 1, 'high': 1, '中': 2, 'medium': 2, '低': 3, 'low': 3, '最低': 4 };
+  title = title.replace(/!(高|中|低|最低|high|medium|low|[1-4])/gi, (m, p) => {
+    result.priority = priMap[p] || parseInt(p) || 4;
+    return '';
+  });
+
+  // tags #tag
+  title = title.replace(/#([\w\u3040-\u9FFF\u30A0-\u30FF]+)/g, (m, t) => {
+    const found = appState.tags.find(x => x.name === t);
+    if (found && !result.tagIds.includes(found.id)) result.tagIds.push(found.id);
+    return '';
+  });
+
+  // flag
+  if (title.includes('*') || title.includes('フラグ')) { result.flagged = true; title = title.replace(/\*|フラグ/g, ''); }
+
+  // 開始日
+  const startMatch = title.match(/開始\s*([\d\-\/年月日今明あした]+)/);
+  if (startMatch) { result.startAt = parseDateHuman(startMatch[1]); title = title.replace(startMatch[0], ''); }
+
+  // due date parsing
+  const duePatterns = [/(期限|締切|due)\s*([\d\-\/年月日今明あした来週]+)/];
+  for (const p of duePatterns) {
+    const m = title.match(p);
+    if (m) { result.dueAt = parseDateHuman(m[2]); title = title.replace(m[0], ''); }
+  }
+  // natural date in title
+  const natDate = parseDateHuman(title);
+  if (natDate && !result.dueAt) {
+    result.dueAt = natDate;
+    // remove date keywords
+    title = title.replace(/今日|明日|明後日|きょう|あした|来週(月|火|水|木|金|土|日)曜?|\d{4}[-\/]\d{1,2}[-\/]\d{1,2}|\d{1,2}[\/月]\d{1,2}/g, '').trim();
+  }
+
+  // project @project
+  title = title.replace(/@([\w\u3040-\u9FFF\u30A0-\u30FF]+)/g, (m, p) => {
+    const found = appState.projects.find(x => x.name === p);
+    if (found) result.projectId = found.id;
+    return '';
+  });
+
+  // repeat
+  const repeatPatterns = [
+    { p: /毎日|every day|daily/i, rule: 'daily' },
+    { p: /毎週|weekly/i, rule: 'weekly' },
+    { p: /毎月|monthly/i, rule: 'monthly' },
+    { p: /毎年|yearly/i, rule: 'yearly' },
+    { p: /平日|weekdays/i, rule: 'weekdays' },
+  ];
+  for (const { p, rule } of repeatPatterns) {
+    if (p.test(title)) { result.repeatRule = rule; title = title.replace(p, ''); break; }
+  }
+
+  result.title = title.replace(/\s+/g, ' ').trim();
+  return result;
+}
+
+function formatDate(dateStr, short = false) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const t = today();
+  const todayD = new Date(t + 'T00:00:00');
+  const diff = Math.floor((d - todayD) / 86400000);
+  if (diff === 0) return short ? '今日' : '今日';
+  if (diff === 1) return short ? '明日' : '明日';
+  if (diff === -1) return short ? '昨日' : '昨日';
+  if (diff < 0) return `${Math.abs(diff)}日前`;
+  if (diff < 7) {
+    const wd = ['日','月','火','水','木','金','土'][d.getDay()];
+    return short ? wd : `${wd}曜日`;
+  }
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function isOverdue(dateStr) {
+  if (!dateStr) return false;
+  return dateStr < today();
+}
+
+function isDueToday(dateStr) { return dateStr === today(); }
+function isDueSoon(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr + 'T00:00:00');
+  const t = new Date(today() + 'T00:00:00');
+  return d > t && (d - t) / 86400000 <= 3;
+}
+
+function nextRepeat(task) {
+  if (!task.repeatRule || !task.dueAt) return null;
+  const d = new Date(task.dueAt + 'T00:00:00');
+  const rules = {
+    daily: () => d.setDate(d.getDate() + 1),
+    weekly: () => d.setDate(d.getDate() + 7),
+    monthly: () => d.setMonth(d.getMonth() + 1),
+    yearly: () => d.setFullYear(d.getFullYear() + 1),
+    weekdays: () => {
+      do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6);
+    },
+  };
+  const fn = rules[task.repeatRule];
+  if (!fn) return null;
+  fn();
+  return { ...task, id: uid(), status: 'active', completedAt: null, createdAt: now(), updatedAt: now(), dueAt: d.toISOString().split('T')[0] };
+}
+
+function getNext7Days() {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today() + 'T00:00:00');
+    d.setDate(d.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+}
+
+function getDays(n = 14) {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(today() + 'T00:00:00');
+    d.setDate(d.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+}
+
+// ==================== STORE ====================
+async function loadAll() {
+  [appState.tasks, appState.projects, appState.sections, appState.tags, appState.savedViews] = await Promise.all([
+    dbGetAll('tasks'), dbGetAll('projects'), dbGetAll('sections'), dbGetAll('tags'), dbGetAll('savedViews')
+  ]);
+}
+
+async function saveTask(task) {
+  task.updatedAt = now();
+  await dbPut('tasks', task);
+  const idx = appState.tasks.findIndex(t => t.id === task.id);
+  if (idx >= 0) appState.tasks[idx] = task;
+  else appState.tasks.push(task);
+}
+
+async function deleteTask(id) {
+  await dbDelete('tasks', id);
+  appState.tasks = appState.tasks.filter(t => t.id !== id);
+  // delete subtasks
+  const children = appState.tasks.filter(t => t.parentTaskId === id);
+  for (const c of children) await deleteTask(c.id);
+}
+
+async function saveProject(proj) {
+  proj.updatedAt = now();
+  await dbPut('projects', proj);
+  const idx = appState.projects.findIndex(p => p.id === proj.id);
+  if (idx >= 0) appState.projects[idx] = proj;
+  else appState.projects.push(proj);
+}
+
+async function saveTag(tag) {
+  await dbPut('tags', tag);
+  const idx = appState.tags.findIndex(t => t.id === tag.id);
+  if (idx >= 0) appState.tags[idx] = tag;
+  else appState.tags.push(tag);
+}
+
+async function saveSection(section) {
+  await dbPut('sections', section);
+  const idx = appState.sections.findIndex(s => s.id === section.id);
+  if (idx >= 0) appState.sections[idx] = section;
+  else appState.sections.push(section);
+}
+
+function createTask(overrides = {}) {
+  return {
+    id: uid(), title: '', notes: '', status: 'inbox', projectId: null, parentTaskId: null,
+    sectionId: null, tagIds: [], priority: 4, dueAt: null, startAt: null, deadlineAt: null,
+    repeatRule: null, reminderAt: null, flagged: false, order: Date.now(),
+    createdAt: now(), updatedAt: now(), completedAt: null, ...overrides
+  };
+}
+
+function createProject(overrides = {}) {
+  return {
+    id: uid(), name: '新しいプロジェクト', type: 'list', folderId: null,
+    reviewEveryDays: 7, nextReviewAt: null, status: 'active',
+    createdAt: now(), updatedAt: now(), color: '#3b82f6', ...overrides
+  };
+}
+
+function createTag(overrides = {}) {
+  return { id: uid(), name: '新しいタグ', color: '#7c3aed', kind: 'custom', status: 'active', ...overrides };
+}
+
+// ==================== COMPUTED ====================
+function getFilteredTasks(view, filters = {}) {
+  let tasks = appState.tasks.filter(t => t.status !== 'archived');
+  const t = today();
+
+  switch (view) {
+    case 'inbox': tasks = tasks.filter(t => t.status === 'inbox'); break;
+    case 'today': tasks = tasks.filter(t => t.status !== 'completed' && (isDueToday(t.dueAt) || isDueToday(t.startAt) || t.flagged)); break;
+    case 'upcoming': tasks = tasks.filter(t => t.status !== 'completed' && t.dueAt && t.dueAt > t && t.dueAt <= getNext7Days().at(-1)); break;
+    case 'flagged': tasks = tasks.filter(t => t.status !== 'completed' && t.flagged); break;
+    case 'completed': tasks = tasks.filter(t => t.status === 'completed'); break;
+    case 'project': tasks = tasks.filter(t => t.projectId === appState.currentProjectId); break;
+    case 'tag': tasks = tasks.filter(t => t.tagIds?.includes(appState.currentTagId)); break;
+    default: break;
+  }
+
+  // apply filters
+  if (filters.priority) tasks = tasks.filter(t => t.priority === parseInt(filters.priority));
+  if (filters.tag) tasks = tasks.filter(t => t.tagIds?.includes(filters.tag));
+  if (filters.project) tasks = tasks.filter(t => t.projectId === filters.project);
+  if (filters.flagged) tasks = tasks.filter(t => t.flagged);
+  if (filters.status) tasks = tasks.filter(t => t.status === filters.status);
+  if (filters.due === 'today') tasks = tasks.filter(t => isDueToday(t.dueAt));
+  if (filters.due === 'overdue') tasks = tasks.filter(t => isOverdue(t.dueAt));
+
+  if (appState.searchQuery) {
+    const q = appState.searchQuery.toLowerCase();
+    tasks = tasks.filter(t => t.title.toLowerCase().includes(q) || t.notes?.toLowerCase().includes(q));
+  }
+
+  return tasks.sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+function getCounts() {
+  const t = today();
+  return {
+    inbox: appState.tasks.filter(t => t.status === 'inbox').length,
+    today: appState.tasks.filter(t => t.status !== 'completed' && t.status !== 'archived' && (isDueToday(t.dueAt) || t.flagged)).length,
+    flagged: appState.tasks.filter(t => t.status !== 'completed' && t.flagged).length,
+  };
+}
+
+// ==================== TOAST ====================
+function showToast(msg, undoFn = null) {
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span>${msg}</span>`;
+  if (undoFn) {
+    const btn = document.createElement('button');
+    btn.className = 'toast-undo';
+    btn.textContent = 'Undo';
+    btn.onclick = () => { undoFn(); el.remove(); };
+    el.appendChild(btn);
+  }
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ==================== RENDER ====================
+function render() {
+  const app = document.getElementById('app');
+  if (appState.darkMode) document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+
+  app.innerHTML = buildApp();
+  attachEvents();
+}
+
+function buildApp() {
+  const counts = getCounts();
+  return `
+    ${buildSidebar(counts)}
+    <div class="three-col" style="flex:1;display:flex;overflow:hidden;">
+      <div class="main-area">
+        ${buildTopBar()}
+        ${buildQuickAdd()}
+        ${buildFilterBar()}
+        <div class="content-area" id="contentArea">
+          ${buildContent()}
+        </div>
+      </div>
+      ${buildTaskDrawer()}
+    </div>
+    ${buildMobileNav(counts)}
+  `;
+}
+
+function buildSidebar(counts) {
+  const views = [
+    { id: 'inbox', label: 'Inbox', icon: inboxIcon(), count: counts.inbox },
+    { id: 'today', label: 'Today', icon: todayIcon(), count: counts.today },
+    { id: 'upcoming', label: 'Upcoming', icon: calIcon() },
+    { id: 'forecast', label: 'Forecast', icon: forecastIcon() },
+    { id: 'flagged', label: 'Flagged', icon: flagIcon(), count: counts.flagged },
+    { id: 'review', label: 'Review', icon: reviewIcon() },
+    { id: 'search', label: 'Search', icon: searchIcon() },
+    { id: 'completed', label: 'Completed', icon: checkIcon() },
+  ];
+  const projectItems = appState.projects.filter(p => p.status === 'active').map(p => `
+    <div class="nav-item${appState.currentView === 'project' && appState.currentProjectId === p.id ? ' active' : ''}"
+      data-action="goto-project" data-id="${p.id}">
+      <span class="project-dot" style="background:${p.color || '#3b82f6'}"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span>
+    </div>`).join('');
+  const tagItems = appState.tags.filter(t => t.status === 'active').map(t => `
+    <div class="nav-item${appState.currentView === 'tag' && appState.currentTagId === t.id ? ' active' : ''}"
+      data-action="goto-tag" data-id="${t.id}">
+      <span style="color:${t.color || '#7c3aed'};font-size:14px">⬡</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.name)}</span>
+    </div>`).join('');
+
+  return `
+    <div class="sidebar${appState.sidebarOpen ? ' open' : ''}" id="sidebar">
+      <div class="sidebar-header">
+        <div class="app-logo">F</div>
+        <span class="app-name">Focus</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button class="icon-btn" data-action="toggle-dark" title="ダークモード">
+            ${appState.darkMode ? sunIcon() : moonIcon()}
+          </button>
+        </div>
+      </div>
+      <div class="sidebar-nav">
+        <div class="nav-section">
+          ${views.map(v => `
+            <div class="nav-item${appState.currentView === v.id ? ' active' : ''}" data-action="goto-view" data-view="${v.id}">
+              <span class="nav-icon">${v.icon}</span>
+              <span>${v.label}</span>
+              ${v.count ? `<span class="count">${v.count}</span>` : ''}
+            </div>`).join('')}
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-label">Projects</div>
+          ${projectItems}
+          <div class="nav-item" data-action="new-project" style="color:var(--text3);font-size:13px">
+            <span style="font-size:16px;line-height:1">+</span> 新規プロジェクト
+          </div>
+        </div>
+        ${appState.tags.length ? `
+          <div class="nav-section">
+            <div class="nav-section-label">Tags</div>
+            ${tagItems}
+            <div class="nav-item" data-action="new-tag" style="color:var(--text3);font-size:13px">
+              <span style="font-size:16px;line-height:1">+</span> 新規タグ
+            </div>
+          </div>` : `
+          <div class="nav-section">
+            <div class="nav-section-label">Tags</div>
+            <div class="nav-item" data-action="new-tag" style="color:var(--text3);font-size:13px">
+              <span style="font-size:16px;line-height:1">+</span> 新規タグ
+            </div>
+          </div>`}
+      </div>
+    </div>`;
+}
+
+function buildTopBar() {
+  const titles = {
+    inbox: 'Inbox', today: 'Today', upcoming: 'Upcoming', forecast: 'Forecast',
+    flagged: 'Flagged', review: 'Review', search: '検索', completed: '完了済み',
+    project: appState.projects.find(p => p.id === appState.currentProjectId)?.name || '',
+    tag: appState.tags.find(t => t.id === appState.currentTagId)?.name || '',
+  };
+  const showLayoutToggle = ['project', 'inbox', 'today', 'upcoming'].includes(appState.currentView);
+  return `
+    <div class="topbar">
+      <button class="icon-btn hamburger" data-action="toggle-sidebar">${menuIcon()}</button>
+      <span class="topbar-title">${esc(titles[appState.currentView] || '')}</span>
+      <div class="topbar-actions">
+        ${showLayoutToggle ? `
+          <button class="icon-btn${appState.currentLayout === 'list' ? '' : ''}" data-action="set-layout" data-layout="list" title="リスト">${listIcon()}</button>
+          <button class="icon-btn" data-action="set-layout" data-layout="board" title="ボード">${boardIcon()}</button>
+        ` : ''}
+        <button class="btn btn-primary btn-sm" data-action="new-task" id="addTaskBtn">+ 追加</button>
+      </div>
+    </div>`;
+}
+
+function buildQuickAdd() {
+  return `
+    <div class="quick-add-bar">
+      <div class="quick-add-wrap" id="quickAddWrap">
+        <span style="color:var(--text3);font-size:16px">+</span>
+        <input type="text" id="quickAddInput" placeholder="タスクを追加… #タグ !優先度 @プロジェクト 明日" autocomplete="off">
+        <button class="btn btn-ghost btn-sm" id="quickAddBtn" style="display:none" data-action="submit-quick-add">追加</button>
+      </div>
+      <div class="qa-chips" id="qaChips"></div>
+    </div>`;
+}
+
+function buildFilterBar() {
+  if (appState.currentView !== 'search' && Object.keys(appState.filters).length === 0) return '';
+  const chips = [];
+  if (appState.filters.priority) chips.push({ key: 'priority', label: `優先度 P${appState.filters.priority}` });
+  if (appState.filters.tag) {
+    const t = appState.tags.find(x => x.id === appState.filters.tag);
+    chips.push({ key: 'tag', label: `#${t?.name || ''}` });
+  }
+  if (appState.filters.due) chips.push({ key: 'due', label: appState.filters.due === 'today' ? '今日期限' : '期限切れ' });
+  if (appState.filters.flagged) chips.push({ key: 'flagged', label: 'フラグ付き' });
+  if (chips.length === 0 && appState.currentView !== 'search') return '';
+
+  return `
+    <div class="filter-bar">
+      <span style="font-size:12px;color:var(--text3);font-weight:500">フィルター:</span>
+      <button class="filter-chip${appState.filters.priority === '1' ? ' active' : ''}" data-action="filter" data-key="priority" data-val="1">P1</button>
+      <button class="filter-chip${appState.filters.priority === '2' ? ' active' : ''}" data-action="filter" data-key="priority" data-val="2">P2</button>
+      <button class="filter-chip${appState.filters.flagged ? ' active' : ''}" data-action="filter" data-key="flagged" data-val="true">🚩 フラグ</button>
+      <button class="filter-chip${appState.filters.due === 'overdue' ? ' active' : ''}" data-action="filter" data-key="due" data-val="overdue">期限切れ</button>
+      ${chips.map(c => `<span class="filter-chip active">${esc(c.label)} <span class="remove" data-action="remove-filter" data-key="${c.key}">×</span></span>`).join('')}
+      ${chips.length ? `<button class="filter-chip" data-action="clear-filters" style="margin-left:4px">クリア</button>` : ''}
+    </div>`;
+}
+
+function buildContent() {
+  const view = appState.currentView;
+  if (view === 'forecast') return buildForecast();
+  if (view === 'review') return buildReview();
+  if (view === 'search') return buildSearch();
+  if (appState.currentLayout === 'board' && (view === 'project' || view === 'inbox' || view === 'today')) return buildBoard();
+  return buildListView();
+}
+
+function buildListView() {
+  const tasks = getFilteredTasks(appState.currentView, appState.filters);
+  const topLevel = tasks.filter(t => !t.parentTaskId);
+
+  if (topLevel.length === 0) return buildEmptyState();
+
+  const isProject = appState.currentView === 'project';
+  let html = '<div class="task-list">';
+
+  if (isProject) {
+    const sections = appState.sections.filter(s => s.projectId === appState.currentProjectId).sort((a, b) => a.order - b.order);
+    const noSection = topLevel.filter(t => !t.sectionId);
+    const allSections = [
+      ...(noSection.length ? [{ id: null, name: null }] : []),
+      ...sections
+    ];
+    for (const sec of allSections) {
+      if (sec.name) {
+        const collapsed = appState.collapsed[sec.id];
+        html += `<div class="task-section-header${collapsed ? ' collapsed' : ''}" data-action="toggle-section" data-id="${sec.id}">
+          <span class="chevron">${chevronIcon()}</span>
+          <span>${esc(sec.name)}</span>
+          <span class="text-muted text-xs" style="margin-left:4px">${topLevel.filter(t => t.sectionId === sec.id).length}</span>
+        </div>`;
+        if (!collapsed) {
+          html += `<div class="task-group">`;
+          for (const task of topLevel.filter(t => t.sectionId === sec.id)) {
+            html += buildTaskRow(task, tasks);
+          }
+          html += `</div>`;
+        }
+      } else {
+        html += `<div class="task-group">`;
+        for (const task of noSection) html += buildTaskRow(task, tasks);
+        html += `</div>`;
+      }
+    }
+    html += `<div class="section-add" data-action="add-section"><span>+ セクションを追加</span></div>`;
+  } else {
+    html += `<div class="task-group">`;
+    for (const task of topLevel) html += buildTaskRow(task, tasks);
+    html += `</div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function buildTaskRow(task, allTasks) {
+  const subtasks = allTasks.filter(t => t.parentTaskId === task.id);
+  const completedSubs = subtasks.filter(t => t.status === 'completed').length;
+  const isSelected = appState.selectedTaskId === task.id;
+  const isDone = task.status === 'completed';
+  const pClass = task.priority <= 3 ? `p${task.priority}` : '';
+
+  let metaHtml = '';
+  if (task.dueAt) {
+    const cls = isOverdue(task.dueAt) ? 'due-overdue' : isDueToday(task.dueAt) ? 'due-today' : isDueSoon(task.dueAt) ? 'due-soon' : '';
+    metaHtml += `<span class="meta-chip ${cls}">${calSmallIcon()} ${formatDate(task.dueAt)}</span>`;
+  }
+  if (task.projectId && appState.currentView !== 'project') {
+    const p = appState.projects.find(x => x.id === task.projectId);
+    if (p) metaHtml += `<span class="meta-chip project" style="background:${p.color}1a;color:${p.color}">${esc(p.name)}</span>`;
+  }
+  if (task.tagIds?.length) {
+    for (const tid of task.tagIds.slice(0, 2)) {
+      const t = appState.tags.find(x => x.id === tid);
+      if (t) metaHtml += `<span class="meta-chip tag" style="background:${t.color}1a;color:${t.color}">#${esc(t.name)}</span>`;
+    }
+  }
+  if (task.repeatRule) metaHtml += `<span class="repeat-icon">↻</span>`;
+  if (task.flagged) metaHtml += `<span class="flag-icon">🚩</span>`;
+  if (subtasks.length) metaHtml += `<span class="subtask-count">${checkSmallIcon()} ${completedSubs}/${subtasks.length}</span>`;
+
+  return `
+    <div class="task-row${isDone ? ' completed' : ''}${isSelected ? ' selected' : ''} ${pClass}"
+      data-action="select-task" data-id="${task.id}" draggable="true" data-drag-id="${task.id}">
+      <span class="drag-handle">⠿</span>
+      <button class="task-check${isDone ? ' done' : ''}" data-action="toggle-task" data-id="${task.id}" title="完了にする"></button>
+      <div class="task-body">
+        <div class="task-title">${esc(task.title) || '<span style="color:var(--text3)">無題のタスク</span>'}</div>
+        ${metaHtml ? `<div class="task-meta">${metaHtml}</div>` : ''}
+      </div>
+    </div>
+    ${subtasks.length ? subtasks.map(st => `
+      <div class="subtask-indent">${buildTaskRow(st, allTasks)}</div>`).join('') : ''}`;
+}
+
+function buildEmptyState() {
+  const emptyStates = {
+    inbox: { icon: '📥', title: 'Inboxは空です', desc: '上の入力欄からタスクを追加してください' },
+    today: { icon: '☀️', title: '今日のタスクはありません', desc: '今日が期限のタスクやフラグ付きタスクがここに表示されます' },
+    upcoming: { icon: '📅', title: '今後のタスクはありません', desc: '期限を設定したタスクがここに表示されます' },
+    flagged: { icon: '🚩', title: 'フラグ付きタスクはありません', desc: 'タスクにフラグを付けると優先項目として管理できます' },
+    completed: { icon: '✅', title: '完了済みタスクはありません', desc: '完了にしたタスクがここに表示されます' },
+    project: { icon: '📁', title: 'タスクがありません', desc: '上の入力欄からタスクを追加してください' },
+    search: { icon: '🔍', title: '検索結果なし', desc: '別のキーワードで検索してみてください' },
+  };
+  const e = emptyStates[appState.currentView] || { icon: '📋', title: 'タスクはありません', desc: '' };
+  return `<div class="empty-state"><div class="empty-icon">${e.icon}</div><div class="empty-title">${e.title}</div><div class="empty-desc">${e.desc}</div></div>`;
+}
+
+function buildForecast() {
+  const days = getDays(14);
+  const tasks = appState.tasks.filter(t => t.status !== 'completed' && t.status !== 'archived');
+  const html = `<div class="forecast-grid">` + days.map((day, i) => {
+    const d = new Date(day + 'T00:00:00');
+    const wd = ['日','月','火','水','木','金','土'][d.getDay()];
+    const dd = d.getDate();
+    const isToday = day === today();
+    const dueTasks = tasks.filter(t => t.dueAt === day);
+    const startTasks = tasks.filter(t => t.startAt === day);
+    const deadlineTasks = tasks.filter(t => t.deadlineAt === day);
+    const allDayTasks = [...dueTasks, ...startTasks.filter(t => !dueTasks.includes(t)), ...deadlineTasks.filter(t => !dueTasks.includes(t) && !startTasks.includes(t))];
+    return `
+      <div class="forecast-day${isToday ? ' today' : ''}">
+        <div class="forecast-day-header">
+          <span class="forecast-date">${dd}</span>
+          <span class="forecast-weekday">${wd}</span>
+          ${allDayTasks.length ? `<span style="margin-left:auto;font-size:11px;${isToday ? 'color:rgba(255,255,255,0.8)' : 'color:var(--text3)'}">${allDayTasks.length}</span>` : ''}
+        </div>
+        <div class="forecast-tasks">
+          ${dueTasks.slice(0, 4).map(t => `
+            <div class="forecast-task due" data-action="select-task" data-id="${t.id}">
+              <span>🗓</span>${esc(t.title)}
+            </div>`).join('')}
+          ${startTasks.filter(t => !dueTasks.includes(t)).slice(0, 2).map(t => `
+            <div class="forecast-task start" data-action="select-task" data-id="${t.id}">
+              <span>▶</span>${esc(t.title)}
+            </div>`).join('')}
+          ${allDayTasks.length > 4 ? `<div style="font-size:11px;color:var(--text3);padding:2px 6px">他 ${allDayTasks.length - 4} 件</div>` : ''}
+          ${allDayTasks.length === 0 ? `<div style="font-size:12px;color:var(--text3);padding:4px 6px">予定なし</div>` : ''}
+        </div>
+      </div>`;
+  }).join('') + `</div>`;
+  return html;
+}
+
+function buildBoard() {
+  const sections = appState.currentView === 'project'
+    ? appState.sections.filter(s => s.projectId === appState.currentProjectId)
+    : [{ id: 'todo', name: 'Todo' }, { id: 'inprogress', name: '進行中' }, { id: 'done', name: '完了' }];
+  const tasks = getFilteredTasks(appState.currentView, appState.filters).filter(t => !t.parentTaskId);
+
+  const defaultCols = [
+    { id: null, name: 'No Section' },
+    ...sections
+  ];
+  const cols = appState.currentView === 'project' && sections.length > 0
+    ? [{ id: null, name: 'No Section' }, ...sections]
+    : [{ id: 'active', name: 'Active' }, { id: 'inbox', name: 'Inbox' }, { id: 'completed', name: '完了' }];
+
+  const boardTasks = appState.currentView === 'project'
+    ? tasks
+    : appState.tasks.filter(t => t.status !== 'archived');
+
+  const getCols = () => {
+    if (appState.currentView === 'project') {
+      return [{ id: null, name: 'セクションなし' }, ...sections];
+    }
+    return [
+      { id: 'inbox', name: 'Inbox', tasks: boardTasks.filter(t => t.status === 'inbox') },
+      { id: 'active', name: 'Active', tasks: boardTasks.filter(t => t.status === 'active') },
+      { id: 'completed', name: '完了', tasks: boardTasks.filter(t => t.status === 'completed') },
+    ];
+  };
+
+  const columns = getCols();
+  return `<div class="board-wrap">` + columns.map(col => {
+    const colTasks = col.tasks || (appState.currentView === 'project' ? boardTasks.filter(t => t.sectionId === col.id) : []);
+    return `
+      <div class="board-col" data-col-id="${col.id}">
+        <div class="board-col-header">
+          <span class="board-col-title">${esc(col.name)}</span>
+          <span class="board-col-count">${colTasks.length}</span>
+        </div>
+        ${colTasks.map(t => `
+          <div class="board-card" data-action="select-task" data-id="${t.id}">
+            <div class="board-card-title">${esc(t.title)}</div>
+            <div class="task-meta">
+              ${t.dueAt ? `<span class="meta-chip ${isOverdue(t.dueAt) ? 'due-overdue' : isDueToday(t.dueAt) ? 'due-today' : ''}">${formatDate(t.dueAt)}</span>` : ''}
+              ${t.flagged ? '<span>🚩</span>' : ''}
+              ${t.priority < 4 ? `<span class="meta-chip" style="color:var(--p${t.priority})">P${t.priority}</span>` : ''}
+            </div>
+          </div>`).join('')}
+        <div class="board-add-btn" data-action="new-task-in-col" data-col="${col.id}">+ タスク追加</div>
+      </div>`;
+  }).join('') + `</div>`;
+}
+
+function buildReview() {
+  const t = today();
+  // Stale tasks: no dueAt, not touched in 7+ days
+  const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const stale = appState.tasks.filter(t =>
+    t.status !== 'completed' && t.status !== 'archived' &&
+    !t.dueAt && new Date(t.updatedAt) < sevenDaysAgo
+  ).slice(0, 10);
+
+  const overdueTasks = appState.tasks.filter(t =>
+    t.status !== 'completed' && t.status !== 'archived' && isOverdue(t.dueAt)
+  ).slice(0, 10);
+
+  const reviewProjects = appState.projects.filter(p =>
+    p.status === 'active' && (!p.nextReviewAt || p.nextReviewAt <= t)
+  ).slice(0, 5);
+
+  const onHoldProjects = appState.projects.filter(p => p.status === 'onHold');
+
+  return `
+    <div class="review-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div style="font-size:18px;font-weight:700;margin-bottom:4px">週次レビュー</div>
+          <div style="font-size:13px;color:var(--text3)">見落としを確認し、タスクを整理しましょう</div>
+        </div>
+        <button class="review-complete-btn" data-action="complete-review">✓ レビュー完了</button>
+      </div>
+
+      ${overdueTasks.length ? `
+        <div class="review-card">
+          <div class="review-card-header">
+            <span class="review-card-title">期限切れ</span>
+            <span class="review-badge overdue">${overdueTasks.length} 件</span>
+          </div>
+          ${overdueTasks.map(t => `
+            <div class="review-item" data-action="select-task" data-id="${t.id}" style="cursor:pointer">
+              <span style="color:var(--p1)">!</span>
+              <span style="flex:1">${esc(t.title)}</span>
+              <span class="text-xs text-muted">${formatDate(t.dueAt)}</span>
+            </div>`).join('')}
+        </div>` : ''}
+
+      ${stale.length ? `
+        <div class="review-card">
+          <div class="review-card-header">
+            <span class="review-card-title">停滞タスク（7日以上更新なし）</span>
+            <span class="review-badge stale">${stale.length} 件</span>
+          </div>
+          ${stale.map(t => `
+            <div class="review-item" data-action="select-task" data-id="${t.id}" style="cursor:pointer">
+              <span>📌</span>
+              <span style="flex:1">${esc(t.title)}</span>
+              <span class="text-xs text-muted">${t.projectId ? (appState.projects.find(p => p.id === t.projectId)?.name || '') : 'Inbox'}</span>
+            </div>`).join('')}
+        </div>` : ''}
+
+      ${reviewProjects.length ? `
+        <div class="review-card">
+          <div class="review-card-header">
+            <span class="review-card-title">レビューが必要なプロジェクト</span>
+            <span class="review-badge stale">${reviewProjects.length} 件</span>
+          </div>
+          ${reviewProjects.map(p => `
+            <div class="review-item">
+              <span class="project-dot" style="background:${p.color}"></span>
+              <span style="flex:1">${esc(p.name)}</span>
+              <button class="action-btn" data-action="mark-reviewed" data-id="${p.id}">レビュー完了</button>
+            </div>`).join('')}
+        </div>` : ''}
+
+      ${onHoldProjects.length ? `
+        <div class="review-card">
+          <div class="review-card-header">
+            <span class="review-card-title">保留中プロジェクト</span>
+            <span class="review-badge onhold">${onHoldProjects.length} 件</span>
+          </div>
+          ${onHoldProjects.map(p => `
+            <div class="review-item">
+              <span class="project-dot" style="background:${p.color}"></span>
+              <span style="flex:1">${esc(p.name)}</span>
+              <span class="text-xs text-muted">保留中</span>
+            </div>`).join('')}
+        </div>` : ''}
+
+      ${(!stale.length && !overdueTasks.length && !reviewProjects.length) ? `
+        <div class="empty-state">
+          <div class="empty-icon">🎉</div>
+          <div class="empty-title">すべて確認済みです！</div>
+          <div class="empty-desc">素晴らしい！期限切れや停滞タスクはありません。</div>
+        </div>` : ''}
+    </div>`;
+}
+
+function buildSearch() {
+  const tasks = appState.searchQuery ? getFilteredTasks('all', appState.filters) : [];
+  const allNonArchived = appState.searchQuery
+    ? appState.tasks.filter(t => t.status !== 'archived' && (
+        t.title.toLowerCase().includes(appState.searchQuery.toLowerCase()) ||
+        t.notes?.toLowerCase().includes(appState.searchQuery.toLowerCase())
+      ))
+    : [];
+  return `
+    <div class="task-list">
+      <div style="padding:12px 0 8px">
+        <div class="search-input-wrap">
+          <span class="search-icon">${searchIcon()}</span>
+          <input type="text" id="searchInput" value="${esc(appState.searchQuery)}" placeholder="タスクを検索..." autocomplete="off">
+        </div>
+      </div>
+      ${allNonArchived.length === 0 && appState.searchQuery ? buildEmptyState() :
+        allNonArchived.length === 0 ? `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">キーワードを入力してください</div></div>` :
+        `<div class="task-group">${allNonArchived.map(t => buildTaskRow(t, appState.tasks)).join('')}</div>`}
+    </div>`;
+}
+
+function buildTaskDrawer() {
+  if (!appState.drawerOpen || !appState.selectedTaskId) {
+    return `<div class="task-drawer closed" id="taskDrawer"></div>`;
+  }
+  const task = appState.tasks.find(t => t.id === appState.selectedTaskId);
+  if (!task) return `<div class="task-drawer closed" id="taskDrawer"></div>`;
+
+  const subtasks = appState.tasks.filter(t => t.parentTaskId === task.id);
+  const priorityLabels = { 1: '高', 2: '中', 3: '低', 4: 'なし' };
+
+  return `
+    <div class="task-drawer open" id="taskDrawer">
+      <div class="drawer-header">
+        <button class="icon-btn drawer-close" data-action="close-drawer">${closeIcon()}</button>
+        <span style="font-size:13px;font-weight:500;color:var(--text2)">タスク詳細</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button class="icon-btn" data-action="duplicate-task" data-id="${task.id}" title="複製">${copyIcon()}</button>
+          <button class="icon-btn" data-action="delete-task" data-id="${task.id}" title="削除" style="color:var(--p1)">${trashIcon()}</button>
+        </div>
+      </div>
+      <div class="drawer-body" id="drawerBody">
+        <div class="field-group">
+          <div class="field-label">タイトル</div>
+          <input class="field-input" id="dt-title" value="${esc(task.title)}" placeholder="タスク名">
+        </div>
+        <div class="field-group">
+          <div class="field-label">メモ</div>
+          <textarea class="field-input field-textarea" id="dt-notes" placeholder="メモを追加...">${esc(task.notes || '')}</textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="field-group" style="margin-bottom:0">
+            <div class="field-label">期限</div>
+            <input class="field-input" type="date" id="dt-due" value="${task.dueAt || ''}">
+          </div>
+          <div class="field-group" style="margin-bottom:0">
+            <div class="field-label">開始日</div>
+            <input class="field-input" type="date" id="dt-start" value="${task.startAt || ''}">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="field-group" style="margin-bottom:0">
+            <div class="field-label">締切</div>
+            <input class="field-input" type="date" id="dt-deadline" value="${task.deadlineAt || ''}">
+          </div>
+          <div class="field-group" style="margin-bottom:0">
+            <div class="field-label">リマインダー</div>
+            <input class="field-input" type="datetime-local" id="dt-reminder" value="${task.reminderAt ? task.reminderAt.slice(0,16) : ''}">
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">優先度</div>
+          <div class="priority-grid">
+            ${[1,2,3,4].map(p => `
+              <button class="priority-btn${task.priority === p ? ' active' : ''}" data-p="${p}" data-action="set-priority" data-id="${task.id}">
+                P${p} ${priorityLabels[p]}
+              </button>`).join('')}
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">プロジェクト</div>
+          <select class="field-input field-select" id="dt-project">
+            <option value="">プロジェクトなし</option>
+            ${appState.projects.filter(p => p.status === 'active').map(p => `<option value="${p.id}"${task.projectId === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}
+          </select>
+        </div>
+        ${task.projectId ? `
+          <div class="field-group">
+            <div class="field-label">セクション</div>
+            <select class="field-input field-select" id="dt-section">
+              <option value="">セクションなし</option>
+              ${appState.sections.filter(s => s.projectId === task.projectId).map(s => `<option value="${s.id}"${task.sectionId === s.id ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}
+            </select>
+          </div>` : ''}
+        <div class="field-group">
+          <div class="field-label">タグ</div>
+          <div class="tag-select">
+            ${appState.tags.map(t => `
+              <span class="tag-opt${task.tagIds?.includes(t.id) ? ' selected' : ''}" data-action="toggle-tag" data-task="${task.id}" data-tag="${t.id}" style="${task.tagIds?.includes(t.id) ? `border-color:${t.color};background:${t.color}1a;color:${t.color}` : ''}">
+                #${esc(t.name)}
+              </span>`).join('')}
+            ${appState.tags.length === 0 ? '<span style="font-size:12px;color:var(--text3)">タグがありません</span>' : ''}
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">繰り返し</div>
+          <select class="field-input field-select" id="dt-repeat">
+            <option value="">繰り返しなし</option>
+            <option value="daily"${task.repeatRule === 'daily' ? ' selected' : ''}>毎日</option>
+            <option value="weekdays"${task.repeatRule === 'weekdays' ? ' selected' : ''}>平日</option>
+            <option value="weekly"${task.repeatRule === 'weekly' ? ' selected' : ''}>毎週</option>
+            <option value="monthly"${task.repeatRule === 'monthly' ? ' selected' : ''}>毎月</option>
+            <option value="yearly"${task.repeatRule === 'yearly' ? ' selected' : ''}>毎年</option>
+          </select>
+        </div>
+        <div class="toggle-field" data-action="toggle-flag" data-id="${task.id}" style="margin-bottom:14px">
+          <span style="font-size:13px;font-weight:500">🚩 フラグ</span>
+          <div class="toggle${task.flagged ? ' on' : ''}"></div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">サブタスク</div>
+          <div class="subtask-list" id="subtaskList">
+            ${subtasks.map(st => `
+              <div class="subtask-item">
+                <button class="task-check${st.status === 'completed' ? ' done' : ''}" data-action="toggle-task" data-id="${st.id}"></button>
+                <span style="flex:1;font-size:13px;${st.status === 'completed' ? 'text-decoration:line-through;color:var(--text3)' : ''}">${esc(st.title)}</span>
+                <button class="icon-btn" data-action="delete-task" data-id="${st.id}" style="width:24px;height:24px;color:var(--text3)">${trashIcon()}</button>
+              </div>`).join('')}
+          </div>
+          <div style="margin-top:6px">
+            <input class="field-input" id="subtaskInput" placeholder="サブタスクを追加…" style="font-size:13px">
+          </div>
+        </div>
+        <div class="divider" style="margin:16px 0"></div>
+        <div class="drawer-actions">
+          ${task.status !== 'completed' ? `<button class="action-btn" data-action="complete-task" data-id="${task.id}">✓ 完了にする</button>` : `<button class="action-btn" data-action="uncomplete-task" data-id="${task.id}">↩ 未完了に戻す</button>`}
+          <button class="action-btn danger" data-action="delete-task" data-id="${task.id}">🗑 削除</button>
+        </div>
+        <div class="text-xs text-muted" style="margin-top:16px;line-height:1.8">
+          <div>作成: ${new Date(task.createdAt).toLocaleString('ja-JP')}</div>
+          <div>更新: ${new Date(task.updatedAt).toLocaleString('ja-JP')}</div>
+          ${task.completedAt ? `<div>完了: ${new Date(task.completedAt).toLocaleString('ja-JP')}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function buildMobileNav(counts) {
+  const items = [
+    { id: 'inbox', label: 'Inbox', icon: inboxIcon(), count: counts.inbox },
+    { id: 'today', label: 'Today', icon: todayIcon(), count: counts.today },
+    { id: 'forecast', label: 'Forecast', icon: forecastIcon() },
+    { id: 'review', label: 'Review', icon: reviewIcon() },
+    { id: 'search', label: 'Search', icon: searchIcon() },
+  ];
+  return `
+    <nav class="mobile-nav">
+      <div class="mobile-nav-items">
+        ${items.map(i => `
+          <div class="mobile-nav-item${appState.currentView === i.id ? ' active' : ''}" data-action="goto-view" data-view="${i.id}">
+            ${i.icon}
+            <span>${i.label}</span>
+          </div>`).join('')}
+      </div>
+    </nav>`;
+}
+
+// ==================== ICONS ====================
+const svg = (d, size = 16) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const inboxIcon = () => svg('<polyline points="22,12 16,12 14,15 10,15 8,12 2,12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>');
+const todayIcon = () => svg('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>');
+const calIcon = () => svg('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>');
+const forecastIcon = () => svg('<path d="M2 12h20M2 6h20M2 18h20"/>');
+const flagIcon = () => svg('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>');
+const reviewIcon = () => svg('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>');
+const searchIcon = () => svg('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>');
+const checkIcon = () => svg('<polyline points="20,6 9,17 4,12"/>');
+const menuIcon = () => svg('<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>');
+const closeIcon = () => svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>');
+const trashIcon = () => svg('<polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>');
+const copyIcon = () => svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>');
+const moonIcon = () => svg('<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>');
+const sunIcon = () => svg('<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>');
+const listIcon = () => svg('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>');
+const boardIcon = () => svg('<rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="10"/>');
+const chevronIcon = () => svg('<polyline points="6,9 12,15 18,9"/>',12);
+const calSmallIcon = () => `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+const checkSmallIcon = () => `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>`;
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ==================== EVENTS ====================
+let draggingId = null;
+let saveTimer = {};
+
+function attachEvents() {
+  // Delegate all clicks
+  document.addEventListener('click', handleClick, { passive: true });
+  document.addEventListener('change', handleChange);
+  document.addEventListener('keydown', handleKeydown);
+
+  // Quick add
+  const qai = document.getElementById('quickAddInput');
+  const qaBtn = document.getElementById('quickAddBtn');
+  if (qai) {
+    qai.addEventListener('input', handleQuickAddInput);
+    qai.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitQuickAdd(); }
+    });
+    qai.addEventListener('focus', () => { if (qaBtn) qaBtn.style.display = ''; });
+  }
+
+  // Search
+  const si = document.getElementById('searchInput');
+  if (si) {
+    si.addEventListener('input', e => {
+      appState.searchQuery = e.target.value;
+      debouncedRender();
+    });
+    si.focus();
+  }
+
+  // Drawer inputs auto-save
+  const drawerInputs = ['dt-title','dt-notes','dt-due','dt-start','dt-deadline','dt-reminder','dt-project','dt-section','dt-repeat'];
+  for (const id of drawerInputs) {
+    const el = document.getElementById(id);
+    if (el) {
+      const evt = (el.tagName === 'SELECT' || el.type === 'date' || el.type === 'datetime-local') ? 'change' : 'input';
+      el.addEventListener(evt, () => autoSaveDrawer());
+    }
+  }
+
+  // Subtask add
+  const sti = document.getElementById('subtaskInput');
+  if (sti) {
+    sti.addEventListener('keydown', async e => {
+      if (e.key === 'Enter' && sti.value.trim()) {
+        const st = createTask({ title: sti.value.trim(), parentTaskId: appState.selectedTaskId, status: 'active' });
+        await saveTask(st);
+        sti.value = '';
+        renderDrawer();
+      }
+    });
+  }
+
+  // Sidebar overlay
+  const overlay = document.getElementById('sidebarOverlay');
+  if (overlay) overlay.addEventListener('click', () => { appState.sidebarOpen = false; renderSidebar(); });
+
+  // Drag and drop
+  setupDragDrop();
+}
+
+function handleClick(e) {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const action = el.dataset.action;
+
+  switch (action) {
+    case 'goto-view':
+      appState.currentView = el.dataset.view;
+      appState.currentProjectId = null;
+      appState.currentTagId = null;
+      appState.sidebarOpen = false;
+      render();
+      break;
+    case 'goto-project':
+      appState.currentView = 'project';
+      appState.currentProjectId = el.dataset.id;
+      appState.sidebarOpen = false;
+      render();
+      break;
+    case 'goto-tag':
+      appState.currentView = 'tag';
+      appState.currentTagId = el.dataset.id;
+      appState.sidebarOpen = false;
+      render();
+      break;
+    case 'select-task': {
+      const id = el.dataset.id;
+      if (appState.selectedTaskId === id && appState.drawerOpen) {
+        appState.drawerOpen = false; appState.selectedTaskId = null;
+      } else {
+        appState.selectedTaskId = id; appState.drawerOpen = true;
+      }
+      render();
+      break;
+    }
+    case 'toggle-task':
+      e.stopPropagation();
+      toggleTask(el.dataset.id);
+      break;
+    case 'close-drawer':
+      appState.drawerOpen = false; appState.selectedTaskId = null;
+      render();
+      break;
+    case 'new-task':
+      openNewTask();
+      break;
+    case 'new-task-in-col':
+      openNewTask(el.dataset.col);
+      break;
+    case 'submit-quick-add':
+      submitQuickAdd();
+      break;
+    case 'toggle-dark':
+      appState.darkMode = !appState.darkMode;
+      localStorage.setItem('darkMode', appState.darkMode);
+      render();
+      break;
+    case 'set-priority': {
+      const task = appState.tasks.find(t => t.id === el.dataset.id);
+      if (task) { task.priority = parseInt(el.dataset.p); saveTask(task).then(() => { renderDrawer(); renderTaskList(); }); }
+      break;
+    }
+    case 'toggle-flag': {
+      const task = appState.tasks.find(t => t.id === el.dataset.id);
+      if (task) { task.flagged = !task.flagged; saveTask(task).then(() => render()); }
+      break;
+    }
+    case 'toggle-tag': {
+      const task = appState.tasks.find(t => t.id === el.dataset.id);
+      const tagId = el.dataset.tag;
+      if (task) {
+        if (!task.tagIds) task.tagIds = [];
+        const idx = task.tagIds.indexOf(tagId);
+        if (idx >= 0) task.tagIds.splice(idx, 1);
+        else task.tagIds.push(tagId);
+        saveTask(task).then(() => renderDrawer());
+      }
+      break;
+    }
+    case 'complete-task': {
+      const task = appState.tasks.find(t => t.id === el.dataset.id);
+      if (task) completeTask(task);
+      break;
+    }
+    case 'uncomplete-task': {
+      const task = appState.tasks.find(t => t.id === el.dataset.id);
+      if (task) { task.status = 'active'; task.completedAt = null; saveTask(task).then(() => render()); }
+      break;
+    }
+    case 'duplicate-task': {
+      const task = appState.tasks.find(t => t.id === el.dataset.id);
+      if (task) {
+        const dup = { ...task, id: uid(), title: task.title + ' (コピー)', createdAt: now(), updatedAt: now(), completedAt: null, order: Date.now() };
+        saveTask(dup).then(() => { appState.selectedTaskId = dup.id; render(); });
+      }
+      break;
+    }
+    case 'delete-task': {
+      const id = el.dataset.id;
+      const task = appState.tasks.find(t => t.id === id);
+      if (!task) break;
+      const snapshot = JSON.stringify(task);
+      if (appState.selectedTaskId === id) { appState.drawerOpen = false; appState.selectedTaskId = null; }
+      deleteTask(id).then(() => {
+        render();
+        showToast(`"${task.title || '無題'}" を削除しました`, () => {
+          const restored = JSON.parse(snapshot);
+          saveTask(restored).then(() => render());
+        });
+      });
+      break;
+    }
+    case 'add-section':
+      addSection();
+      break;
+    case 'toggle-section':
+      appState.collapsed[el.dataset.id] = !appState.collapsed[el.dataset.id];
+      renderContent();
+      break;
+    case 'filter': {
+      const key = el.dataset.key, val = el.dataset.val;
+      if (appState.filters[key] === val) delete appState.filters[key];
+      else appState.filters[key] = val;
+      renderContent();
+      break;
+    }
+    case 'remove-filter':
+      delete appState.filters[el.dataset.key];
+      render();
+      break;
+    case 'clear-filters':
+      appState.filters = {};
+      render();
+      break;
+    case 'complete-review':
+      showToast('週次レビュー完了！お疲れ様でした 🎉');
+      break;
+    case 'mark-reviewed': {
+      const proj = appState.projects.find(p => p.id === el.dataset.id);
+      if (proj) {
+        const d = new Date(); d.setDate(d.getDate() + (proj.reviewEveryDays || 7));
+        proj.nextReviewAt = d.toISOString().split('T')[0];
+        saveProject(proj).then(() => renderContent());
+      }
+      break;
+    }
+    case 'new-project':
+      openNewProjectModal();
+      break;
+    case 'new-tag':
+      openNewTagModal();
+      break;
+    case 'toggle-sidebar':
+      appState.sidebarOpen = !appState.sidebarOpen;
+      renderSidebar();
+      break;
+    case 'set-layout':
+      appState.currentLayout = el.dataset.layout;
+      renderContent();
+      break;
+  }
+}
+
+function handleChange(e) {
+  // handled by individual listeners
+}
+
+function handleKeydown(e) {
+  // n = new task
+  if (e.key === 'n' && !e.target.matches('input,textarea,select')) {
+    e.preventDefault();
+    document.getElementById('quickAddInput')?.focus();
+  }
+  // Escape = close drawer
+  if (e.key === 'Escape') {
+    if (appState.drawerOpen) { appState.drawerOpen = false; appState.selectedTaskId = null; render(); }
+    const modal = document.querySelector('.modal-overlay.open');
+    if (modal) modal.classList.remove('open');
+  }
+  // Cmd/Ctrl+Z = undo
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+    e.preventDefault();
+    undoLast();
+  }
+}
+
+// ==================== ACTIONS ====================
+async function toggleTask(id) {
+  const task = appState.tasks.find(t => t.id === id);
+  if (!task) return;
+  if (task.status === 'completed') {
+    task.status = task.projectId ? 'active' : 'inbox';
+    task.completedAt = null;
+    await saveTask(task);
+  } else {
+    await completeTask(task);
+    return;
+  }
+  renderTaskList();
+  renderDrawer();
+}
+
+async function completeTask(task) {
+  const snapshot = JSON.stringify(task);
+  appState.undoStack.push({ type: 'complete', snapshot });
+  task.status = 'completed';
+  task.completedAt = now();
+  await saveTask(task);
+
+  // handle repeat
+  if (task.repeatRule && task.dueAt) {
+    const next = nextRepeat(task);
+    if (next) {
+      next.status = 'active';
+      await saveTask(next);
+      showToast(`"${task.title}" 完了。次回: ${formatDate(next.dueAt)}`, null);
+    }
+  } else {
+    showToast(`"${task.title || '無題'}" 完了 ✓`, () => {
+      const restored = JSON.parse(snapshot);
+      saveTask(restored).then(() => render());
+    });
+  }
+  render();
+}
+
+async function undoLast() {
+  const last = appState.undoStack.pop();
+  if (!last) return;
+  if (last.type === 'complete') {
+    const t = JSON.parse(last.snapshot);
+    await saveTask(t);
+    render();
+    showToast('元に戻しました');
+  }
+}
+
+function handleQuickAddInput(e) {
+  const val = e.target.value;
+  const chips = document.getElementById('qaChips');
+  if (!chips) return;
+  const parsed = parseQuickAdd(val);
+  let html = '';
+  if (parsed.dueAt) html += `<span class="qa-chip date">${calSmallIcon()} ${formatDate(parsed.dueAt)}</span>`;
+  if (parsed.priority < 4) html += `<span class="qa-chip priority">P${parsed.priority}</span>`;
+  if (parsed.tagIds.length) parsed.tagIds.forEach(id => {
+    const t = appState.tags.find(x => x.id === id);
+    if (t) html += `<span class="qa-chip tag">#${esc(t.name)}</span>`;
+  });
+  if (parsed.projectId) {
+    const p = appState.projects.find(x => x.id === parsed.projectId);
+    if (p) html += `<span class="qa-chip project">${esc(p.name)}</span>`;
+  }
+  chips.innerHTML = html;
+  const qaBtn = document.getElementById('quickAddBtn');
+  if (qaBtn) qaBtn.style.display = val.trim() ? '' : 'none';
+}
+
+async function submitQuickAdd() {
+  const input = document.getElementById('quickAddInput');
+  if (!input || !input.value.trim()) return;
+  const parsed = parseQuickAdd(input.value);
+  if (!parsed.title) { showToast('タイトルを入力してください'); return; }
+  const status = appState.currentView === 'project' ? 'active' : 'inbox';
+  const task = createTask({
+    ...parsed,
+    status,
+    projectId: parsed.projectId || (appState.currentView === 'project' ? appState.currentProjectId : null),
+  });
+  await saveTask(task);
+  input.value = '';
+  document.getElementById('qaChips').innerHTML = '';
+  const qaBtn = document.getElementById('quickAddBtn');
+  if (qaBtn) qaBtn.style.display = 'none';
+  showToast(`"${task.title}" を追加しました`);
+  render();
+}
+
+async function openNewTask(colId = null) {
+  const task = createTask({
+    title: '',
+    status: appState.currentView === 'project' ? 'active' : 'inbox',
+    projectId: appState.currentView === 'project' ? appState.currentProjectId : null,
+    sectionId: colId && colId !== 'active' && colId !== 'inbox' ? colId : null,
+  });
+  await saveTask(task);
+  appState.selectedTaskId = task.id;
+  appState.drawerOpen = true;
+  render();
+  setTimeout(() => document.getElementById('dt-title')?.focus(), 50);
+}
+
+let autoSaveTimeout = null;
+function autoSaveDrawer() {
+  clearTimeout(autoSaveTimeout);
+  autoSaveTimeout = setTimeout(async () => {
+    const task = appState.tasks.find(t => t.id === appState.selectedTaskId);
+    if (!task) return;
+    task.title = document.getElementById('dt-title')?.value || '';
+    task.notes = document.getElementById('dt-notes')?.value || '';
+    task.dueAt = document.getElementById('dt-due')?.value || null;
+    task.startAt = document.getElementById('dt-start')?.value || null;
+    task.deadlineAt = document.getElementById('dt-deadline')?.value || null;
+    const rem = document.getElementById('dt-reminder')?.value;
+    task.reminderAt = rem ? rem + ':00' : null;
+    task.projectId = document.getElementById('dt-project')?.value || null;
+    task.sectionId = document.getElementById('dt-section')?.value || null;
+    task.repeatRule = document.getElementById('dt-repeat')?.value || null;
+    if (task.projectId && task.status === 'inbox') task.status = 'active';
+    await saveTask(task);
+    renderTaskList();
+  }, 400);
+}
+
+async function addSection() {
+  const name = prompt('セクション名を入力:');
+  if (!name) return;
+  const sec = { id: uid(), projectId: appState.currentProjectId, name, order: Date.now() };
+  await saveSection(sec);
+  render();
+}
+
+function openNewProjectModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">新規プロジェクト</div>
+      <div class="field-group">
+        <div class="field-label">プロジェクト名</div>
+        <input class="field-input" id="newProjName" placeholder="プロジェクト名" autofocus>
+      </div>
+      <div class="field-group">
+        <div class="field-label">種類</div>
+        <select class="field-input field-select" id="newProjType">
+          <option value="list">List</option>
+          <option value="board">Board</option>
+          <option value="sequential">Sequential</option>
+          <option value="parallel">Parallel</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <div class="field-label">カラー</div>
+        <input type="color" id="newProjColor" value="#3b82f6" style="width:100%;height:36px;border:none;border-radius:6px;cursor:pointer">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="cancelProj">キャンセル</button>
+        <button class="btn btn-primary" id="saveProj">作成</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('open'));
+  document.getElementById('cancelProj').onclick = () => overlay.remove();
+  document.getElementById('saveProj').onclick = async () => {
+    const name = document.getElementById('newProjName').value.trim();
+    if (!name) return;
+    const proj = createProject({ name, type: document.getElementById('newProjType').value, color: document.getElementById('newProjColor').value });
+    await saveProject(proj);
+    overlay.remove();
+    appState.currentView = 'project'; appState.currentProjectId = proj.id;
+    render();
+  };
+  document.getElementById('newProjName').focus();
+}
+
+function openNewTagModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">新規タグ</div>
+      <div class="field-group">
+        <div class="field-label">タグ名</div>
+        <input class="field-input" id="newTagName" placeholder="タグ名">
+      </div>
+      <div class="field-group">
+        <div class="field-label">カラー</div>
+        <input type="color" id="newTagColor" value="#7c3aed" style="width:100%;height:36px;border:none;border-radius:6px;cursor:pointer">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="cancelTag">キャンセル</button>
+        <button class="btn btn-primary" id="saveTag">作成</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('open'));
+  document.getElementById('cancelTag').onclick = () => overlay.remove();
+  document.getElementById('saveTag').onclick = async () => {
+    const name = document.getElementById('newTagName').value.trim();
+    if (!name) return;
+    const tag = createTag({ name, color: document.getElementById('newTagColor').value });
+    await saveTag(tag);
+    overlay.remove();
+    render();
+  };
+  document.getElementById('newTagName').focus();
+}
+
+// ==================== DRAG & DROP ====================
+function setupDragDrop() {
+  const rows = document.querySelectorAll('[data-drag-id]');
+  rows.forEach(row => {
+    row.addEventListener('dragstart', e => {
+      draggingId = row.dataset.dragId;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      draggingId = null;
+      row.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (row.dataset.dragId !== draggingId) row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', async e => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      if (!draggingId || draggingId === row.dataset.dragId) return;
+      const dragging = appState.tasks.find(t => t.id === draggingId);
+      const target = appState.tasks.find(t => t.id === row.dataset.dragId);
+      if (!dragging || !target) return;
+      const tmp = dragging.order;
+      dragging.order = target.order;
+      target.order = tmp;
+      await saveTask(dragging);
+      await saveTask(target);
+      renderTaskList();
+    });
+  });
+}
+
+// ==================== PARTIAL RE-RENDERS ====================
+function renderDrawer() {
+  const drawer = document.getElementById('taskDrawer');
+  if (drawer) {
+    const newDrawer = document.createElement('div');
+    newDrawer.innerHTML = buildTaskDrawer();
+    const newEl = newDrawer.firstElementChild;
+    drawer.replaceWith(newEl);
+    // Re-attach events for drawer
+    const drawerInputs = ['dt-title','dt-notes','dt-due','dt-start','dt-deadline','dt-reminder','dt-project','dt-section','dt-repeat'];
+    for (const id of drawerInputs) {
+      const el = document.getElementById(id);
+      if (el) {
+        const evt = (el.tagName === 'SELECT' || el.type === 'date' || el.type === 'datetime-local') ? 'change' : 'input';
+        el.addEventListener(evt, () => autoSaveDrawer());
+      }
+    }
+    const sti = document.getElementById('subtaskInput');
+    if (sti) {
+      sti.addEventListener('keydown', async e => {
+        if (e.key === 'Enter' && sti.value.trim()) {
+          const st = createTask({ title: sti.value.trim(), parentTaskId: appState.selectedTaskId, status: 'active' });
+          await saveTask(st);
+          sti.value = '';
+          renderDrawer();
+        }
+      });
+    }
+  }
+}
+
+function renderTaskList() {
+  const ca = document.getElementById('contentArea');
+  if (ca) {
+    ca.innerHTML = buildContent();
+    setupDragDrop();
+  }
+}
+
+function renderContent() {
+  renderTaskList();
+  // Also re-render filter bar
+  const fb = document.querySelector('.filter-bar');
+  if (fb) fb.outerHTML = buildFilterBar();
+}
+
+function renderSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (sidebar) {
+    if (appState.sidebarOpen) { sidebar.classList.add('open'); if (overlay) overlay.classList.add('visible'); }
+    else { sidebar.classList.remove('open'); if (overlay) overlay.classList.remove('visible'); }
+  }
+}
+
+let renderDebounce;
+function debouncedRender() {
+  clearTimeout(renderDebounce);
+  renderDebounce = setTimeout(render, 150);
+}
+
+// ==================== INIT DATA ====================
+async function seedData() {
+  const existing = await dbGetAll('tasks');
+  if (existing.length > 0) return;
+
+  const tag1 = createTag({ name: '仕事', color: '#3b82f6', kind: 'custom' });
+  const tag2 = createTag({ name: '個人', color: '#7c3aed', kind: 'custom' });
+  const tag3 = createTag({ name: '重要', color: '#ef4444', kind: 'custom' });
+  await saveTag(tag1); await saveTag(tag2); await saveTag(tag3);
+
+  const proj1 = createProject({ name: 'プロジェクトA', color: '#3b82f6', type: 'list' });
+  const proj2 = createProject({ name: '個人タスク', color: '#7c3aed', type: 'board' });
+  await saveProject(proj1); await saveProject(proj2);
+
+  const sec1 = { id: uid(), projectId: proj1.id, name: '計画中', order: 1 };
+  const sec2 = { id: uid(), projectId: proj1.id, name: '進行中', order: 2 };
+  await saveSection(sec1); await saveSection(sec2);
+
+  const t = today();
+  const tasks = [
+    createTask({ title: 'PWAアプリのデザインレビュー', status: 'inbox', priority: 1, flagged: true, tagIds: [tag1.id] }),
+    createTask({ title: '週次レポートを作成する', status: 'inbox', dueAt: t, priority: 2, tagIds: [tag1.id, tag3.id] }),
+    createTask({ title: 'デイリースタンドアップ', status: 'active', dueAt: t, projectId: proj1.id, sectionId: sec2.id, repeatRule: 'weekdays', priority: 3 }),
+    createTask({ title: 'Q2 OKRの見直し', status: 'active', projectId: proj1.id, sectionId: sec1.id, priority: 1, tagIds: [tag1.id] }),
+    createTask({ title: 'ユーザーインタビュー設計', status: 'active', projectId: proj1.id, sectionId: sec1.id, dueAt: (() => { const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().split('T')[0]; })() }),
+    createTask({ title: '読書: ゼロ・トゥ・ワン', status: 'inbox', tagIds: [tag2.id], priority: 4 }),
+    createTask({ title: '運動習慣をつける', status: 'inbox', tagIds: [tag2.id], repeatRule: 'daily', priority: 3 }),
+    createTask({ title: '家計簿の整理', status: 'inbox', tagIds: [tag2.id], dueAt: (() => { const d = new Date(); d.setDate(d.getDate() + 5); return d.toISOString().split('T')[0]; })() }),
+    createTask({ title: '期限切れのサンプルタスク', status: 'active', dueAt: (() => { const d = new Date(); d.setDate(d.getDate() - 3); return d.toISOString().split('T')[0]; })(), priority: 2, tagIds: [tag1.id] }),
+  ];
+  for (const task of tasks) await saveTask(task);
+}
+
+// ==================== MAIN ====================
+async function main() {
+  await openDB();
+  await seedData();
+  await loadAll();
+  render();
+}
+
+main().catch(console.error);
+
+// Service Worker登録
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
