@@ -2,8 +2,8 @@
   "name": "Focus — Task Manager",
   "short_name": "Focus",
   "description": "高機能タスク管理PWA - Inbox, Today, Forecast, Review",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/task-app/",
+  "scope": "/task-app/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#f7f6f3",
@@ -31,13 +31,13 @@
     {
       "name": "Inbox",
       "short_name": "Inbox",
-      "url": "/task/?view=inbox",
+      "url": "/task-app/?view=inbox",
       "description": "Inboxを開く"
     },
     {
       "name": "Today",
       "short_name": "Today",
-      "url": "/task/?view=today",
+      "url": "/task-app/?view=today",
       "description": "Todayを開く"
     }
   ]
