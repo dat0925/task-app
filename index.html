@@ -794,7 +794,7 @@ function renderSearch(){
 // ===== RENDER DRAWER =====
 function renderDrawer(){
   const dr=document.getElementById('drawer');
-  if(!S.drawerOpen||!S.taskId){dr.style.display='none';dr.classList.remove('open');return}
+  if(!S.drawerOpen||!S.taskId){dr.style.display='none';dr.classList.remove('open');history.replaceState(null,'',location.pathname);return}
   const task=S.tasks.find(t=>t.id===S.taskId);
   if(!task){dr.style.display='none';dr.classList.remove('open');return}
   dr.style.display='flex';
@@ -807,6 +807,7 @@ function renderDrawer(){
       +'<button class="icon-btn" data-a="close-drawer">'+ICONS.x+'</button>'
       +'<span style="font-size:13px;font-weight:500;color:var(--text2)">タスク詳細</span>'
       +'<div style="margin-left:auto;display:flex;gap:4px">'
+        +'<button class="icon-btn" id="copy-url-btn" title="URLをコピー" style="font-size:14px">🔗</button>'
         +'<button class="icon-btn" data-a="dup" data-id="'+task.id+'" title="複製">'+ICONS.copy+'</button>'
         +'<button class="icon-btn" data-a="del" data-id="'+task.id+'" title="削除" style="color:var(--p1)">'+ICONS.trash+'</button>'
       +'</div>'
@@ -859,6 +860,26 @@ function renderDrawer(){
         +'<div>更新: '+new Date(task.updatedAt).toLocaleString('ja-JP')+'</div>'
       +'</div>'
     +'</div>';
+
+
+  // URL sync
+  const taskUrl=location.origin+location.pathname+'#task/'+task.id;
+  history.replaceState(null,'',taskUrl);
+
+  // copy URL button
+  document.getElementById('copy-url-btn').addEventListener('click',async()=>{
+    try{
+      await navigator.clipboard.writeText(taskUrl);
+      toast('URLをコピーしました 🔗');
+    }catch(e){
+      // iOS fallback
+      const inp=document.createElement('input');
+      inp.value=taskUrl;document.body.appendChild(inp);
+      inp.select();inp.setSelectionRange(0,9999);
+      document.execCommand('copy');inp.remove();
+      toast('URLをコピーしました 🔗');
+    }
+  });
 
   // attach drawer input events
   const autosave=()=>{
@@ -1455,6 +1476,9 @@ async function init(){
     await openDB();
     await seed();
     await loadAll();
+    // URLハッシュからタスクを開く
+    const hash=location.hash.match(/^#task\/(.+)$/);
+    if(hash){const id=hash[1];if(S.tasks.find(t=>t.id===id)){S.taskId=id;S.drawerOpen=true}}
     render();
     applySettings();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
