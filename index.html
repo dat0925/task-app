@@ -59,6 +59,12 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Main */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .topbar{display:flex;align-items:center;gap:10px;padding:0 16px;height:52px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+#save-status{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;opacity:0;transition:opacity .3s;white-space:nowrap}
+#save-status.show{opacity:1}
+#save-dot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
+#save-dot.saving{background:var(--accent);animation:pulse .8s ease-in-out infinite}
+#save-dot.saved{background:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .topbar-title{font-size:17px;font-weight:600;letter-spacing:-.2px}
 .ml{margin-left:auto}
 .icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;color:var(--text2);transition:background .15s}
@@ -84,8 +90,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Content */
 .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 /* pull to refresh */
-#ptr-indicator{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:8px;height:56px;font-size:13px;color:var(--text3);transform:translateY(-56px);transition:opacity .2s;pointer-events:none;z-index:10}
-#ptr-spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+#ptr-indicator{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:8px;height:56px;font-size:13px;color:var(--text2);background:var(--surface);border-bottom:1px solid var(--border);transform:translateY(-56px);transition:opacity .2s;pointer-events:none;z-index:10;font-weight:500}
+#ptr-spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%}
+#ptr-spinner.spinning{animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* Task List */
@@ -321,6 +328,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
       </button>
       <span class="topbar-title" id="viewTitle">Inbox</span>
       <div class="ml flex items-c gap-2">
+        <div id="save-status"><div id="save-dot"></div><span id="save-label"></span></div>
         <button class="icon-btn layout-toggle" data-a="layout-list" title="リスト">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
         </button>
@@ -500,15 +508,30 @@ function nextRepeat(task){
   return{...task,id:uid(),status:'active',completedAt:null,createdAt:now(),updatedAt:now(),dueAt:d.toISOString().slice(0,10)};
 }
 
+// ===== SAVE STATUS =====
+let _saveTimer=null;
+function showSaveStatus(state){
+  const el=document.getElementById('save-status');
+  const dot=document.getElementById('save-dot');
+  const lbl=document.getElementById('save-label');
+  if(!el)return;
+  clearTimeout(_saveTimer);
+  el.classList.add('show');
+  dot.className='';
+  if(state==='saving'){dot.classList.add('saving');lbl.textContent='保存中…'}
+  else if(state==='saved'){dot.classList.add('saved');lbl.textContent='保存済み';_saveTimer=setTimeout(()=>el.classList.remove('show'),2000)}
+  else if(state==='error'){dot.style.background='var(--p1)';lbl.textContent='保存失敗'}
+}
+
 // ===== STORE =====
 async function loadAll(){
   [S.tasks,S.projects,S.sections,S.tags]=await Promise.all([
     dbAll('tasks'),dbAll('projects'),dbAll('sections'),dbAll('tags')
   ]);
 }
-async function saveTask(t){t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t)}
+async function saveTask(t){showSaveStatus('saving');try{t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function delTask(id){await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id)}
-async function saveProject(p){p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p)}
+async function saveProject(p){showSaveStatus('saving');try{p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function saveTag(t){await dbPut('tags',t);const i=S.tags.findIndex(x=>x.id===t.id);i>=0?S.tags[i]=t:S.tags.push(t)}
 async function deleteProject(id){
   // プロジェクト配下のタスクを全削除
@@ -1143,7 +1166,9 @@ async function seed(){
     }
     // sync
     syncing=true;
+    const spinner=document.getElementById('ptr-spinner');
     ind.style.transform='translateY(0px)';
+    spinner.classList.add('spinning');
     lbl.textContent='同期中…';
     try{
       await loadAll();
@@ -1156,6 +1181,7 @@ async function seed(){
     }
     ind.style.transform='translateY(-56px)';
     ind.style.opacity=0;
+    spinner.classList.remove('spinning');
     syncing=false;triggered=false;
   });
 })();
