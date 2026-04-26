@@ -1,5 +1,5 @@
-// Focus Task Manager - Service Worker v4
-const CACHE_NAME = 'focus-task-v4';
+// Focus Task Manager - Service Worker v5
+const CACHE_NAME = 'focus-task-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

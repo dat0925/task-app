@@ -1478,10 +1478,23 @@ async function init(){
     await loadAll();
     // URLハッシュからタスクを開く
     const hash=location.hash.match(/^#task\/(.+)$/);
-    if(hash){const id=hash[1];if(S.tasks.find(t=>t.id===id)){S.taskId=id;S.drawerOpen=true}}
+    if(hash){
+      const id=hash[1];
+      const found=S.tasks.find(t=>t.id===id);
+      if(found){S.taskId=id;S.drawerOpen=true}
+      else{
+        // ハッシュをリセットしてトーストで通知
+        history.replaceState(null,'',location.pathname);
+        render();
+        applySettings();
+        setTimeout(()=>toast('タスクが見つかりませんでした'),500);
+        if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+        return;
+      }
+    }
     render();
     applySettings();
-    if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }catch(err){
     console.error(err);
     document.getElementById('layout').innerHTML=
