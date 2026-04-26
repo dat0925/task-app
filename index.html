@@ -252,7 +252,15 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* util */
 .xs{font-size:11px}.muted{color:var(--text3)}.flex{display:flex}.items-c{align-items:center}.gap-1{gap:4px}.gap-2{gap:8px}
 
-/* ===== AI CHAT ===== */
+/* ===== SETTINGS MODAL ===== */
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-label{font-size:14px;font-weight:500}
+.settings-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.tog{width:40px;height:24px;border-radius:12px;background:var(--border);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tog.on{background:var(--accent)}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tog.on::after{transform:translateX(16px)}
 #ai-btn{position:fixed;bottom:24px;right:20px;width:50px;height:50px;border-radius:50%;background:var(--accent);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(232,93,58,.4);z-index:200;transition:transform .2s,box-shadow .2s}
 #ai-btn:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(232,93,58,.5)}
 #ai-btn.open{background:var(--text2)}
@@ -316,6 +324,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
       <div class="logo">F</div>
       <span class="app-name">Focus</span>
       <button class="icon-btn" style="margin-left:auto" data-a="dark" title="ダーク">☾</button>
+      <button class="icon-btn" data-a="settings" title="設定">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
     </div>
     <div class="sidebar-body" id="sidenav"></div>
   </div>
@@ -1017,7 +1028,7 @@ document.addEventListener('click',async e=>{
     toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render()});
     render();
   }
-  else if(a==='newproj'){openModal('proj')}
+  else if(a==='settings'){openSettingsModal()}
   else if(a==='delproj'){
     e.stopPropagation();
     const id=el.dataset.id;
@@ -1059,6 +1070,57 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&S.drawerOpen){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
   if(e.key==='n'&&!e.target.matches('input,textarea,select')){e.preventDefault();document.getElementById('qainput')?.focus()}
 });
+
+// ===== SETTINGS MODAL =====
+function getSetting(key,def){try{const v=localStorage.getItem('cfg_'+key);return v===null?def:JSON.parse(v)}catch(e){return def}}
+function setSetting(key,val){localStorage.setItem('cfg_'+key,JSON.stringify(val))}
+
+function applySettings(){
+  const aiEnabled=getSetting('aiChat',true);
+  const btn=document.getElementById('ai-btn');
+  if(btn)btn.style.display=aiEnabled?'':'none';
+  if(!aiEnabled&&AI.open)aiToggle(false);
+}
+
+function openSettingsModal(){
+  const ov=document.createElement('div');ov.className='overlay';
+  const aiEnabled=getSetting('aiChat',true);
+  const apiKey=AI.key;
+  ov.innerHTML='<div class="modal" style="max-width:360px">'
+    +'<div class="modal-title">設定</div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">AIチャット</div><div class="settings-sub">従量課金APIを使用します</div></div>'
+      +'<button class="tog'+(aiEnabled?' on':'')+'" id="s-ai-tog"></button>'
+    +'</div>'
+    +'<div class="settings-row" id="s-key-row" style="'+(aiEnabled?'':'display:none')+'">'
+      +'<div style="flex:1;min-width:0">'
+        +'<div class="settings-label">APIキー</div>'
+        +'<div class="settings-sub" style="word-break:break-all">'+(apiKey?'sk-ant-...'+apiKey.slice(-4):'未設定')+'</div>'
+      +'</div>'
+      +'<button class="btn btn-ghost" id="s-key-edit" style="font-size:12px;flex-shrink:0">変更</button>'
+    +'</div>'
+    +'<div class="modal-foot"><button class="btn btn-primary" id="s-close">閉じる</button></div>'
+  +'</div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+
+  const tog=document.getElementById('s-ai-tog');
+  const keyRow=document.getElementById('s-key-row');
+  tog.addEventListener('click',()=>{
+    const now=!getSetting('aiChat',true);
+    setSetting('aiChat',now);
+    tog.classList.toggle('on',now);
+    keyRow.style.display=now?'':'none';
+    applySettings();
+  });
+  document.getElementById('s-key-edit').addEventListener('click',()=>{
+    const v=prompt('AnthropicのAPIキーを入力（sk-ant-...）:',AI.key);
+    if(v===null)return;
+    if(v&&!v.startsWith('sk-')){alert('有効なAPIキーを入力してください');return}
+    AI.key=v||'';
+    ov.remove();openSettingsModal();
+  });
+  document.getElementById('s-close').addEventListener('click',()=>ov.remove());
+}
 
 // ===== CONFIRM MODAL =====
 function openConfirmModal(title,message,onOk){
@@ -1394,6 +1456,7 @@ async function init(){
     await seed();
     await loadAll();
     render();
+    applySettings();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }catch(err){
     console.error(err);
