@@ -809,6 +809,8 @@ function setupQA(){
   const btn=document.getElementById('qabtn');
   const chips=document.getElementById('qachips');
   if(!inp)return;
+  if(inp.dataset.qaReady)return;
+  inp.dataset.qaReady='1';
   inp.addEventListener('input',()=>{
     const p=parseQA(inp.value);
     let h='';
