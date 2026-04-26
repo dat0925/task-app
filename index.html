@@ -244,12 +244,62 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 
 /* util */
 .xs{font-size:11px}.muted{color:var(--text3)}.flex{display:flex}.items-c{align-items:center}.gap-1{gap:4px}.gap-2{gap:8px}
+
+/* ===== AI CHAT ===== */
+#ai-btn{position:fixed;bottom:24px;right:20px;width:50px;height:50px;border-radius:50%;background:var(--accent);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(232,93,58,.4);z-index:200;transition:transform .2s,box-shadow .2s}
+#ai-btn:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(232,93,58,.5)}
+#ai-btn.open{background:var(--text2)}
+#ai-panel{position:fixed;bottom:0;right:0;width:100%;max-width:420px;height:75vh;background:var(--surface);border-top:1px solid var(--border);border-left:1px solid var(--border);border-radius:20px 20px 0 0;display:flex;flex-direction:column;z-index:199;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);box-shadow:0 -8px 32px rgba(0,0,0,.12)}
+#ai-panel.open{transform:translateY(0)}
+#ai-panel-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+#ai-panel-head .ai-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0}
+#ai-panel-head .ai-title{font-size:15px;font-weight:600}
+#ai-panel-head .ai-sub{font-size:11px;color:var(--text3)}
+#ai-msgs{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.ai-msg{max-width:85%;display:flex;flex-direction:column;gap:3px}
+.ai-msg.user{align-self:flex-end;align-items:flex-end}
+.ai-msg.ai{align-self:flex-start}
+.ai-bubble{padding:10px 13px;border-radius:16px;font-size:14px;line-height:1.55}
+.ai-msg.user .ai-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.ai-msg.ai .ai-bubble{background:var(--bg2);color:var(--text);border-bottom-left-radius:4px}
+.ai-bubble.thinking{color:var(--text3);font-style:italic}
+.ai-action-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--green-bg);color:var(--green);margin-top:4px;font-weight:500}
+#ai-input-wrap{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+#ai-input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:22px;padding:9px 14px;font-size:15px;outline:none;resize:none;max-height:100px;transition:border-color .15s;line-height:1.4}
+#ai-input:focus{border-color:var(--accent)}
+#ai-send{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;align-self:flex-end}
+#ai-send:hover{background:var(--accent2)}
+#ai-send:disabled{background:var(--border);cursor:not-allowed}
+#ai-key-wrap{padding:16px;display:flex;flex-direction:column;gap:10px}
+#ai-key-wrap p{font-size:13px;color:var(--text2);line-height:1.6}
+#ai-key-input{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+#ai-key-input:focus{border-color:var(--accent)}
 </style>
 </head>
 <body>
 
 <div class="sov" id="sov"></div>
 <div class="toast-wrap" id="toasts"></div>
+
+<!-- AI CHAT -->
+<button id="ai-btn" title="AIアシスタント">✦</button>
+<div id="ai-panel">
+  <div id="ai-panel-head">
+    <div class="ai-avatar">✦</div>
+    <div>
+      <div class="ai-title">Focus AI</div>
+      <div class="ai-sub">タスクをAIで操作</div>
+    </div>
+    <button class="icon-btn" id="ai-close" style="margin-left:auto">✕</button>
+  </div>
+  <div id="ai-msgs"></div>
+  <div id="ai-input-wrap">
+    <textarea id="ai-input" placeholder="「明日の会議を追加して」「森さんのタスクを完了にして」…" rows="1"></textarea>
+    <button id="ai-send">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+    </button>
+  </div>
+</div>
 
 <div class="layout" id="layout">
 
@@ -1109,6 +1159,207 @@ async function seed(){
     syncing=false;triggered=false;
   });
 })();
+
+// ===== AI CHAT =====
+const AI={
+  msgs:[],
+  open:false,
+  loading:false,
+  get key(){return localStorage.getItem('ai_key')||''},
+  set key(v){localStorage.setItem('ai_key',v)},
+};
+
+function aiToggle(force){
+  AI.open=force!==undefined?force:!AI.open;
+  document.getElementById('ai-panel').classList.toggle('open',AI.open);
+  document.getElementById('ai-btn').classList.toggle('open',AI.open);
+  if(AI.open){
+    if(!AI.key){aiShowKeyPrompt();return}
+    if(AI.msgs.length===0)aiAddMsg('ai','こんにちは！タスクの追加・完了・削除など、日本語で何でも話しかけてください 😊');
+    aiRender();
+    setTimeout(()=>document.getElementById('ai-input')?.focus(),300);
+  }
+}
+
+function aiShowKeyPrompt(){
+  const msgs=document.getElementById('ai-msgs');
+  msgs.innerHTML='<div id="ai-key-wrap">'
+    +'<p>AnthropicのAPIキーを入力してください。<br>キーはこのデバイスのみに保存されます。</p>'
+    +'<input id="ai-key-input" type="password" placeholder="sk-ant-...">'
+    +'<button class="btn btn-primary" id="ai-key-save">保存して開始</button>'
+    +'</div>';
+  document.getElementById('ai-key-save').onclick=()=>{
+    const v=document.getElementById('ai-key-input').value.trim();
+    if(!v.startsWith('sk-'))return alert('有効なAPIキーを入力してください');
+    AI.key=v;
+    aiAddMsg('ai','APIキーを保存しました！タスクの追加・完了・削除など、日本語で話しかけてください 😊');
+    aiRender();
+    setTimeout(()=>document.getElementById('ai-input')?.focus(),300);
+  };
+}
+
+function aiAddMsg(role,text,actions=[]){
+  AI.msgs.push({role,text,actions});
+}
+
+function aiRender(){
+  const el=document.getElementById('ai-msgs');
+  if(!AI.key){aiShowKeyPrompt();return}
+  let h='';
+  AI.msgs.forEach(m=>{
+    h+='<div class="ai-msg '+m.role+'">';
+    h+='<div class="ai-bubble'+(m.loading?' thinking':'')+'">'+esc(m.text)+'</div>';
+    if(m.actions&&m.actions.length){
+      m.actions.forEach(a=>{
+        const labels={addTask:'タスク追加',completeTask:'完了',deleteTask:'削除',updateTask:'更新',addProject:'プロジェクト追加'};
+        h+='<span class="ai-action-tag">✓ '+(labels[a.type]||a.type)+': '+esc(a.label||'')+'</span>';
+      });
+    }
+    h+='</div>';
+  });
+  if(AI.loading){
+    h+='<div class="ai-msg ai"><div class="ai-bubble thinking">考え中…</div></div>';
+  }
+  el.innerHTML=h;
+  el.scrollTop=el.scrollHeight;
+}
+
+async function aiExecuteActions(actions){
+  const done=[];
+  for(const a of actions){
+    try{
+      if(a.type==='addTask'){
+        const t=mkTask({
+          title:a.title||'新しいタスク',
+          dueAt:a.dueAt||null,
+          priority:a.priority||4,
+          flagged:a.flagged||false,
+          projectId:a.projectId?S.projects.find(p=>p.name===a.projectId)?.id||null:null,
+          tagIds:a.tagNames?(a.tagNames.map(n=>S.tags.find(t=>t.name===n)?.id).filter(Boolean)):[],
+          status:'inbox',
+        });
+        await saveTask(t);
+        done.push({...a,label:a.title});
+      } else if(a.type==='completeTask'){
+        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
+        if(t){const snap=JSON.parse(JSON.stringify(t));t.status='completed';t.completedAt=now();await saveTask(t);done.push({...a,label:t.title})}
+      } else if(a.type==='deleteTask'){
+        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
+        if(t){await delTask(t.id);done.push({...a,label:t.title})}
+      } else if(a.type==='updateTask'){
+        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
+        if(t){
+          if(a.dueAt!==undefined)t.dueAt=a.dueAt;
+          if(a.priority!==undefined)t.priority=a.priority;
+          if(a.flagged!==undefined)t.flagged=a.flagged;
+          if(a.newTitle)t.title=a.newTitle;
+          await saveTask(t);done.push({...a,label:t.title});
+        }
+      } else if(a.type==='addProject'){
+        const p=mkProject({name:a.name,color:a.color||'#3b82f6'});
+        await saveProject(p);done.push({...a,label:a.name});
+      }
+    }catch(e){console.error('action error',e)}
+  }
+  if(done.length)render();
+  return done;
+}
+
+async function aiSend(){
+  const inp=document.getElementById('ai-input');
+  const text=inp.value.trim();
+  if(!text||AI.loading)return;
+  if(!AI.key){aiShowKeyPrompt();return}
+
+  inp.value='';inp.style.height='auto';
+  aiAddMsg('user',text);
+  AI.loading=true;aiRender();
+
+  // 現在の状態をコンテキストとして渡す
+  const context={
+    tasks:S.tasks.filter(t=>t.status!=='completed').map(t=>({
+      id:t.id,title:t.title,status:t.status,priority:t.priority,
+      dueAt:t.dueAt,flagged:t.flagged,
+      project:S.projects.find(p=>p.id===t.projectId)?.name||null,
+      tags:t.tagIds.map(id=>S.tags.find(g=>g.id===id)?.name).filter(Boolean),
+    })),
+    projects:S.projects.filter(p=>p.status==='active').map(p=>({name:p.name,color:p.color})),
+    tags:S.tags.map(t=>({name:t.name})),
+    today:today(),
+  };
+
+  const systemPrompt=`あなたはタスク管理アプリ「Focus」のAIアシスタントです。
+ユーザーの依頼に応じてタスクの操作を行います。
+
+## 現在のデータ
+${JSON.stringify(context,null,2)}
+
+## レスポンス形式
+必ずJSON形式で返してください（マークダウンのコードブロック不要）:
+{
+  "message": "ユーザーへの返答（日本語）",
+  "actions": [
+    // タスク追加
+    {"type":"addTask","title":"タイトル","dueAt":"YYYY-MM-DD or null","priority":1-4,"flagged":false,"projectId":"プロジェクト名 or null","tagNames":["タグ名"]}
+    // タスク完了
+    {"type":"completeTask","keyword":"タイトルの一部"}
+    // タスク削除
+    {"type":"deleteTask","keyword":"タイトルの一部"}
+    // タスク更新
+    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル"}
+    // プロジェクト追加
+    {"type":"addProject","name":"名前","color":"#hexcolor"}
+  ]
+}
+
+## ルール
+- priorityは1(高)〜4(なし)
+- dueAtは"YYYY-MM-DD"形式。今日は${today()}
+- 操作不要なら"actions":[]
+- タスクが見つからない場合はmessageで教える
+- 複数の操作も一度にできる`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':AI.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1024,
+        system:systemPrompt,
+        messages:AI.msgs.filter(m=>m.role!=='ai'||!m.loading).slice(-8).map(m=>({
+          role:m.role==='user'?'user':'assistant',
+          content:m.text,
+        })),
+      }),
+    });
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    const raw=data.content[0].text;
+    let parsed;
+    try{parsed=JSON.parse(raw.replace(/```json|```/g,'').trim())}
+    catch(e){parsed={message:raw,actions:[]}}
+    AI.loading=false;
+    const done=await aiExecuteActions(parsed.actions||[]);
+    aiAddMsg('ai',parsed.message||'完了しました',done);
+    aiRender();
+  }catch(e){
+    AI.loading=false;
+    aiAddMsg('ai','エラーが発生しました: '+e.message);
+    aiRender();
+  }
+}
+
+// AIチャット イベント
+document.getElementById('ai-btn').addEventListener('click',()=>aiToggle());
+document.getElementById('ai-close').addEventListener('click',()=>aiToggle(false));
+document.getElementById('ai-send').addEventListener('click',aiSend);
+document.getElementById('ai-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();aiSend()}
+});
+document.getElementById('ai-input').addEventListener('input',function(){
+  this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';
+});
 
 // ===== INIT =====
 async function init(){
