@@ -231,6 +231,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .bot-nav{display:none}
 }
 
+.proj-item .proj-del-btn{display:none;width:18px;height:18px;border-radius:4px;font-size:10px;color:var(--text3);align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,color .15s}
+.proj-item:hover .proj-del-btn{display:flex}
+.proj-del-btn:hover{background:rgba(239,68,68,.15)!important;color:var(--p1)!important}
 /* scrollbar */
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
@@ -451,6 +454,14 @@ async function saveTask(t){t.updatedAt=now();await dbPut('tasks',t);const i=S.ta
 async function delTask(id){await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id)}
 async function saveProject(p){p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p)}
 async function saveTag(t){await dbPut('tags',t);const i=S.tags.findIndex(x=>x.id===t.id);i>=0?S.tags[i]=t:S.tags.push(t)}
+async function deleteProject(id){
+  // プロジェクト配下のタスクを全削除
+  const projTasks=S.tasks.filter(t=>t.projectId===id);
+  for(const t of projTasks)await delTask(t.id);
+  // プロジェクト本体を削除
+  await dbDel('projects',id);
+  S.projects=S.projects.filter(p=>p.id!==id);
+}
 async function saveSec(s){await dbPut('sections',s);const i=S.sections.findIndex(x=>x.id===s.id);i>=0?S.sections[i]=s:S.sections.push(s)}
 
 function mkTask(o={}){return{id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:null,startAt:null,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o}}
@@ -527,9 +538,10 @@ function renderSidebar(){
   });
   h+='<div class="nav-label">Projects</div>';
   S.projects.filter(p=>p.status==='active').forEach(p=>{
-    h+='<div class="nav-item'+(S.view==='project'&&S.projId===p.id?' on':'')+'" data-a="proj" data-id="'+p.id+'">'
+    h+='<div class="nav-item proj-item'+(S.view==='project'&&S.projId===p.id?' on':'')+'" data-a="proj" data-id="'+p.id+'">'
       +'<span class="pdot" style="background:'+esc(p.color)+'"></span>'
       +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.name)+'</span>'
+      +'<button class="proj-del-btn" data-a="delproj" data-id="'+p.id+'" data-name="'+esc(p.name)+'" title="削除">✕</button>'
     +'</div>';
   });
   h+='<div class="nav-item muted" data-a="newproj" style="font-size:13px"><span style="font-size:16px">+</span> プロジェクト追加</div>';
@@ -927,6 +939,22 @@ document.addEventListener('click',async e=>{
     render();
   }
   else if(a==='newproj'){openModal('proj')}
+  else if(a==='delproj'){
+    e.stopPropagation();
+    const id=el.dataset.id;
+    const name=el.dataset.name;
+    const taskCount=S.tasks.filter(t=>t.projectId===id).length;
+    openConfirmModal(
+      '「'+name+'」を削除',
+      taskCount>0?'このプロジェクトと配下の'+taskCount+'件のタスクが削除されます。この操作は取り消せません。':'このプロジェクトを削除します。',
+      async()=>{
+        await deleteProject(id);
+        if(S.projId===id){S.view='inbox';S.projId=null}
+        toast('"'+name+'" を削除しました');
+        render();
+      }
+    );
+  }
   else if(a==='newtag'){openModal('tag')}
   else if(a==='addsec'){
     const name=prompt('セクション名:');
@@ -952,6 +980,22 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&S.drawerOpen){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
   if(e.key==='n'&&!e.target.matches('input,textarea,select')){e.preventDefault();document.getElementById('qainput')?.focus()}
 });
+
+// ===== CONFIRM MODAL =====
+function openConfirmModal(title,message,onOk){
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal">'
+    +'<div class="modal-title">'+esc(title)+'</div>'
+    +'<div style="font-size:13px;color:var(--text2);line-height:1.6">'+esc(message)+'</div>'
+    +'<div class="modal-foot">'
+    +'<button class="btn btn-ghost" id="m-cancel">キャンセル</button>'
+    +'<button class="btn" id="m-ok" style="background:var(--p1);color:#fff">削除</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+  document.getElementById('m-cancel').onclick=()=>ov.remove();
+  document.getElementById('m-ok').onclick=async()=>{ov.remove();await onOk()};
+}
 
 // ===== MODAL =====
 function openModal(type){
