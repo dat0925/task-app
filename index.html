@@ -1023,5 +1023,21 @@ async function init(){
 }
 init();
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(function(){
+const SB=window.supabase.createClient('https://sfhtvtcmgueystyuhzvd.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw');
+const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order'};
+const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
+const toDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[TO[k]||k]=v;return r};
+const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
+window.dbAll=async s=>{const{data,error}=await SB.from(s).select('*');if(error){console.error(s,error);return[]}return(data||[]).map(frDB)};
+window.dbPut=async(s,i)=>{const{error}=await SB.from(s).upsert(toDB(i));if(error)console.error(s,error)};
+window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error)console.error(s,error)};
+})();
+</script>
+
+  
 </body>
 </html>
