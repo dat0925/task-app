@@ -139,9 +139,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .flabel{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:4px;display:block}
 .finput{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s;-webkit-appearance:none}
 .finput:focus{border-color:var(--accent)}
-.ftextarea{min-height:72px;resize:vertical;line-height:1.5}
-.notes-view{min-height:40px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text);cursor:text;padding:2px 0}
+.ftextarea{min-height:108px;resize:vertical;line-height:1.5}
+.notes-view{min-height:108px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text);cursor:text;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px}
 .notes-view a{color:#2563eb;text-decoration:underline;word-break:break-all}
+.notes-view .link-hint{font-size:11px;color:var(--text3);margin-top:6px;display:block}
 .note-stamp-bar{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
 .note-stamp-btn{display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);cursor:pointer;border:1px solid var(--border);transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);white-space:nowrap}
 .note-stamp-btn:hover{background:var(--bg3);color:var(--text)}
@@ -949,7 +950,15 @@ function renderSearch(){
 function linkify(text){
   if(!text)return'';
   const escaped=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  return escaped.replace(/(https?:\/\/[^\s<>"']+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  // [テキスト](URL) 形式
+  const md=escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  // 裸のURL
+  return md.replace(/(https?:\/\/[^\s<>"'\)]+)/g,(url,offset,str)=>{
+    // すでに<a>タグ内なら無視
+    const before=str.slice(0,offset);
+    if((before.match(/<a /g)||[]).length>(before.match(/<\/a>/g)||[]).length)return url;
+    return'<a href="'+url+'" target="_blank" rel="noopener noreferrer">'+url+'</a>';
+  });
 }
 
 function renderDrawer(){
@@ -976,9 +985,9 @@ function renderDrawer(){
       +'<div class="fg"><label class="flabel">タイトル</label><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名"></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
       +(task.notes
-        ?'<div class="notes-view" id="dt-notes-view" data-a="notes-edit">'+linkify(task.notes)+'</div>'
-         +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…" style="display:none">'+esc(task.notes||'')+'</textarea>'
-        :'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…"></textarea>'
+        ?'<div class="notes-view" id="dt-notes-view" data-a="notes-edit">'+linkify(task.notes)+'<span class="link-hint">✏️ タップして編集 ・ [テキスト](URL) でリンクテキスト変更</span></div>'
+         +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)" style="display:none">'+esc(task.notes||'')+'</textarea>'
+        :'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)"></textarea>'
          +'<div class="notes-view" id="dt-notes-view" style="display:none"></div>'
       )
       +'<div class="note-stamp-bar">'
