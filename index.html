@@ -800,6 +800,10 @@ function renderContent(){
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tags.find(t=>t.id===S.tagId)?.name||''};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
+  // qabarはタスク追加できるビューのみ表示
+  const qaHidden=['search','forecast','review','completed'];
+  const qabar=document.querySelector('.qabar');
+  if(qabar)qabar.style.display=qaHidden.includes(S.view)?'none':'';
 
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
