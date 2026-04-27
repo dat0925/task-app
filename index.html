@@ -2124,9 +2124,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
     requestAnimationFrame(()=>{screen.style.animation='lkshake .4s ease';});
   }
   document.head.insertAdjacentHTML('beforeend','<style>@keyframes lkshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}</style>');
-  screen.addEventListener('touchstart',e=>{e.preventDefault();
-    const k=e.target.closest('[data-k]');
-    if(!k)return;
+  function handleKey(k){
     const v=k.dataset.k;
     if(v==='del'){entered=entered.slice(0,-1)}
     else if(entered.length<4){entered+=v}
@@ -2135,7 +2133,6 @@ document.getElementById('ai-input').addEventListener('input',function(){
     if(entered.length===4){
       if(entered===PIN){
         unlock();
-        // 顔認証未登録なら登録を促す
         if(supported&&!localStorage.getItem(CRED_KEY)){
           setTimeout(()=>{
             if(confirm('顔認証（Face ID / Touch ID）を登録しますか？次回からPIN不要になります。')){
@@ -2149,6 +2146,17 @@ document.getElementById('ai-input').addEventListener('input',function(){
         setTimeout(()=>{entered='';updateDots();document.getElementById('lockErr').textContent=''},800);
       }
     }
+  }
+  screen.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const k=e.target.closest('[data-k]');
+    if(!k)return;
+    handleKey(k);
+  });
+  screen.addEventListener('click',e=>{
+    const k=e.target.closest('[data-k]');
+    if(!k)return;
+    handleKey(k);
   });
 })();
 
