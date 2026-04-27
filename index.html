@@ -1436,7 +1436,13 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
 // search
 document.addEventListener('input',e=>{
   if(e.target.id==='srch'){S.search=e.target.value;renderContent()}
-  if(e.target.id==='note-srch'){S.noteSearch=e.target.value;renderContent()}
+  if(e.target.id==='note-srch'){
+    if(e.isComposing)return;
+    S.noteSearch=e.target.value;renderContent();
+  }
+});
+document.addEventListener('compositionend',e=>{
+  if(e.target.id==='note-srch'){S.noteSearch=e.target.value;renderContent();}
 });
 
 // ===== SWIPE TO OPEN SIDEBAR (PWA only) =====
@@ -2166,6 +2172,9 @@ async function init(){
     if(noteP&&S.notes.find(n=>n.id===noteP)){
       S.view='notes';S.noteId=noteP;S.noteOpen=true;
       history.replaceState(null,'',location.pathname);
+      render();
+      // renderの後にドロワーを明示的に開く
+      setTimeout(()=>renderNoteDrawer(),100);
     }
     // URLハッシュからタスクを開く
     const hash=location.hash.match(/^#task\/(.+)$/);
