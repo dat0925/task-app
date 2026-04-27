@@ -79,6 +79,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 
 /* Quick Add */
 .qabar{padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.srchbar{padding:10px 16px;background:var(--surface);flex-shrink:0;display:none}
 .qawrap{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;transition:border-color .15s}
 .qawrap:focus-within{border-color:var(--accent)}
 .qawrap input{flex:1;background:none;border:none;outline:none;font-size:16px;color:var(--text)}
@@ -259,7 +260,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 68px)}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
-  .qabar{
+  .qabar,.srchbar{
     position:fixed;
     bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
     left:0;right:0;
@@ -415,6 +416,14 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
         <button class="btn btn-ghost" id="qabtn" style="display:none;padding:4px 8px;font-size:12px" data-a="qa-submit">追加</button>
       </div>
       <div class="qa-chips" id="qachips"></div>
+    </div>
+
+    <!-- Mobile search bar (fixed bottom, search view only) -->
+    <div class="srchbar" id="srchbar" style="display:none">
+      <div class="qawrap">
+        <span style="color:var(--text3);font-size:16px;flex-shrink:0">🔍</span>
+        <input id="srchbar-input" type="search" placeholder="タスクを検索…" autocomplete="off" autocorrect="off" autocapitalize="off">
+      </div>
     </div>
 
     <div class="content" id="content" style="position:relative">
@@ -800,10 +809,12 @@ function renderContent(){
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tags.find(t=>t.id===S.tagId)?.name||''};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
-  // qabarはタスク追加できるビューのみ表示
+  // qabar / srchbar の表示切替
   const qaHidden=['search','forecast','review','completed'];
   const qabar=document.querySelector('.qabar');
+  const srchbar=document.getElementById('srchbar');
   if(qabar)qabar.style.display=qaHidden.includes(S.view)?'none':'';
+  if(srchbar)srchbar.style.display=(S.view==='search'&&window.innerWidth<=768)?'':'none';
 
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
@@ -922,8 +933,9 @@ function renderSearchResults(q){
 }
 function renderSearch(){
   const q=S.search;
+  const isMobile=window.innerWidth<=768;
   return'<div class="tlist">'
-    +'<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスクを検索…" style="font-size:14px" autocomplete="off" autocorrect="off" autocapitalize="off"></div>'
+    +(!isMobile?'<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスクを検索…" style="font-size:14px" autocomplete="off" autocorrect="off" autocapitalize="off"></div>':'')
     +'<div id="srch-results">'+renderSearchResults(q)+'</div>'
     +'</div>';
 }
@@ -1256,7 +1268,7 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
 
 // search
 document.addEventListener('input',e=>{
-  if(e.target.id==='srch'){
+  if(e.target.id==='srch'||e.target.id==='srchbar-input'){
     // composing中(IME変換中)は無視
     if(e.isComposing)return;
     S.search=e.target.value;
@@ -1268,7 +1280,7 @@ document.addEventListener('input',e=>{
 
 // compositionend: IME確定後に検索実行
 document.addEventListener('compositionend',e=>{
-  if(e.target.id==='srch'){
+  if(e.target.id==='srch'||e.target.id==='srchbar-input'){
     S.search=e.target.value;
     const res=document.getElementById('srch-results');
     if(res)res.innerHTML=renderSearchResults(S.search);
@@ -1806,23 +1818,24 @@ document.getElementById('ai-input').addEventListener('input',function(){
   this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';
 });
 
-// ===== iOS KEYBOARD / QABAR ADJUST =====
+// ===== iOS KEYBOARD / BOTTOM BAR ADJUST =====
 (function(){
   if(!window.visualViewport)return;
   function adjust(){
-    const qabar=document.querySelector('.qabar');
-    if(!qabar||window.innerWidth>768)return;
+    if(window.innerWidth>768)return;
     const vv=window.visualViewport;
     const kbH=Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    if(kbH>50){
-      // キーボード表示中: キーボードの直上に配置
-      qabar.style.bottom=kbH+'px';
-      qabar.style.transition='bottom .1s ease';
-    } else {
-      // キーボード非表示: 通常位置（下部ナビ直上）
-      qabar.style.bottom='calc(var(--nav-h) + env(safe-area-inset-bottom))';
-      qabar.style.transition='bottom .2s ease';
-    }
+    const normal='calc(var(--nav-h) + env(safe-area-inset-bottom))';
+    [document.querySelector('.qabar'), document.getElementById('srchbar')].forEach(bar=>{
+      if(!bar||bar.style.display==='none')return;
+      if(kbH>50){
+        bar.style.bottom=kbH+'px';
+        bar.style.transition='bottom .1s ease';
+      } else {
+        bar.style.bottom=normal;
+        bar.style.transition='bottom .2s ease';
+      }
+    });
   }
   window.visualViewport.addEventListener('resize',adjust);
   window.visualViewport.addEventListener('scroll',adjust);
