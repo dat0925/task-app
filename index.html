@@ -1299,16 +1299,20 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
     if(window.innerWidth>768||!srchbar||srchbar.style.display==='none'){
       panel.style.display='none';return;
     }
-    // visualViewportからキーボード高さを直接計算
     const vv=window.visualViewport;
     const kbH=vv?Math.max(0,window.innerHeight-vv.height-vv.offsetTop):0;
-    const navH=60; // --nav-h
     const srchbarH=srchbar.offsetHeight||56;
-    const barBottom=kbH>50?kbH:navH;
-    const topH=(document.querySelector('.topbar')||{offsetHeight:52}).offsetHeight;
-    panel.style.bottom=(barBottom+srchbarH)+'px';
+    const topbar=document.querySelector('.topbar');
+    const topH=topbar?topbar.getBoundingClientRect().bottom:52;
+    const botnav=document.getElementById('botnav');
+    const botnavH=botnav?botnav.offsetHeight:60;
+    // パネルの上端=topbarの下、下端=srchbarの上
+    const panelBottom=kbH>50?(kbH+srchbarH):(botnavH+srchbarH);
     panel.style.top=topH+'px';
+    panel.style.bottom='';
+    panel.style.height=(window.innerHeight-topH-panelBottom)+'px';
     panel.style.display='block';
+    panel.style.overflowY='auto';
     panel.innerHTML='<div class="tlist" style="padding:8px 0">'+renderSearchResults(S.search)+'</div>';
   }
   window._updateSrchFloat=updateFloat;
