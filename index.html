@@ -1305,12 +1305,13 @@ document.addEventListener('click',async e=>{
   }
   else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
   else if(a==='note-new'){
-    if(a._running)return;a._running=true;
+    if(window._noteNewRunning)return;
+    window._noteNewRunning=true;
     try{
       const n=mkNote();await saveNote(n);
       S.noteId=n.id;S.noteOpen=true;renderContent();
       setTimeout(()=>document.getElementById('nt-title')?.focus(),50);
-    }finally{setTimeout(()=>{a._running=false},500);}
+    }finally{setTimeout(()=>{window._noteNewRunning=false},500);}
   }
   else if(a==='note-sel'){
     const id=el.dataset.id;
