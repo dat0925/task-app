@@ -207,7 +207,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .bnav{flex-shrink:0;min-width:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 6px;font-size:10px;font-weight:500;color:var(--text3);cursor:pointer;gap:3px;transition:color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .bnav.on{color:var(--accent)}
 .bnav svg{width:21px;height:21px}
-.bnav-ai{color:var(--accent);background:var(--accent-bg)}
+.bnav-ai{color:var(--accent)}
 /* Lock screen */
 .lock-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
 .lock-logo{width:56px;height:56px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:28px;margin-bottom:8px}
@@ -1638,23 +1638,28 @@ async function aiExecuteActions(actions){
           flagged:a.flagged||false,
           projectId:a.projectId?S.projects.find(p=>p.name===a.projectId)?.id||null:null,
           tagIds:a.tagNames?(a.tagNames.map(n=>S.tags.find(t=>t.name===n)?.id).filter(Boolean)):[],
-          status:'inbox',
+          status:(a.projectId&&S.projects.find(p=>p.name===a.projectId))?'active':'inbox',
         });
         await saveTask(t);
         done.push({...a,label:a.title});
       } else if(a.type==='completeTask'){
-        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
+        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)&&x.status!=='completed'):null;
         if(t){const snap=JSON.parse(JSON.stringify(t));t.status='completed';t.completedAt=now();await saveTask(t);done.push({...a,label:t.title})}
       } else if(a.type==='deleteTask'){
-        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
+        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
         if(t){await delTask(t.id);done.push({...a,label:t.title})}
       } else if(a.type==='updateTask'){
-        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
+        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
         if(t){
           if(a.dueAt!==undefined)t.dueAt=a.dueAt;
           if(a.priority!==undefined)t.priority=a.priority;
           if(a.flagged!==undefined)t.flagged=a.flagged;
           if(a.newTitle)t.title=a.newTitle;
+          if(a.projectId!==undefined){
+            const proj=S.projects.find(p=>p.name===a.projectId);
+            t.projectId=proj?proj.id:null;
+            if(t.projectId&&t.status==='inbox')t.status='active';
+          }
           await saveTask(t);done.push({...a,label:t.title});
         }
       } else if(a.type==='addProject'){
@@ -1708,7 +1713,7 @@ ${JSON.stringify(context,null,2)}
     // タスク削除
     {"type":"deleteTask","keyword":"タイトルの一部"}
     // タスク更新
-    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル"}
+    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル","projectId":"プロジェクト名 or null"}
     // プロジェクト追加
     {"type":"addProject","name":"名前","color":"#hexcolor"}
   ]
