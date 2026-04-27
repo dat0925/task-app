@@ -717,7 +717,8 @@ function getNavOrder(){
 }
 function renderBotNav(){
   const order=getNavOrder();
-  const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean);
+  const aiEnabled=getSetting('aiChat',true);
+  const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean).filter(i=>i.special!=='ai'||aiEnabled);
   document.getElementById('botnav').innerHTML=
     '<div class="bot-nav-inner">'+
     items.map(i=>{
