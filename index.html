@@ -1788,6 +1788,28 @@ document.getElementById('ai-input').addEventListener('input',function(){
   this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';
 });
 
+// ===== iOS KEYBOARD / QABAR ADJUST =====
+(function(){
+  if(!window.visualViewport)return;
+  function adjust(){
+    const qabar=document.querySelector('.qabar');
+    if(!qabar||window.innerWidth>768)return;
+    const vv=window.visualViewport;
+    const kbH=Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    if(kbH>50){
+      // キーボード表示中: キーボードの直上に配置
+      qabar.style.bottom=kbH+'px';
+      qabar.style.transition='bottom .1s ease';
+    } else {
+      // キーボード非表示: 通常位置（下部ナビ直上）
+      qabar.style.bottom='calc(var(--nav-h) + env(safe-area-inset-bottom))';
+      qabar.style.transition='bottom .2s ease';
+    }
+  }
+  window.visualViewport.addEventListener('resize',adjust);
+  window.visualViewport.addEventListener('scroll',adjust);
+})();
+
 // ===== FAST TAP (global) =====
 (function(){
   let _ft=false;
