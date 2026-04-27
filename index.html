@@ -1263,6 +1263,36 @@ document.addEventListener('input',e=>{
   if(e.target.id==='srch'){S.search=e.target.value;renderContent()}
 });
 
+// ===== SWIPE TO OPEN SIDEBAR (mobile only) =====
+(function(){
+  let startX=0,startY=0,tracking=false;
+  const EDGE=30; // 左端30px以内からスワイプ開始
+  const MIN_DIST=60; // 最低60px右に動かす
+  const MAX_Y=40; // 縦ズレ許容
+
+  document.addEventListener('touchstart',e=>{
+    if(window.innerWidth>768)return;
+    const t=e.touches[0];
+    if(t.clientX>EDGE)return;
+    startX=t.clientX;startY=t.clientY;tracking=true;
+  },{passive:true});
+
+  document.addEventListener('touchmove',e=>{
+    if(!tracking)return;
+    const t=e.touches[0];
+    const dx=t.clientX-startX;
+    const dy=Math.abs(t.clientY-startY);
+    if(dx>MIN_DIST&&dy<MAX_Y&&!S.sidebarOpen){
+      S.sidebarOpen=true;
+      S._sidebarJustOpened=Date.now();
+      render();
+      tracking=false;
+    }
+  },{passive:true});
+
+  document.addEventListener('touchend',()=>{tracking=false;},{passive:true});
+})();
+
 // keyboard
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&S.drawerOpen){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
