@@ -256,19 +256,22 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   }
   .drawer.open{transform:translateY(0) !important}
   .bot-nav{display:block}
-  .content{padding-bottom:calc(var(--nav-h) + 68px)}
+  .content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 68px)}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
-  .qabar{
+  .qabar,.srchbar{
     position:fixed;
-    bottom:var(--nav-h);
     left:0;right:0;
     z-index:70;
     border-bottom:none;
     border-top:1px solid var(--border);
     box-shadow:0 -2px 12px rgba(0,0,0,.06);
-    padding-bottom:4px;
+    background:var(--surface);
+    padding:10px 16px;
+    bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+    transition:bottom .1s ease;
   }
+  .srchbar{display:none}
 }
 @media(min-width:769px){
   .hamburger{display:none}
@@ -407,13 +410,21 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
       </div>
     </div>
 
-    <div class="qabar">
+    <div class="qabar" id="qabar">
       <div class="qawrap">
         <span style="color:var(--text3);font-size:16px;flex-shrink:0">+</span>
         <input id="qainput" type="text" placeholder="タスクを追加… #タグ !高 @プロジェクト 明日" autocomplete="off">
         <button class="btn btn-ghost" id="qabtn" style="display:none;padding:4px 8px;font-size:12px" data-a="qa-submit">追加</button>
       </div>
       <div class="qa-chips" id="qachips"></div>
+    </div>
+
+    <!-- 検索バー（モバイル下部固定） -->
+    <div class="srchbar" id="srchbar" style="display:none">
+      <div class="qawrap">
+        <span style="color:var(--text3);font-size:16px;flex-shrink:0">🔍</span>
+        <input id="srchbar-input" type="search" placeholder="タスクを検索…" autocomplete="off" autocorrect="off" autocapitalize="off">
+      </div>
     </div>
 
     <div class="content" id="content" style="position:relative">
@@ -800,6 +811,14 @@ function renderContent(){
     tag:S.tags.find(t=>t.id===S.tagId)?.name||''};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
 
+  // qabar/srchbarの表示切替（モバイルのみ）
+  const isMobile=window.innerWidth<=768;
+  const qaHidden=['search','forecast','review','completed'];
+  const qabar=document.getElementById('qabar');
+  const srchbar=document.getElementById('srchbar');
+  if(qabar)qabar.style.display=(!isMobile||!qaHidden.includes(S.view))?'':'none';
+  if(srchbar)srchbar.style.display=(isMobile&&S.view==='search')?'block':'none';
+
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
   if(S.view==='search'){el.innerHTML=renderSearch();return}
@@ -909,14 +928,21 @@ function renderReview(){
   return h+'</div>';
 }
 
+function renderSearchResults(q){
+  const tasks=q?S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(q.toLowerCase())||(t.notes||'').toLowerCase().includes(q.toLowerCase()))):[];
+  if(!q)return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
+  if(!tasks.length)return renderEmpty();
+  return'<div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
+}
+
 function renderSearch(){
   const q=S.search;
-  const tasks=q?S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(q.toLowerCase())||(t.notes||'').toLowerCase().includes(q.toLowerCase()))):[];
+  const isMobile=window.innerWidth<=768;
   let h='<div class="tlist">';
-  h+='<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスクを検索…" style="font-size:14px"></div>';
-  if(q&&!tasks.length)h+=renderEmpty();
-  else if(!q)h+='<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
-  else h+='<div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
+  if(!isMobile){
+    h+='<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスクを検索…" style="font-size:14px" autocomplete="off" autocorrect="off" autocapitalize="off"></div>';
+  }
+  h+='<div id="srch-results">'+renderSearchResults(q)+'</div>';
   h+='</div>';
   return h;
 }
@@ -1247,10 +1273,57 @@ document.addEventListener('click',async e=>{
 // sidebar overlay click
 document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false;render()});
 
-// search
-document.addEventListener('input',e=>{
-  if(e.target.id==='srch'){S.search=e.target.value;renderContent()}
-});
+// search（IME対応・srchbar-input対応）
+(function(){
+  function doSearch(val){
+    S.search=val;
+    const res=document.getElementById('srch-results');
+    if(res)res.innerHTML=renderSearchResults(S.search);
+    else renderContent();
+  }
+  document.addEventListener('input',e=>{
+    if(e.target.id==='srch'||e.target.id==='srchbar-input'){
+      if(e.isComposing)return;
+      doSearch(e.target.value);
+    }
+  });
+  document.addEventListener('compositionend',e=>{
+    if(e.target.id==='srch'||e.target.id==='srchbar-input'){
+      doSearch(e.target.value);
+    }
+  });
+})();
+
+// キーボード追従（qabar・srchbar）
+(function(){
+  if(!window.visualViewport)return;
+  const normal='calc(var(--nav-h) + env(safe-area-inset-bottom))';
+  function getBars(){
+    return[document.getElementById('qabar'),document.getElementById('srchbar')]
+      .filter(b=>b&&b.style.display!=='none');
+  }
+  function adjust(){
+    const vv=window.visualViewport;
+    const kbH=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
+    getBars().forEach(bar=>{
+      bar.style.bottom=kbH>50?kbH+'px':normal;
+    });
+    if(kbH>50)window.scrollTo(0,0);
+  }
+  window.visualViewport.addEventListener('resize',adjust);
+  window.visualViewport.addEventListener('scroll',adjust);
+  document.addEventListener('focusin',e=>{
+    if(!['qainput','srchbar-input','srch'].includes(e.target.id))return;
+    if(window.innerWidth>768)return;
+    setTimeout(adjust,100);
+    setTimeout(adjust,300);
+  });
+  document.addEventListener('focusout',e=>{
+    if(!['qainput','srchbar-input','srch'].includes(e.target.id))return;
+    if(window.innerWidth>768)return;
+    setTimeout(adjust,100);
+  });
+})();
 
 // keyboard
 document.addEventListener('keydown',e=>{
