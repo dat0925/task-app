@@ -282,7 +282,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .tog.on{background:var(--accent)}
 .tog::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .tog.on::after{transform:translateX(16px);box-shadow:0 2px 6px rgba(232,93,58,.4)}
-#ai-btn{position:fixed;bottom:24px;right:20px;width:50px;height:50px;border-radius:50%;background:var(--accent);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(232,93,58,.4);z-index:200;transition:transform .2s,box-shadow .2s}
+#ai-btn{display:none !important}
 #ai-btn:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(232,93,58,.5)}
 #ai-btn.open{background:var(--text2)}
 #ai-panel{position:fixed;bottom:0;right:0;width:100%;max-width:420px;height:75vh;background:var(--surface);border-top:1px solid var(--border);border-left:1px solid var(--border);border-radius:20px 20px 0 0;display:flex;flex-direction:column;z-index:199;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);box-shadow:0 -8px 32px rgba(0,0,0,.12)}
@@ -703,7 +703,7 @@ const ALL_NAV_ITEMS=[
   {v:'flagged',label:'Flag',icon:()=>ICONS.flag},
   {v:'review',label:'Review',icon:()=>ICONS.review},
   {v:'search',label:'Search',icon:()=>ICONS.search},
-  {v:'ai',label:'AI',icon:()=>ico('<path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm0 5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm0 5.5c-2 0-4 1-4 2.5V16h8v-1c0-1.5-2-2.5-4-2.5z"/>'),special:'ai'},
+  {v:'ai',label:'AI',icon:()=>'<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.09 6.41L20.5 10l-6.41 2.09L12 18.5l-2.09-6.41L3.5 10l6.41-2.09z"/><circle cx="19" cy="4" r="1.5"/><circle cx="5" cy="19" r="1"/></svg>',special:'ai'},
   {v:'_edit',label:'編集',icon:()=>ico('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>'),special:'edit'},
 ];
 function getNavOrder(){
