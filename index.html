@@ -1276,8 +1276,14 @@ document.addEventListener('input',e=>{
   document.addEventListener('touchstart',e=>{
     if(window.innerWidth>768)return;
     const t=e.touches[0];
-    if(t.clientX>EDGE)return;
-    startX=t.clientX;startY=t.clientY;tracking=true;
+    // 開く: 左端から右スワイプ
+    if(t.clientX<=EDGE&&!S.sidebarOpen){
+      startX=t.clientX;startY=t.clientY;tracking='open';
+    }
+    // 閉じる: サイドバー内から左スワイプ
+    else if(S.sidebarOpen&&t.clientX<=280){
+      startX=t.clientX;startY=t.clientY;tracking='close';
+    }
   },{passive:true});
 
   document.addEventListener('touchmove',e=>{
@@ -1285,11 +1291,10 @@ document.addEventListener('input',e=>{
     const t=e.touches[0];
     const dx=t.clientX-startX;
     const dy=Math.abs(t.clientY-startY);
-    if(dx>MIN_DIST&&dy<MAX_Y&&!S.sidebarOpen){
-      S.sidebarOpen=true;
-      S._sidebarJustOpened=Date.now();
-      render();
-      tracking=false;
+    if(tracking==='open'&&dx>MIN_DIST&&dy<MAX_Y){
+      S.sidebarOpen=true;S._sidebarJustOpened=Date.now();render();tracking=false;
+    } else if(tracking==='close'&&dx<-MIN_DIST&&dy<MAX_Y){
+      S.sidebarOpen=false;render();tracking=false;
     }
   },{passive:true});
 
