@@ -1097,6 +1097,140 @@ document.addEventListener('keydown',e=>{
   if(e.key==='n'&&!e.target.matches('input,textarea,select')){e.preventDefault();document.getElementById('qainput')?.focus()}
 });
 
+// ===== BACKUP =====
+async function saveBackup(label){
+  const data={
+    tasks:S.tasks,
+    projects:S.projects,
+    sections:S.sections,
+    tags:S.tags,
+  };
+  const backup={id:uid(),label,created_at:now(),data:JSON.stringify(data)};
+  const{error}=await window._SB.from('backups').insert(backup);
+  if(error)throw error;
+  return backup;
+}
+
+async function loadBackups(){
+  const{data,error}=await window._SB.from('backups').select('*').order('created_at',{ascending:false}).limit(20);
+  if(error)throw error;
+  return data||[];
+}
+
+async function deleteBackup(id){
+  const{error}=await window._SB.from('backups').delete().eq('id',id);
+  if(error)throw error;
+}
+
+async function restoreBackup(backup){
+  const data=JSON.parse(backup.data);
+  // 現在のデータを全削除してから復元
+  for(const t of S.tasks)await dbDel('tasks',t.id);
+  for(const p of S.projects)await dbDel('projects',p.id);
+  for(const s of S.sections)await dbDel('sections',s.id);
+  for(const g of S.tags)await dbDel('tags',g.id);
+  // 復元
+  for(const t of data.tasks||[])await dbPut('tasks',t);
+  for(const p of data.projects||[])await dbPut('projects',p);
+  for(const s of data.sections||[])await dbPut('sections',s);
+  for(const g of data.tags||[])await dbPut('tags',g);
+  await loadAll();
+  render();
+}
+
+async function openBackupModal(){
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal" style="max-width:400px;max-height:80vh;display:flex;flex-direction:column">'
+    +'<div class="modal-title">バックアップ</div>'
+    +'<div id="bk-list" style="flex:1;overflow-y:auto;min-height:80px"><div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">読み込み中…</div></div>'
+    +'<div class="modal-foot" style="flex-wrap:wrap;gap:8px">'
+      +'<button class="btn btn-ghost" id="bk-cancel">閉じる</button>'
+      +'<button class="btn btn-primary" id="bk-save">📦 今すぐバックアップ</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+
+  function fmtBkDate(s){
+    const d=new Date(s);
+    return d.getFullYear()+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getDate().toString().padStart(2,'0')
+      +' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  }
+
+  async function renderBkList(){
+    const el=document.getElementById('bk-list');
+    if(!el)return;
+    try{
+      const list=await loadBackups();
+      if(!list.length){el.innerHTML='<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">バックアップがありません</div>';return}
+      el.innerHTML=list.map(b=>{
+        const d=JSON.parse(b.data||'{}');
+        const count=(d.tasks||[]).filter(t=>t.status!=='completed').length;
+        return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border)">'
+          +'<div style="flex:1;min-width:0">'
+            +'<div style="font-size:13px;font-weight:500">'+esc(b.label)+'</div>'
+            +'<div style="font-size:11px;color:var(--text3)">'+fmtBkDate(b.created_at)+'　タスク '+count+'件</div>'
+          +'</div>'
+          +'<button class="btn btn-ghost" style="font-size:12px;padding:4px 8px" data-bk-restore="'+b.id+'">復元</button>'
+          +'<button class="icon-btn" style="color:var(--text3);font-size:12px" data-bk-del="'+b.id+'">✕</button>'
+        +'</div>';
+      }).join('');
+
+      // 復元ボタン
+      el.querySelectorAll('[data-bk-restore]').forEach(btn=>{
+        btn.addEventListener('click',async()=>{
+          const id=btn.dataset.bkRestore;
+          const bk=list.find(x=>x.id===id);if(!bk)return;
+          const d=JSON.parse(bk.data||'{}');
+          const count=(d.tasks||[]).length;
+          openConfirmModal(
+            '「'+bk.label+'」に復元',
+            fmtBkDate(bk.created_at)+'時点の状態に戻します。現在のデータは上書きされます（タスク '+count+'件）。',
+            async()=>{
+              ov.remove();
+              toast('復元中…');
+              await restoreBackup(bk);
+              toast('✓ 復元完了');
+            }
+          );
+        });
+      });
+
+      // 削除ボタン
+      el.querySelectorAll('[data-bk-del]').forEach(btn=>{
+        btn.addEventListener('click',async()=>{
+          const id=btn.dataset.bkDel;
+          const bk=list.find(x=>x.id===id);if(!bk)return;
+          openConfirmModal('バックアップを削除','「'+bk.label+'」を削除します。',async()=>{
+            await deleteBackup(id);renderBkList();
+          });
+        });
+      });
+    }catch(e){
+      const el2=document.getElementById('bk-list');
+      if(el2)el2.innerHTML='<div style="color:var(--p1);font-size:13px;padding:12px">読み込みエラー: '+esc(e.message)+'</div>';
+    }
+  }
+  renderBkList();
+
+  document.getElementById('bk-cancel').onclick=()=>ov.remove();
+  document.getElementById('bk-save').onclick=async()=>{
+    const now=new Date();
+    const label=now.getFullYear()+'/'+(now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getDate().toString().padStart(2,'0')
+      +' '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    const btn=document.getElementById('bk-save');
+    btn.disabled=true;btn.textContent='保存中…';
+    try{
+      await saveBackup(label);
+      renderBkList();
+      btn.textContent='✓ 保存しました';
+      setTimeout(()=>{if(btn)btn.textContent='📦 今すぐバックアップ';if(btn)btn.disabled=false},1500);
+    }catch(e){
+      btn.textContent='エラー: '+e.message;
+      setTimeout(()=>{if(btn)btn.textContent='📦 今すぐバックアップ';if(btn)btn.disabled=false},2000);
+    }
+  };
+}
+
 // ===== SETTINGS MODAL =====
 function getSetting(key,def){try{const v=localStorage.getItem('cfg_'+key);return v===null?def:JSON.parse(v)}catch(e){return def}}
 function setSetting(key,val){localStorage.setItem('cfg_'+key,JSON.stringify(val))}
@@ -1125,7 +1259,7 @@ function openSettingsModal(){
       +'</div>'
       +'<button class="btn btn-ghost" id="s-key-edit" style="font-size:12px;flex-shrink:0">変更</button>'
     +'</div>'
-    +'<div class="modal-foot"><button class="btn btn-primary" id="s-close">閉じる</button></div>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" id="s-close">閉じる</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
 
@@ -1146,6 +1280,7 @@ function openSettingsModal(){
     ov.remove();openSettingsModal();
   });
   document.getElementById('s-close').addEventListener('click',()=>ov.remove());
+  document.getElementById('s-backup').addEventListener('click',()=>{ov.remove();openBackupModal()});
 }
 
 // ===== CONFIRM MODAL =====
@@ -1524,6 +1659,7 @@ init();
 function setupSB(){
   try{
     const SB=window.supabase.createClient('https://sfhtvtcmgueystyuhzvd.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw');
+    window._SB=SB;
     const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order'};
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[TO[k]||k]=v;return r};
