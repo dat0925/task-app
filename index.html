@@ -914,16 +914,18 @@ function renderReview(){
   return h+'</div>';
 }
 
+function renderSearchResults(q){
+  const tasks=q?S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(q.toLowerCase())||(t.notes||'').toLowerCase().includes(q.toLowerCase()))):[];
+  if(q&&!tasks.length)return renderEmpty();
+  if(!q)return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
+  return'<div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
+}
 function renderSearch(){
   const q=S.search;
-  const tasks=q?S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(q.toLowerCase())||(t.notes||'').toLowerCase().includes(q.toLowerCase()))):[];
-  let h='<div class="tlist">';
-  h+='<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスクを検索…" style="font-size:14px"></div>';
-  if(q&&!tasks.length)h+=renderEmpty();
-  else if(!q)h+='<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
-  else h+='<div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
-  h+='</div>';
-  return h;
+  return'<div class="tlist">'
+    +'<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスクを検索…" style="font-size:14px" autocomplete="off" autocorrect="off" autocapitalize="off"></div>'
+    +'<div id="srch-results">'+renderSearchResults(q)+'</div>'
+    +'</div>';
 }
 
 // ===== RENDER DRAWER =====
@@ -1254,7 +1256,23 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
 
 // search
 document.addEventListener('input',e=>{
-  if(e.target.id==='srch'){S.search=e.target.value;renderContent()}
+  if(e.target.id==='srch'){
+    // composing中(IME変換中)は無視
+    if(e.isComposing)return;
+    S.search=e.target.value;
+    const res=document.getElementById('srch-results');
+    if(res)res.innerHTML=renderSearchResults(S.search);
+    else renderContent();
+  }
+});
+
+// compositionend: IME確定後に検索実行
+document.addEventListener('compositionend',e=>{
+  if(e.target.id==='srch'){
+    S.search=e.target.value;
+    const res=document.getElementById('srch-results');
+    if(res)res.innerHTML=renderSearchResults(S.search);
+  }
 });
 
 // keyboard
