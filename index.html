@@ -1948,8 +1948,13 @@ function updateSrchFloat(){
 // ===== FAST TAP (global) =====
 (function(){
   let _ft=false;
+  let _target=null;
+  document.addEventListener('touchstart',function(e){
+    _target=e.target.closest('[data-a],[data-k],button');
+  },{passive:true});
   document.addEventListener('touchend',function(e){
-    const el=e.target.closest('[data-a],[data-k],button');
+    const el=_target;
+    _target=null;
     if(!el||el.closest('#lockScreen'))return;
     e.preventDefault();
     if(_ft)return;
