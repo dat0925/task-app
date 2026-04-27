@@ -256,12 +256,12 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   }
   .drawer.open{transform:translateY(0) !important}
   .bot-nav{display:block}
-  .content{padding-bottom:calc(var(--nav-h) + 68px)}
+  .content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 68px)}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
   .qabar{
     position:fixed;
-    bottom:var(--nav-h);
+    bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
     left:0;right:0;
     z-index:70;
     border-bottom:none;
