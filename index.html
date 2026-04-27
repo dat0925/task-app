@@ -2173,8 +2173,10 @@ async function init(){
       S.view='notes';S.noteId=noteP;S.noteOpen=true;
       history.replaceState(null,'',location.pathname);
       render();
-      // renderの後にドロワーを明示的に開く
-      setTimeout(()=>renderNoteDrawer(),100);
+      applySettings();
+      setTimeout(()=>renderNoteDrawer(),150);
+      if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+      return;
     }
     // URLハッシュからタスクを開く
     const hash=location.hash.match(/^#task\/(.+)$/);
