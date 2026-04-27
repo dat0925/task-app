@@ -1419,24 +1419,32 @@ function openSettingsModal(){
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
 
+  function addFastHandler(id, fn){
+    const el=document.getElementById(id);
+    if(!el)return;
+    let _used=false;
+    function handle(e){e.preventDefault();e.stopPropagation();if(_used)return;_used=true;fn();setTimeout(()=>{_used=false},400);}
+    el.addEventListener('touchstart',handle,{passive:false});
+    el.addEventListener('click',handle);
+  }
   const tog=document.getElementById('s-ai-tog');
   const keyRow=document.getElementById('s-key-row');
-  tog.addEventListener('click',()=>{
+  addFastHandler('s-ai-tog',()=>{
     const now=!getSetting('aiChat',true);
     setSetting('aiChat',now);
     tog.classList.toggle('on',now);
     keyRow.style.display=now?'':'none';
     applySettings();
   });
-  document.getElementById('s-key-edit').addEventListener('click',()=>{
+  addFastHandler('s-key-edit',()=>{
     const v=prompt('AnthropicのAPIキーを入力（sk-ant-...）:',AI.key);
     if(v===null)return;
     if(v&&!v.startsWith('sk-')){alert('有効なAPIキーを入力してください');return}
     AI.key=v||'';
     ov.remove();openSettingsModal();
   });
-  document.getElementById('s-close').addEventListener('click',()=>ov.remove());
-  document.getElementById('s-backup').addEventListener('click',()=>{ov.remove();openBackupModal()});
+  addFastHandler('s-close',()=>ov.remove());
+  addFastHandler('s-backup',()=>{ov.remove();openBackupModal()});
 }
 
 // ===== CONFIRM MODAL =====
@@ -1776,7 +1784,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
     if(_ft)return;
     _ft=true;
     el.click();
-    setTimeout(()=>{_ft=false},400);
+    setTimeout(()=>{_ft=false},150);
   },{passive:false});
 })();
 
