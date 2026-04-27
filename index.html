@@ -433,7 +433,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 <script>
 'use strict';
 // ===== DB =====
-const DB_NAME='focus-db',DB_VER=1;
+const DB_NAME='focus-db',DB_VER=2;
 let _db,_ls=false;
 
 function _lsGet(s){try{return JSON.parse(localStorage.getItem('f_'+s)||'[]')}catch(e){return[]}}
@@ -446,7 +446,7 @@ function openDB(){
       const r=indexedDB.open(DB_NAME,DB_VER);
       r.onupgradeneeded=e=>{
         const d=e.target.result;
-        ['tasks','projects','sections','tags'].forEach(s=>{
+        ['tasks','projects','sections','tags','notes'].forEach(s=>{
           if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'});
         });
       };
@@ -497,6 +497,9 @@ let S={
   dark:localStorage.getItem('dark')==='1',
   search:'',layout:'list',
   sidebarOpen:false,
+  notes:[],
+  noteId:null,noteOpen:false,
+  noteSearch:'',
 };
 
 // ===== UTILS =====
@@ -597,13 +600,15 @@ function showSaveStatus(state){
 
 // ===== STORE =====
 async function loadAll(){
-  [S.tasks,S.projects,S.sections,S.tags]=await Promise.all([
-    dbAll('tasks'),dbAll('projects'),dbAll('sections'),dbAll('tags')
+  [S.tasks,S.projects,S.sections,S.tags,S.notes]=await Promise.all([
+    dbAll('tasks'),dbAll('projects'),dbAll('sections'),dbAll('tags'),dbAll('notes')
   ]);
 }
 async function saveTask(t){showSaveStatus('saving');try{t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function delTask(id){await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id)}
-async function saveProject(p){showSaveStatus('saving');try{p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
+async function saveNote(n){showSaveStatus('saving');try{n.updatedAt=now();await dbPut('notes',n);const i=S.notes.findIndex(x=>x.id===n.id);i>=0?S.notes[i]=n:S.notes.push(n);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
+async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id)}
+function mkNote(o={}){return{id:uid(),title:'',body:'',createdAt:now(),updatedAt:now(),...o}}showSaveStatus('saving');try{p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function saveTag(t){await dbPut('tags',t);const i=S.tags.findIndex(x=>x.id===t.id);i>=0?S.tags[i]=t:S.tags.push(t)}
 async function deleteProject(id){
   // プロジェクト配下のタスクを全削除
@@ -679,6 +684,7 @@ function renderSidebar(){
     {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged},
     {v:'review',label:'Review',icon:ICONS.review},
     {v:'search',label:'Search',icon:ICONS.search},
+    {v:'notes',label:'Note',icon:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
   ];
   let h='';
   navItems.forEach(n=>{
@@ -716,7 +722,7 @@ const ALL_NAV_ITEMS=[
   {v:'review',label:'Review',icon:()=>ICONS.review},
   {v:'search',label:'Search',icon:()=>ICONS.search},
   {v:'ai',label:'AI',icon:()=>'<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.09 6.41L20.5 10l-6.41 2.09L12 18.5l-2.09-6.41L3.5 10l6.41-2.09z"/><circle cx="19" cy="4" r="1.5"/><circle cx="5" cy="19" r="1"/></svg>',special:'ai'},
-  {v:'_edit',label:'編集',icon:()=>ico('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>'),special:'edit'},
+  {v:'notes',label:'Note',icon:()=>ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>')},
 ];
 function getNavOrder(){
   try{
@@ -804,13 +810,14 @@ function renderContent(){
   // モバイルでqabarを表示/非表示
   const qabar=document.getElementById('qabar');
   if(qabar&&window.innerWidth<=768){
-    const qaHidden=['search','forecast','review','completed'];
+    const qaHidden=['search','forecast','review','completed','notes'];
     qabar.style.display=qaHidden.includes(S.view)?'none':'';
   }
 
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
   if(S.view==='search'){el.innerHTML=renderSearch();return}
+  if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();return}
   el.innerHTML=renderList();
 }
 
@@ -917,14 +924,125 @@ function renderReview(){
   return h+'</div>';
 }
 
+// ===== NOTES =====
+function renderNoteList(){
+  const q=S.noteSearch.toLowerCase();
+  const notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  let h='<div class="tlist">';
+  h+='<div style="padding:10px 0 8px"><input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px" autocomplete="off"></div>';
+  h+='<div class="nav-item" data-a="note-new" style="margin-bottom:8px;color:var(--accent)"><span style="font-size:18px;margin-right:4px">+</span> 新規メモ</div>';
+  if(!notes.length){
+    h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
+  } else {
+    notes.forEach(n=>{
+      const sel=S.noteId===n.id&&S.noteOpen;
+      h+='<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
+        +'<div class="tbody">'
+          +'<div class="ttitle">'+esc(n.title||'無題')+'</div>'
+          +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+' 作成: '+fmtDate(n.createdAt.slice(0,10))+'</div>'
+        +'</div>'
+      +'</div>';
+    });
+  }
+  h+='</div>';
+  return h;
+}
+
+function renderNoteDrawer(){
+  const dr=document.getElementById('drawer');
+  if(!S.noteOpen||!S.noteId){if(S.view==='notes')dr.classList.remove('open');return}
+  const note=S.notes.find(n=>n.id===S.noteId);
+  if(!note){dr.classList.remove('open');return}
+  dr.classList.add('open');
+  const noteUrl=location.origin+location.pathname+'?note='+note.id;
+  dr.innerHTML=
+    '<div class="drawer-head">'
+      +'<span style="font-weight:600;font-size:15px">メモ詳細</span>'
+      +'<div style="display:flex;gap:8px;margin-left:auto;align-items:center">'
+        +'<button class="icon-btn" data-a="note-copy-url" data-id="'+note.id+'" title="URLコピー"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
+        +'<button class="icon-btn" data-a="note-del" data-id="'+note.id+'" title="削除" style="color:var(--p1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>'
+        +'<button class="icon-btn" data-a="close-note" style="font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center">✕</button>'
+      +'</div>'
+    +'</div>'
+    +'<div class="drawer-body" style="display:flex;flex-direction:column;gap:12px">'
+      +'<div><div class="dt-label">タイトル</div><input class="finput" id="nt-title" value="'+esc(note.title)+'" placeholder="タイトル" style="font-size:16px;font-weight:600"></div>'
+      +'<div>'
+        +'<div class="dt-label">メモ</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'
+          +'<button class="note-stamp-btn" data-ns="date">📅 日付</button>'
+          +'<button class="note-stamp-btn" data-ns="time">🕐 時刻</button>'
+          +'<button class="note-stamp-btn" data-ns="datetime">📝 日時</button>'
+          +'<button class="note-stamp-btn" data-ns="sep">— 区切り</button>'
+        +'</div>'
+        +'<textarea class="finput" id="nt-body" rows="12" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
+        +'<div id="nt-body-preview" style="margin-top:6px;font-size:13px;color:var(--text2)"></div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
+      +'</div>'
+    +'</div>';
+
+  const titleEl=document.getElementById('nt-title');
+  const bodyEl=document.getElementById('nt-body');
+  const preview=document.getElementById('nt-body-preview');
+  function updatePreview(){
+    if(!bodyEl)return;
+    const linked=esc(bodyEl.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>');
+    preview.innerHTML=linked!==esc(bodyEl.value)?linked:'';
+  }
+  let saveTimer;
+  function schedSave(){
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(async()=>{
+      note.title=titleEl?titleEl.value:'';
+      note.body=bodyEl?bodyEl.value:'';
+      await saveNote(note);
+      renderContent();
+    },600);
+  }
+  titleEl?.addEventListener('input',schedSave);
+  bodyEl?.addEventListener('input',()=>{schedSave();updatePreview();});
+  dr.querySelectorAll('[data-ns]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(!bodyEl)return;
+      const d=new Date(),pad=n=>String(n).padStart(2,'0');
+      const map={date:d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate()),time:pad(d.getHours())+':'+pad(d.getMinutes()),datetime:d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes()),sep:'—————————————'};
+      const ins=map[btn.dataset.ns]||'';
+      const s=bodyEl.selectionStart,e=bodyEl.selectionEnd;
+      bodyEl.value=bodyEl.value.slice(0,s)+ins+bodyEl.value.slice(e);
+      bodyEl.selectionStart=bodyEl.selectionEnd=s+ins.length;
+      bodyEl.focus();schedSave();updatePreview();
+    });
+  });
+  updatePreview();
+}
+
 function renderSearch(){
   const q=S.search;
-  const tasks=q?S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(q.toLowerCase())||(t.notes||'').toLowerCase().includes(q.toLowerCase()))):[];
+  const ql=q.toLowerCase();
+  const tasks=q?S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql))):[];
+  const notes=q?S.notes.filter(n=>(n.title+n.body).toLowerCase().includes(ql)):[];
   let h='<div class="tlist">';
-  h+='<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスクを検索…" style="font-size:14px"></div>';
-  if(q&&!tasks.length)h+=renderEmpty();
-  else if(!q)h+='<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
-  else h+='<div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
+  h+='<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスク・メモを検索…" style="font-size:14px"></div>';
+  if(!q){
+    h+='<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
+  } else if(!tasks.length&&!notes.length){
+    h+=renderEmpty();
+  } else {
+    if(tasks.length){
+      h+='<div class="nav-label">タスク</div>';
+      h+='<div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
+    }
+    if(notes.length){
+      h+='<div class="nav-label" style="margin-top:12px">メモ</div>';
+      notes.forEach(n=>{
+        h+='<div class="trow" data-a="note-sel" data-id="'+n.id+'" style="cursor:pointer">'
+          +'<div class="tbody">'
+            +'<div class="ttitle">📝 '+esc(n.title||'無題')+'</div>'
+            +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+'</div>'
+          +'</div>'
+        +'</div>';
+      });
+    }
+  }
   h+='</div>';
   return h;
 }
@@ -1099,18 +1217,24 @@ function setupQA(){
 }
 
 async function submitQA(){
-  const inp=document.getElementById('qainput');
-  if(!inp||!inp.value.trim())return;
-  const p=parseQA(inp.value);
-  if(!p.title){toast('タイトルを入力してください');return}
-  const status=S.view==='project'?'active':'inbox';
-  const task=mkTask({...p,status,projectId:p.projectId||(S.view==='project'?S.projId:null)});
-  await saveTask(task);
-  inp.value='';
-  document.getElementById('qachips').innerHTML='';
-  document.getElementById('qabtn').style.display='none';
-  toast('"'+task.title+'" を追加しました');
-  render();
+  if(submitQA._running)return;
+  submitQA._running=true;
+  try{
+    const inp=document.getElementById('qainput');
+    if(!inp||!inp.value.trim())return;
+    const p=parseQA(inp.value);
+    if(!p.title){toast('タイトルを入力してください');return}
+    const status=S.view==='project'?'active':'inbox';
+    const task=mkTask({...p,status,projectId:p.projectId||(S.view==='project'?S.projId:null)});
+    await saveTask(task);
+    inp.value='';
+    document.getElementById('qachips').innerHTML='';
+    document.getElementById('qabtn').style.display='none';
+    toast('"'+task.title+'" を追加しました');
+    render();
+  }finally{
+    setTimeout(()=>{submitQA._running=false;},500);
+  }
 }
 
 // ===== EVENTS =====
@@ -1119,7 +1243,14 @@ document.addEventListener('click',async e=>{
   if(!el)return;
   const a=el.dataset.a;
 
-  if(a==='view'){S.view=el.dataset.v;S.projId=null;S.tagId=null;S.sidebarOpen=false;render()}
+  if(a==='view'){
+    const prev=S.view;
+    S.view=el.dataset.v;S.projId=null;S.tagId=null;S.sidebarOpen=false;
+    if(S.view!=='search'){S.search='';const f=document.getElementById('srch-float');if(f)f.style.display='none';}
+    if(S.view!=='notes'){S.noteOpen=false;S.noteId=null;}
+    if(S.view!==prev){S.drawerOpen=false;S.taskId=null;}
+    render();
+  }
   else if(a==='proj'){S.view='project';S.projId=el.dataset.id;S.sidebarOpen=false;render()}
   else if(a==='tag'){S.view='tag';S.tagId=el.dataset.id;S.sidebarOpen=false;render()}
   else if(a==='menu'){S.sidebarOpen=!S.sidebarOpen;S._sidebarJustOpened=S.sidebarOpen?Date.now():0;render()}
@@ -1161,6 +1292,33 @@ document.addEventListener('click',async e=>{
     }
   }
   else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
+  else if(a==='note-new'){
+    const n=mkNote({title:'',body:''});
+    await saveNote(n);S.noteId=n.id;S.noteOpen=true;
+    renderContent();
+    setTimeout(()=>document.getElementById('nt-title')?.focus(),50);
+  }
+  else if(a==='note-sel'){
+    const id=el.dataset.id;
+    if(S.noteId===id&&S.noteOpen){S.noteOpen=false;S.noteId=null;}
+    else{
+      S.noteId=id;S.noteOpen=true;
+      if(S.view!=='notes')S.view='notes'; // searchから遷移した場合
+    }
+    renderContent();
+  }
+  else if(a==='close-note'){S.noteOpen=false;S.noteId=null;renderContent();}
+  else if(a==='note-del'){
+    const id=el.dataset.id;
+    openConfirmModal('メモを削除','このメモを削除しますか？',async()=>{
+      await delNote(id);S.noteOpen=false;S.noteId=null;renderContent();
+    },'削除',true);
+  }
+  else if(a==='note-copy-url'){
+    const id=el.dataset.id;
+    const url=location.origin+location.pathname+'?note='+id;
+    navigator.clipboard?.writeText(url).then(()=>toast('URLをコピーしました')).catch(()=>toast(url));
+  }
   else if(a==='pri'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(task){task.priority=parseInt(el.dataset.p);await saveTask(task);renderDrawer();renderContent()}
@@ -1261,6 +1419,7 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
 // search
 document.addEventListener('input',e=>{
   if(e.target.id==='srch'){S.search=e.target.value;renderContent()}
+  if(e.target.id==='note-srch'){S.noteSearch=e.target.value;renderContent()}
 });
 
 // ===== SWIPE TO OPEN SIDEBAR (PWA only) =====
@@ -1984,6 +2143,14 @@ async function init(){
     await openDB();
     await seed();
     await loadAll();
+    // URLパラメータからノートを開く
+    const urlParams=new URLSearchParams(location.search);
+    const noteParam=urlParams.get('note');
+    if(noteParam){
+      const found=S.notes.find(n=>n.id===noteParam);
+      if(found){S.view='notes';S.noteId=noteParam;S.noteOpen=true;}
+      history.replaceState(null,'',location.pathname);
+    }
     // URLハッシュからタスクを開く
     const hash=location.hash.match(/^#task\/(.+)$/);
     if(hash){
