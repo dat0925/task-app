@@ -1263,8 +1263,11 @@ document.addEventListener('input',e=>{
   if(e.target.id==='srch'){S.search=e.target.value;renderContent()}
 });
 
-// ===== SWIPE TO OPEN SIDEBAR (mobile only) =====
+// ===== SWIPE TO OPEN SIDEBAR (PWA only) =====
 (function(){
+  // PWA（スタンドアロン）モードのみ有効
+  const isPWA=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+  if(!isPWA)return;
   let startX=0,startY=0,tracking=false;
   const EDGE=30; // 左端30px以内からスワイプ開始
   const MIN_DIST=60; // 最低60px右に動かす
