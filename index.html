@@ -1821,22 +1821,40 @@ document.getElementById('ai-input').addEventListener('input',function(){
 // ===== iOS KEYBOARD / BOTTOM BAR ADJUST =====
 (function(){
   if(!window.visualViewport)return;
+  const normal='calc(var(--nav-h) + env(safe-area-inset-bottom))';
+  function getBars(){
+    return [document.querySelector('.qabar'),document.getElementById('srchbar')].filter(b=>b&&b.style.display!=='none');
+  }
   function adjust(){
     if(window.innerWidth>768)return;
     const vv=window.visualViewport;
+    // iOSはfocus時にvv.offsetTopが変化するので両方考慮
     const kbH=Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    const normal='calc(var(--nav-h) + env(safe-area-inset-bottom))';
-    [document.querySelector('.qabar'), document.getElementById('srchbar')].forEach(bar=>{
-      if(!bar||bar.style.display==='none')return;
-      if(kbH>50){
-        bar.style.bottom=kbH+'px';
-        bar.style.transition='bottom .1s ease';
-      } else {
-        bar.style.bottom=normal;
-        bar.style.transition='bottom .2s ease';
-      }
+    getBars().forEach(bar=>{
+      bar.style.transition='bottom .1s ease';
+      bar.style.bottom= kbH>50 ? kbH+'px' : normal;
     });
+    // iOSのスクロールアップを打ち消す
+    if(kbH>50) window.scrollTo(0,0);
   }
+  // focus時: 即座に位置補正（スクロールアップ前に割り込む）
+  document.addEventListener('focusin',e=>{
+    if(!['qainput','srchbar-input','srch'].includes(e.target.id))return;
+    if(window.innerWidth>768)return;
+    // 少し待ってからキーボード高さを取得
+    setTimeout(adjust, 100);
+    setTimeout(adjust, 300);
+  });
+  document.addEventListener('focusout',e=>{
+    if(!['qainput','srchbar-input','srch'].includes(e.target.id))return;
+    setTimeout(()=>{
+      getBars().forEach(bar=>{
+        bar.style.transition='bottom .2s ease';
+        bar.style.bottom=normal;
+      });
+      window.scrollTo(0,0);
+    },100);
+  });
   window.visualViewport.addEventListener('resize',adjust);
   window.visualViewport.addEventListener('scroll',adjust);
 })();
