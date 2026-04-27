@@ -1751,18 +1751,18 @@ async function aiExecuteActions(actions){
           flagged:a.flagged||false,
           projectId:a.projectId?S.projects.find(p=>p.name===a.projectId)?.id||null:null,
           tagIds:a.tagNames?(a.tagNames.map(n=>S.tags.find(t=>t.name===n)?.id).filter(Boolean)):[],
-          status:'inbox',
+          status:(a.projectId&&S.projects.find(p=>p.name===a.projectId))?'active':'inbox',
         });
         await saveTask(t);
         done.push({...a,label:a.title});
       } else if(a.type==='completeTask'){
-        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
+        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)&&x.status!=='completed'):null;
         if(t){const snap=JSON.parse(JSON.stringify(t));t.status='completed';t.completedAt=now();await saveTask(t);done.push({...a,label:t.title})}
       } else if(a.type==='deleteTask'){
-        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
+        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
         if(t){await delTask(t.id);done.push({...a,label:t.title})}
       } else if(a.type==='updateTask'){
-        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
+        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
         if(t){
           if(a.dueAt!==undefined)t.dueAt=a.dueAt;
           if(a.priority!==undefined)t.priority=a.priority;
