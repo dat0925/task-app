@@ -202,10 +202,28 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 
 /* Mobile bottom nav */
 .bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:80;padding-bottom:env(safe-area-inset-bottom)}
-.bot-nav-inner{display:flex}
-.bnav{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 4px;font-size:10px;font-weight:500;color:var(--text3);cursor:pointer;gap:3px;transition:color .15s}
+.bot-nav-inner{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.bot-nav-inner::-webkit-scrollbar{display:none}
+.bnav{flex-shrink:0;min-width:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 6px;font-size:10px;font-weight:500;color:var(--text3);cursor:pointer;gap:3px;transition:color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .bnav.on{color:var(--accent)}
 .bnav svg{width:21px;height:21px}
+.bnav-ai{color:var(--accent);background:var(--accent-bg)}
+/* Lock screen */
+.lock-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.lock-logo{width:56px;height:56px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:28px;margin-bottom:8px}
+.lock-title{font-size:18px;font-weight:700;letter-spacing:-.2px}
+.lock-sub{font-size:13px;color:var(--text3)}
+.lock-dots{display:flex;gap:12px;margin:8px 0}
+.lock-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);transition:background .15s,border-color .15s}
+.lock-dot.filled{background:var(--accent);border-color:var(--accent)}
+.lock-pad{display:grid;grid-template-columns:repeat(3,72px);gap:10px}
+.lock-key{height:72px;border-radius:14px;background:var(--surface);border:1px solid var(--border);font-size:22px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);transition:background .12s}
+.lock-key:active{background:var(--bg3)}
+.lock-err{color:var(--p1);font-size:13px;font-weight:500;min-height:20px}
+/* Autosave indicator */
+.autosave-ind{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;transition:opacity .3s}
+.autosave-ind.saving{color:var(--yellow)}
+.autosave-ind.saved{color:var(--green)}
 
 /* Sidebar overlay for mobile */
 .sov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90}
@@ -296,6 +314,34 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 </head>
 <body>
 
+<!-- Lock Screen -->
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-logo">F</div>
+  <div class="lock-title">Focus</div>
+  <div class="lock-sub">PINを入力してください</div>
+  <div class="lock-dots" id="lockDots">
+    <div class="lock-dot" id="ld0"></div>
+    <div class="lock-dot" id="ld1"></div>
+    <div class="lock-dot" id="ld2"></div>
+    <div class="lock-dot" id="ld3"></div>
+    <div class="lock-dot" id="ld4"></div>
+  </div>
+  <div class="lock-err" id="lockErr"></div>
+  <div class="lock-pad">
+    <button class="lock-key" data-k="1">1</button>
+    <button class="lock-key" data-k="2">2</button>
+    <button class="lock-key" data-k="3">3</button>
+    <button class="lock-key" data-k="4">4</button>
+    <button class="lock-key" data-k="5">5</button>
+    <button class="lock-key" data-k="6">6</button>
+    <button class="lock-key" data-k="7">7</button>
+    <button class="lock-key" data-k="8">8</button>
+    <button class="lock-key" data-k="9">9</button>
+    <button class="lock-key" data-k="del" style="font-size:16px">⌫</button>
+    <button class="lock-key" data-k="0">0</button>
+    <div></div>
+  </div>
+</div>
 <div class="sov" id="sov"></div>
 <div class="toast-wrap" id="toasts"></div>
 
@@ -650,19 +696,86 @@ function renderSidebar(){
 }
 
 // ===== RENDER BOTTOM NAV =====
+const ALL_NAV_ITEMS=[
+  {v:'inbox',label:'Inbox',icon:()=>ICONS.inbox},
+  {v:'today',label:'Today',icon:()=>ICONS.today},
+  {v:'forecast',label:'Forecast',icon:()=>ICONS.forecast},
+  {v:'flagged',label:'Flag',icon:()=>ICONS.flag},
+  {v:'review',label:'Review',icon:()=>ICONS.review},
+  {v:'search',label:'Search',icon:()=>ICONS.search},
+  {v:'ai',label:'AI',icon:()=>ico('<path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm0 5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm0 5.5c-2 0-4 1-4 2.5V16h8v-1c0-1.5-2-2.5-4-2.5z"/>'),special:'ai'},
+  {v:'_edit',label:'編集',icon:()=>ico('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>'),special:'edit'},
+];
+function getNavOrder(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('bnav_order')||'null');
+    if(Array.isArray(saved)&&saved.length)return saved;
+  }catch(e){}
+  return['inbox','today','forecast','review','search','ai','_edit'];
+}
 function renderBotNav(){
-  const c=counts();
-  const items=[
-    {v:'inbox',label:'Inbox',icon:ICONS.inbox},
-    {v:'today',label:'Today',icon:ICONS.today},
-    {v:'forecast',label:'Forecast',icon:ICONS.forecast},
-    {v:'review',label:'Review',icon:ICONS.review},
-    {v:'search',label:'Search',icon:ICONS.search},
-  ];
+  const order=getNavOrder();
+  const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean);
   document.getElementById('botnav').innerHTML=
     '<div class="bot-nav-inner">'+
-    items.map(i=>'<div class="bnav'+(S.view===i.v?' on':'')+'" data-a="view" data-v="'+i.v+'">'+i.icon+'<span>'+i.label+'</span></div>').join('')+
+    items.map(i=>{
+      const isAI=i.special==='ai';
+      const isEdit=i.special==='edit';
+      const on=!isAI&&!isEdit&&S.view===i.v;
+      return'<div class="bnav'+(on?' on':'')+(isAI?' bnav-ai':'')+'" data-a="'+(isAI?'ai-open':isEdit?'nav-edit':'view')+'"'+((!isAI&&!isEdit)?(' data-v="'+i.v+'"'):'')+'>'+i.icon()+'<span>'+i.label+'</span></div>';
+    }).join('')+
     '</div>';
+}
+function openNavEdit(){
+  const order=getNavOrder();
+  const ov=document.createElement('div');ov.className='overlay';
+  const itemsHtml=order.map((v,idx)=>{
+    const it=ALL_NAV_ITEMS.find(x=>x.v===v);if(!it)return'';
+    return'<div class="nav-edit-item" data-v="'+v+'" draggable="true">'
+      +'<span style="color:var(--text3);font-size:16px;cursor:grab">⠿</span>'
+      +it.icon()
+      +'<span style="flex:1;font-size:13px">'+it.label+'</span>'
+      +(v!=='_edit'?'<button style="font-size:18px;color:var(--text3);background:none;border:none;cursor:pointer" data-rm="'+v+'">×</button>':'')
+    +'</div>';
+  }).join('');
+  const avail=ALL_NAV_ITEMS.filter(x=>!order.includes(x.v)).map(x=>
+    '<button class="act-btn" data-add="'+x.v+'" style="margin:3px">+ '+x.label+'</button>'
+  ).join('');
+  ov.innerHTML='<div class="modal" style="max-height:90vh;overflow-y:auto"><div class="modal-title">ナビ並び替え</div>'
+    +'<div id="nav-edit-list">'+itemsHtml+'</div>'
+    +(avail?'<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px"><div class="flabel">追加</div>'+avail+'</div>':'')
+    +'<div class="modal-foot"><button class="btn btn-ghost" id="ne-cancel">キャンセル</button><button class="btn btn-primary" id="ne-ok">保存</button></div>'
+    +'</div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+  // drag sort
+  let dragV=null;
+  ov.querySelectorAll('.nav-edit-item').forEach(el=>{
+    el.addEventListener('dragstart',()=>{dragV=el.dataset.v;el.style.opacity='.4'});
+    el.addEventListener('dragend',()=>{el.style.opacity='';dragV=null});
+    el.addEventListener('dragover',e=>{e.preventDefault();if(dragV&&dragV!==el.dataset.v){const list=document.getElementById('nav-edit-list');const items=[...list.querySelectorAll('.nav-edit-item')];const fromEl=items.find(x=>x.dataset.v===dragV);const toEl=el;list.insertBefore(fromEl,toEl)}});
+  });
+  ov.addEventListener('click',e=>{
+    const rm=e.target.dataset.rm;
+    const add=e.target.dataset.add;
+    if(rm){e.target.closest('.nav-edit-item').remove()}
+    if(add){
+      const it=ALL_NAV_ITEMS.find(x=>x.v===add);if(!it)return;
+      const list=document.getElementById('nav-edit-list');
+      const editEl=list.querySelector('[data-v="_edit"]');
+      const newEl=document.createElement('div');
+      newEl.className='nav-edit-item';newEl.dataset.v=add;newEl.draggable=true;
+      newEl.innerHTML='<span style="color:var(--text3);font-size:16px;cursor:grab">⠿</span>'+it.icon()+'<span style="flex:1;font-size:13px">'+it.label+'</span><button style="font-size:18px;color:var(--text3);background:none;border:none;cursor:pointer" data-rm="'+add+'">×</button>';
+      list.insertBefore(newEl,editEl||null);
+      e.target.remove();
+    }
+  });
+  document.getElementById('ne-cancel').onclick=()=>ov.remove();
+  document.getElementById('ne-ok').onclick=()=>{
+    const newOrder=[...document.getElementById('nav-edit-list').querySelectorAll('.nav-edit-item')].map(x=>x.dataset.v);
+    if(!newOrder.includes('_edit'))newOrder.push('_edit');
+    localStorage.setItem('bnav_order',JSON.stringify(newOrder));
+    ov.remove();renderBotNav();
+  };
 }
 
 // ===== RENDER CONTENT =====
@@ -861,13 +974,17 @@ function renderDrawer(){
         +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…" style="margin-top:6px">'
       +'</div>'
       +'<div class="divider"></div>'
-      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
         +(!done?'<button class="act-btn" data-a="complete" data-id="'+task.id+'">✓ 完了</button>':'<button class="act-btn" data-a="uncomplete" data-id="'+task.id+'">↩ 未完了に戻す</button>')
         +'<button class="act-btn red" data-a="del" data-id="'+task.id+'">🗑 削除</button>'
+        +'<button class="act-btn" data-a="close-drawer" style="margin-left:auto">✕ 閉じる</button>'
       +'</div>'
-      +'<div class="muted xs" style="margin-top:14px;line-height:2">'
-        +'<div>作成: '+new Date(task.createdAt).toLocaleString('ja-JP')+'</div>'
-        +'<div>更新: '+new Date(task.updatedAt).toLocaleString('ja-JP')+'</div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">'
+        +'<div class="muted xs" style="line-height:2">'
+          +'<div>作成: '+new Date(task.createdAt).toLocaleString('ja-JP')+'</div>'
+          +'<div>更新: '+new Date(task.updatedAt).toLocaleString('ja-JP')+'</div>'
+        +'</div>'
+        +'<div class="autosave-ind" id="autosave-ind">自動保存 ✓</div>'
       +'</div>'
     +'</div>';
 
@@ -892,7 +1009,9 @@ function renderDrawer(){
   });
 
   // attach drawer input events
+  const setInd=(s)=>{const el=document.getElementById('autosave-ind');if(!el)return;el.className='autosave-ind '+s;el.textContent=s==='saving'?'保存中…':s==='saved'?'保存済み ✓':'自動保存 ✓'};
   const autosave=()=>{
+    setInd('saving');
     clearTimeout(autosave._t);
     autosave._t=setTimeout(async()=>{
       const t2=S.tasks.find(x=>x.id===S.taskId);if(!t2)return;
@@ -904,6 +1023,7 @@ function renderDrawer(){
       t2.repeatRule=document.getElementById('dt-repeat')?.value||null;
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
       await saveTask(t2);
+      setInd('saved');
       renderSidebar();renderContent();
     },400);
   };
@@ -1106,6 +1226,8 @@ document.addEventListener('click',async e=>{
     const p=S.projects.find(x=>x.id===el.dataset.id);
     if(p){const d=new Date();d.setDate(d.getDate()+(p.reviewEveryDays||7));p.nextReviewAt=d.toISOString().slice(0,10);await saveProject(p);renderContent()}
   }
+  else if(a==='nav-edit'){openNavEdit()}
+  else if(a==='ai-open'){aiToggle()}
 });
 
 // sidebar overlay click
@@ -1635,6 +1757,51 @@ document.getElementById('ai-input').addEventListener('keydown',e=>{
 document.getElementById('ai-input').addEventListener('input',function(){
   this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';
 });
+
+// ===== LOCK SCREEN =====
+(function(){
+  const PIN='09256';
+  const SESS_KEY='focus_unlocked';
+  const screen=document.getElementById('lockScreen');
+  if(!screen)return;
+  // Already unlocked this session
+  if(sessionStorage.getItem(SESS_KEY)==='1'){screen.style.display='none';return}
+  let entered='';
+  function updateDots(){
+    for(let i=0;i<5;i++){
+      const d=document.getElementById('ld'+i);
+      if(d)d.className='lock-dot'+(i<entered.length?' filled':'');
+    }
+  }
+  function shake(){
+    screen.style.animation='none';
+    requestAnimationFrame(()=>{
+      screen.style.animation='lkshake .4s ease';
+    });
+  }
+  document.head.insertAdjacentHTML('beforeend','<style>@keyframes lkshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}</style>');
+  screen.addEventListener('click',e=>{
+    const k=e.target.closest('[data-k]');
+    if(!k)return;
+    const v=k.dataset.k;
+    if(v==='del'){entered=entered.slice(0,-1)}
+    else if(entered.length<5){entered+=v}
+    updateDots();
+    document.getElementById('lockErr').textContent='';
+    if(entered.length===5){
+      if(entered===PIN){
+        sessionStorage.setItem(SESS_KEY,'1');
+        screen.style.transition='opacity .3s';
+        screen.style.opacity='0';
+        setTimeout(()=>screen.style.display='none',300);
+      } else {
+        shake();
+        document.getElementById('lockErr').textContent='PINが違います';
+        setTimeout(()=>{entered='';updateDots();document.getElementById('lockErr').textContent=''},800);
+      }
+    }
+  });
+})();
 
 // ===== INIT =====
 async function init(){
