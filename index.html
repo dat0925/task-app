@@ -324,7 +324,6 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     <div class="lock-dot" id="ld1"></div>
     <div class="lock-dot" id="ld2"></div>
     <div class="lock-dot" id="ld3"></div>
-    <div class="lock-dot" id="ld4"></div>
   </div>
   <div class="lock-err" id="lockErr"></div>
   <div class="lock-pad">
@@ -1770,7 +1769,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
 
 // ===== LOCK SCREEN =====
 (function(){
-  const PIN='09256';
+  const PIN='8078';
   const SESS_KEY='focus_unlocked';
   const screen=document.getElementById('lockScreen');
   if(!screen)return;
@@ -1778,7 +1777,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
   if(sessionStorage.getItem(SESS_KEY)==='1'){screen.style.display='none';return}
   let entered='';
   function updateDots(){
-    for(let i=0;i<5;i++){
+    for(let i=0;i<4;i++){
       const d=document.getElementById('ld'+i);
       if(d)d.className='lock-dot'+(i<entered.length?' filled':'');
     }
