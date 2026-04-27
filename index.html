@@ -131,7 +131,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   width:360px;min-width:360px;
   background:var(--surface);border-left:1px solid var(--border);
   display:flex;flex-direction:column;overflow:hidden;
+  transform:translateX(100%);
+  transition:transform .25s ease;
 }
+.drawer.open{transform:translateX(0)}
 .drawer-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
 .drawer-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px}
 .drawer-foot{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:6px;flex-shrink:0}
@@ -256,8 +259,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     width:100% !important;
     min-width:0 !important;
     z-index:110;
-    transform:translateY(100%);
+    transform:translateY(100%) !important;
     transition:transform .25s ease;
+    background:var(--surface);
   }
   .drawer.open{transform:translateY(0) !important}
   .bot-nav{display:block}
@@ -438,7 +442,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   </div>
 
   <!-- DRAWER -->
-  <div class="drawer" id="drawer" style="display:none"></div>
+  <div class="drawer" id="drawer"></div>
 
 </div>
 
@@ -963,10 +967,9 @@ function linkify(text){
 
 function renderDrawer(){
   const dr=document.getElementById('drawer');
-  if(!S.drawerOpen||!S.taskId){dr.style.display='none';dr.classList.remove('open');history.replaceState(null,'',location.pathname);return}
+  if(!S.drawerOpen||!S.taskId){dr.classList.remove('open');history.replaceState(null,'',location.pathname);return}
   const task=S.tasks.find(t=>t.id===S.taskId);
-  if(!task){dr.style.display='none';dr.classList.remove('open');return}
-  dr.style.display='flex';
+  if(!task){dr.classList.remove('open');return}
   dr.classList.add('open');
   const subs=S.tasks.filter(t=>t.parentTaskId===task.id);
   const done=task.status==='completed';
