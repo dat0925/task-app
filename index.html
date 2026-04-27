@@ -984,12 +984,8 @@ function renderDrawer(){
     +'<div class="drawer-body">'
       +'<div class="fg"><label class="flabel">タイトル</label><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名"></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
-      +(task.notes
-        ?'<div class="notes-view" id="dt-notes-view" data-a="notes-edit">'+linkify(task.notes)+'<span class="link-hint">✏️ タップして編集 ・ [テキスト](URL) でリンクテキスト変更</span></div>'
-         +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)" style="display:none">'+esc(task.notes||'')+'</textarea>'
-        :'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)"></textarea>'
-         +'<div class="notes-view" id="dt-notes-view" style="display:none"></div>'
-      )
+      +'<div class="notes-view" id="dt-notes-view" style="'+(task.notes?'':'display:none')+'">'+linkify(task.notes||'')+'<span class="link-hint">✏️ タップして編集 ・ [テキスト](URL) でリンクテキスト変更</span></div>'
+      +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)" style="'+(task.notes?'display:none':'')+'">'+esc(task.notes||'')+'</textarea>'
       +'<div class="note-stamp-bar">'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="date">📅 日付</button>'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="time">🕐 時刻</button>'
@@ -1075,7 +1071,11 @@ function renderDrawer(){
     autosave._t=setTimeout(async()=>{
       const t2=S.tasks.find(x=>x.id===S.taskId);if(!t2)return;
       t2.title=document.getElementById('dt-title')?.value||'';
-      t2.notes=document.getElementById('dt-notes')?.value||'';
+      // メモ: 表示中(notes-view)なら現在のtextarea値、編集中なら直接取得
+      const notesEl=document.getElementById('dt-notes');
+      if(notesEl&&notesEl.style.display!=='none')t2.notes=notesEl.value||'';
+      // 表示モード時はtextareaも同期させる
+      else if(notesEl)t2.notes=notesEl.value||t2.notes||'';
       t2.dueAt=document.getElementById('dt-due')?.value||null;
       t2.startAt=document.getElementById('dt-start')?.value||null;
       t2.projectId=document.getElementById('dt-proj')?.value||null;
@@ -1095,22 +1095,30 @@ function renderDrawer(){
   const notesTA=document.getElementById('dt-notes');
   const notesView=document.getElementById('dt-notes-view');
   if(notesTA&&notesView){
-    // 表示エリアをタップ→編集モード
-    notesView.addEventListener('click',e=>{
-      if(e.target.tagName==='A')return; // リンククリックは編集しない
+    function showNotesView(){
+      const val=notesTA.value;
+      if(val){
+        notesView.innerHTML=linkify(val)+'<span class="link-hint">✏️ タップして編集 ・ [テキスト](URL) でリンクテキスト変更</span>';
+        notesView.style.display='block';
+        notesTA.style.display='none';
+      }
+    }
+    function showNotesEdit(){
       notesView.style.display='none';
       notesTA.style.display='';
       notesTA.focus();
+    }
+    // touchstart直接バインド（ファストタップを使わない）
+    notesView.addEventListener('touchstart',e=>{
+      if(e.target.tagName==='A')return;
+      e.stopPropagation();
+      showNotesEdit();
+    },{passive:true});
+    notesView.addEventListener('click',e=>{
+      if(e.target.tagName==='A')return;
+      showNotesEdit();
     });
-    // テキストエリアからフォーカスが外れたら表示モードに戻す
-    notesTA.addEventListener('blur',()=>{
-      const val=notesTA.value;
-      if(val){
-        notesView.innerHTML=linkify(val);
-        notesView.style.display='';
-        notesTA.style.display='none';
-      }
-    });
+    notesTA.addEventListener('blur',showNotesView);
   }
   const si=document.getElementById('sub-inp');
   if(si)si.addEventListener('keydown',async e=>{
