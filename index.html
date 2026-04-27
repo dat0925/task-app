@@ -140,6 +140,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .finput{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s;-webkit-appearance:none}
 .finput:focus{border-color:var(--accent)}
 .ftextarea{min-height:72px;resize:vertical;line-height:1.5}
+.notes-view{min-height:40px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text);cursor:text;padding:2px 0}
+.notes-view a{color:#2563eb;text-decoration:underline;word-break:break-all}
 .note-stamp-bar{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
 .note-stamp-btn{display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);cursor:pointer;border:1px solid var(--border);transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);white-space:nowrap}
 .note-stamp-btn:hover{background:var(--bg3);color:var(--text)}
@@ -944,6 +946,12 @@ function renderSearch(){
 }
 
 // ===== RENDER DRAWER =====
+function linkify(text){
+  if(!text)return'';
+  const escaped=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escaped.replace(/(https?:\/\/[^\s<>"']+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
 function renderDrawer(){
   const dr=document.getElementById('drawer');
   if(!S.drawerOpen||!S.taskId){dr.style.display='none';dr.classList.remove('open');history.replaceState(null,'',location.pathname);return}
@@ -966,7 +974,13 @@ function renderDrawer(){
     +'</div>'
     +'<div class="drawer-body">'
       +'<div class="fg"><label class="flabel">タイトル</label><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名"></div>'
-      +'<div class="fg"><label class="flabel">メモ</label><textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
+      +'<div class="fg"><label class="flabel">メモ</label>'
+      +(task.notes
+        ?'<div class="notes-view" id="dt-notes-view" data-a="notes-edit">'+linkify(task.notes)+'</div>'
+         +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…" style="display:none">'+esc(task.notes||'')+'</textarea>'
+        :'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…"></textarea>'
+         +'<div class="notes-view" id="dt-notes-view" style="display:none"></div>'
+      )
       +'<div class="note-stamp-bar">'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="date">📅 日付</button>'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="time">🕐 時刻</button>'
@@ -1067,6 +1081,28 @@ function renderDrawer(){
     const el=document.getElementById(id);
     if(el)el.addEventListener(el.tagName==='SELECT'||el.type==='date'?'change':'input',autosave);
   });
+
+  // メモ: 表示↔編集トグル
+  const notesTA=document.getElementById('dt-notes');
+  const notesView=document.getElementById('dt-notes-view');
+  if(notesTA&&notesView){
+    // 表示エリアをタップ→編集モード
+    notesView.addEventListener('click',e=>{
+      if(e.target.tagName==='A')return; // リンククリックは編集しない
+      notesView.style.display='none';
+      notesTA.style.display='';
+      notesTA.focus();
+    });
+    // テキストエリアからフォーカスが外れたら表示モードに戻す
+    notesTA.addEventListener('blur',()=>{
+      const val=notesTA.value;
+      if(val){
+        notesView.innerHTML=linkify(val);
+        notesView.style.display='';
+        notesTA.style.display='none';
+      }
+    });
+  }
   const si=document.getElementById('sub-inp');
   if(si)si.addEventListener('keydown',async e=>{
     if(e.key==='Enter'&&si.value.trim()){
