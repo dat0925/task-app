@@ -727,7 +727,7 @@ function getNavOrder(){
 function renderBotNav(){
   const order=getNavOrder();
   const aiEnabled=getSetting('aiChat',true);
-  const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean).filter(i=>i.special!=='ai'||aiEnabled);
+  const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean).filter(i=>i.special!=='ai'||aiEnabled).filter(i=>i.special!=='edit');
   document.getElementById('botnav').innerHTML=
     '<div class="bot-nav-inner">'+
     items.map(i=>{
@@ -1431,7 +1431,7 @@ function openSettingsModal(){
       +'</div>'
       +'<button class="btn btn-ghost" id="s-key-edit" style="font-size:12px;flex-shrink:0">変更</button>'
     +'</div>'
-    +'<div class="modal-foot"><button class="btn btn-ghost" id="s-close">閉じる</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" id="s-close">閉じる</button><button class="btn btn-ghost" id="s-nav-edit">🗂 ナビ編集</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
 
@@ -1460,6 +1460,7 @@ function openSettingsModal(){
     ov.remove();openSettingsModal();
   });
   addFastHandler('s-close',()=>ov.remove());
+  addFastHandler('s-nav-edit',()=>{ov.remove();openNavEdit();});
   addFastHandler('s-backup',()=>{ov.remove();openBackupModal()});
 }
 
@@ -1637,7 +1638,8 @@ function aiRender(){
   let h='';
   AI.msgs.forEach(m=>{
     h+='<div class="ai-msg '+m.role+'">';
-    h+='<div class="ai-bubble'+(m.loading?' thinking':'')+'">'+esc(m.text)+'</div>';
+    const txt=m.loading?esc(m.text):esc(m.text.replace(/```json[\s\S]*?```/g,'').replace(/```[\s\S]*?```/g,'').trim()).replace(/\n/g,'<br>');
+    h+='<div class="ai-bubble'+(m.loading?' thinking':'')+'">'+txt+'</div>';
     if(m.actions&&m.actions.length){
       m.actions.forEach(a=>{
         const labels={addTask:'タスク追加',completeTask:'完了',deleteTask:'削除',updateTask:'更新',addProject:'プロジェクト追加'};
