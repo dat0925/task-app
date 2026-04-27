@@ -31,7 +31,9 @@
   --accent-bg:#2a1a14;
 }
 body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;-webkit-text-size-adjust:100%}
-button{font-family:var(--font);cursor:pointer;border:none;background:none;color:inherit}
+button{font-family:var(--font);cursor:pointer;border:none;background:none;color:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+button:active{opacity:.75}
+[data-a],[data-k],.nav-item,.trow,.fc-task,.rv-item{touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16px prevents iOS zoom */
 
 /* ===== LAYOUT ===== */
@@ -1762,6 +1764,20 @@ document.getElementById('ai-input').addEventListener('keydown',e=>{
 document.getElementById('ai-input').addEventListener('input',function(){
   this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';
 });
+
+// ===== FAST TAP (global) =====
+(function(){
+  let _ft=false;
+  document.addEventListener('touchend',function(e){
+    const el=e.target.closest('[data-a],[data-k],button');
+    if(!el||el.closest('#lockScreen'))return;
+    e.preventDefault();
+    if(_ft)return;
+    _ft=true;
+    el.click();
+    setTimeout(()=>{_ft=false},400);
+  },{passive:false});
+})();
 
 // ===== LOCK SCREEN =====
 (function(){
