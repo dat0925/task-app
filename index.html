@@ -1019,8 +1019,13 @@ function renderNoteDrawer(){
       document.querySelectorAll('[data-a="note-sel"][data-id="'+note.id+'"] .ttitle').forEach(el=>el.textContent=note.title||'無題');
     },600);
   }
-  titleEl?.addEventListener('input',schedSave);
-  bodyEl?.addEventListener('input',()=>{schedSave();updatePreview();});
+  let composing=false;
+  titleEl?.addEventListener('compositionstart',()=>{composing=true});
+  titleEl?.addEventListener('compositionend',()=>{composing=false;schedSave()});
+  titleEl?.addEventListener('input',()=>{if(!composing)schedSave()});
+  bodyEl?.addEventListener('compositionstart',()=>{composing=true});
+  bodyEl?.addEventListener('compositionend',()=>{composing=false;schedSave();updatePreview()});
+  bodyEl?.addEventListener('input',()=>{if(!composing){schedSave();updatePreview();}});
   dr.querySelectorAll('[data-ns]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       if(!bodyEl)return;
