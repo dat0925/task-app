@@ -294,7 +294,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .tog.on{background:var(--accent)}
 .tog::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .tog.on::after{transform:translateX(16px);box-shadow:0 2px 6px rgba(232,93,58,.4)}
-#ai-btn{display:none !important}
+#ai-btn{display:none;position:fixed;bottom:28px;right:28px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-size:22px;z-index:190;box-shadow:0 4px 16px rgba(232,93,58,.4);transition:transform .2s,box-shadow .2s,background .2s;align-items:center;justify-content:center}
+@media(min-width:769px){#ai-btn.pc-visible{display:flex}}
 #ai-btn:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(232,93,58,.5)}
 #ai-btn.open{background:var(--text2)}
 #ai-panel{position:fixed;bottom:0;right:0;width:100%;max-width:420px;height:75vh;background:var(--surface);border-top:1px solid var(--border);border-left:1px solid var(--border);border-radius:20px 20px 0 0;display:flex;flex-direction:column;z-index:199;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);box-shadow:0 -8px 32px rgba(0,0,0,.12)}
@@ -842,6 +843,28 @@ function renderContent(){
   el.innerHTML=renderList();
 }
 
+// ノート検索時: 検索ボックスを再生成せずリスト部分だけ更新
+function renderNoteListOnly(){
+  const q=S.noteSearch.toLowerCase();
+  const notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  let h='';
+  if(!notes.length){
+    h='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
+  } else {
+    notes.forEach(n=>{
+      const sel=S.noteId===n.id&&S.noteOpen;
+      h+='<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
+        +'<div class="tbody">'
+          +'<div class="ttitle">'+esc(n.title||'無題')+'</div>'
+          +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+' 作成: '+fmtDate(n.createdAt.slice(0,10))+'</div>'
+        +'</div>'
+      +'</div>';
+    });
+  }
+  const container=document.getElementById('note-list-items');
+  if(container)container.innerHTML=h;
+}
+
 function renderList(){
   const tasks=getTasks().filter(t=>!t.parentTaskId);
   if(!tasks.length)return renderEmpty();
@@ -952,6 +975,7 @@ function renderNoteList(){
   let h='<div class="tlist">';
   h+='<div style="padding:10px 0 8px"><input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px" autocomplete="off"></div>';
   h+='<div class="nav-item" data-a="note-new" style="margin-bottom:8px;color:var(--accent)"><span style="font-size:18px;margin-right:4px">+</span> 新規メモ</div>';
+  h+='<div id="note-list-items">';
   if(!notes.length){
     h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
   } else {
@@ -965,7 +989,7 @@ function renderNoteList(){
       +'</div>';
     });
   }
-  return h+'</div>';
+  return h+'</div></div>';
 }
 
 function renderNoteDrawer(){
@@ -1438,11 +1462,11 @@ document.addEventListener('input',e=>{
   if(e.target.id==='srch'){S.search=e.target.value;renderContent()}
   if(e.target.id==='note-srch'){
     if(e.isComposing)return;
-    S.noteSearch=e.target.value;renderContent();
+    S.noteSearch=e.target.value;renderNoteListOnly();
   }
 });
 document.addEventListener('compositionend',e=>{
-  if(e.target.id==='note-srch'){S.noteSearch=e.target.value;renderContent();}
+  if(e.target.id==='note-srch'){S.noteSearch=e.target.value;renderNoteListOnly();}
 });
 
 // ===== SWIPE TO OPEN SIDEBAR (PWA only) =====
@@ -1631,7 +1655,7 @@ function setSetting(key,val){localStorage.setItem('cfg_'+key,JSON.stringify(val)
 function applySettings(){
   const aiEnabled=getSetting('aiChat',true);
   const btn=document.getElementById('ai-btn');
-  if(btn)btn.style.display=aiEnabled?'':'none';
+  if(btn){btn.style.display='';btn.classList.toggle('pc-visible',aiEnabled);}
   if(!aiEnabled&&AI.open)aiToggle(false);
   document.querySelectorAll('.bnav-ai').forEach(el=>{
     el.style.display=aiEnabled?'':'none';
