@@ -419,6 +419,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
       <div class="qa-chips" id="qachips"></div>
     </div>
 
+    <!-- 検索結果フローティングパネル（モバイル） -->
+    <div id="srch-float" style="display:none;position:fixed;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);overflow-y:auto;z-index:69;box-shadow:0 -4px 16px rgba(0,0,0,.08)"></div>
+
     <!-- 検索バー（モバイル下部固定） -->
     <div class="srchbar" id="srchbar" style="display:none">
       <div class="qawrap">
@@ -1275,11 +1278,28 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
 
 // search（IME対応・srchbar-input対応）
 (function(){
+  function updateFloat(){
+    const panel=document.getElementById('srch-float');
+    const srchbar=document.getElementById('srchbar');
+    if(!panel)return;
+    if(window.innerWidth>768||!srchbar||srchbar.style.display==='none'){
+      panel.style.display='none';return;
+    }
+    // srchbarの上からtopbarの下まで
+    const barBottom=parseFloat(srchbar.style.bottom)||0;
+    const barH=srchbar.offsetHeight||56;
+    const topH=(document.querySelector('.topbar')||{offsetHeight:52}).offsetHeight;
+    panel.style.bottom=(barBottom+barH)+'px';
+    panel.style.top=topH+'px';
+    panel.style.display='block';
+    panel.innerHTML=renderSearchResults(S.search);
+  }
   function doSearch(val){
     S.search=val;
+    updateFloat();
+    // デスクトップはsrch-resultsを更新
     const res=document.getElementById('srch-results');
     if(res)res.innerHTML=renderSearchResults(S.search);
-    else renderContent();
   }
   document.addEventListener('input',e=>{
     if(e.target.id==='srch'||e.target.id==='srchbar-input'){
@@ -1292,6 +1312,8 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
       doSearch(e.target.value);
     }
   });
+  // srchbar表示時にフロートも更新
+  window._updateSrchFloat=updateFloat;
 })();
 
 // キーボード追従（qabar・srchbar）
@@ -1309,6 +1331,7 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
       bar.style.bottom=kbH>50?kbH+'px':normal;
     });
     if(kbH>50)window.scrollTo(0,0);
+    if(window._updateSrchFloat)window._updateSrchFloat();
   }
   window.visualViewport.addEventListener('resize',adjust);
   window.visualViewport.addEventListener('scroll',adjust);
