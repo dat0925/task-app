@@ -833,7 +833,7 @@ function renderContent(){
   }
 
   // notes以外ではnoteドロワーを閉じる
-  if(S.view!=='notes'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.classList.remove('open')}}
+  if(S.view!=='notes'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.style.display='none';dr.classList.remove('open')}}
 
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
@@ -970,9 +970,10 @@ function renderNoteList(){
 
 function renderNoteDrawer(){
   const dr=document.getElementById('drawer');
-  if(!S.noteOpen||!S.noteId){dr.classList.remove('open');return}
+  if(!S.noteOpen||!S.noteId){dr.style.display='none';dr.classList.remove('open');return}
   const note=S.notes.find(n=>n.id===S.noteId);
-  if(!note){dr.classList.remove('open');return}
+  if(!note){dr.style.display='none';dr.classList.remove('open');return}
+  dr.style.display='flex';
   dr.classList.add('open');
   const noteUrl=location.origin+location.pathname+'?note='+note.id;
   dr.innerHTML=
@@ -1304,9 +1305,12 @@ document.addEventListener('click',async e=>{
   }
   else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
   else if(a==='note-new'){
-    const n=mkNote();await saveNote(n);
-    S.noteId=n.id;S.noteOpen=true;renderContent();
-    setTimeout(()=>document.getElementById('nt-title')?.focus(),50);
+    if(a._running)return;a._running=true;
+    try{
+      const n=mkNote();await saveNote(n);
+      S.noteId=n.id;S.noteOpen=true;renderContent();
+      setTimeout(()=>document.getElementById('nt-title')?.focus(),50);
+    }finally{setTimeout(()=>{a._running=false},500);}
   }
   else if(a==='note-sel'){
     const id=el.dataset.id;
