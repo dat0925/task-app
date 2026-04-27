@@ -1190,7 +1190,8 @@ async function openBackupModal(){
               toast('復元中…');
               await restoreBackup(bk);
               toast('✓ 復元完了');
-            }
+            },
+            '復元', false
           );
         });
       });
@@ -1284,14 +1285,14 @@ function openSettingsModal(){
 }
 
 // ===== CONFIRM MODAL =====
-function openConfirmModal(title,message,onOk){
+function openConfirmModal(title,message,onOk,okLabel='削除',danger=true){
   const ov=document.createElement('div');ov.className='overlay';
   ov.innerHTML='<div class="modal">'
     +'<div class="modal-title">'+esc(title)+'</div>'
     +'<div style="font-size:13px;color:var(--text2);line-height:1.6">'+esc(message)+'</div>'
     +'<div class="modal-foot">'
     +'<button class="btn btn-ghost" id="m-cancel">キャンセル</button>'
-    +'<button class="btn" id="m-ok" style="background:var(--p1);color:#fff">削除</button>'
+    +'<button class="btn" id="m-ok" style="background:'+(danger?'var(--p1)':'var(--accent)')+';color:#fff">'+esc(okLabel)+'</button>'
     +'</div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
