@@ -822,9 +822,18 @@ function renderContent(){
   if(qabar)qabar.style.display=(!isMobile||!qaHidden.includes(S.view))?'':'none';
   if(srchbar)srchbar.style.display=(isMobile&&S.view==='search')?'block':'none';
 
+  // searchビュー以外はフローティングパネルを非表示
+  const floatPanel=document.getElementById('srch-float');
+  if(floatPanel&&S.view!=='search')floatPanel.style.display='none';
+
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
-  if(S.view==='search'){el.innerHTML=renderSearch();return}
+  if(S.view==='search'){
+    el.innerHTML=renderSearch();
+    // モバイルはフローティングパネルを更新
+    if(isMobile&&window._updateSrchFloat)setTimeout(window._updateSrchFloat,50);
+    return;
+  }
   el.innerHTML=renderList();
 }
 
@@ -941,13 +950,14 @@ function renderSearchResults(q){
 function renderSearch(){
   const q=S.search;
   const isMobile=window.innerWidth<=768;
-  let h='<div class="tlist">';
-  if(!isMobile){
-    h+='<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスクを検索…" style="font-size:14px" autocomplete="off" autocorrect="off" autocapitalize="off"></div>';
+  if(isMobile){
+    // モバイルはフローティングパネルで表示するのでcontentは空
+    return'<div class="tlist"></div>';
   }
-  h+='<div id="srch-results">'+renderSearchResults(q)+'</div>';
-  h+='</div>';
-  return h;
+  return'<div class="tlist">'
+    +'<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスクを検索…" style="font-size:14px" autocomplete="off" autocorrect="off" autocapitalize="off"></div>'
+    +'<div id="srch-results">'+renderSearchResults(q)+'</div>'
+    +'</div>';
 }
 
 // ===== RENDER DRAWER =====
@@ -1285,14 +1295,16 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
     if(window.innerWidth>768||!srchbar||srchbar.style.display==='none'){
       panel.style.display='none';return;
     }
-    // srchbarの上からtopbarの下まで
-    const barBottom=parseFloat(srchbar.style.bottom)||0;
+    const navH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'))||60;
+    const safeBottom=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-bottom)'))||0;
+    const barBottomStr=srchbar.style.bottom;
+    const barBottom=barBottomStr?parseFloat(barBottomStr):(navH+safeBottom);
     const barH=srchbar.offsetHeight||56;
     const topH=(document.querySelector('.topbar')||{offsetHeight:52}).offsetHeight;
     panel.style.bottom=(barBottom+barH)+'px';
     panel.style.top=topH+'px';
     panel.style.display='block';
-    panel.innerHTML=renderSearchResults(S.search);
+    panel.innerHTML='<div class="tlist" style="padding:8px 0">'+renderSearchResults(S.search)+'</div>';
   }
   function doSearch(val){
     S.search=val;
