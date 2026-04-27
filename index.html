@@ -1768,6 +1768,11 @@ async function aiExecuteActions(actions){
           if(a.priority!==undefined)t.priority=a.priority;
           if(a.flagged!==undefined)t.flagged=a.flagged;
           if(a.newTitle)t.title=a.newTitle;
+          if(a.projectId!==undefined){
+            const proj=S.projects.find(p=>p.name===a.projectId);
+            t.projectId=proj?proj.id:null;
+            if(t.projectId&&t.status==='inbox')t.status='active';
+          }
           await saveTask(t);done.push({...a,label:t.title});
         }
       } else if(a.type==='addProject'){
@@ -1821,7 +1826,7 @@ ${JSON.stringify(context,null,2)}
     // タスク削除
     {"type":"deleteTask","keyword":"タイトルの一部"}
     // タスク更新
-    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル"}
+    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル","projectId":"プロジェクト名 or null"}
     // プロジェクト追加
     {"type":"addProject","name":"名前","color":"#hexcolor"}
   ]
