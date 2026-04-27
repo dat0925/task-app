@@ -1299,21 +1299,23 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
     if(window.innerWidth>768||!srchbar||srchbar.style.display==='none'){
       panel.style.display='none';return;
     }
-    const navH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'))||60;
-    const safeBottom=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-bottom)'))||0;
-    const barBottomStr=srchbar.style.bottom;
-    const barBottom=barBottomStr?parseFloat(barBottomStr):(navH+safeBottom);
-    const barH=srchbar.offsetHeight||56;
+    // visualViewportからキーボード高さを直接計算
+    const vv=window.visualViewport;
+    const kbH=vv?Math.max(0,window.innerHeight-vv.height-vv.offsetTop):0;
+    const navH=60; // --nav-h
+    const srchbarH=srchbar.offsetHeight||56;
+    const barBottom=kbH>50?kbH:navH;
     const topH=(document.querySelector('.topbar')||{offsetHeight:52}).offsetHeight;
-    panel.style.bottom=(barBottom+barH)+'px';
+    panel.style.bottom=(barBottom+srchbarH)+'px';
     panel.style.top=topH+'px';
     panel.style.display='block';
     panel.innerHTML='<div class="tlist" style="padding:8px 0">'+renderSearchResults(S.search)+'</div>';
   }
+  window._updateSrchFloat=updateFloat;
+
   function doSearch(val){
     S.search=val;
     updateFloat();
-    // デスクトップはsrch-resultsを更新
     const res=document.getElementById('srch-results');
     if(res)res.innerHTML=renderSearchResults(S.search);
   }
