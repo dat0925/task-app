@@ -1390,6 +1390,9 @@ function applySettings(){
   const btn=document.getElementById('ai-btn');
   if(btn)btn.style.display=aiEnabled?'':'none';
   if(!aiEnabled&&AI.open)aiToggle(false);
+  document.querySelectorAll('.bnav-ai').forEach(el=>{
+    el.style.display=aiEnabled?'':'none';
+  });
 }
 
 function openSettingsModal(){
@@ -1782,7 +1785,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
     });
   }
   document.head.insertAdjacentHTML('beforeend','<style>@keyframes lkshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}</style>');
-  screen.addEventListener('click',e=>{
+  screen.addEventListener('touchstart',e=>{ e.preventDefault();
     const k=e.target.closest('[data-k]');
     if(!k)return;
     const v=k.dataset.k;
