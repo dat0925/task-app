@@ -136,6 +136,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .finput{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s;-webkit-appearance:none}
 .finput:focus{border-color:var(--accent)}
 .ftextarea{min-height:72px;resize:vertical;line-height:1.5}
+.note-stamp-bar{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.note-stamp-btn{display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);cursor:pointer;border:1px solid var(--border);transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);white-space:nowrap}
+.note-stamp-btn:hover{background:var(--bg3);color:var(--text)}
 .fselect{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239b9891' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 .fg{margin-bottom:12px}
 .pri-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:12px}
@@ -814,7 +817,14 @@ function renderDrawer(){
     +'</div>'
     +'<div class="drawer-body">'
       +'<div class="fg"><label class="flabel">タイトル</label><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名"></div>'
-      +'<div class="fg"><label class="flabel">メモ</label><textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea></div>'
+      +'<div class="fg"><label class="flabel">メモ</label><textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
+      +'<div class="note-stamp-bar">'
+        +'<button class="note-stamp-btn" data-a="stamp" data-type="date">📅 日付</button>'
+        +'<button class="note-stamp-btn" data-a="stamp" data-type="time">🕐 時刻</button>'
+        +'<button class="note-stamp-btn" data-a="stamp" data-type="datetime">📝 日時</button>'
+        +'<button class="note-stamp-btn" data-a="stamp" data-type="sep">― 区切り</button>'
+      +'</div>'
+      +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
         +'<div><label class="flabel">期限</label><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'"></div>'
         +'<div><label class="flabel">開始日</label><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'"></div>'
@@ -1077,7 +1087,21 @@ document.addEventListener('click',async e=>{
     const name=prompt('セクション名:');
     if(name){const s={id:uid(),projectId:S.projId,name,order:Date.now()};await saveSec(s);render()}
   }
-  else if(a==='rv-done'){toast('レビュー完了！お疲れ様でした 🎉')}
+  else if(a==='stamp'){
+    const ta=document.getElementById('dt-notes');
+    if(!ta)return;
+    const now2=new Date();
+    const pad=n=>String(n).padStart(2,'0');
+    const dateStr=now2.getFullYear()+'/'+(pad(now2.getMonth()+1))+'/'+pad(now2.getDate());
+    const timeStr=pad(now2.getHours())+':'+pad(now2.getMinutes());
+    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr+' ',sep:'\n---\n'};
+    const ins=map[el.dataset.type]||'';
+    const s=ta.selectionStart,en=ta.selectionEnd;
+    ta.value=ta.value.slice(0,s)+ins+ta.value.slice(en);
+    ta.selectionStart=ta.selectionEnd=s+ins.length;
+    ta.focus();
+    ta.dispatchEvent(new Event('input'));
+  }
   else if(a==='rv-proj'){
     const p=S.projects.find(x=>x.id===el.dataset.id);
     if(p){const d=new Date();d.setDate(d.getDate()+(p.reviewEveryDays||7));p.nextReviewAt=d.toISOString().slice(0,10);await saveProject(p);renderContent()}
