@@ -256,9 +256,19 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   }
   .drawer.open{transform:translateY(0) !important}
   .bot-nav{display:block}
-  .content{padding-bottom:var(--nav-h)}
+  .content{padding-bottom:calc(var(--nav-h) + 68px)}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
+  .qabar{
+    position:fixed;
+    bottom:var(--nav-h);
+    left:0;right:0;
+    z-index:70;
+    border-bottom:none;
+    border-top:1px solid var(--border);
+    box-shadow:0 -2px 12px rgba(0,0,0,.06);
+    padding-bottom:4px;
+  }
 }
 @media(min-width:769px){
   .hamburger{display:none}
