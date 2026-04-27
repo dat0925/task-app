@@ -80,6 +80,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Quick Add */
 .qabar{padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .srchbar{padding:10px 16px;background:var(--surface);flex-shrink:0;display:none}
+#srch-float{display:none;position:fixed;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);overflow-y:auto;z-index:69;box-shadow:0 -4px 16px rgba(0,0,0,.08)}
 .qawrap{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;transition:border-color .15s}
 .qawrap:focus-within{border-color:var(--accent)}
 .qawrap input{flex:1;background:none;border:none;outline:none;font-size:16px;color:var(--text)}
@@ -425,6 +426,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
         <input id="srchbar-input" type="search" placeholder="タスクを検索…" autocomplete="off" autocorrect="off" autocapitalize="off">
       </div>
     </div>
+    <!-- Floating search results panel (mobile, above srchbar) -->
+    <div id="srch-float"><div class="tlist" id="srch-float-inner"></div></div>
 
     <div class="content" id="content" style="position:relative">
       <div id="ptr-indicator"><div id="ptr-spinner"></div><span id="ptr-label">引っ張って更新</span></div>
@@ -1275,6 +1278,7 @@ document.addEventListener('input',e=>{
     const res=document.getElementById('srch-results');
     if(res)res.innerHTML=renderSearchResults(S.search);
     else renderContent();
+    updateSrchFloat();
   }
 });
 
@@ -1284,6 +1288,7 @@ document.addEventListener('compositionend',e=>{
     S.search=e.target.value;
     const res=document.getElementById('srch-results');
     if(res)res.innerHTML=renderSearchResults(S.search);
+    updateSrchFloat();
   }
 });
 
@@ -1818,6 +1823,27 @@ document.getElementById('ai-input').addEventListener('input',function(){
   this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';
 });
 
+// ===== SRCH FLOAT PANEL =====
+function updateSrchFloat(){
+  const panel=document.getElementById('srch-float');
+  const inner=document.getElementById('srch-float-inner');
+  if(!panel||!inner||window.innerWidth>768)return;
+  inner.innerHTML=renderSearchResults(S.search);
+  // パネルの位置: srchbarの直上 〜 topbarの直下
+  const srchbar=document.getElementById('srchbar');
+  const topbar=document.querySelector('.topbar');
+  if(srchbar&&srchbar.style.display!=='none'){
+    const srchBottom=parseFloat(srchbar.style.bottom)||0;
+    const srchH=srchbar.offsetHeight||60;
+    const topH=topbar?topbar.offsetHeight:52;
+    panel.style.bottom=(srchBottom+srchH)+'px';
+    panel.style.top=topH+'px';
+    panel.style.display=S.search?'block':'none';
+  } else {
+    panel.style.display='none';
+  }
+}
+
 // ===== iOS KEYBOARD / BOTTOM BAR ADJUST =====
 (function(){
   if(!window.visualViewport)return;
@@ -1836,6 +1862,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
     });
     // iOSのスクロールアップを打ち消す
     if(kbH>50) window.scrollTo(0,0);
+    updateSrchFloat();
   }
   // focus時: 即座に位置補正（スクロールアップ前に割り込む）
   document.addEventListener('focusin',e=>{
