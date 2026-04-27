@@ -31,7 +31,9 @@
   --accent-bg:#2a1a14;
 }
 body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;-webkit-text-size-adjust:100%}
-button{font-family:var(--font);cursor:pointer;border:none;background:none;color:inherit}
+button{font-family:var(--font);cursor:pointer;border:none;background:none;color:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+button:active{opacity:.75}
+[data-a],[data-k],.nav-item,.trow,.fc-task,.rv-item{touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16px prevents iOS zoom */
 
 /* ===== LAYOUT ===== */
@@ -207,7 +209,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .bnav{flex-shrink:0;min-width:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 6px;font-size:10px;font-weight:500;color:var(--text3);cursor:pointer;gap:3px;transition:color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .bnav.on{color:var(--accent)}
 .bnav svg{width:21px;height:21px}
-.bnav-ai{color:var(--accent)}
+.bnav-ai{color:var(--accent);background:var(--accent-bg)}
 /* Lock screen */
 .lock-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
 .lock-logo{width:56px;height:56px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:28px;margin-bottom:8px}
@@ -254,9 +256,19 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   }
   .drawer.open{transform:translateY(0) !important}
   .bot-nav{display:block}
-  .content{padding-bottom:var(--nav-h)}
+  .content{padding-bottom:calc(var(--nav-h) + 68px)}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
+  .qabar{
+    position:fixed;
+    bottom:var(--nav-h);
+    left:0;right:0;
+    z-index:70;
+    border-bottom:none;
+    border-top:1px solid var(--border);
+    box-shadow:0 -2px 12px rgba(0,0,0,.06);
+    padding-bottom:4px;
+  }
 }
 @media(min-width:769px){
   .hamburger{display:none}
@@ -324,6 +336,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     <div class="lock-dot" id="ld1"></div>
     <div class="lock-dot" id="ld2"></div>
     <div class="lock-dot" id="ld3"></div>
+    <div class="lock-dot" id="ld4"></div>
   </div>
   <div class="lock-err" id="lockErr"></div>
   <div class="lock-pad">
@@ -714,7 +727,8 @@ function getNavOrder(){
 }
 function renderBotNav(){
   const order=getNavOrder();
-  const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean);
+  const aiEnabled=getSetting('aiChat',true);
+  const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean).filter(i=>i.special!=='ai'||aiEnabled);
   document.getElementById('botnav').innerHTML=
     '<div class="bot-nav-inner">'+
     items.map(i=>{
@@ -1415,24 +1429,32 @@ function openSettingsModal(){
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
 
+  function addFastHandler(id, fn){
+    const el=document.getElementById(id);
+    if(!el)return;
+    let _used=false;
+    function handle(e){e.preventDefault();e.stopPropagation();if(_used)return;_used=true;fn();setTimeout(()=>{_used=false},400);}
+    el.addEventListener('touchstart',handle,{passive:false});
+    el.addEventListener('click',handle);
+  }
   const tog=document.getElementById('s-ai-tog');
   const keyRow=document.getElementById('s-key-row');
-  tog.addEventListener('click',()=>{
+  addFastHandler('s-ai-tog',()=>{
     const now=!getSetting('aiChat',true);
     setSetting('aiChat',now);
     tog.classList.toggle('on',now);
     keyRow.style.display=now?'':'none';
     applySettings();
   });
-  document.getElementById('s-key-edit').addEventListener('click',()=>{
+  addFastHandler('s-key-edit',()=>{
     const v=prompt('AnthropicのAPIキーを入力（sk-ant-...）:',AI.key);
     if(v===null)return;
     if(v&&!v.startsWith('sk-')){alert('有効なAPIキーを入力してください');return}
     AI.key=v||'';
     ov.remove();openSettingsModal();
   });
-  document.getElementById('s-close').addEventListener('click',()=>ov.remove());
-  document.getElementById('s-backup').addEventListener('click',()=>{ov.remove();openBackupModal()});
+  addFastHandler('s-close',()=>ov.remove());
+  addFastHandler('s-backup',()=>{ov.remove();openBackupModal()});
 }
 
 // ===== CONFIRM MODAL =====
@@ -1637,28 +1659,23 @@ async function aiExecuteActions(actions){
           flagged:a.flagged||false,
           projectId:a.projectId?S.projects.find(p=>p.name===a.projectId)?.id||null:null,
           tagIds:a.tagNames?(a.tagNames.map(n=>S.tags.find(t=>t.name===n)?.id).filter(Boolean)):[],
-          status:(a.projectId&&S.projects.find(p=>p.name===a.projectId))?'active':'inbox',
+          status:'inbox',
         });
         await saveTask(t);
         done.push({...a,label:a.title});
       } else if(a.type==='completeTask'){
-        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)&&x.status!=='completed'):null;
+        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
         if(t){const snap=JSON.parse(JSON.stringify(t));t.status='completed';t.completedAt=now();await saveTask(t);done.push({...a,label:t.title})}
       } else if(a.type==='deleteTask'){
-        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
+        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
         if(t){await delTask(t.id);done.push({...a,label:t.title})}
       } else if(a.type==='updateTask'){
-        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
+        const t=S.tasks.find(x=>x.title&&x.title.includes(a.keyword));
         if(t){
           if(a.dueAt!==undefined)t.dueAt=a.dueAt;
           if(a.priority!==undefined)t.priority=a.priority;
           if(a.flagged!==undefined)t.flagged=a.flagged;
           if(a.newTitle)t.title=a.newTitle;
-          if(a.projectId!==undefined){
-            const proj=S.projects.find(p=>p.name===a.projectId);
-            t.projectId=proj?proj.id:null;
-            if(t.projectId&&t.status==='inbox')t.status='active';
-          }
           await saveTask(t);done.push({...a,label:t.title});
         }
       } else if(a.type==='addProject'){
@@ -1712,7 +1729,7 @@ ${JSON.stringify(context,null,2)}
     // タスク削除
     {"type":"deleteTask","keyword":"タイトルの一部"}
     // タスク更新
-    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル","projectId":"プロジェクト名 or null"}
+    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル"}
     // プロジェクト追加
     {"type":"addProject","name":"名前","color":"#hexcolor"}
   ]
@@ -1767,9 +1784,23 @@ document.getElementById('ai-input').addEventListener('input',function(){
   this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';
 });
 
+// ===== FAST TAP (global) =====
+(function(){
+  let _ft=false;
+  document.addEventListener('touchend',function(e){
+    const el=e.target.closest('[data-a],[data-k],button');
+    if(!el||el.closest('#lockScreen'))return;
+    e.preventDefault();
+    if(_ft)return;
+    _ft=true;
+    el.click();
+    setTimeout(()=>{_ft=false},150);
+  },{passive:false});
+})();
+
 // ===== LOCK SCREEN =====
 (function(){
-  const PIN='8078';
+  const PIN='09256';
   const SESS_KEY='focus_unlocked';
   const screen=document.getElementById('lockScreen');
   if(!screen)return;
@@ -1777,7 +1808,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
   if(sessionStorage.getItem(SESS_KEY)==='1'){screen.style.display='none';return}
   let entered='';
   function updateDots(){
-    for(let i=0;i<4;i++){
+    for(let i=0;i<5;i++){
       const d=document.getElementById('ld'+i);
       if(d)d.className='lock-dot'+(i<entered.length?' filled':'');
     }
