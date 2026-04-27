@@ -1,5 +1,5 @@
 // Focus Task Manager - Service Worker v6
-const CACHE_NAME = 'focus-task-v6';
+const CACHE_NAME = 'focus-task-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

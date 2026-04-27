@@ -1518,8 +1518,8 @@ async function init(){
 init();
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
-<script defer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
 (function(){
 function setupSB(){
   try{
@@ -1534,7 +1534,7 @@ function setupSB(){
     window._sbReady=true;
   }catch(e){console.error('Supabase init failed',e)}
 }
-// deferなのでDOMロード後に実行される。supabase.jsも同じdeferなので順番通り実行される
+// supabase.jsの直後に実行される
 setupSB();
 })();
 </script>
