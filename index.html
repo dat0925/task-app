@@ -727,51 +727,53 @@ function renderBotNav(){
     '</div>';
 }
 function openNavEdit(){
-  const order=getNavOrder();
   const ov=document.createElement('div');ov.className='overlay';
-  const itemsHtml=order.map((v,idx)=>{
-    const it=ALL_NAV_ITEMS.find(x=>x.v===v);if(!it)return'';
-    return'<div class="nav-edit-item" data-v="'+v+'" draggable="true">'
-      +'<span style="color:var(--text3);font-size:16px;cursor:grab">⠿</span>'
-      +it.icon()
-      +'<span style="flex:1;font-size:13px">'+it.label+'</span>'
-      +(v!=='_edit'?'<button style="font-size:18px;color:var(--text3);background:none;border:none;cursor:pointer" data-rm="'+v+'">×</button>':'')
-    +'</div>';
-  }).join('');
-  const avail=ALL_NAV_ITEMS.filter(x=>!order.includes(x.v)).map(x=>
-    '<button class="act-btn" data-add="'+x.v+'" style="margin:3px">+ '+x.label+'</button>'
-  ).join('');
   ov.innerHTML='<div class="modal" style="max-height:90vh;overflow-y:auto"><div class="modal-title">ナビ並び替え</div>'
-    +'<div id="nav-edit-list">'+itemsHtml+'</div>'
-    +(avail?'<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px"><div class="flabel">追加</div>'+avail+'</div>':'')
+    +'<div id="nav-edit-list"></div>'
+    +'<div id="nav-edit-avail"></div>'
     +'<div class="modal-foot"><button class="btn btn-ghost" id="ne-cancel">キャンセル</button><button class="btn btn-primary" id="ne-ok">保存</button></div>'
     +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
-  // drag sort
-  let dragV=null;
-  ov.querySelectorAll('.nav-edit-item').forEach(el=>{
-    el.addEventListener('dragstart',()=>{dragV=el.dataset.v;el.style.opacity='.4'});
-    el.addEventListener('dragend',()=>{el.style.opacity='';dragV=null});
-    el.addEventListener('dragover',e=>{e.preventDefault();if(dragV&&dragV!==el.dataset.v){const list=document.getElementById('nav-edit-list');const items=[...list.querySelectorAll('.nav-edit-item')];const fromEl=items.find(x=>x.dataset.v===dragV);const toEl=el;list.insertBefore(fromEl,toEl)}});
+  function buildItemEl(v){
+    const it=ALL_NAV_ITEMS.find(x=>x.v===v);if(!it)return null;
+    const d=document.createElement('div');
+    d.className='nav-edit-item';d.dataset.v=v;
+    d.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border)';
+    d.innerHTML=it.icon()
+      +'<span style="flex:1;font-size:14px">'+it.label+'</span>'
+      +'<div style="display:flex;gap:4px">'
+        +(v!=='_edit'?'<button style="width:36px;height:36px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);font-size:16px;cursor:pointer;touch-action:manipulation" data-up="1">↑</button>':'<div style="width:36px"></div>')
+        +(v!=='_edit'?'<button style="width:36px;height:36px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);font-size:16px;cursor:pointer;touch-action:manipulation" data-dn="1">↓</button>':'<div style="width:36px"></div>')
+        +(v!=='_edit'?'<button style="width:36px;height:36px;border-radius:8px;background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer;touch-action:manipulation" data-rm="'+v+'">×</button>':'<div style="width:36px"></div>')
+      +'</div>';
+    return d;
+  }
+  function refreshAvail(){
+    const order=[...list.querySelectorAll('.nav-edit-item')].map(x=>x.dataset.v);
+    const avail=ALL_NAV_ITEMS.filter(x=>!order.includes(x.v));
+    const el=document.getElementById('nav-edit-avail');
+    el.innerHTML=avail.length?'<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px"><div class="flabel">追加</div>'+avail.map(x=>'<button class="act-btn" data-add="'+x.v+'" style="margin:3px">+ '+x.label+'</button>').join('')+'</div>':'';
+  }
+  const list=document.getElementById('nav-edit-list');
+  getNavOrder().forEach(v=>{const el=buildItemEl(v);if(el)list.appendChild(el)});
+  refreshAvail();
+  list.addEventListener('click',e=>{
+    const item=e.target.closest('.nav-edit-item');if(!item)return;
+    if(e.target.dataset.up){const prev=item.previousElementSibling;if(prev)list.insertBefore(item,prev);}
+    else if(e.target.dataset.dn){const next=item.nextElementSibling;if(next)list.insertBefore(next,item);}
+    else if(e.target.dataset.rm){item.remove();refreshAvail();}
   });
-  ov.addEventListener('click',e=>{
-    const rm=e.target.dataset.rm;
-    const add=e.target.dataset.add;
-    if(rm){e.target.closest('.nav-edit-item').remove()}
-    if(add){
-      const it=ALL_NAV_ITEMS.find(x=>x.v===add);if(!it)return;
-      const list=document.getElementById('nav-edit-list');
+  document.getElementById('nav-edit-avail').addEventListener('click',e=>{
+    if(e.target.dataset.add){
+      const el=buildItemEl(e.target.dataset.add);if(!el)return;
       const editEl=list.querySelector('[data-v="_edit"]');
-      const newEl=document.createElement('div');
-      newEl.className='nav-edit-item';newEl.dataset.v=add;newEl.draggable=true;
-      newEl.innerHTML='<span style="color:var(--text3);font-size:16px;cursor:grab">⠿</span>'+it.icon()+'<span style="flex:1;font-size:13px">'+it.label+'</span><button style="font-size:18px;color:var(--text3);background:none;border:none;cursor:pointer" data-rm="'+add+'">×</button>';
-      list.insertBefore(newEl,editEl||null);
-      e.target.remove();
+      list.insertBefore(el,editEl||null);
+      refreshAvail();
     }
   });
   document.getElementById('ne-cancel').onclick=()=>ov.remove();
   document.getElementById('ne-ok').onclick=()=>{
-    const newOrder=[...document.getElementById('nav-edit-list').querySelectorAll('.nav-edit-item')].map(x=>x.dataset.v);
+    const newOrder=[...list.querySelectorAll('.nav-edit-item')].map(x=>x.dataset.v);
     if(!newOrder.includes('_edit'))newOrder.push('_edit');
     localStorage.setItem('bnav_order',JSON.stringify(newOrder));
     ov.remove();renderBotNav();
