@@ -814,7 +814,7 @@ function renderContent(){
   const qabar=document.querySelector('.qabar');
   const srchbar=document.getElementById('srchbar');
   if(qabar)qabar.style.display=qaHidden.includes(S.view)?'none':'';
-  if(srchbar)srchbar.style.display=(S.view==='search'&&window.innerWidth<=768)?'':'none';
+  if(srchbar)srchbar.style.display=(S.view==='search'&&window.innerWidth<=768)?'block':'none';
 
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
