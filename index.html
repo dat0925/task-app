@@ -1150,9 +1150,13 @@ document.addEventListener('click',async e=>{
   if(!el)return;
   const a=el.dataset.a;
 
-  if(a==='view'){S.view=el.dataset.v;S.projId=null;S.tagId=null;S.sidebarOpen=false;render()}
-  else if(a==='proj'){S.view='project';S.projId=el.dataset.id;S.sidebarOpen=false;render()}
-  else if(a==='tag'){S.view='tag';S.tagId=el.dataset.id;S.sidebarOpen=false;render()}
+  if(a==='view'){
+    S.view=el.dataset.v;S.projId=null;S.tagId=null;S.sidebarOpen=false;
+    if(S.view!=='search'){S.search='';const f=document.getElementById('srch-float');if(f)f.style.display='none';}
+    render();
+  }
+  else if(a==='proj'){S.view='project';S.projId=el.dataset.id;S.sidebarOpen=false;S.search='';const f=document.getElementById('srch-float');if(f)f.style.display='none';render()}
+  else if(a==='tag'){S.view='tag';S.tagId=el.dataset.id;S.sidebarOpen=false;S.search='';const f=document.getElementById('srch-float');if(f)f.style.display='none';render()}
   else if(a==='menu'){S.sidebarOpen=!S.sidebarOpen;render()}
   else if(a==='dark'){S.dark=!S.dark;localStorage.setItem('dark',S.dark?'1':'0');render()}
   else if(a==='newtask'){
