@@ -1201,7 +1201,8 @@ document.addEventListener('click',async e=>{
   else if(a==='sel'){
     const id=el.dataset.id;
     const task=S.tasks.find(t=>t.id===id);
-    toast('タップ: '+(task?task.title.slice(0,15):'不明')+' / ID:'+id.slice(0,8));
+    const dr=document.getElementById('drawer');
+    toast('タップ: '+(task?task.title.slice(0,10):'★未発見★')+' drawerClass:'+dr.className);
     if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
     else{S.taskId=id;S.drawerOpen=true}
     renderContent();renderSidebar();renderDrawer();
