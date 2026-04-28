@@ -2390,7 +2390,6 @@ document.getElementById('ai-input').addEventListener('input',function(){
           },400);
         }
       } else {
-        shake();
         document.getElementById('lockErr').textContent='PINが違います';
         setTimeout(()=>{entered='';updateDots();document.getElementById('lockErr').textContent=''},800);
       }
