@@ -281,55 +281,94 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   letter-spacing:.2px;
 }
 .lock-pad{
-  display:grid;grid-template-columns:repeat(3,76px);
-  gap:10px;
-  perspective:600px;
+  display:grid;grid-template-columns:repeat(3,80px);
+  gap:12px;
+  /* ベースプレート：キーの土台となるグレーの板 */
+  background:#1a1a1a;
+  padding:16px;
+  border-radius:16px;
+  box-shadow:
+    0 2px 0 #0a0a0a,
+    0 4px 12px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+/* キーの「軸＋ステム」部分：押し込み量を表現するラッパー */
+.lock-key-wrap{
+  position:relative;
+  height:80px;
 }
 .lock-key{
-  height:76px;
-  border-radius:10px;
+  width:80px;
+  height:80px;
+  border-radius:8px;
   font-size:24px;font-weight:700;
   cursor:pointer;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:2px;
+  gap:3px;
   touch-action:manipulation;
   -webkit-tap-highlight-color:rgba(0,0,0,0);
   position:relative;
   border:none;outline:none;
-  background:linear-gradient(160deg,#4a4a4a 0%,#333 60%,#2a2a2a 100%);
-  color:#d8d8d8;
+  /* キーキャップ上面：ライティングで立体感 */
+  background:
+    linear-gradient(175deg,
+      #525252 0%,
+      #3e3e3e 35%,
+      #2e2e2e 70%,
+      #252525 100%);
+  color:#cccccc;
+  /* 深いストローク：14px分の「壁」 */
   box-shadow:
-    0 6px 0 0 #111,
-    0 7px 3px rgba(0,0,0,.5),
-    inset 0 1px 0 rgba(255,255,255,.12),
-    inset 0 -1px 0 rgba(0,0,0,.4),
-    inset 1px 0 0 rgba(255,255,255,.06),
-    inset -1px 0 0 rgba(0,0,0,.3);
+    /* 底面（一番暗い）*/
+    0 14px 0 0 #0d0d0d,
+    /* 側面グラデーション（立体の壁） */
+    0 13px 0 0 #161616,
+    0 11px 0 0 #1c1c1c,
+    0 9px  0 0 #222222,
+    0 7px  0 0 #282828,
+    /* ドロップシャドウ */
+    0 16px 8px rgba(0,0,0,.7),
+    /* キャップ上面のエッジハイライト */
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 1px 0 0 rgba(255,255,255,.08),
+    inset -1px 0 0 rgba(0,0,0,.5),
+    inset 0 -2px 0 rgba(0,0,0,.5);
   transform:translateY(0);
-  transition:transform .06s ease,box-shadow .06s ease;
-  border-top:1.5px solid rgba(255,255,255,.15);
-  border-left:1.5px solid rgba(255,255,255,.08);
-  border-right:1.5px solid rgba(0,0,0,.5);
-  border-bottom:1.5px solid rgba(0,0,0,.6);
+  transition:transform .07s cubic-bezier(.25,.1,.25,1),
+             box-shadow .07s cubic-bezier(.25,.1,.25,1);
+  border-top:1px solid rgba(255,255,255,.2);
+  border-left:1px solid rgba(255,255,255,.08);
+  border-right:1px solid rgba(0,0,0,.6);
+  border-bottom:1px solid rgba(0,0,0,.7);
   letter-spacing:-.5px;
+  /* テクスチャ感：微細なグレイン */
+  image-rendering:crisp-edges;
 }
+/* 完全に押し込んだ状態：14px沈んで壁が消える */
 .lock-key.pressed{
-  transform:translateY(5px);
+  transform:translateY(13px);
   box-shadow:
-    0 1px 0 0 #111,
-    0 1px 2px rgba(0,0,0,.4),
-    inset 0 1px 0 rgba(0,0,0,.2),
-    inset 0 2px 4px rgba(0,0,0,.3);
-  background:linear-gradient(160deg,#3a3a3a 0%,#2a2a2a 60%,#222 100%);
+    0 1px 0 0 #0d0d0d,
+    0 3px 4px rgba(0,0,0,.6),
+    inset 0 2px 3px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(0,0,0,.3),
+    inset 1px 0 0 rgba(0,0,0,.3),
+    inset -1px 0 0 rgba(0,0,0,.3);
+  background:
+    linear-gradient(175deg,
+      #3a3a3a 0%,
+      #2e2e2e 40%,
+      #262626 100%);
+  border-top-color:rgba(255,255,255,.06);
 }
 .lock-key-sub{
-  font-size:7.5px;font-weight:700;letter-spacing:1.8px;
-  color:#777;line-height:1;
+  font-size:7px;font-weight:800;letter-spacing:2px;
+  color:#666;line-height:1;
   text-transform:uppercase;
 }
 .lock-key.del-key{
   font-size:18px;
-  color:#aaa;
+  color:#999;
   letter-spacing:0;
 }
 .lock-face-btn{
@@ -2432,7 +2471,8 @@ document.getElementById('ai-input').addEventListener('input',function(){
     if(!k)return;
     k.classList.add('pressed');
     playClick();
-    setTimeout(()=>k.classList.remove('pressed'),120);
+    // 深いストロークに合わせて押し込み保持を長めに
+    setTimeout(()=>k.classList.remove('pressed'),160);
     handleKey(k);
   }
   screen.addEventListener('touchstart',e=>{
