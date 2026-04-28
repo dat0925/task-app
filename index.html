@@ -2396,7 +2396,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
       }
     }
   }
-  // ===== 深みのある「コトコト」打鍵音 =====
+  // ===== メカニカル打鍵音（深め＋カチッ） =====
   let _audioCtx=null;
   function playClick(){
     try{
@@ -2405,75 +2405,85 @@ document.getElementById('ai-input').addEventListener('input',function(){
       const t=ctx.currentTime;
       const sr=ctx.sampleRate;
 
-      // マスターバス：全体音量 + ローパスで高域を大きく削る（こもり感）
       const master=ctx.createGain();
       master.gain.value=1.0;
+      // ローパスは1800Hzまで開放 → 高域の「カチッ」を残しつつ低域も豊か
       const masterLP=ctx.createBiquadFilter();
-      masterLP.type='lowpass';
-      masterLP.frequency.value=900; // 900Hz以上をほぼカット
-      masterLP.Q.value=0.6;
-      master.connect(masterLP);
-      masterLP.connect(ctx.destination);
+      masterLP.type='lowpass';masterLP.frequency.value=1800;masterLP.Q.value=0.5;
+      master.connect(masterLP);masterLP.connect(ctx.destination);
 
-      // --- Layer 1: 深い「コ」── 中空ボディの低周波共鳴 ---
-      // 木製/厚プラ筐体の箱鳴り。80Hzの重い基音＋ゆっくり減衰
+      // --- Layer 1: 「カチッ」── スイッチ接点の鋭いアタック ---
+      // 2000-3500Hz帯のノイズバースト。極短く切れよく
+      const clickSize=Math.floor(sr*0.008);
+      const clickBuf=ctx.createBuffer(1,clickSize,sr);
+      const cData=clickBuf.getChannelData(0);
+      for(let i=0;i<clickSize;i++){
+        const env=Math.exp(-i/(sr*0.0018)); // 1.8ms で急減衰
+        cData[i]=(Math.random()*2-1)*env;
+      }
+      const clickSrc=ctx.createBufferSource();
+      clickSrc.buffer=clickBuf;
+      const clickBP=ctx.createBiquadFilter();
+      clickBP.type='bandpass';clickBP.frequency.value=2800;clickBP.Q.value=1.8;
+      const gClick=ctx.createGain();
+      gClick.gain.setValueAtTime(0.9,t);
+      gClick.gain.exponentialRampToValueAtTime(0.001,t+0.01);
+      clickSrc.connect(clickBP);clickBP.connect(gClick);gClick.connect(master);
+      clickSrc.start(t);clickSrc.stop(t+0.012);
+
+      // --- Layer 2: 「コ」── 金属スプリング＋筐体の低域ボディ ---
+      // 130Hz基音→80Hzへピッチダウン。深みと重さを担う
       const bodyOsc=ctx.createOscillator();
-      bodyOsc.type='triangle'; // sineより倍音あり、こもった温かみ
-      bodyOsc.frequency.setValueAtTime(95,t);
-      bodyOsc.frequency.exponentialRampToValueAtTime(55,t+0.12); // 重くピッチダウン
+      bodyOsc.type='triangle';
+      bodyOsc.frequency.setValueAtTime(130,t);
+      bodyOsc.frequency.exponentialRampToValueAtTime(75,t+0.08);
       const gBody=ctx.createGain();
       gBody.gain.setValueAtTime(0.0,t);
-      gBody.gain.linearRampToValueAtTime(0.5,t+0.006);  // ゆったり立ち上がり
-      gBody.gain.exponentialRampToValueAtTime(0.001,t+0.18); // 長めの余韻
+      gBody.gain.linearRampToValueAtTime(0.45,t+0.003);
+      gBody.gain.exponentialRampToValueAtTime(0.001,t+0.11);
       bodyOsc.connect(gBody);gBody.connect(master);
-      bodyOsc.start(t);bodyOsc.stop(t+0.2);
+      bodyOsc.start(t);bodyOsc.stop(t+0.12);
 
-      // --- Layer 2: 「ト」── キーが底に当たる鈍いインパクト ---
-      // 短いノイズバーストを超低域でフィルタリング
-      const impSize=Math.floor(sr*0.022);
+      // --- Layer 3: 「ト」── ボトムアウト衝撃（プレートへの打撃） ---
+      // メカニカルスイッチ特有：底板に当たる硬いインパクト
+      const impSize=Math.floor(sr*0.015);
       const impBuf=ctx.createBuffer(1,impSize,sr);
       const impData=impBuf.getChannelData(0);
       for(let i=0;i<impSize;i++){
-        // 立ち上がり極速、減衰やや長め
-        const env=Math.pow(Math.min(i/(sr*0.001),1),0.5)*Math.exp(-i/(sr*0.009));
+        const env=Math.exp(-i/(sr*0.004));
         impData[i]=(Math.random()*2-1)*env;
       }
       const impSrc=ctx.createBufferSource();
       impSrc.buffer=impBuf;
-      // 500Hz以下のみ通す → 「ドスッ」感
-      const impLP=ctx.createBiquadFilter();
-      impLP.type='lowpass';impLP.frequency.value=480;impLP.Q.value=1.4;
+      const impBP=ctx.createBiquadFilter();
+      impBP.type='bandpass';impBP.frequency.value=650;impBP.Q.value=1.2;
       const gImp=ctx.createGain();
-      gImp.gain.setValueAtTime(0.9,t);
-      gImp.gain.exponentialRampToValueAtTime(0.001,t+0.022);
-      impSrc.connect(impLP);impLP.connect(gImp);gImp.connect(master);
-      impSrc.start(t);impSrc.stop(t+0.025);
+      gImp.gain.setValueAtTime(0.0,t);
+      gImp.gain.linearRampToValueAtTime(0.55,t+0.001);
+      gImp.gain.exponentialRampToValueAtTime(0.001,t+0.018);
+      impSrc.connect(impBP);impBP.connect(gImp);gImp.connect(master);
+      impSrc.start(t+0.003); // アタックより3ms遅れて底打ち
+      impSrc.stop(t+0.02);
 
-      // --- Layer 3: 中域の「コ」テクスチャ ── 空洞感の倍音 ---
-      // 250〜400Hz帯の減衰サイン波。木や厚いプラが振動するキャラクター
-      const hollowSize=Math.floor(sr*0.09);
-      const hollowBuf=ctx.createBuffer(2,hollowSize,sr); // 2chでわずかな広がり
-      for(let ch=0;ch<2;ch++){
-        const d=hollowBuf.getChannelData(ch);
-        const f1=280+(ch*30); // L:280Hz / R:310Hz でわずかにデチューン
-        const f2=f1*2.1;      // 倍音
-        for(let i=0;i<hollowSize;i++){
-          const env=Math.exp(-i/(sr*0.032));
-          // 基音＋倍音で「コォ」感
-          d[i]=(Math.sin(2*Math.PI*f1*i/sr)*0.7
-               +Math.sin(2*Math.PI*f2*i/sr)*0.2)*env;
-          // 打撃直後だけ微ノイズを混ぜてリアリティを出す
-          if(i<sr*0.005)d[i]+=(Math.random()-0.5)*0.15*Math.exp(-i/(sr*0.002));
-        }
+      // --- Layer 4: プレート共鳴の余韻 ---
+      // メカニカルキーボードのスチールプレートが鳴く「コーン」感
+      const resSize=Math.floor(sr*0.07);
+      const resBuf=ctx.createBuffer(1,resSize,sr);
+      const rData=resBuf.getChannelData(0);
+      const rf=320;
+      for(let i=0;i<resSize;i++){
+        const env=Math.exp(-i/(sr*0.022));
+        rData[i]=(Math.sin(2*Math.PI*rf*i/sr)
+                 +Math.sin(2*Math.PI*rf*1.98*i/sr)*0.3)*env;
       }
-      const hollowSrc=ctx.createBufferSource();
-      hollowSrc.buffer=hollowBuf;
-      const gHollow=ctx.createGain();
-      gHollow.gain.setValueAtTime(0.0,t);
-      gHollow.gain.linearRampToValueAtTime(0.28,t+0.004);
-      gHollow.gain.exponentialRampToValueAtTime(0.001,t+0.11);
-      hollowSrc.connect(gHollow);gHollow.connect(master);
-      hollowSrc.start(t);hollowSrc.stop(t+0.12);
+      const resSrc=ctx.createBufferSource();
+      resSrc.buffer=resBuf;
+      const gRes=ctx.createGain();
+      gRes.gain.setValueAtTime(0.0,t);
+      gRes.gain.linearRampToValueAtTime(0.18,t+0.005);
+      gRes.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+      resSrc.connect(gRes);gRes.connect(master);
+      resSrc.start(t+0.002);resSrc.stop(t+0.09);
 
     }catch(e){}
   }
