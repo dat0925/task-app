@@ -1553,6 +1553,7 @@ renderContent=function(){
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&S.drawerOpen){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
   if(e.key==='n'&&!e.target.matches('input,textarea,select')){e.preventDefault();document.getElementById('qainput')?.focus()}
+  if(e.key==='f'&&(e.ctrlKey||e.metaKey)&&window.innerWidth>768){e.preventDefault();const gs=document.getElementById('global-srch');if(gs){gs.focus();gs.select();}}
 });
 
 // ===== BACKUP =====
