@@ -283,32 +283,55 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .lock-pad{
   display:grid;grid-template-columns:repeat(3,76px);
   gap:10px;
+  perspective:600px;
 }
 .lock-key{
-  height:76px;border-radius:20px;
-  background:var(--surface);
-  border:1px solid var(--border);
-  box-shadow:0 2px 8px rgba(0,0,0,.06),inset 0 1px 0 rgba(255,255,255,.07);
-  font-size:24px;font-weight:600;
+  height:76px;
+  border-radius:10px;
+  font-size:24px;font-weight:700;
   cursor:pointer;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:1px;
+  gap:2px;
   touch-action:manipulation;
   -webkit-tap-highlight-color:rgba(0,0,0,0);
-  transition:transform .1s ease,background .12s,box-shadow .12s;
-  position:relative;overflow:hidden;
-  color:var(--text);
+  position:relative;
+  border:none;outline:none;
+  background:linear-gradient(160deg,#4a4a4a 0%,#333 60%,#2a2a2a 100%);
+  color:#d8d8d8;
+  box-shadow:
+    0 6px 0 0 #111,
+    0 7px 3px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.12),
+    inset 0 -1px 0 rgba(0,0,0,.4),
+    inset 1px 0 0 rgba(255,255,255,.06),
+    inset -1px 0 0 rgba(0,0,0,.3);
+  transform:translateY(0);
+  transition:transform .06s ease,box-shadow .06s ease;
+  border-top:1.5px solid rgba(255,255,255,.15);
+  border-left:1.5px solid rgba(255,255,255,.08);
+  border-right:1.5px solid rgba(0,0,0,.5);
+  border-bottom:1.5px solid rgba(0,0,0,.6);
+  letter-spacing:-.5px;
+}
+.lock-key.pressed{
+  transform:translateY(5px);
+  box-shadow:
+    0 1px 0 0 #111,
+    0 1px 2px rgba(0,0,0,.4),
+    inset 0 1px 0 rgba(0,0,0,.2),
+    inset 0 2px 4px rgba(0,0,0,.3);
+  background:linear-gradient(160deg,#3a3a3a 0%,#2a2a2a 60%,#222 100%);
 }
 .lock-key-sub{
-  font-size:8px;font-weight:600;letter-spacing:1.5px;
-  color:var(--text3);line-height:1;
+  font-size:7.5px;font-weight:700;letter-spacing:1.8px;
+  color:#777;line-height:1;
+  text-transform:uppercase;
 }
-.lock-key:active{
-  transform:scale(.92);
-  background:var(--bg3);
-  box-shadow:0 1px 3px rgba(0,0,0,.08);
+.lock-key.del-key{
+  font-size:18px;
+  color:#aaa;
+  letter-spacing:0;
 }
-.lock-key.del-key{font-size:20px;color:var(--text2)}
 .lock-face-btn{
   margin-top:20px;
   display:none;
@@ -2334,16 +2357,61 @@ document.getElementById('ai-input').addEventListener('input',function(){
       }
     }
   }
+  // ===== Mechanical click sound via Web Audio API =====
+  let _audioCtx=null;
+  function playClick(){
+    try{
+      if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      const ctx=_audioCtx;
+      // noise burst for the attack
+      const bufSize=ctx.sampleRate*0.04;
+      const buf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
+      const data=buf.getChannelData(0);
+      for(let i=0;i<bufSize;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/bufSize,8);
+      const src=ctx.createBufferSource();
+      src.buffer=buf;
+      // bandpass filter for that plastic clack character
+      const bp=ctx.createBiquadFilter();
+      bp.type='bandpass';bp.frequency.value=3200;bp.Q.value=0.8;
+      // quick gain envelope
+      const gain=ctx.createGain();
+      gain.gain.setValueAtTime(0.55,ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.04);
+      src.connect(bp);bp.connect(gain);gain.connect(ctx.destination);
+      src.start();src.stop(ctx.currentTime+0.05);
+      // short low thud for the bottom-out
+      const osc=ctx.createOscillator();
+      osc.type='sine';osc.frequency.setValueAtTime(180,ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(60,ctx.currentTime+0.03);
+      const g2=ctx.createGain();
+      g2.gain.setValueAtTime(0.15,ctx.currentTime);
+      g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.04);
+      osc.connect(g2);g2.connect(ctx.destination);
+      osc.start();osc.stop(ctx.currentTime+0.05);
+    }catch(e){}
+  }
+  function pressKey(k){
+    if(!k)return;
+    k.classList.add('pressed');
+    playClick();
+    setTimeout(()=>k.classList.remove('pressed'),120);
+    handleKey(k);
+  }
   screen.addEventListener('touchstart',e=>{
     e.preventDefault();
     const k=e.target.closest('[data-k]');
-    if(!k)return;
-    handleKey(k);
-  });
+    pressKey(k);
+  },{passive:false});
   screen.addEventListener('click',e=>{
     const k=e.target.closest('[data-k]');
     if(!k)return;
-    handleKey(k);
+    // avoid double-fire on touch devices
+    if(k._lastTouch&&Date.now()-k._lastTouch<300)return;
+    pressKey(k);
+  });
+  screen.addEventListener('touchend',e=>{
+    const k=e.target.closest('[data-k]');
+    if(k)k._lastTouch=Date.now();
   });
 })();
 
