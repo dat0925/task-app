@@ -2396,74 +2396,84 @@ document.getElementById('ai-input').addEventListener('input',function(){
       }
     }
   }
-  // ===== HHKB Topre sound synthesis =====
+  // ===== 深みのある「コトコト」打鍵音 =====
   let _audioCtx=null;
   function playClick(){
     try{
       if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
       const ctx=_audioCtx;
       const t=ctx.currentTime;
+      const sr=ctx.sampleRate;
+
+      // マスターバス：全体音量 + ローパスで高域を大きく削る（こもり感）
       const master=ctx.createGain();
-      master.gain.value=0.9;
-      master.connect(ctx.destination);
+      master.gain.value=1.0;
+      const masterLP=ctx.createBiquadFilter();
+      masterLP.type='lowpass';
+      masterLP.frequency.value=900; // 900Hz以上をほぼカット
+      masterLP.Q.value=0.6;
+      master.connect(masterLP);
+      masterLP.connect(ctx.destination);
 
-      // --- Layer 1: Topre "コト" pop ---
-      // Topre静電容量の特徴：ラバードームが潰れる瞬間の短いポップ
-      // 高域は抑えめ、1000-1400Hz帯が主体
-      const popSize=Math.floor(ctx.sampleRate*0.018);
-      const popBuf=ctx.createBuffer(1,popSize,ctx.sampleRate);
-      const popData=popBuf.getChannelData(0);
-      for(let i=0;i<popSize;i++){
-        // ランダムノイズ × 急速減衰エンベロープ
-        const env=Math.pow(1-i/popSize,5);
-        popData[i]=(Math.random()*2-1)*env;
+      // --- Layer 1: 深い「コ」── 中空ボディの低周波共鳴 ---
+      // 木製/厚プラ筐体の箱鳴り。80Hzの重い基音＋ゆっくり減衰
+      const bodyOsc=ctx.createOscillator();
+      bodyOsc.type='triangle'; // sineより倍音あり、こもった温かみ
+      bodyOsc.frequency.setValueAtTime(95,t);
+      bodyOsc.frequency.exponentialRampToValueAtTime(55,t+0.12); // 重くピッチダウン
+      const gBody=ctx.createGain();
+      gBody.gain.setValueAtTime(0.0,t);
+      gBody.gain.linearRampToValueAtTime(0.5,t+0.006);  // ゆったり立ち上がり
+      gBody.gain.exponentialRampToValueAtTime(0.001,t+0.18); // 長めの余韻
+      bodyOsc.connect(gBody);gBody.connect(master);
+      bodyOsc.start(t);bodyOsc.stop(t+0.2);
+
+      // --- Layer 2: 「ト」── キーが底に当たる鈍いインパクト ---
+      // 短いノイズバーストを超低域でフィルタリング
+      const impSize=Math.floor(sr*0.022);
+      const impBuf=ctx.createBuffer(1,impSize,sr);
+      const impData=impBuf.getChannelData(0);
+      for(let i=0;i<impSize;i++){
+        // 立ち上がり極速、減衰やや長め
+        const env=Math.pow(Math.min(i/(sr*0.001),1),0.5)*Math.exp(-i/(sr*0.009));
+        impData[i]=(Math.random()*2-1)*env;
       }
-      const popSrc=ctx.createBufferSource();
-      popSrc.buffer=popBuf;
-      // Topre特有：1100Hz中心のバンドパス、Qは低め（こもった感じ）
-      const bp1=ctx.createBiquadFilter();
-      bp1.type='bandpass';bp1.frequency.value=1100;bp1.Q.value=1.2;
-      // さらに高域をローパスでカット（金属感を消す）
-      const lp=ctx.createBiquadFilter();
-      lp.type='lowpass';lp.frequency.value=2200;lp.Q.value=0.5;
-      const gPop=ctx.createGain();
-      gPop.gain.setValueAtTime(0.7,t);
-      gPop.gain.exponentialRampToValueAtTime(0.001,t+0.025);
-      popSrc.connect(bp1);bp1.connect(lp);lp.connect(gPop);gPop.connect(master);
-      popSrc.start(t);popSrc.stop(t+0.03);
+      const impSrc=ctx.createBufferSource();
+      impSrc.buffer=impBuf;
+      // 500Hz以下のみ通す → 「ドスッ」感
+      const impLP=ctx.createBiquadFilter();
+      impLP.type='lowpass';impLP.frequency.value=480;impLP.Q.value=1.4;
+      const gImp=ctx.createGain();
+      gImp.gain.setValueAtTime(0.9,t);
+      gImp.gain.exponentialRampToValueAtTime(0.001,t+0.022);
+      impSrc.connect(impLP);impLP.connect(gImp);gImp.connect(master);
+      impSrc.start(t);impSrc.stop(t+0.025);
 
-      // --- Layer 2: ラバードームの柔らかいボトムアウト ---
-      // Topreはラバードームがあるため底打ちが丸く、低め（120-160Hz）
-      const thudOsc=ctx.createOscillator();
-      thudOsc.type='sine';
-      thudOsc.frequency.setValueAtTime(140,t);
-      thudOsc.frequency.exponentialRampToValueAtTime(72,t+0.05);
-      const gThud=ctx.createGain();
-      gThud.gain.setValueAtTime(0.0,t);
-      gThud.gain.linearRampToValueAtTime(0.22,t+0.004); // わずかな立ち上がり（ラバードーム感）
-      gThud.gain.exponentialRampToValueAtTime(0.001,t+0.07);
-      thudOsc.connect(gThud);gThud.connect(master);
-      thudOsc.start(t);thudOsc.stop(t+0.08);
-
-      // --- Layer 3: ケース鳴り（アルミ/プラの箱鳴り） ---
-      // HHKBのコンパクトボディが共鳴する「コォ」という余韻
-      const resSize=Math.floor(ctx.sampleRate*0.06);
-      const resBuf=ctx.createBuffer(1,resSize,ctx.sampleRate);
-      const resData=resBuf.getChannelData(0);
-      // 減衰するサイン波でケースの共鳴をシミュレート
-      const resFreq=420; // Hzで「箱っぽい」周波数帯
-      for(let i=0;i<resSize;i++){
-        const env=Math.pow(1-i/resSize,3)*Math.exp(-i/(ctx.sampleRate*0.025));
-        resData[i]=Math.sin(2*Math.PI*resFreq*i/ctx.sampleRate)*env;
+      // --- Layer 3: 中域の「コ」テクスチャ ── 空洞感の倍音 ---
+      // 250〜400Hz帯の減衰サイン波。木や厚いプラが振動するキャラクター
+      const hollowSize=Math.floor(sr*0.09);
+      const hollowBuf=ctx.createBuffer(2,hollowSize,sr); // 2chでわずかな広がり
+      for(let ch=0;ch<2;ch++){
+        const d=hollowBuf.getChannelData(ch);
+        const f1=280+(ch*30); // L:280Hz / R:310Hz でわずかにデチューン
+        const f2=f1*2.1;      // 倍音
+        for(let i=0;i<hollowSize;i++){
+          const env=Math.exp(-i/(sr*0.032));
+          // 基音＋倍音で「コォ」感
+          d[i]=(Math.sin(2*Math.PI*f1*i/sr)*0.7
+               +Math.sin(2*Math.PI*f2*i/sr)*0.2)*env;
+          // 打撃直後だけ微ノイズを混ぜてリアリティを出す
+          if(i<sr*0.005)d[i]+=(Math.random()-0.5)*0.15*Math.exp(-i/(sr*0.002));
+        }
       }
-      const resSrc=ctx.createBufferSource();
-      resSrc.buffer=resBuf;
-      const gRes=ctx.createGain();
-      gRes.gain.setValueAtTime(0.0,t);
-      gRes.gain.linearRampToValueAtTime(0.12,t+0.006);
-      gRes.gain.exponentialRampToValueAtTime(0.001,t+0.07);
-      resSrc.connect(gRes);gRes.connect(master);
-      resSrc.start(t);resSrc.stop(t+0.08);
+      const hollowSrc=ctx.createBufferSource();
+      hollowSrc.buffer=hollowBuf;
+      const gHollow=ctx.createGain();
+      gHollow.gain.setValueAtTime(0.0,t);
+      gHollow.gain.linearRampToValueAtTime(0.28,t+0.004);
+      gHollow.gain.exponentialRampToValueAtTime(0.001,t+0.11);
+      hollowSrc.connect(gHollow);gHollow.connect(master);
+      hollowSrc.start(t);hollowSrc.stop(t+0.12);
 
     }catch(e){}
   }
