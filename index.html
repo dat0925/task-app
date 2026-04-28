@@ -517,7 +517,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
       <button class="lock-key" data-k="9"><span>9</span><span class="lock-key-sub">WXYZ</span></button>
       <button class="lock-key del-key" data-k="del">⌫</button>
       <button class="lock-key" data-k="0"><span>0</span><span class="lock-key-sub">+</span></button>
-      <div></div>
+      <button class="lock-key del-key" data-k="clr" title="クリア"><span style="font-size:13px;font-weight:700;letter-spacing:0">CLR</span></button>
     </div>
     <button class="lock-face-btn" id="face-id-btn" style="display:none" title="顔認証">
       <span class="lock-face-icon">🔓</span>
@@ -1906,8 +1906,17 @@ function openSettingsModal(){
   const ov=document.createElement('div');ov.className='overlay';
   const aiEnabled=getSetting('aiChat',true);
   const apiKey=AI.key;
+  const lockEnabled=localStorage.getItem('focus_lock_enabled')!=='false';
   ov.innerHTML='<div class="modal" style="max-width:360px">'
     +'<div class="modal-title">設定</div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">🔒 パスワードロック</div><div class="settings-sub">起動時にPINを要求する</div></div>'
+      +'<button class="tog'+(lockEnabled?' on':'')+'" id="s-lock-tog"></button>'
+    +'</div>'
+    +'<div class="settings-row" id="s-pin-row" style="'+(lockEnabled?'':'display:none')+'">'  
+      +'<div><div class="settings-label">PINを変更</div><div class="settings-sub">4桁の数字</div></div>'
+      +'<button class="btn btn-ghost" id="s-pin-edit" style="font-size:12px;flex-shrink:0">変更</button>'
+    +'</div>'
     +'<div class="settings-row">'
       +'<div><div class="settings-label">AIチャット</div><div class="settings-sub">従量課金APIを使用します</div></div>'
       +'<button class="tog'+(aiEnabled?' on':'')+'" id="s-ai-tog"></button>'
@@ -1933,6 +1942,27 @@ function openSettingsModal(){
   }
   const tog=document.getElementById('s-ai-tog');
   const keyRow=document.getElementById('s-key-row');
+  const lockRow=document.getElementById('s-pin-row');
+  addFastHandler('s-lock-tog',()=>{
+    const now=localStorage.getItem('focus_lock_enabled')!=='false';
+    const next=!now;
+    localStorage.setItem('focus_lock_enabled',String(next));
+    document.getElementById('s-lock-tog').classList.toggle('on',next);
+    lockRow.style.display=next?'':'none';
+  });
+  addFastHandler('s-pin-edit',()=>{
+    const cur=localStorage.getItem('focus_pin')||'7086';
+    const v1=prompt('現在のPINを入力:');
+    if(v1===null)return;
+    if(v1!==cur){alert('現在のPINが違います');return}
+    const v2=prompt('新しいPIN（4桁の数字）:');
+    if(v2===null)return;
+    if(!/^\d{4}$/.test(v2)){alert('4桁の数字を入力してください');return}
+    const v3=prompt('新しいPINを再入力:');
+    if(v3!==v2){alert('PINが一致しません');return}
+    localStorage.setItem('focus_pin',v2);
+    alert('PINを変更しました');
+  });
   addFastHandler('s-ai-tog',()=>{
     const now=!getSetting('aiChat',true);
     setSetting('aiChat',now);
@@ -2323,12 +2353,17 @@ document.getElementById('ai-input').addEventListener('input',function(){
 
 // ===== LOCK SCREEN =====
 (function(){
-  const PIN='7086';
+  const DEFAULT_PIN='7086';
   const SESS_KEY='focus_unlocked';
   const CRED_KEY='focus_webauthn_cred';
+  const PIN_KEY='focus_pin';
+  const LOCK_ENABLED_KEY='focus_lock_enabled';
   const screen=document.getElementById('lockScreen');
   if(!screen)return;
-  if(sessionStorage.getItem(SESS_KEY)==='1'){screen.style.display='none';return}
+  // ロック無効 or セッション認証済みならスキップ
+  const lockEnabled=localStorage.getItem(LOCK_ENABLED_KEY)!=='false';
+  if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'){screen.style.display='none';return}
+  function getPin(){return localStorage.getItem(PIN_KEY)||DEFAULT_PIN;}
 
   function unlock(){
     sessionStorage.setItem(SESS_KEY,'1');
@@ -2418,12 +2453,13 @@ document.getElementById('ai-input').addEventListener('input',function(){
   document.head.insertAdjacentHTML('beforeend','<style>@keyframes lkshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}</style>');
   function handleKey(k){
     const v=k.dataset.k;
-    if(v==='del'){entered=entered.slice(0,-1)}
+    if(v==='clr'){entered=''}
+    else if(v==='del'){entered=entered.slice(0,-1)}
     else if(entered.length<4){entered+=v}
     updateDots();
     document.getElementById('lockErr').textContent='';
     if(entered.length===4){
-      if(entered===PIN){
+      if(entered===getPin()){
         unlock();
         if(supported&&!localStorage.getItem(CRED_KEY)){
           setTimeout(()=>{
