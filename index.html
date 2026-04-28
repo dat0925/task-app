@@ -893,7 +893,7 @@ function renderSidebar(){
   S.projects.filter(p=>p.status==='active').forEach(p=>{
     h+='<div class="nav-item proj-item'+(S.view==='project'&&S.projId===p.id?' on':'')+'" data-a="proj" data-id="'+p.id+'">'
       +'<span class="pdot" style="background:'+esc(p.color)+'"></span>'
-      +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.name)+'</span>'
+      +'<span class="proj-name-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-a="rename-proj" data-id="'+p.id+'" title="ダブルタップで名前変更">'+esc(p.name)+'</span>'
       +'<button class="proj-del-btn" data-a="delproj" data-id="'+p.id+'" data-name="'+esc(p.name)+'" title="削除">✕</button>'
     +'</div>';
   });
@@ -1597,6 +1597,27 @@ document.addEventListener('click',async e=>{
   else if(a==='settings'){
     if(S._sidebarJustOpened&&Date.now()-S._sidebarJustOpened<400)return;
     openSettingsModal();
+  }
+  else if(a==='rename-proj'){
+    e.stopPropagation();
+    const p=S.projects.find(x=>x.id===el.dataset.id);
+    if(!p)return;
+    const span=el;
+    const input=document.createElement('input');
+    input.value=p.name;
+    input.style.cssText='flex:1;min-width:0;font:inherit;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:0 4px;color:var(--text);outline:none;';
+    span.replaceWith(input);
+    input.focus();input.select();
+    async function commit(){
+      const newName=input.value.trim();
+      if(newName&&newName!==p.name){p.name=newName;await saveProject(p);}
+      render();
+    }
+    input.addEventListener('blur',commit);
+    input.addEventListener('keydown',e2=>{
+      if(e2.key==='Enter'){e2.preventDefault();input.blur();}
+      if(e2.key==='Escape'){input.value=p.name;input.blur();}
+    });
   }
   else if(a==='delproj'){
     e.stopPropagation();
