@@ -2124,16 +2124,28 @@ function aiRender(){
 
 async function aiExecuteActions(actions){
   const done=[];
+  // タグ名→IDを解決（未登録なら自動作成）
+  async function resolveTagIds(tagNames){
+    if(!tagNames||!tagNames.length)return[];
+    const ids=[];
+    for(const name of tagNames){
+      let tag=S.tags.find(t=>t.name===name);
+      if(!tag){tag=mkTag({name,color:'#7c3aed'});await saveTag(tag);}
+      if(!ids.includes(tag.id))ids.push(tag.id);
+    }
+    return ids;
+  }
   for(const a of actions){
     try{
       if(a.type==='addTask'){
+        const tagIds=await resolveTagIds(a.tagNames);
         const t=mkTask({
           title:a.title||'新しいタスク',
           dueAt:a.dueAt||null,
           priority:a.priority||4,
           flagged:a.flagged||false,
           projectId:a.projectId?S.projects.find(p=>p.name===a.projectId)?.id||null:null,
-          tagIds:a.tagNames?(a.tagNames.map(n=>S.tags.find(t=>t.name===n)?.id).filter(Boolean)):[],
+          tagIds,
           status:(a.projectId&&S.projects.find(p=>p.name===a.projectId))?'active':'inbox',
         });
         await saveTask(t);
@@ -2155,6 +2167,16 @@ async function aiExecuteActions(actions){
             const proj=S.projects.find(p=>p.name===a.projectId);
             t.projectId=proj?proj.id:null;
             if(t.projectId&&t.status==='inbox')t.status='active';
+          }
+          // タグの追加・置換
+          if(a.tagNames!==undefined){
+            const newIds=await resolveTagIds(a.tagNames);
+            // appendMode: trueなら既存タグに追記、falseなら置換
+            if(a.appendTags){
+              newIds.forEach(id=>{if(!t.tagIds.includes(id))t.tagIds.push(id);});
+            } else {
+              t.tagIds=newIds;
+            }
           }
           await saveTask(t);done.push({...a,label:t.title});
         }
@@ -2209,7 +2231,7 @@ ${JSON.stringify(context,null,2)}
     // タスク削除
     {"type":"deleteTask","keyword":"タイトルの一部"}
     // タスク更新
-    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル","projectId":"プロジェクト名 or null"}
+    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル","projectId":"プロジェクト名 or null","tagNames":["タグ名"],"appendTags":true}
     // プロジェクト追加
     {"type":"addProject","name":"名前","color":"#hexcolor"}
   ]
