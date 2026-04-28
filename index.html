@@ -556,9 +556,12 @@ function parseQA(input){
     .replace(/!(中|2)/g,()=>{r.priority=2;return''})
     .replace(/!(低|3)/g,()=>{r.priority=3;return''});
   // tags
+  r._newTagNames=[];
   title=title.replace(/#([\w\u3040-\u9FFF\u30A0-\u30FF]+)/g,(m,n)=>{
     const t=S.tags.find(x=>x.name===n);
-    if(t&&!r.tagIds.includes(t.id))r.tagIds.push(t.id);return'';
+    if(t&&!r.tagIds.includes(t.id))r.tagIds.push(t.id);
+    else if(!t&&!r._newTagNames.includes(n))r._newTagNames.push(n);
+    return'';
   });
   // project
   title=title.replace(/@([\w\u3040-\u9FFF\u30A0-\u30FF]+)/g,(m,n)=>{
@@ -1283,6 +1286,14 @@ async function submitQA(){
   if(!inp||!inp.value.trim())return;
   const p=parseQA(inp.value);
   if(!p.title){toast('タイトルを入力してください');return}
+  // 未登録タグを自動作成
+  if(p._newTagNames&&p._newTagNames.length){
+    for(const name of p._newTagNames){
+      const nt=mkTag({name,color:'#7c3aed'});
+      await saveTag(nt);
+      p.tagIds.push(nt.id);
+    }
+  }
   const status=S.view==='project'?'active':'inbox';
   const task=mkTask({...p,status,projectId:p.projectId||(S.view==='project'?S.projId:null)});
   await saveTask(task);
