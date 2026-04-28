@@ -1068,32 +1068,31 @@ function renderNoteDrawer(){
 
 function renderSearch(){
   const q=S.search;
-  const ql=q.toLowerCase();
-  const tasks=q?S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql))):[];
-  const notes=q?S.notes.filter(n=>(n.title+n.body).toLowerCase().includes(ql)):[];
   let h='<div class="tlist">';
   h+='<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスク・メモを検索…" style="font-size:14px"></div>';
-  if(!q){
-    h+='<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
-  } else if(!tasks.length&&!notes.length){
-    h+=renderEmpty();
-  } else {
-    if(tasks.length){
-      h+='<div class="nav-label">タスク</div><div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
-    }
-    if(notes.length){
-      h+='<div class="nav-label" style="margin-top:12px">メモ</div>';
-      notes.forEach(n=>{
-        h+='<div class="trow" data-a="note-from-search" data-id="'+n.id+'">'
-          +'<div class="tbody">'
-            +'<div class="ttitle">📝 '+esc(n.title||'無題')+'</div>'
-            +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+'</div>'
-          +'</div>'
-        +'</div>';
-      });
-    }
-  }
+  h+='<div id="srch-results">'+renderSearchResults(q)+'</div>';
   return h+'</div>';
+}
+function renderSearchResults(q){
+  if(!q)return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
+  const ql=q.toLowerCase();
+  const tasks=S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql)));
+  const notes=S.notes.filter(n=>(n.title+n.body).toLowerCase().includes(ql));
+  if(!tasks.length&&!notes.length)return renderEmpty();
+  let h='';
+  if(tasks.length)h+='<div class="nav-label">タスク</div><div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
+  if(notes.length){
+    h+='<div class="nav-label" style="margin-top:12px">メモ</div>';
+    notes.forEach(n=>{
+      h+='<div class="trow" data-a="note-from-search" data-id="'+n.id+'">'
+        +'<div class="tbody">'
+          +'<div class="ttitle">📝 '+esc(n.title||'無題')+'</div>'
+          +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+'</div>'
+        +'</div>'
+      +'</div>';
+    });
+  }
+  return h;
 }
 
 // ===== RENDER DRAWER =====
@@ -1458,14 +1457,20 @@ document.addEventListener('click',async e=>{
 document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false;render()});
 
 // search
+function updateSrch(val){
+  S.search=val;
+  const c=document.getElementById('srch-results');
+  if(c)c.innerHTML=renderSearchResults(S.search);else renderContent();
+}
 document.addEventListener('input',e=>{
-  if(e.target.id==='srch'){S.search=e.target.value;renderContent()}
+  if(e.target.id==='srch'){if(e.isComposing)return;updateSrch(e.target.value);}
   if(e.target.id==='note-srch'){
     if(e.isComposing)return;
     S.noteSearch=e.target.value;renderNoteListOnly();
   }
 });
 document.addEventListener('compositionend',e=>{
+  if(e.target.id==='srch'){updateSrch(e.target.value);}
   if(e.target.id==='note-srch'){S.noteSearch=e.target.value;renderNoteListOnly();}
 });
 
