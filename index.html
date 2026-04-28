@@ -2141,8 +2141,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
     faceBtn.style.display='flex';
     const cred=localStorage.getItem(CRED_KEY);
     if(cred){
-      hint.textContent='顔認証でロック解除';
-      setTimeout(()=>tryBiometric(),300);
+      hint.textContent='顔認証ボタンでロック解除';
     } else {
       hint.textContent='初回: PINで認証後に顔認証を登録できます';
     }
@@ -2182,7 +2181,14 @@ document.getElementById('ai-input').addEventListener('input',function(){
       }});
       unlock();
     }catch(e){
-      hint.textContent='認証に失敗しました';
+      // 資格情報が無効な場合はクリアして再登録を促す
+      if(e.name==='NotAllowedError'||e.name==='InvalidStateError'){
+        localStorage.removeItem(CRED_KEY);
+        hint.textContent='顔認証の再登録が必要です。PINで認証してください';
+        faceBtn.style.display='none';
+      } else {
+        hint.textContent='認証に失敗しました';
+      }
     }
   }
 
