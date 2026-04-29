@@ -151,6 +151,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .note-stamp-bar{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
 .note-stamp-btn{display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);cursor:pointer;border:1px solid var(--border);transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);white-space:nowrap}
 .note-stamp-btn:hover{background:var(--bg3);color:var(--text)}
+.link-popover{position:absolute;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);width:260px;display:flex;flex-direction:column;gap:8px}
+.link-popover input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);outline:none;font-family:var(--font)}
+.link-popover input:focus{border-color:var(--accent)}
+.link-popover-btns{display:flex;gap:6px;justify-content:flex-end}
+.link-popover-wrap{position:relative;display:inline-block}
 .fselect{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239b9891' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 .fg{margin-bottom:12px}
 .pri-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:12px}
@@ -700,6 +705,58 @@ let S={
 
 // ===== UTILS =====
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+// リンク挿入ポップオーバー
+function showLinkPopover(anchorBtn, taId){
+  // 既存ポップオーバーを閉じる
+  document.querySelectorAll('.link-popover').forEach(el=>el.remove());
+  const ta=document.getElementById(taId);
+  if(!ta)return;
+  // 選択テキストをデフォルトに
+  const sel=ta.value.substring(ta.selectionStart,ta.selectionEnd);
+  const pop=document.createElement('div');
+  pop.className='link-popover';
+  pop.innerHTML=
+    '<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:2px">🔗 リンクを挿入</div>'+
+    '<input id="lp-text" placeholder="表示テキスト" value="'+esc(sel)+'">'+
+    '<input id="lp-url" placeholder="URL (https://...)">'+
+    '<div class="link-popover-btns">'+
+      '<button class="btn btn-ghost" id="lp-cancel" style="font-size:12px;padding:4px 10px">キャンセル</button>'+
+      '<button class="btn btn-primary" id="lp-insert" style="font-size:12px;padding:4px 10px">挿入</button>'+
+    '</div>';
+  // アンカーボタンの近くに表示
+  const wrap=document.createElement('div');
+  wrap.style.cssText='position:relative;display:inline-block';
+  anchorBtn.parentNode.insertBefore(wrap,anchorBtn);
+  wrap.appendChild(anchorBtn);
+  wrap.appendChild(pop);
+  // 画面端補正
+  requestAnimationFrame(()=>{
+    const r=pop.getBoundingClientRect();
+    if(r.right>window.innerWidth-8)pop.style.right='0';
+    if(r.bottom>window.innerHeight-8)pop.style.bottom='100%';
+  });
+  const urlEl=pop.querySelector('#lp-url');
+  const textEl=pop.querySelector('#lp-text');
+  (sel?urlEl:textEl).focus();
+  pop.querySelector('#lp-cancel').onclick=()=>wrap.replaceWith(anchorBtn);
+  const doInsert=()=>{
+    const text=textEl.value.trim()||urlEl.value.trim();
+    const url=urlEl.value.trim();
+    if(!url){urlEl.focus();return;}
+    const md='['+text+']('+url+')';
+    const s=ta.selectionStart,e=ta.selectionEnd;
+    ta.value=ta.value.substring(0,s)+md+ta.value.substring(e);
+    ta.selectionStart=ta.selectionEnd=s+md.length;
+    ta.focus();
+    ta.dispatchEvent(new Event('input',{bubbles:true}));
+    wrap.replaceWith(anchorBtn);
+  };
+  pop.querySelector('#lp-insert').onclick=doInsert;
+  urlEl.addEventListener('keydown',e=>{if(e.key==='Enter')doInsert();if(e.key==='Escape')wrap.replaceWith(anchorBtn);});
+  // 外クリックで閉じる
+  setTimeout(()=>document.addEventListener('click',function h(e){if(!pop.contains(e.target)&&e.target!==anchorBtn){wrap.replaceWith(anchorBtn);document.removeEventListener('click',h)}},{once:false}),100);
+}
 
 // テキストエリアにドラッグリサイズハンドルを付与
 function makeResizable(ta){
@@ -1289,6 +1346,7 @@ function renderNoteDrawer(){
           +'<button class="note-stamp-btn" data-ns="time">🕐 時刻</button>'
           +'<button class="note-stamp-btn" data-ns="datetime">📝 日時</button>'
           +'<button class="note-stamp-btn" data-ns="sep">— 区切り</button>'
+          +'<button class="note-stamp-btn" id="nt-link-btn">🔗 リンク</button>'
         +'</div>'
         +'<textarea class="finput" id="nt-body" rows="12" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
         +'<div id="nt-preview" style="margin-top:6px;font-size:13px;color:var(--text2)"></div>'
@@ -1299,6 +1357,8 @@ function renderNoteDrawer(){
   const titleEl=document.getElementById('nt-title');
   const bodyEl=document.getElementById('nt-body');
   makeResizable(bodyEl);
+  const ntLinkBtn=document.getElementById('nt-link-btn');
+  if(ntLinkBtn)ntLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(ntLinkBtn,'nt-body');});
   const preview=document.getElementById('nt-preview');
   function updatePreview(){
     if(!bodyEl||!preview)return;
@@ -1390,7 +1450,9 @@ function renderDrawer(){
     +'</div>'
     +'<div class="drawer-body">'
       +'<div class="fg"><label class="flabel">タイトル</label><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名"></div>'
-      +'<div class="fg"><label class="flabel">メモ</label><textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
+      +'<div class="fg"><label class="flabel">メモ</label>'
+      +'<div style="display:flex;gap:4px;margin-bottom:5px"><button class="note-stamp-btn" id="dt-link-btn">🔗 リンク</button></div>'
+      +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
       +'<div class="note-stamp-bar">'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="date">📅 日付</button>'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="time">🕐 時刻</button>'
@@ -1496,6 +1558,8 @@ function renderDrawer(){
   };
   // タイトル・メモはcomposition対応（IME変換中はautosave抑制）
   makeResizable(document.getElementById('dt-notes'));
+  const dtLinkBtn=document.getElementById('dt-link-btn');
+  if(dtLinkBtn)dtLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(dtLinkBtn,'dt-notes');});
   ['dt-title','dt-notes'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
