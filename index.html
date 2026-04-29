@@ -870,6 +870,54 @@ const ICONS={
 };
 
 // ===== RENDER SIDEBAR =====
+// ===== PROJECT RENAME (longpress mobile / dblclick PC) =====
+function startProjRename(span){
+  const p=S.projects.find(x=>x.id===span.dataset.projId);
+  if(!p||span.querySelector('input'))return;
+  const input=document.createElement('input');
+  input.value=p.name;
+  input.style.cssText='flex:1;min-width:0;width:100%;font:inherit;font-size:inherit;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:0 5px;color:var(--text);outline:none;';
+  span.innerHTML='';
+  span.appendChild(input);
+  input.focus();input.select();
+  let committed=false;
+  async function commit(){
+    if(committed)return;committed=true;
+    const newName=input.value.trim();
+    if(newName&&newName!==p.name){p.name=newName;await saveProject(p);}
+    render();
+  }
+  input.addEventListener('blur',commit);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();input.blur();}
+    if(e.key==='Escape'){committed=true;render();}
+  });
+  // クリックがプロジェクト選択に伝播しないように
+  input.addEventListener('click',e=>e.stopPropagation());
+  input.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
+}
+
+function attachProjRenameListeners(){
+  document.querySelectorAll('.proj-name-label[data-proj-id]').forEach(span=>{
+    // PC: ダブルクリック
+    span.addEventListener('dblclick',e=>{
+      e.stopPropagation();
+      startProjRename(span);
+    });
+    // モバイル: ロングプレス（500ms）
+    let _lpt=null;
+    span.addEventListener('touchstart',e=>{
+      _lpt=setTimeout(()=>{
+        _lpt=null;
+        e.preventDefault();
+        startProjRename(span);
+      },500);
+    },{passive:true});
+    span.addEventListener('touchend',()=>{if(_lpt){clearTimeout(_lpt);_lpt=null;}});
+    span.addEventListener('touchmove',()=>{if(_lpt){clearTimeout(_lpt);_lpt=null;}});
+  });
+}
+
 function renderSidebar(){
   const c=counts();
   const navItems=[
@@ -893,7 +941,7 @@ function renderSidebar(){
   S.projects.filter(p=>p.status==='active').forEach(p=>{
     h+='<div class="nav-item proj-item'+(S.view==='project'&&S.projId===p.id?' on':'')+'" data-a="proj" data-id="'+p.id+'">'
       +'<span class="pdot" style="background:'+esc(p.color)+'"></span>'
-      +'<span class="proj-name-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-a="rename-proj" data-id="'+p.id+'" title="ダブルタップで名前変更">'+esc(p.name)+'</span>'
+      +'<span class="proj-name-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-proj-id="'+p.id+'">'+esc(p.name)+'</span>'
       +'<button class="proj-del-btn" data-a="delproj" data-id="'+p.id+'" data-name="'+esc(p.name)+'" title="削除">✕</button>'
     +'</div>';
   });
@@ -1420,6 +1468,7 @@ function render(){
   if(S.sidebarOpen){sb.classList.add('open');sov.classList.add('open')}
   else{sb.classList.remove('open');sov.classList.remove('open')}
   renderSidebar();
+  attachProjRenameListeners();
   renderBotNav();
   renderContent();
   renderDrawer();
@@ -1597,27 +1646,6 @@ document.addEventListener('click',async e=>{
   else if(a==='settings'){
     if(S._sidebarJustOpened&&Date.now()-S._sidebarJustOpened<400)return;
     openSettingsModal();
-  }
-  else if(a==='rename-proj'){
-    e.stopPropagation();
-    const p=S.projects.find(x=>x.id===el.dataset.id);
-    if(!p)return;
-    const span=el;
-    const input=document.createElement('input');
-    input.value=p.name;
-    input.style.cssText='flex:1;min-width:0;font:inherit;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:0 4px;color:var(--text);outline:none;';
-    span.replaceWith(input);
-    input.focus();input.select();
-    async function commit(){
-      const newName=input.value.trim();
-      if(newName&&newName!==p.name){p.name=newName;await saveProject(p);}
-      render();
-    }
-    input.addEventListener('blur',commit);
-    input.addEventListener('keydown',e2=>{
-      if(e2.key==='Enter'){e2.preventDefault();input.blur();}
-      if(e2.key==='Escape'){input.value=p.name;input.blur();}
-    });
   }
   else if(a==='delproj'){
     e.stopPropagation();
