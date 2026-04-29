@@ -2489,10 +2489,12 @@ document.getElementById('ai-input').addEventListener('input',function(){
     if(entered.length===4){
       if(entered===getPin()){
         unlock();
-        if(supported&&!localStorage.getItem(CRED_KEY)){
+        if(supported&&!localStorage.getItem(CRED_KEY)&&!localStorage.getItem('focus_faceid_skip')){
           setTimeout(()=>{
             if(confirm('顔認証（Face ID / Touch ID）を登録しますか？次回からPIN不要になります。')){
               registerBiometric();
+            } else {
+              localStorage.setItem('focus_faceid_skip','1');
             }
           },400);
         }
@@ -2698,6 +2700,18 @@ function setupSB(){
     };
     window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}};
     window._sbReady=true;
+    // Realtimeサブスクリプション: 他デバイスの変更を自動反映
+    SB.channel('focus-realtime')
+      .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>{
+        if(typeof loadAll==='function'&&typeof render==='function')loadAll().then(()=>render()).catch(()=>{});
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'projects'},()=>{
+        if(typeof loadAll==='function'&&typeof render==='function')loadAll().then(()=>render()).catch(()=>{});
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'tags'},()=>{
+        if(typeof loadAll==='function'&&typeof render==='function')loadAll().then(()=>render()).catch(()=>{});
+      })
+      .subscribe();
     // スキーマ診断: 新規タスクのINSERTテスト（空データで試行）
     (async()=>{
       const testId='__schema_test__';
