@@ -1444,7 +1444,12 @@ function renderDrawer(){
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
       await saveTask(t2);
       setInd('saved');
-      renderSidebar();renderContent();
+      // ドロワーの入力欄にフォーカス中はDOM再描画しない（カーソルが飛ぶのを防ぐ）
+      const activeId=document.activeElement?.id||'';
+      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp'];
+      if(!drawerInputIds.includes(activeId)){
+        renderSidebar();renderContent();
+      }
     },400);
   };
   // タイトル・メモはcomposition対応（IME変換中はautosave抑制）
