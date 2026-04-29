@@ -143,7 +143,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .flabel{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:4px;display:block}
 .finput{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s;-webkit-appearance:none}
 .finput:focus{border-color:var(--accent)}
-.ftextarea{min-height:72px;resize:vertical;line-height:1.5}
+.ftextarea{min-height:72px;resize:none;line-height:1.5}
+.textarea-wrap{position:relative;display:block}
+.textarea-wrap .ftextarea{width:100%}
+.resize-handle{position:absolute;bottom:0;right:0;width:20px;height:20px;cursor:ns-resize;display:flex;align-items:flex-end;justify-content:flex-end;padding:3px;color:var(--text3);touch-action:none;user-select:none;-webkit-user-select:none}
+.resize-handle::after{content:'';display:block;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;border-radius:0 0 2px 0}
 .note-stamp-bar{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
 .note-stamp-btn{display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);cursor:pointer;border:1px solid var(--border);transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);white-space:nowrap}
 .note-stamp-btn:hover{background:var(--bg3);color:var(--text)}
@@ -696,6 +700,43 @@ let S={
 
 // ===== UTILS =====
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+// テキストエリアにドラッグリサイズハンドルを付与
+function makeResizable(ta){
+  if(!ta||ta._resizable)return;
+  ta._resizable=true;
+  const wrap=document.createElement('div');
+  wrap.className='textarea-wrap';
+  ta.parentNode.insertBefore(wrap,ta);
+  wrap.appendChild(ta);
+  const handle=document.createElement('div');
+  handle.className='resize-handle';
+  wrap.appendChild(handle);
+  let startY=0,startH=0;
+  const onMove=e=>{
+    const dy=(e.touches?e.touches[0].clientY:e.clientY)-startY;
+    ta.style.height=Math.max(72,startH+dy)+'px';
+    e.preventDefault();
+  };
+  const onEnd=()=>{
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onEnd);
+    document.removeEventListener('touchmove',onMove);
+    document.removeEventListener('touchend',onEnd);
+  };
+  handle.addEventListener('mousedown',e=>{
+    startY=e.clientY;startH=ta.offsetHeight;
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onEnd);
+    e.preventDefault();
+  });
+  handle.addEventListener('touchstart',e=>{
+    startY=e.touches[0].clientY;startH=ta.offsetHeight;
+    document.addEventListener('touchmove',onMove,{passive:false});
+    document.addEventListener('touchend',onEnd);
+    e.stopPropagation();
+  },{passive:true});
+}
 function now(){return new Date().toISOString()}
 function today(){return new Date().toISOString().slice(0,10)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -1257,6 +1298,7 @@ function renderNoteDrawer(){
 
   const titleEl=document.getElementById('nt-title');
   const bodyEl=document.getElementById('nt-body');
+  makeResizable(bodyEl);
   const preview=document.getElementById('nt-preview');
   function updatePreview(){
     if(!bodyEl||!preview)return;
@@ -1453,6 +1495,7 @@ function renderDrawer(){
     },400);
   };
   // タイトル・メモはcomposition対応（IME変換中はautosave抑制）
+  makeResizable(document.getElementById('dt-notes'));
   ['dt-title','dt-notes'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
