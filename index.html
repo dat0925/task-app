@@ -2701,17 +2701,24 @@ function setupSB(){
     window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}};
     window._sbReady=true;
     // Realtimeサブスクリプション: 他デバイスの変更を自動反映
+    const _syncNow=()=>{
+      if(typeof loadAll==='function'&&typeof render==='function'){
+        loadAll().then(()=>render()).catch(()=>{});
+      }
+    };
     SB.channel('focus-realtime')
-      .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},()=>{
-        if(typeof loadAll==='function'&&typeof render==='function')loadAll().then(()=>render()).catch(()=>{});
-      })
-      .on('postgres_changes',{event:'*',schema:'public',table:'projects'},()=>{
-        if(typeof loadAll==='function'&&typeof render==='function')loadAll().then(()=>render()).catch(()=>{});
-      })
-      .on('postgres_changes',{event:'*',schema:'public',table:'tags'},()=>{
-        if(typeof loadAll==='function'&&typeof render==='function')loadAll().then(()=>render()).catch(()=>{});
-      })
-      .subscribe();
+      .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},_syncNow)
+      .on('postgres_changes',{event:'*',schema:'public',table:'projects'},_syncNow)
+      .on('postgres_changes',{event:'*',schema:'public',table:'tags'},_syncNow)
+      .subscribe(status=>{
+        console.log('Realtime status:',status);
+      });
+    // フォールバック: 画面がフォアグラウンドに戻ったとき同期
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible') _syncNow();
+    });
+    // フォールバック: 30秒ごとにバックグラウンド同期
+    setInterval(_syncNow, 30000);
     // スキーマ診断: 新規タスクのINSERTテスト（空データで試行）
     (async()=>{
       const testId='__schema_test__';
