@@ -708,11 +708,9 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 
 // リンク挿入ポップオーバー
 function showLinkPopover(anchorBtn, taId){
-  // 既存ポップオーバーを閉じる
   document.querySelectorAll('.link-popover').forEach(el=>el.remove());
   const ta=document.getElementById(taId);
   if(!ta)return;
-  // 選択テキストをデフォルトに
   const sel=ta.value.substring(ta.selectionStart,ta.selectionEnd);
   const pop=document.createElement('div');
   pop.className='link-popover';
@@ -724,22 +722,24 @@ function showLinkPopover(anchorBtn, taId){
       '<button class="btn btn-ghost" id="lp-cancel" style="font-size:12px;padding:4px 10px">キャンセル</button>'+
       '<button class="btn btn-primary" id="lp-insert" style="font-size:12px;padding:4px 10px">挿入</button>'+
     '</div>';
-  // アンカーボタンの近くに表示
-  const wrap=document.createElement('div');
-  wrap.style.cssText='position:relative;display:inline-block';
-  anchorBtn.parentNode.insertBefore(wrap,anchorBtn);
-  wrap.appendChild(anchorBtn);
-  wrap.appendChild(pop);
-  // 画面端補正
-  requestAnimationFrame(()=>{
-    const r=pop.getBoundingClientRect();
-    if(r.right>window.innerWidth-8)pop.style.right='0';
-    if(r.bottom>window.innerHeight-8)pop.style.bottom='100%';
-  });
+  // position:fixed でiPadスクロール問題を回避
+  pop.style.cssText='position:fixed;z-index:500';
+  document.body.appendChild(pop);
+  // ボタン位置から座標計算
+  const r=anchorBtn.getBoundingClientRect();
+  const pw=260,ph=140;
+  let top=r.bottom+6;
+  let left=r.left;
+  if(left+pw>window.innerWidth-8)left=window.innerWidth-pw-8;
+  if(top+ph>window.innerHeight-8)top=r.top-ph-6;
+  pop.style.top=top+'px';
+  pop.style.left=left+'px';
+
   const urlEl=pop.querySelector('#lp-url');
   const textEl=pop.querySelector('#lp-text');
   (sel?urlEl:textEl).focus();
-  pop.querySelector('#lp-cancel').onclick=()=>wrap.replaceWith(anchorBtn);
+
+  const close=()=>pop.remove();
   const doInsert=()=>{
     const text=textEl.value.trim()||urlEl.value.trim();
     const url=urlEl.value.trim();
@@ -750,12 +750,14 @@ function showLinkPopover(anchorBtn, taId){
     ta.selectionStart=ta.selectionEnd=s+md.length;
     ta.focus();
     ta.dispatchEvent(new Event('input',{bubbles:true}));
-    wrap.replaceWith(anchorBtn);
+    close();
   };
+  pop.querySelector('#lp-cancel').onclick=close;
   pop.querySelector('#lp-insert').onclick=doInsert;
-  urlEl.addEventListener('keydown',e=>{if(e.key==='Enter')doInsert();if(e.key==='Escape')wrap.replaceWith(anchorBtn);});
-  // 外クリックで閉じる
-  setTimeout(()=>document.addEventListener('click',function h(e){if(!pop.contains(e.target)&&e.target!==anchorBtn){wrap.replaceWith(anchorBtn);document.removeEventListener('click',h)}},{once:false}),100);
+  urlEl.addEventListener('keydown',e=>{if(e.key==='Enter')doInsert();if(e.key==='Escape')close();});
+  setTimeout(()=>document.addEventListener('click',function h(e){
+    if(!pop.contains(e.target)&&e.target!==anchorBtn){close();document.removeEventListener('click',h);}
+  }),100);
 }
 
 // テキストエリアにドラッグリサイズハンドルを付与
@@ -1550,7 +1552,7 @@ function renderDrawer(){
       setInd('saved');
       // ドロワーの入力欄にフォーカス中はDOM再描画しない（カーソルが飛ぶのを防ぐ）
       const activeId=document.activeElement?.id||'';
-      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp'];
+      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
       if(!drawerInputIds.includes(activeId)){
         renderSidebar();renderContent();
       }
@@ -2827,7 +2829,7 @@ function setupSB(){
     const _syncNow=()=>{
       // ドロワー入力中は自分自身のsaveによるRealtime反応をスキップ
       const activeId=document.activeElement?.id||'';
-      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp'];
+      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
       if(drawerInputIds.includes(activeId))return;
       if(typeof loadAll==='function'&&typeof render==='function'){
         loadAll().then(()=>render()).catch(()=>{});
