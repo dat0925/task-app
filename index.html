@@ -1455,6 +1455,7 @@ function renderDrawer(){
       +'<div class="fg"><label class="flabel">メモ</label>'
       +'<div style="display:flex;gap:4px;margin-bottom:5px"><button class="note-stamp-btn" id="dt-link-btn">🔗 リンク</button></div>'
       +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
+      +'<div id="dt-preview" style="margin-top:6px;font-size:13px;color:var(--text2);line-height:1.7"></div>'
       +'<div class="note-stamp-bar">'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="date">📅 日付</button>'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="time">🕐 時刻</button>'
@@ -1560,14 +1561,22 @@ function renderDrawer(){
   };
   // タイトル・メモはcomposition対応（IME変換中はautosave抑制）
   makeResizable(document.getElementById('dt-notes'));
+  const dtPreview=document.getElementById('dt-preview');
+  function updateDtPreview(){
+    const ta=document.getElementById('dt-notes');
+    if(!ta||!dtPreview)return;
+    const linked=esc(ta.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent);text-decoration:underline">$1</a>').replace(/\n/g,'<br>');
+    dtPreview.innerHTML=linked!==esc(ta.value)?linked:'';
+  }
+  updateDtPreview();
   const dtLinkBtn=document.getElementById('dt-link-btn');
   if(dtLinkBtn)dtLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(dtLinkBtn,'dt-notes');});
   ['dt-title','dt-notes'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
     el.addEventListener('compositionstart',()=>{_composing=true});
-    el.addEventListener('compositionend',()=>{_composing=false;autosave(true)});
-    el.addEventListener('input',()=>autosave());
+    el.addEventListener('compositionend',()=>{_composing=false;autosave(true);if(id==='dt-notes')updateDtPreview();});
+    el.addEventListener('input',()=>{autosave();if(id==='dt-notes')updateDtPreview();});
   });
   // 日付・セレクトはcomposition不要
   ['dt-due','dt-start','dt-proj','dt-repeat'].forEach(id=>{
