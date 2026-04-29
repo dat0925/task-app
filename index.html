@@ -1428,7 +1428,9 @@ function renderDrawer(){
 
   // attach drawer input events
   const setInd=(s)=>{const el=document.getElementById('autosave-ind');if(!el)return;el.className='autosave-ind '+s;el.textContent=s==='saving'?'保存中…':s==='saved'?'保存済み ✓':'自動保存 ✓'};
-  const autosave=()=>{
+  let _composing=false;
+  const autosave=(force)=>{
+    if(_composing&&!force)return;
     setInd('saving');
     clearTimeout(autosave._t);
     autosave._t=setTimeout(async()=>{
@@ -1445,9 +1447,18 @@ function renderDrawer(){
       renderSidebar();renderContent();
     },400);
   };
-  ['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat'].forEach(id=>{
+  // タイトル・メモはcomposition対応（IME変換中はautosave抑制）
+  ['dt-title','dt-notes'].forEach(id=>{
     const el=document.getElementById(id);
-    if(el)el.addEventListener(el.tagName==='SELECT'||el.type==='date'?'change':'input',autosave);
+    if(!el)return;
+    el.addEventListener('compositionstart',()=>{_composing=true});
+    el.addEventListener('compositionend',()=>{_composing=false;autosave(true)});
+    el.addEventListener('input',()=>autosave());
+  });
+  // 日付・セレクトはcomposition不要
+  ['dt-due','dt-start','dt-proj','dt-repeat'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener('change',()=>autosave(true));
   });
   const si=document.getElementById('sub-inp');
   if(si)si.addEventListener('keydown',async e=>{
