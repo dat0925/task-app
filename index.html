@@ -2685,10 +2685,51 @@ function setupSB(){
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[TO[k]||k]=v;return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
-    window.dbAll=async s=>{const{data,error}=await SB.from(s).select('*');if(error){console.error(s,error);return[]}return(data||[]).map(frDB)};
-    window.dbPut=async(s,i)=>{const{error}=await SB.from(s).upsert(toDB(i));if(error)console.error(s,error)};
-    window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error)console.error(s,error)};
+    window.dbAll=async s=>{const{data,error}=await SB.from(s).select('*');if(error){console.error('SB.dbAll',s,error);return[]}return(data||[]).map(frDB)};
+    window.dbPut=async(s,i)=>{
+      const row=toDB(i);
+      const{error}=await SB.from(s).upsert(row,{onConflict:'id'});
+      if(error){
+        console.error('SB.dbPut error',s,error);
+        // エラーをUIに表示してデバッグしやすくする
+        const msg=error.message||JSON.stringify(error);
+        if(typeof toast==='function')toast('⚠ 同期エラー('+s+'): '+msg.slice(0,60));
+      }
+    };
+    window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}};
     window._sbReady=true;
+    // スキーマ診断: 新規タスクのINSERTテスト（空データで試行）
+    (async()=>{
+      const testId='__schema_test__';
+      const testTask={id:testId,title:'_test',notes:'',status:'inbox',project_id:null,parent_task_id:null,section_id:null,tag_ids:[],priority:4,due_at:null,start_at:null,deadline_at:null,repeat_rule:null,reminder_at:null,flagged:false,sort_order:1,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),completed_at:null};
+      const{error}=await SB.from('tasks').upsert(testTask,{onConflict:'id'});
+      if(error){
+        // INSERTエラー: 不足カラムを特定
+        const msg=error.message||'';
+        console.error('スキーマ診断エラー:',msg);
+        // テストレコードを削除（あっても無害だが念のため）
+        await SB.from('tasks').delete().eq('id',testId).catch(()=>{});
+        // 不足カラムのSQL提示
+        setTimeout(()=>{
+          if(typeof toast==='function'){
+            toast('⚠ Supabaseスキーマエラー: コンソールを確認してください');
+            console.warn('=== Supabaseスキーマ修正SQL ===\n'+
+              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notes text DEFAULT \'\';\n'+
+              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_at date;\n'+
+              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deadline_at date;\n'+
+              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_at timestamptz;\n'+
+              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sort_order bigint;\n'+
+              '\n-- Notesテーブル（メモ機能用）\n'+
+              'CREATE TABLE IF NOT EXISTS notes (id text PRIMARY KEY, title text DEFAULT \'\', content text DEFAULT \'\', pinned boolean DEFAULT false, tag_ids jsonb DEFAULT \'[]\', created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());\n'+
+              'ALTER TABLE notes DISABLE ROW LEVEL SECURITY;\n'+
+              '================================');
+          }
+        },2000);
+      } else {
+        // 成功: テストレコードを削除
+        await SB.from('tasks').delete().eq('id',testId).catch(()=>{});
+      }
+    })();
   }catch(e){console.error('Supabase init failed',e)}
 }
 // supabase.jsの直後に実行される
