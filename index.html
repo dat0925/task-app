@@ -2718,6 +2718,10 @@ function setupSB(){
     window._sbReady=true;
     // Realtimeサブスクリプション: 他デバイスの変更を自動反映
     const _syncNow=()=>{
+      // ドロワー入力中は自分自身のsaveによるRealtime反応をスキップ
+      const activeId=document.activeElement?.id||'';
+      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp'];
+      if(drawerInputIds.includes(activeId))return;
       if(typeof loadAll==='function'&&typeof render==='function'){
         loadAll().then(()=>render()).catch(()=>{});
       }
