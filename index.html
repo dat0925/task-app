@@ -1567,10 +1567,13 @@ function renderDrawer(){
       t2.projectId=document.getElementById('dt-proj')?.value||null;
       t2.repeatRule=document.getElementById('dt-repeat')?.value||null;
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
-      await saveTask(t2);
-      setInd('saved');
-      // ドロワーの入力欄にフォーカス中はDOM再描画しない（カーソルが飛ぶのを防ぐ）
-      const activeId=document.activeElement?.id||'';
+      
+      const activeId=document.activeElement?.id;  // ← await の前に移動
+await saveTask(t2);
+setInd('saved');
+
+      
+      
       const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
       if(!drawerInputIds.includes(activeId)){
         renderSidebar();renderContent();
