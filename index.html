@@ -2835,14 +2835,13 @@ function setupSB(){
     window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}};
     window._sbReady=true;
     // Realtimeサブスクリプション: 他デバイスの変更を自動反映
-    const _syncNow=()=>{
-      // ドロワー入力中は自分自身のsaveによるRealtime反応をスキップ
-      const activeId=document.activeElement?.id||'';
-      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
-      if(drawerInputIds.includes(activeId))return;
-      if(typeof loadAll==='function'&&typeof render==='function'){
-        loadAll().then(()=>render()).catch(()=>{});
-      }
+const _syncNow=()=>{
+  if(Date.now()-window._lastSelfSave<500)return;
+  if(typeof loadAll==='function'&&typeof render==='function'){
+    loadAll().then(()=>render()).catch(()=>{});
+  }
+};
+
     };
     SB.channel('focus-realtime')
       .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},_syncNow)
