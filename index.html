@@ -83,10 +83,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .btn-ghost:hover{background:var(--bg2)}
 
 /* Quick Add */
-.qabar{padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
-.qawrap{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;transition:border-color .15s}
+.qabar{padding:6px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.qawrap{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;transition:border-color .15s}
 .qawrap:focus-within{border-color:var(--accent)}
-.qawrap input{flex:1;background:none;border:none;outline:none;font-size:16px;color:var(--text)}
+.qawrap input{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--text)}
 .qawrap input::placeholder{color:var(--text3);font-size:16px}
 .qa-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;min-height:0}
 .chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
@@ -429,6 +429,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .drawer.open{transform:translateY(0) !important}
   .bot-nav{display:block}
   .content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 90px)}
+  .topbar{position:sticky;top:0;z-index:60;box-shadow:0 1px 6px rgba(0,0,0,.07)}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
   /* タイトルを表示、検索窓を折りたたみ式に */
@@ -466,6 +467,23 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .proj-edit-popup button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 11px;border-radius:6px;font-size:13px;text-align:left;background:none;border:none;cursor:pointer;color:var(--text);transition:background .12s;font-family:var(--font);touch-action:manipulation}
 .proj-edit-popup button:hover,.proj-edit-popup button:active{background:var(--bg2)}
 .proj-edit-popup button.red:hover,.proj-edit-popup button.red:active{background:rgba(239,68,68,.1);color:var(--p1)}
+/* Task row edit button (mobile only) */
+.trow-edit-btn{display:none}
+@media(max-width:768px){
+  .trow-edit-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;color:var(--text3);border-radius:6px;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation}
+  .trow-edit-btn:active{background:var(--bg2);color:var(--accent)}
+}
+/* Toggle completed button */
+.toggle-btn-wrap{display:flex;align-items:center;justify-content:center;padding:10px 0 6px}
+.toggle-completed-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 16px;border-radius:20px;font-size:12px;font-weight:500;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text3);transition:all .15s;touch-action:manipulation}
+.toggle-completed-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.toggle-completed-btn:hover{border-color:var(--text2);color:var(--text2)}
+/* Search clear button */
+#srch-clear{display:none;background:none;border:none;cursor:pointer;color:var(--text3);padding:0;width:18px;height:18px;align-items:center;justify-content:center;border-radius:3px;flex-shrink:0;font-size:13px;line-height:1}
+#srch-clear.visible{display:flex}
+#srch-clear:hover{background:var(--bg3);color:var(--text)}
+/* Drawer sticky footer */
+.drawer-foot{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;background:var(--surface)}
 /* scrollbar */
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
@@ -598,6 +616,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
       <div id="global-srch-wrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input id="global-srch" type="search" placeholder="検索…" autocomplete="off">
+        <button id="srch-clear" title="クリア">✕</button>
       </div>
       <div class="ml flex items-c gap-2">
         <div id="save-status"><div id="save-dot"></div><span id="save-label"></span></div>
@@ -1393,7 +1412,7 @@ function renderList(){
   const tasks=getTasks().filter(t=>!t.parentTaskId);
   const showToggle=!['completed','search','forecast','review','notes'].includes(S.view);
   const toggleBtn=showToggle
-    ?'<div style="display:flex;justify-content:flex-end;padding:6px 0 2px"><button data-a="tog-completed" style="font-size:12px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;cursor:pointer;color:'+(S.showCompleted?'var(--accent)':'var(--text3)')+'">'+( S.showCompleted?'✓ 完了を非表示':'○ 完了を表示')+'</button></div>'
+    ?'<div class="toggle-btn-wrap"><button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了を非表示':'○ 完了を表示')+'</button></div>'
     :'';
   if(!tasks.length)return toggleBtn+renderEmpty();
   let h='<div class="tlist">'+toggleBtn;
@@ -1432,6 +1451,9 @@ function renderRow(task){
       +'<div class="ttitle" data-title-edit="'+task.id+'">'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
       +(meta?'<div class="tmeta">'+meta+'</div>':'')
     +'</div>'
+    +'<button class="trow-edit-btn" data-a="sel-edit" data-id="'+task.id+'" title="詳細">'
+      +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
+    +'</button>'
   +'</div>'
   +(subs.length?subs.map(s=>'<div style="padding-left:28px">'+renderRow(s)+'</div>').join(''):'');
 }
@@ -1548,7 +1570,7 @@ function renderNoteDrawer(){
           +'<button class="note-stamp-btn" data-ns="sep">— 区切り</button>'
           +'<button class="note-stamp-btn" id="nt-link-btn">🔗 リンク</button>'
         +'</div>'
-        +'<textarea class="finput" id="nt-body" rows="12" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
+        +'<textarea class="finput" id="nt-body" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
         +'<div id="nt-preview" style="margin-top:6px;font-size:13px;color:var(--text2)"></div>'
         +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
       +'</div>'
@@ -1634,7 +1656,10 @@ function renderSearchResults(q){
 // ===== RENDER DRAWER =====
 function renderDrawer(){
   const dr=document.getElementById('drawer');
-  if(!S.drawerOpen||!S.taskId){dr.style.display='none';dr.classList.remove('open');history.replaceState(null,'',location.pathname);return}
+  if(!S.drawerOpen||!S.taskId){
+    if(!S.noteOpen){dr.style.display='none';dr.classList.remove('open');history.replaceState(null,'',location.pathname);}
+    return;
+  }
   const task=S.tasks.find(t=>t.id===S.taskId);
   if(!task){dr.style.display='none';dr.classList.remove('open');return}
   dr.style.display='flex';
@@ -1649,7 +1674,7 @@ function renderDrawer(){
       +'<div style="margin-left:auto;display:flex;gap:4px">'
         +'<button class="icon-btn" id="copy-url-btn" title="URLをコピー" style="font-size:14px">🔗</button>'
         +'<button class="icon-btn" data-a="dup" data-id="'+task.id+'" title="複製">'+ICONS.copy+'</button>'
-        +'<button class="icon-btn" data-a="del" data-id="'+task.id+'" title="削除" style="color:var(--p1)">'+ICONS.trash+'</button>'
+        +'<button class="icon-btn" data-a="del-confirm-hdr" data-id="'+task.id+'" title="削除" style="color:var(--p1)">'+ICONS.trash+'</button>'
       +'</div>'
     +'</div>'
     +'<div class="drawer-body">'
@@ -1703,19 +1728,19 @@ function renderDrawer(){
         +'<div id="subs">'+subs.map(s=>'<div class="sub-item"><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
         +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…" style="margin-top:6px">'
       +'</div>'
-      +'<div class="divider"></div>'
-      +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
-        +(!done?'<button class="act-btn" data-a="complete" data-id="'+task.id+'">✓ 完了</button>':'<button class="act-btn" data-a="uncomplete" data-id="'+task.id+'">↩ 未完了に戻す</button>')
-        +'<button class="act-btn red" data-a="del" data-id="'+task.id+'">🗑 削除</button>'
-        +'<button class="act-btn" data-a="close-drawer" style="margin-left:auto">✕ 閉じる</button>'
-      +'</div>'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
         +'<div class="muted xs" style="line-height:2">'
           +'<div>作成: '+new Date(task.createdAt).toLocaleString('ja-JP')+'</div>'
           +'<div>更新: '+new Date(task.updatedAt).toLocaleString('ja-JP')+'</div>'
         +'</div>'
         +'<div class="autosave-ind" id="autosave-ind">自動保存 ✓</div>'
       +'</div>'
+    +'</div>'
+    +'<div class="drawer-foot">'
+      +(!done
+        ?'<button class="btn btn-primary" data-a="complete-confirm" data-id="'+task.id+'" style="flex:1">✓ 完了にする</button>'
+        :'<button class="btn btn-ghost" data-a="uncomplete" data-id="'+task.id+'" style="flex:1">↩ 未完了に戻す</button>')
+      +'<button class="btn btn-ghost" data-a="close-drawer" style="flex:1">✕ 閉じる</button>'
     +'</div>';
 
 
@@ -1890,7 +1915,16 @@ document.addEventListener('click',async e=>{
   else if(a==='qa-submit'){await submitQA()}
   
 else if(a==='sel'){
-  if(_touchMoved) return; // スクロール中のタップは無視
+  if(_touchMoved) return;
+  if(window.innerWidth<=768) return; // スマホはsel-editまたは長押しで開く
+  const id=el.dataset.id;
+  if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
+  else{S.taskId=id;S.drawerOpen=true}
+  renderContent();renderSidebar();renderDrawer();
+}
+else if(a==='sel-edit'){
+  e.stopPropagation();
+  if(_touchMoved) return;
   const id=el.dataset.id;
   if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
   else{S.taskId=id;S.drawerOpen=true}
@@ -1983,6 +2017,24 @@ else if(a==='sel'){
   else if(a==='complete'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(task){task.status='completed';task.completedAt=now();await saveTask(task);S.drawerOpen=false;S.taskId=null;render()}
+  }
+  else if(a==='complete-confirm'){
+    const task=S.tasks.find(t=>t.id===el.dataset.id);
+    if(!task)return;
+    openConfirmModal('タスクを完了','"'+(task.title||'無題')+'" を完了にしますか？',async()=>{
+      task.status='completed';task.completedAt=now();await saveTask(task);S.drawerOpen=false;S.taskId=null;render();
+    },'完了にする',false);
+  }
+  else if(a==='del-confirm-hdr'){
+    const id=el.dataset.id;
+    const task=S.tasks.find(t=>t.id===id);
+    if(!task)return;
+    openConfirmModal('タスクを削除','"'+(task.title||'無題')+'" を削除します。この操作は取り消せません。',async()=>{
+      if(S.taskId===id){S.drawerOpen=false;S.taskId=null;}
+      await delTask(id);
+      toast('"'+(task.title||'無題')+'" を削除しました');
+      render();
+    });
   }
   else if(a==='uncomplete'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
@@ -2133,7 +2185,12 @@ function activateGlobalSrch(val){
   if(srch){srch.value=val;}
 }
 document.addEventListener('input',e=>{
-  if(e.target.id==='global-srch'){if(e.isComposing)return;activateGlobalSrch(e.target.value);}
+  if(e.target.id==='global-srch'){
+    if(e.isComposing)return;
+    activateGlobalSrch(e.target.value);
+    const clr=document.getElementById('srch-clear');
+    if(clr)clr.classList.toggle('visible',!!e.target.value);
+  }
   if(e.target.id==='srch'){if(e.isComposing)return;updateSrch(e.target.value);}
   if(e.target.id==='note-srch'){
     if(e.isComposing)return;
@@ -2194,6 +2251,49 @@ renderContent=function(){
   document.addEventListener('touchend',()=>{tracking=false;},{passive:true});
 })();
 
+// ===== SEARCH CLEAR BUTTON =====
+(function(){
+  const clrBtn=document.getElementById('srch-clear');
+  if(!clrBtn)return;
+  clrBtn.addEventListener('click',()=>{
+    const gs=document.getElementById('global-srch');
+    if(gs){gs.value='';gs.dispatchEvent(new Event('input',{bubbles:true}));}
+    clrBtn.classList.remove('visible');
+    S.search='';
+    if(S.view==='search'){S.view='inbox';render();}
+    // モバイルで折りたたむ
+    if(window.innerWidth<=768){
+      const wrap=document.getElementById('global-srch-wrap');
+      wrap?.classList.remove('srch-expanded');
+      wrap?.closest('.topbar')?.classList.remove('srch-active');
+    }
+  });
+})();
+
+// ===== LONG PRESS TO OPEN TASK DRAWER (スマホ) =====
+(function(){
+  let _lpTimer=null,_lpRow=null;
+  const content=document.getElementById('content');
+  if(!content)return;
+  content.addEventListener('touchstart',e=>{
+    if(window.innerWidth>768)return;
+    const row=e.target.closest('.trow[data-a="sel"]');
+    if(!row)return;
+    if(e.target.closest('[data-a="chk"]')||e.target.closest('[data-a="sel-edit"]'))return;
+    _lpRow=row;
+    _lpTimer=setTimeout(()=>{
+      _lpTimer=null;
+      const id=_lpRow?.dataset.id;
+      if(!id)return;
+      if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null;}
+      else{S.taskId=id;S.drawerOpen=true;}
+      renderContent();renderSidebar();renderDrawer();
+    },500);
+  },{passive:true});
+  content.addEventListener('touchend',()=>{if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}},{passive:true});
+  content.addEventListener('touchmove',()=>{if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}},{passive:true});
+})();
+
 // ===== MOBILE SEARCH EXPAND/COLLAPSE =====
 (function(){
   const wrap=document.getElementById('global-srch-wrap');
@@ -2224,33 +2324,6 @@ renderContent=function(){
     if(window.innerWidth>768)return;
     if(!input.value)setTimeout(collapse,150);
   });
-})();
-
-// ===== DRAWER SWIPE TO CLOSE (スマホ: 左端から右スワイプで閉じる) =====
-(function(){
-  let startX=0,startY=0,tracking=false;
-  const EDGE=40,MIN_DIST=65,MAX_Y=55;
-
-  document.addEventListener('touchstart',e=>{
-    if(window.innerWidth>768)return;
-    if(!S.drawerOpen&&!S.noteOpen)return;
-    const t=e.touches[0];
-    if(t.clientX<=EDGE){startX=t.clientX;startY=t.clientY;tracking=true;}
-  },{passive:true});
-
-  document.addEventListener('touchmove',e=>{
-    if(!tracking)return;
-    const t=e.touches[0];
-    const dx=t.clientX-startX;
-    const dy=Math.abs(t.clientY-startY);
-    if(dx>=MIN_DIST&&dy<MAX_Y){
-      tracking=false;
-      if(S.drawerOpen){S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent();}
-      else if(S.noteOpen){S.noteOpen=false;S.noteId=null;renderContent();}
-    }
-  },{passive:true});
-
-  document.addEventListener('touchend',()=>{tracking=false;},{passive:true});
 })();
 
 // keyboard
