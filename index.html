@@ -1295,7 +1295,7 @@ function renderRow(task){
   return '<div class="trow'+(done?' done':'')+(S.taskId===task.id?' sel':'')+(pclass?' '+pclass:'')+'" data-a="sel" data-id="'+task.id+'">'
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'">'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
-      +'<div class="ttitle">'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
+      +'<div class="ttitle" data-title-edit="'+task.id+'">'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
       +(meta?'<div class="tmeta">'+meta+'</div>':'')
     +'</div>'
   +'</div>'
@@ -1740,9 +1740,9 @@ document.addEventListener('click',async e=>{
   if(!el)return;
   const a=el.dataset.a;
 
-  if(a==='view'){S.view=el.dataset.v;S.projId=null;S.tagId=null;S.sidebarOpen=false;render()}
-  else if(a==='proj'){S.view='project';S.projId=el.dataset.id;S.sidebarOpen=false;render()}
-  else if(a==='tag'){S.view='tag';S.tagId=el.dataset.id;S.sidebarOpen=false;render()}
+  if(a==='view'){if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;S.sidebarOpen=false;render()}
+  else if(a==='proj'){S.search='';S.view='project';S.projId=el.dataset.id;S.sidebarOpen=false;render()}
+  else if(a==='tag'){S.search='';S.view='tag';S.tagId=el.dataset.id;S.sidebarOpen=false;render()}
   
   else if(a==='menu'){if(Date.now()-_drawerClosedAt<400)return;S.sidebarOpen=!S.sidebarOpen;render()}
   
@@ -1941,6 +1941,40 @@ else if(a==='sel'){
 
 // sidebar overlay click
 document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false;render()});
+
+// タスクタイトル インライン編集 (PC: ダブルクリック)
+function startTaskInlineEdit(el){
+  const taskId=el.dataset.titleEdit;
+  const task=S.tasks.find(t=>t.id===taskId);
+  if(!task||el.querySelector('input'))return;
+  const inp=document.createElement('input');
+  inp.value=task.title;
+  inp.style.cssText='width:100%;font:inherit;font-size:inherit;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:1px 5px;color:var(--text);outline:none;box-sizing:border-box';
+  el.innerHTML='';
+  el.appendChild(inp);
+  inp.focus();inp.select();
+  let committed=false;
+  async function commit(){
+    if(committed)return;committed=true;
+    const newTitle=inp.value.trim();
+    if(newTitle&&newTitle!==task.title){task.title=newTitle;await saveTask(task);}
+    renderContent();
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();inp.blur();}
+    if(e.key==='Escape'){committed=true;renderContent();}
+  });
+  inp.addEventListener('click',e=>e.stopPropagation());
+  inp.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
+}
+document.addEventListener('dblclick',e=>{
+  const el=e.target.closest('[data-title-edit]');
+  if(!el)return;
+  e.preventDefault();
+  e.stopPropagation();
+  startTaskInlineEdit(el);
+});
 
 // search
 function updateSrch(val){
