@@ -2834,6 +2834,9 @@ function setupSB(){
     };
     window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}};
     window._sbReady=true;
+    window._lastSelfSave=0;
+
+    
     // Realtimeサブスクリプション: 他デバイスの変更を自動反映
 const _syncNow=()=>{
   if(Date.now()-window._lastSelfSave<500)return;
