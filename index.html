@@ -504,6 +504,27 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* util */
 .xs{font-size:11px}.muted{color:var(--text3)}.flex{display:flex}.items-c{align-items:center}.gap-1{gap:4px}.gap-2{gap:8px}
 
+/* PC expand button on rows */
+.trow-expand-btn{display:none}
+@media(min-width:769px){
+  .trow-expand-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;color:var(--text3);border-radius:5px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity .12s}
+  .trow:hover .trow-expand-btn{opacity:1}
+  .trow-expand-btn:hover{background:var(--bg2);color:var(--text)}
+}
+/* Expand modal overlay */
+.expand-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;animation:tin .15s ease}
+.expand-modal{background:var(--surface);border-radius:14px;width:min(90vw,860px);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 60px rgba(0,0,0,.25);position:relative}
+.expand-modal .drawer-head{border-radius:14px 14px 0 0}
+.expand-modal .drawer-body{flex:1;overflow-y:auto}
+.expand-modal .drawer-foot{border-radius:0 0 14px 14px}
+/* Note title inline edit in list */
+.note-title-edit-inp{width:100%;font:inherit;font-size:13.5px;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:1px 6px;color:var(--text);outline:none;box-sizing:border-box}
+/* AI mobile button in topbar */
+.ai-topbar-btn{display:none}
+@media(max-width:768px){
+  .ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation}
+}
+
 /* ===== SETTINGS MODAL ===== */
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border)}
 .settings-row:last-child{border-bottom:none}
@@ -636,6 +657,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
         <button class="icon-btn layout-toggle" data-a="layout-list" title="リスト">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
         </button>
+        <button class="ai-topbar-btn" data-a="ai-open" title="AI">✦</button>
         <button class="btn btn-primary" data-a="newtask">+ 追加</button>
       </div>
     </div>
@@ -767,7 +789,7 @@ let S={
   showCompleted:false,
   sort:'order',
   sidebarOpen:false,
-  notes:[],noteId:null,noteOpen:false,noteSearch:'',
+  notes:[],noteId:null,noteOpen:false,noteSearch:'',noteSortUpdated:true,
   projsOpen:true,hiddenProjsOpen:false,
 };
 
@@ -1487,6 +1509,7 @@ function renderSidebar(){
 const ALL_NAV_ITEMS=[
   {v:'inbox',label:'受信トレイ',icon:()=>ICONS.inbox},
   {v:'today',label:'今日',icon:()=>ICONS.today},
+  {v:'upcoming',label:'もうすぐ',icon:()=>ICONS.upcoming},
   {v:'forecast',label:'見通し',icon:()=>ICONS.forecast},
   {v:'flagged',label:'重要',icon:()=>ICONS.flag},
   {v:'review',label:'レビュー',icon:()=>ICONS.review},
@@ -1604,20 +1627,13 @@ function renderContent(){
 // ノート検索時: 検索ボックスを再生成せずリスト部分だけ更新
 function renderNoteListOnly(){
   const q=S.noteSearch.toLowerCase();
-  const notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
+  const notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
   let h='';
   if(!notes.length){
     h='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
   } else {
-    notes.forEach(n=>{
-      const sel=S.noteId===n.id&&S.noteOpen;
-      h+='<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
-        +'<div class="tbody">'
-          +'<div class="ttitle">'+esc(n.title||'無題')+'</div>'
-          +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+' 作成: '+fmtDate(n.createdAt.slice(0,10))+'</div>'
-        +'</div>'
-      +'</div>';
-    });
+    notes.forEach(n=>{h+=renderNoteRow(n);});
   }
   const container=document.getElementById('note-list-items');
   if(container)container.innerHTML=h;
@@ -1662,13 +1678,18 @@ function renderRow(task){
   if(task.repeatRule)meta+='<span class="mc">↻</span>';
   if(task.flagged)meta+='<span>🚩</span>';
   if(subs.length)meta+='<span class="mc">'+subs.filter(s=>s.status==='completed').length+'/'+subs.length+'</span>';
+  // 更新日
+  const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">'+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
 
   return '<div class="trow'+(done?' done':'')+(S.taskId===task.id?' sel':'')+(pclass?' '+pclass:'')+'" data-a="sel" data-id="'+task.id+'">'
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'">'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
       +'<div class="ttitle" data-title-edit="'+task.id+'">'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
-      +(meta?'<div class="tmeta">'+meta+'</div>':'')
+      +'<div class="tmeta">'+(meta||'')+updStr+'</div>'
     +'</div>'
+    +'<button class="trow-expand-btn" data-a="task-expand" data-id="'+task.id+'" title="大きく表示">'
+      +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
+    +'</button>'
     +'<button class="trow-edit-btn" data-a="sel-edit" data-id="'+task.id+'" title="詳細">'
       +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
     +'</button>'
@@ -1737,25 +1758,33 @@ function renderReview(){
 }
 
 // ===== NOTES =====
+function renderNoteRow(n){
+  const sel=S.noteId===n.id&&S.noteOpen;
+  return '<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
+    +'<div class="tbody">'
+      +'<div class="ttitle" data-note-title-edit="'+n.id+'">'+esc(n.title||'無題')+'</div>'
+      +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+'</div>'
+    +'</div>'
+    +'<button class="trow-expand-btn" data-a="note-expand" data-id="'+n.id+'" title="大きく表示">'
+      +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
+    +'</button>'
+  +'</div>';
+}
 function renderNoteList(){
   const q=S.noteSearch.toLowerCase();
-  const notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
+  const notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
   let h='<div class="tlist">';
-  h+='<div style="padding:10px 0 8px"><input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px" autocomplete="off"></div>';
+  h+='<div style="padding:10px 0 6px;display:flex;gap:6px;align-items:center">'
+    +'<input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px;flex:1" autocomplete="off">'
+    +'<button class="toggle-completed-btn'+(S.noteSortUpdated!==false?' active':'')+'" data-a="note-tog-sort" style="white-space:nowrap;flex-shrink:0">'+(S.noteSortUpdated!==false?'↓ 更新日':'↓ 作成日')+'</button>'
+    +'</div>';
   h+='<div class="nav-item" data-a="note-new" style="margin-bottom:8px;color:var(--accent)"><span style="font-size:18px;margin-right:4px">+</span> 新規メモ</div>';
   h+='<div id="note-list-items">';
   if(!notes.length){
     h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
   } else {
-    notes.forEach(n=>{
-      const sel=S.noteId===n.id&&S.noteOpen;
-      h+='<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
-        +'<div class="tbody">'
-          +'<div class="ttitle">'+esc(n.title||'無題')+'</div>'
-          +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+' 作成: '+fmtDate(n.createdAt.slice(0,10))+'</div>'
-        +'</div>'
-      +'</div>';
-    });
+    notes.forEach(n=>{h+=renderNoteRow(n);});
   }
   return h+'</div></div>';
 }
@@ -2386,12 +2415,163 @@ else if(a==='sel-edit'){
   }
   else if(a==='tog-completed'){S.showCompleted=!S.showCompleted;renderContent()}
   else if(a==='tog-sort'){S.sort=S.sort==='updated'?'order':'updated';renderContent()}
+  else if(a==='note-tog-sort'){S.noteSortUpdated=S.noteSortUpdated===false?true:false;renderContent()}
+  else if(a==='task-expand'){
+    e.stopPropagation();
+    const id=el.dataset.id;
+    S.taskId=id;S.drawerOpen=true;
+    openExpandModal('task');
+  }
+  else if(a==='note-expand'){
+    e.stopPropagation();
+    const id=el.dataset.id;
+    S.noteId=id;S.noteOpen=true;
+    openExpandModal('note');
+  }
   else if(a==='nav-edit'){openNavEdit()}
   else if(a==='ai-open'){aiToggle()}
 });
 
 // sidebar overlay click
 document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false;render()});
+
+// ===== PC EXPAND MODAL =====
+function openExpandModal(type){
+  document.querySelectorAll('.expand-overlay').forEach(el=>el.remove());
+  const ov=document.createElement('div');
+  ov.className='expand-overlay';
+  const modal=document.createElement('div');
+  modal.className='expand-modal';
+  ov.appendChild(modal);
+  document.body.appendChild(ov);
+
+  function renderInto(){
+    if(type==='task'){
+      renderDrawer();
+      const dr=document.getElementById('drawer');
+      if(dr){
+        modal.innerHTML=dr.innerHTML;
+        // re-attach events by cloning drawer logic into modal
+        modal.querySelectorAll('[data-a="close-drawer"]').forEach(b=>{b.addEventListener('click',()=>{ov.remove();S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent();});});
+      }
+    } else {
+      renderNoteDrawer();
+      const dr=document.getElementById('drawer');
+      if(dr){
+        modal.innerHTML=dr.innerHTML;
+        modal.querySelectorAll('[data-a="close-note"]').forEach(b=>{b.addEventListener('click',()=>{ov.remove();S.noteOpen=false;S.noteId=null;renderNoteDrawer();renderContent();});});
+      }
+    }
+    // wire modal inner buttons via event delegation
+    reattachModalEvents(modal, type, ()=>{ov.remove();renderContent();renderDrawer();});
+  }
+  renderInto();
+  ov.addEventListener('click',e=>{if(e.target===ov){ov.remove();}});
+  document.addEventListener('keydown',function escKey(e){if(e.key==='Escape'){ov.remove();document.removeEventListener('keydown',escKey);}});
+}
+
+function reattachModalEvents(modal, type, onClose){
+  // textarea / input autosave inside modal
+  if(type==='task'){
+    const titleEl=modal.querySelector('#dt-title');
+    const notesEl=modal.querySelector('#dt-notes');
+    const dueEl=modal.querySelector('#dt-due');
+    const startEl=modal.querySelector('#dt-start');
+    const projEl=modal.querySelector('#dt-proj');
+    const repeatEl=modal.querySelector('#dt-repeat');
+    const indEl=modal.querySelector('#autosave-ind');
+    const setInd=(s)=>{if(!indEl)return;indEl.className='autosave-ind '+s;indEl.textContent=s==='saving'?'保存中…':s==='saved'?'保存済み ✓':'自動保存 ✓'};
+    let _c=false;
+    const save=(force)=>{
+      if(_c&&!force)return;
+      setInd('saving');
+      clearTimeout(save._t);
+      save._t=setTimeout(async()=>{
+        const t=S.tasks.find(x=>x.id===S.taskId);if(!t)return;
+        if(titleEl)t.title=titleEl.value;
+        if(notesEl)t.notes=notesEl.value;
+        if(dueEl)t.dueAt=dueEl.value||null;
+        if(startEl)t.startAt=startEl.value||null;
+        if(projEl)t.projectId=projEl.value||null;
+        if(repeatEl)t.repeatRule=repeatEl.value||null;
+        await saveTask(t);setInd('saved');
+      },400);
+    };
+    ['dt-title','dt-notes'].forEach(id=>{
+      const el=modal.querySelector('#'+id);if(!el)return;
+      el.addEventListener('compositionstart',()=>{_c=true});
+      el.addEventListener('compositionend',()=>{_c=false;save(true);});
+      el.addEventListener('input',()=>save());
+    });
+    ['dt-due','dt-start','dt-proj','dt-repeat'].forEach(id=>{
+      const el=modal.querySelector('#'+id);if(el)el.addEventListener('change',()=>save(true));
+    });
+    const subInp=modal.querySelector('#sub-inp');
+    if(subInp)subInp.addEventListener('keydown',async e=>{
+      if(e.key==='Enter'&&subInp.value.trim()){
+        const s=mkTask({title:subInp.value.trim(),parentTaskId:S.taskId,status:'active'});
+        await saveTask(s);subInp.value='';
+        // re-render subs
+        const subsEl=modal.querySelector('#subs');
+        if(subsEl){const subs=S.tasks.filter(t=>t.parentTaskId===S.taskId);subsEl.innerHTML=subs.map(s=>'<div class="sub-item"><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span>'+esc(s.title)+'</span></div>').join('');}
+      }
+    });
+    makeResizable(modal.querySelector('#dt-notes'));
+    const previewToggle=modal.querySelector('#dt-preview-toggle');
+    const preview=modal.querySelector('#dt-preview');
+    if(previewToggle&&preview){
+      previewToggle.addEventListener('click',()=>{const open=preview.style.display!=='none';preview.style.display=open?'none':'block';previewToggle.textContent=(open?'▶':'▼')+' プレビュー';});
+    }
+    // copy url btn
+    const copyUrlBtn=modal.querySelector('#copy-url-btn');
+    if(copyUrlBtn){
+      const taskUrl=location.origin+location.pathname+'#task/'+S.taskId;
+      copyUrlBtn.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(taskUrl);toast('URLをコピーしました 🔗');}catch(e){toast(taskUrl);}});
+    }
+  } else {
+    const titleEl=modal.querySelector('#nt-title');
+    const bodyEl=modal.querySelector('#nt-body');
+    const note=S.notes.find(n=>n.id===S.noteId);
+    if(!note)return;
+    makeResizable(bodyEl);
+    const previewToggle=modal.querySelector('#nt-preview-toggle');
+    const preview=modal.querySelector('#nt-preview');
+    if(previewToggle&&preview){
+      previewToggle.addEventListener('click',()=>{const open=preview.style.display!=='none';preview.style.display=open?'none':'block';previewToggle.textContent=(open?'▶':'▼')+' プレビュー';});
+    }
+    let _c=false,nt2;
+    const save=()=>{clearTimeout(nt2);nt2=setTimeout(async()=>{note.title=titleEl?.value||'';note.body=bodyEl?.value||'';await saveNote(note);const h=modal.querySelector('.drawer-head div div:last-child');if(h)h.textContent=note.title||'無題';},600);};
+    titleEl?.addEventListener('compositionstart',()=>{_c=true});titleEl?.addEventListener('compositionend',()=>{_c=false;save()});titleEl?.addEventListener('input',()=>{if(!_c)save()});
+    bodyEl?.addEventListener('compositionstart',()=>{_c=true});bodyEl?.addEventListener('compositionend',()=>{_c=false;save()});bodyEl?.addEventListener('input',()=>{if(!_c)save()});
+  }
+}
+
+// ===== NOTE TITLE INLINE EDIT =====
+document.addEventListener('dblclick',e=>{
+  const el=e.target.closest('[data-note-title-edit]');
+  if(!el)return;
+  e.preventDefault();e.stopPropagation();
+  const noteId=el.dataset.noteTitleEdit;
+  const note=S.notes.find(n=>n.id===noteId);
+  if(!note||el.querySelector('input'))return;
+  const inp=document.createElement('input');
+  inp.value=note.title||'';
+  inp.className='note-title-edit-inp';
+  el.innerHTML='';el.appendChild(inp);
+  inp.focus();inp.select();
+  let committed=false;
+  async function commit(){
+    if(committed)return;committed=true;
+    const val=inp.value.trim();
+    if(val!==note.title){note.title=val||'無題';note.updatedAt=now();await saveNote(note);}
+    renderNoteListOnly();
+    if(S.noteId===noteId&&S.noteOpen){const hdr=document.querySelector('.drawer-head div div:last-child');if(hdr)hdr.textContent=note.title||'無題';const ti=document.getElementById('nt-title');if(ti)ti.value=note.title||'';}
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();inp.blur();}if(e.key==='Escape'){committed=true;renderNoteListOnly();}});
+  inp.addEventListener('click',e=>e.stopPropagation());
+  inp.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
+});
 
 // タスクタイトル インライン編集 (PC: ダブルクリック)
 function startTaskInlineEdit(el){
@@ -3430,6 +3610,21 @@ document.getElementById('ai-input').addEventListener('input',function(){
   screen.addEventListener('touchend',e=>{
     const k=e.target.closest('[data-k]');
     if(k)k._lastTouch=Date.now();
+  });
+  // PC keyboard number key support
+  document.addEventListener('keydown',e=>{
+    const ls=document.getElementById('lockScreen');
+    if(!ls||ls.style.display==='none')return;
+    if(e.key>='0'&&e.key<='9'){
+      const k=screen.querySelector('[data-k="'+e.key+'"]');
+      if(k)pressKey(k);
+    } else if(e.key==='Backspace'){
+      const k=screen.querySelector('[data-k="del"]');
+      if(k)pressKey(k);
+    } else if(e.key==='Escape'){
+      const k=screen.querySelector('[data-k="clr"]');
+      if(k)pressKey(k);
+    }
   });
 })();
 
