@@ -1475,14 +1475,17 @@ function renderDrawer(){
     +'<div class="drawer-body">'
       +'<div class="fg"><label class="flabel">タイトル</label><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名"></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
-      +'<div style="display:flex;gap:4px;margin-bottom:5px"><button class="note-stamp-btn" id="dt-link-btn">🔗 リンク</button></div>'
-      +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
-      +'<div id="dt-preview" style="margin-top:6px;font-size:13px;color:var(--text2);line-height:1.7"></div>'
-      +'<div class="note-stamp-bar">'
+      +'<div class="note-stamp-bar" style="margin-bottom:6px">'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="date">📅 日付</button>'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="time">🕐 時刻</button>'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="datetime">📝 日時</button>'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="sep">― 区切り</button>'
+        +'<button class="note-stamp-btn" id="dt-link-btn">🔗 リンク</button>'
+      +'</div>'
+      +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
+      +'<div style="margin-top:6px">'
+        +'<button id="dt-preview-toggle" style="font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);display:flex;align-items:center;gap:4px">▶ プレビュー</button>'
+        +'<div id="dt-preview" style="display:none;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px"></div>'
       +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
@@ -1594,6 +1597,14 @@ setInd('saved');
     dtPreview.innerHTML=linked!==esc(ta.value)?linked:'';
   }
   updateDtPreview();
+  const dtPreviewToggle=document.getElementById('dt-preview-toggle');
+  if(dtPreviewToggle){
+    dtPreviewToggle.addEventListener('click',()=>{
+      const open=dtPreview.style.display!=='none';
+      dtPreview.style.display=open?'none':'block';
+      dtPreviewToggle.textContent=(open?'▶':'▼')+' プレビュー';
+    });
+  }
   const dtLinkBtn=document.getElementById('dt-link-btn');
   if(dtLinkBtn)dtLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(dtLinkBtn,'dt-notes');});
   ['dt-title','dt-notes'].forEach(id=>{
