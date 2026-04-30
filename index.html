@@ -429,7 +429,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .drawer.open{transform:translateY(0) !important}
   .bot-nav{display:block}
   .content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 90px)}
-  .topbar{position:sticky;top:0;z-index:60;box-shadow:0 1px 6px rgba(0,0,0,.07)}
+  .topbar{position:fixed !important;top:0;left:0;right:0;z-index:60;box-shadow:0 1px 6px rgba(0,0,0,.08)}
+  .main{padding-top:52px}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
   /* タイトルを表示、検索窓を折りたたみ式に */
@@ -474,7 +475,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .trow-edit-btn:active{background:var(--bg2);color:var(--accent)}
 }
 /* Toggle completed button */
-.toggle-btn-wrap{display:flex;align-items:center;justify-content:center;padding:10px 0 6px}
+.toggle-btn-wrap{display:flex;align-items:center;justify-content:flex-end;padding:8px 16px 8px 0}
 .toggle-completed-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 16px;border-radius:20px;font-size:12px;font-weight:500;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text3);transition:all .15s;touch-action:manipulation}
 .toggle-completed-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
 .toggle-completed-btn:hover{border-color:var(--text2);color:var(--text2)}
@@ -752,6 +753,7 @@ let S={
   dark:localStorage.getItem('dark')==='1',
   search:'',layout:'list',
   showCompleted:false,
+  sort:'order',
   sidebarOpen:false,
   notes:[],noteId:null,noteOpen:false,noteSearch:'',
 };
@@ -984,6 +986,7 @@ function getTasks(){
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='tag')tasks=tasks.filter(x=>x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
+  if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   return tasks.sort((a,b)=>(a.order||0)-(b.order||0));
 }
 function counts(){
@@ -1412,7 +1415,10 @@ function renderList(){
   const tasks=getTasks().filter(t=>!t.parentTaskId);
   const showToggle=!['completed','search','forecast','review','notes'].includes(S.view);
   const toggleBtn=showToggle
-    ?'<div class="toggle-btn-wrap"><button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了を非表示':'○ 完了を表示')+'</button></div>'
+    ?'<div class="toggle-btn-wrap">'
+      +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort" style="margin-right:6px">'+(S.sort==='updated'?'↓ 更新日':'↕ 更新日')+'</button>'
+      +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了を非表示':'○ 完了を表示')+'</button>'
+    +'</div>'
     :'';
   if(!tasks.length)return toggleBtn+renderEmpty();
   let h='<div class="tlist">'+toggleBtn;
@@ -1571,7 +1577,10 @@ function renderNoteDrawer(){
           +'<button class="note-stamp-btn" id="nt-link-btn">🔗 リンク</button>'
         +'</div>'
         +'<textarea class="finput" id="nt-body" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
-        +'<div id="nt-preview" style="margin-top:6px;font-size:13px;color:var(--text2)"></div>'
+        +'<div style="margin-top:6px">'
+          +'<button id="nt-preview-toggle" style="font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);display:flex;align-items:center;gap:4px">▶ プレビュー</button>'
+          +'<div id="nt-preview" style="display:none;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px"></div>'
+        +'</div>'
         +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
       +'</div>'
     +'</div>';
@@ -1582,6 +1591,14 @@ function renderNoteDrawer(){
   const ntLinkBtn=document.getElementById('nt-link-btn');
   if(ntLinkBtn)ntLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(ntLinkBtn,'nt-body');});
   const preview=document.getElementById('nt-preview');
+  const ntPreviewToggle=document.getElementById('nt-preview-toggle');
+  if(ntPreviewToggle){
+    ntPreviewToggle.addEventListener('click',()=>{
+      const open=preview.style.display!=='none';
+      preview.style.display=open?'none':'block';
+      ntPreviewToggle.textContent=(open?'▶':'▼')+' プレビュー';
+    });
+  }
   function updatePreview(){
     if(!bodyEl||!preview)return;
     const linked=esc(bodyEl.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>');
@@ -1738,9 +1755,9 @@ function renderDrawer(){
     +'</div>'
     +'<div class="drawer-foot">'
       +(!done
-        ?'<button class="btn btn-primary" data-a="complete-confirm" data-id="'+task.id+'" style="flex:1">✓ 完了にする</button>'
-        :'<button class="btn btn-ghost" data-a="uncomplete" data-id="'+task.id+'" style="flex:1">↩ 未完了に戻す</button>')
-      +'<button class="btn btn-ghost" data-a="close-drawer" style="flex:1">✕ 閉じる</button>'
+        ?'<button class="btn btn-primary" data-a="complete-confirm" data-id="'+task.id+'">✓ 完了にする</button>'
+        :'<button class="btn btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 未完了に戻す</button>')
+      +'<button class="btn btn-ghost" data-a="close-drawer" style="margin-left:auto">✕ 閉じる</button>'
     +'</div>';
 
 
@@ -2126,6 +2143,7 @@ else if(a==='sel-edit'){
     if(p){const d=new Date();d.setDate(d.getDate()+(p.reviewEveryDays||7));p.nextReviewAt=d.toISOString().slice(0,10);await saveProject(p);renderContent()}
   }
   else if(a==='tog-completed'){S.showCompleted=!S.showCompleted;renderContent()}
+  else if(a==='tog-sort'){S.sort=S.sort==='updated'?'order':'updated';renderContent()}
   else if(a==='nav-edit'){openNavEdit()}
   else if(a==='ai-open'){aiToggle()}
 });
