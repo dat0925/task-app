@@ -2845,7 +2845,7 @@ const _syncNow=()=>{
   }
 };
 
-    };
+  
     SB.channel('focus-realtime')
       .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},_syncNow)
       .on('postgres_changes',{event:'*',schema:'public',table:'projects'},_syncNow)
