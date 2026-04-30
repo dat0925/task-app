@@ -619,6 +619,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 'use strict';
 // ===== スクロール vs タップ 判定 =====
 let _touchStartY = 0;
+let _drawerClosedAt = 0;
 let _touchMoved = false;
 const SCROLL_THRESHOLD = 8; // px
 
@@ -1678,7 +1679,9 @@ document.addEventListener('click',async e=>{
   if(a==='view'){S.view=el.dataset.v;S.projId=null;S.tagId=null;S.sidebarOpen=false;render()}
   else if(a==='proj'){S.view='project';S.projId=el.dataset.id;S.sidebarOpen=false;render()}
   else if(a==='tag'){S.view='tag';S.tagId=el.dataset.id;S.sidebarOpen=false;render()}
-  else if(a==='menu'){S.sidebarOpen=!S.sidebarOpen;S._sidebarJustOpened=S.sidebarOpen?Date.now():0;render()}
+  
+  else if(a==='menu'){if(Date.now()-_drawerClosedAt<400)return;S.sidebarOpen=!S.sidebarOpen;render()}
+  
   else if(a==='dark'){S.dark=!S.dark;localStorage.setItem('dark',S.dark?'1':'0');render()}
   else if(a==='newtask'){
     const task=mkTask({status:S.view==='project'?'active':'inbox',projectId:S.view==='project'?S.projId:null});
@@ -1720,7 +1723,9 @@ else if(a==='sel'){
       render();
     }
   }
-  else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
+  
+  else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent()}
+  
   else if(a==='note-new'){
     if(window._noteNewRunning)return;
     window._noteNewRunning=true;
