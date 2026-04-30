@@ -1575,7 +1575,7 @@ function openNavEdit(){
 // ===== RENDER CONTENT =====
 function renderContent(){
   const el=document.getElementById('content');
-  const titles={inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'検索',completed:'完了済み',
+  const titles={inbox:'受信トレイ',today:'今日',upcoming:'これから',forecast:'見通し',flagged:'重要',review:'レビュー',search:'検索',completed:'完了済み',notes:'ノート',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tags.find(t=>t.id===S.tagId)?.name||''};
   const isSearchPC=S.view==='search'&&window.innerWidth>768;
