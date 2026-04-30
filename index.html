@@ -431,7 +431,13 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 90px)}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
-  .topbar-title{display:none}
+  /* タイトルを表示、検索窓を折りたたみ式に */
+  .topbar-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0;transition:opacity .2s ease,max-width .25s ease,flex .25s ease}
+  .topbar.srch-active .topbar-title{opacity:0;max-width:0;flex:0 0 0;overflow:hidden}
+  #global-srch-wrap{flex:0 0 36px;min-width:36px!important;max-width:36px!important;padding:0;justify-content:center;cursor:pointer;transition:flex-basis .25s ease,max-width .25s ease,padding .25s ease}
+  #global-srch-wrap.srch-expanded{flex:1;min-width:0!important;max-width:260px!important;padding:0 10px;cursor:default;justify-content:flex-start}
+  #global-srch{width:0;opacity:0;pointer-events:none;transition:opacity .18s ease;padding:0;flex:0}
+  #global-srch-wrap.srch-expanded #global-srch{width:auto;flex:1;opacity:1;pointer-events:auto;padding:0}
   .qabar{
     position:fixed;
     bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
@@ -451,10 +457,15 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .proj-item .proj-actions{display:none;align-items:center;gap:1px;flex-shrink:0}
 .proj-item:hover .proj-actions{display:flex}
 @media(max-width:768px){.proj-item .proj-actions{display:flex}}
-.proj-action-btn{width:20px;height:20px;border-radius:4px;font-size:11px;color:var(--text3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,color .15s;background:none;border:none;cursor:pointer;padding:0}
+.proj-action-btn{width:24px;height:24px;border-radius:4px;font-size:13px;color:var(--text3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,color .15s;background:none;border:none;cursor:pointer;padding:0}
 .proj-action-btn:hover{background:var(--bg2);color:var(--text)}
-.proj-del-btn{width:20px;height:20px;border-radius:4px;font-size:11px;color:var(--text3);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;transition:background .15s,color .15s}
-.proj-del-btn:hover{background:rgba(239,68,68,.15)!important;color:var(--p1)!important}
+.proj-drag-handle{cursor:grab;color:var(--text3);font-size:15px;padding:0 2px;user-select:none;display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex-shrink:0;touch-action:none;-webkit-user-select:none}
+.proj-drag-handle:active{cursor:grabbing;color:var(--text)}
+.proj-item.drag-over{background:var(--accent-bg)!important;outline:1.5px dashed var(--accent);border-radius:7px}
+.proj-edit-popup{position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:4px;min-width:130px}
+.proj-edit-popup button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 11px;border-radius:6px;font-size:13px;text-align:left;background:none;border:none;cursor:pointer;color:var(--text);transition:background .12s;font-family:var(--font);touch-action:manipulation}
+.proj-edit-popup button:hover,.proj-edit-popup button:active{background:var(--bg2)}
+.proj-edit-popup button.red:hover,.proj-edit-popup button.red:active{background:rgba(239,68,68,.1);color:var(--p1)}
 /* scrollbar */
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
@@ -1057,6 +1068,131 @@ function attachProjRenameListeners(){
   });
 }
 
+// ===== PROJ EDIT POPUP =====
+function showProjEditPopup(btn, projId, projName){
+  document.querySelectorAll('.proj-edit-popup').forEach(el=>el.remove());
+  const popup=document.createElement('div');
+  popup.className='proj-edit-popup';
+
+  const hideBtn=document.createElement('button');
+  hideBtn.innerHTML='🙈 非表示にする';
+  hideBtn.onclick=async ev=>{
+    ev.stopPropagation();popup.remove();
+    const p=S.projects.find(x=>x.id===projId);
+    if(p){p.status='hidden';await saveProject(p);if(S.projId===p.id){S.view='inbox';S.projId=null;}render();}
+  };
+
+  const delBtn=document.createElement('button');
+  delBtn.className='red';
+  delBtn.innerHTML='🗑 削除';
+  delBtn.onclick=ev=>{
+    ev.stopPropagation();popup.remove();
+    const taskCount=S.tasks.filter(t=>t.projectId===projId).length;
+    openConfirmModal('「'+projName+'」を削除',
+      taskCount>0?'このプロジェクトと配下の'+taskCount+'件のタスクが削除されます。この操作は取り消せません。':'このプロジェクトを削除します。',
+      async()=>{await deleteProject(projId);if(S.projId===projId){S.view='inbox';S.projId=null;}toast('"'+projName+'" を削除しました');render();}
+    );
+  };
+
+  popup.appendChild(hideBtn);
+  popup.appendChild(delBtn);
+  document.body.appendChild(popup);
+
+  const r=btn.getBoundingClientRect();
+  const pw=popup.offsetWidth||140;
+  let top=r.bottom+4;
+  let left=r.right-pw;
+  if(left<4)left=4;
+  if(top+120>window.innerHeight)top=r.top-124;
+  popup.style.top=top+'px';
+  popup.style.left=left+'px';
+
+  setTimeout(()=>{
+    const close=ev=>{if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('click',close);document.removeEventListener('touchstart',close);}};
+    document.addEventListener('click',close);
+    document.addEventListener('touchstart',close,{passive:true});
+  },0);
+}
+
+// ===== PROJ DRAG & DROP =====
+function attachProjDragListeners(){
+  const nav=document.getElementById('sidenav');
+  if(!nav)return;
+  const items=[...nav.querySelectorAll('.proj-item[data-id]')];
+  if(!items.length)return;
+
+  function doReorder(srcId,dstId){
+    const projs=getSortedProjects('active');
+    const si=projs.findIndex(p=>p.id===srcId);
+    const di=projs.findIndex(p=>p.id===dstId);
+    if(si<0||di<0||si===di)return;
+    const[moved]=projs.splice(si,1);
+    projs.splice(di,0,moved);
+    saveProjectOrder(projs);
+    renderSidebar();attachProjRenameListeners();attachProjDragListeners();
+  }
+
+  // PC: HTML5 drag
+  let dragSrc=null;
+  items.forEach(item=>{
+    const handle=item.querySelector('.proj-drag-handle');
+    if(handle){
+      handle.addEventListener('mousedown',()=>{item.setAttribute('draggable','true');},{passive:true});
+    }
+    item.addEventListener('dragstart',e=>{
+      dragSrc=item;e.dataTransfer.effectAllowed='move';
+      setTimeout(()=>{item.style.opacity='0.45';},0);
+    });
+    item.addEventListener('dragend',()=>{
+      item.style.opacity='';item.setAttribute('draggable','false');
+      items.forEach(i=>i.classList.remove('drag-over'));
+    });
+    item.addEventListener('dragover',e=>{
+      e.preventDefault();e.dataTransfer.dropEffect='move';
+      items.forEach(i=>i.classList.remove('drag-over'));
+      if(dragSrc!==item)item.classList.add('drag-over');
+    });
+    item.addEventListener('dragleave',()=>item.classList.remove('drag-over'));
+    item.addEventListener('drop',e=>{
+      e.preventDefault();e.stopPropagation();
+      item.classList.remove('drag-over');
+      if(dragSrc&&dragSrc!==item)doReorder(dragSrc.dataset.id,item.dataset.id);
+      dragSrc=null;
+    });
+  });
+
+  // Mobile: touch drag from handle
+  items.forEach(item=>{
+    const handle=item.querySelector('.proj-drag-handle');
+    if(!handle)return;
+    handle.addEventListener('touchstart',e=>{
+      e.stopPropagation();
+      const srcId=item.dataset.id;
+      let currentTarget=null;
+      item.style.opacity='0.6';
+
+      const onMove=ev=>{
+        ev.preventDefault();
+        const touch=ev.touches[0];
+        items.forEach(i=>i.classList.remove('drag-over'));
+        const el=document.elementFromPoint(touch.clientX,touch.clientY);
+        const hovered=el?.closest('.proj-item[data-id]');
+        if(hovered&&hovered!==item){hovered.classList.add('drag-over');currentTarget=hovered;}
+        else{currentTarget=null;}
+      };
+      const onEnd=()=>{
+        item.style.opacity='';
+        items.forEach(i=>i.classList.remove('drag-over'));
+        document.removeEventListener('touchmove',onMove);
+        document.removeEventListener('touchend',onEnd);
+        if(currentTarget)doReorder(srcId,currentTarget.dataset.id);
+      };
+      document.addEventListener('touchmove',onMove,{passive:false});
+      document.addEventListener('touchend',onEnd,{passive:true});
+    },{passive:true});
+  });
+}
+
 function renderSidebar(){
   const c=counts();
   const navItems=[
@@ -1082,10 +1218,8 @@ function renderSidebar(){
       +'<span class="pdot" style="background:'+esc(p.color)+'"></span>'
       +'<span class="proj-name-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-proj-id="'+p.id+'">'+esc(p.name)+'</span>'
       +'<div class="proj-actions">'
-        +'<button class="proj-action-btn" data-a="proj-up" data-id="'+p.id+'" title="上へ">↑</button>'
-        +'<button class="proj-action-btn" data-a="proj-dn" data-id="'+p.id+'" title="下へ">↓</button>'
-        +'<button class="proj-action-btn" data-a="hideproj" data-id="'+p.id+'" title="非表示">🙈</button>'
-        +'<button class="proj-del-btn" data-a="delproj" data-id="'+p.id+'" data-name="'+esc(p.name)+'" title="削除">✕</button>'
+        +'<span class="proj-drag-handle" title="ドラッグで並び替え">⠿</span>'
+        +'<button class="proj-action-btn proj-edit-btn" data-a="proj-edit" data-id="'+p.id+'" data-name="'+esc(p.name)+'" title="編集">⋯</button>'
       +'</div>'
     +'</div>';
   });
@@ -1685,6 +1819,7 @@ function render(){
   else{sb.classList.remove('open');sov.classList.remove('open')}
   renderSidebar();
   attachProjRenameListeners();
+  attachProjDragListeners();
   renderBotNav();
   renderContent();
   renderDrawer();
@@ -1883,6 +2018,10 @@ else if(a==='sel'){
     const idx=projs.findIndex(p=>p.id===el.dataset.id);
     if(idx<projs.length-1){[projs[idx],projs[idx+1]]=[projs[idx+1],projs[idx]];saveProjectOrder(projs);renderSidebar();}
   }
+  else if(a==='proj-edit'){
+    e.stopPropagation();
+    showProjEditPopup(el,el.dataset.id,el.dataset.name);
+  }
   else if(a==='hideproj'){
     e.stopPropagation();
     const p=S.projects.find(x=>x.id===el.dataset.id);
@@ -2049,6 +2188,65 @@ renderContent=function(){
       S.sidebarOpen=true;S._sidebarJustOpened=Date.now();render();tracking=false;
     } else if(tracking==='close'&&dx<-MIN_DIST&&dy<MAX_Y){
       S.sidebarOpen=false;render();tracking=false;
+    }
+  },{passive:true});
+
+  document.addEventListener('touchend',()=>{tracking=false;},{passive:true});
+})();
+
+// ===== MOBILE SEARCH EXPAND/COLLAPSE =====
+(function(){
+  const wrap=document.getElementById('global-srch-wrap');
+  const input=document.getElementById('global-srch');
+  const topbar=wrap?.closest('.topbar');
+  if(!wrap||!input)return;
+
+  function expand(){
+    wrap.classList.add('srch-expanded');
+    topbar?.classList.add('srch-active');
+    setTimeout(()=>input.focus(),50);
+  }
+  function collapse(){
+    wrap.classList.remove('srch-expanded');
+    topbar?.classList.remove('srch-active');
+  }
+
+  wrap.addEventListener('click',e=>{
+    if(window.innerWidth>768)return;
+    if(!wrap.classList.contains('srch-expanded')){e.stopPropagation();expand();}
+  });
+  input.addEventListener('blur',()=>{
+    if(window.innerWidth>768)return;
+    if(!input.value)setTimeout(collapse,150);
+  });
+  // 検索クリア時も折りたたむ
+  input.addEventListener('search',()=>{
+    if(window.innerWidth>768)return;
+    if(!input.value)setTimeout(collapse,150);
+  });
+})();
+
+// ===== DRAWER SWIPE TO CLOSE (スマホ: 左端から右スワイプで閉じる) =====
+(function(){
+  let startX=0,startY=0,tracking=false;
+  const EDGE=40,MIN_DIST=65,MAX_Y=55;
+
+  document.addEventListener('touchstart',e=>{
+    if(window.innerWidth>768)return;
+    if(!S.drawerOpen&&!S.noteOpen)return;
+    const t=e.touches[0];
+    if(t.clientX<=EDGE){startX=t.clientX;startY=t.clientY;tracking=true;}
+  },{passive:true});
+
+  document.addEventListener('touchmove',e=>{
+    if(!tracking)return;
+    const t=e.touches[0];
+    const dx=t.clientX-startX;
+    const dy=Math.abs(t.clientY-startY);
+    if(dx>=MIN_DIST&&dy<MAX_Y){
+      tracking=false;
+      if(S.drawerOpen){S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent();}
+      else if(S.noteOpen){S.noteOpen=false;S.noteId=null;renderContent();}
     }
   },{passive:true});
 
