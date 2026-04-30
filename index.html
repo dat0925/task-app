@@ -617,6 +617,23 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 
 <script>
 'use strict';
+// ===== スクロール vs タップ 判定 =====
+let _touchStartY = 0;
+let _touchMoved = false;
+const SCROLL_THRESHOLD = 8; // px
+
+document.addEventListener('touchstart', e => {
+  _touchStartY = e.touches[0].clientY;
+  _touchMoved = false;
+}, { passive: true });
+
+document.addEventListener('touchmove', e => {
+  if (Math.abs(e.touches[0].clientY - _touchStartY) > SCROLL_THRESHOLD) {
+    _touchMoved = true;
+  }
+}, { passive: true });
+
+
 // ===== DB =====
 const DB_NAME='focus-db';
 const DB_VER_BASE=1,DB_VER_NOTES=2;
@@ -1669,12 +1686,16 @@ document.addEventListener('click',async e=>{
     setTimeout(()=>document.getElementById('dt-title')?.focus(),50);
   }
   else if(a==='qa-submit'){await submitQA()}
-  else if(a==='sel'){
-    const id=el.dataset.id;
-    if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
-    else{S.taskId=id;S.drawerOpen=true}
-    renderContent();renderSidebar();renderDrawer();
-  }
+  
+else if(a==='sel'){
+  if(_touchMoved) return; // スクロール中のタップは無視
+  const id=el.dataset.id;
+  if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
+  else{S.taskId=id;S.drawerOpen=true}
+  renderContent();renderSidebar();renderDrawer();
+}
+
+  
   else if(a==='chk'){
     e.stopPropagation();
     const task=S.tasks.find(t=>t.id===el.dataset.id);
