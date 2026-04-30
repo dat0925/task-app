@@ -68,12 +68,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 #save-dot.saved{background:var(--green)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .topbar-title{font-size:17px;font-weight:600;letter-spacing:-.2px}
-#global-srch-wrap{display:none;align-items:center;gap:6px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:0 10px;height:34px;min-width:180px;max-width:260px;flex:1;transition:border-color .15s}
+#global-srch-wrap{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:0 10px;height:34px;min-width:0;max-width:260px;flex:1;transition:border-color .15s}
 #global-srch-wrap:focus-within{border-color:var(--accent)}
 #global-srch-wrap svg{flex-shrink:0;color:var(--text3)}
 #global-srch{flex:1;background:none;border:none;outline:none;font-size:13px;color:var(--text);min-width:0}
 #global-srch::placeholder{color:var(--text3)}
-@media(min-width:769px){#global-srch-wrap{display:flex}}
 .ml{margin-left:auto}
 .icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;color:var(--text2);transition:background .15s}
 .icon-btn:hover{background:var(--bg2);color:var(--text)}
@@ -432,6 +431,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 90px)}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
+  .topbar-title{display:none}
   .qabar{
     position:fixed;
     bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
@@ -717,6 +717,7 @@ let S={
   taskId:null,drawerOpen:false,
   dark:localStorage.getItem('dark')==='1',
   search:'',layout:'list',
+  showCompleted:false,
   sidebarOpen:false,
   notes:[],noteId:null,noteOpen:false,noteSearch:'',
 };
@@ -941,13 +942,13 @@ function mkTag(o={}){return{id:uid(),name:'新タグ',color:'#7c3aed',status:'ac
 function getTasks(){
   const t=today();
   let tasks=S.tasks.filter(x=>x.status!=='archived');
-  if(S.view==='inbox')tasks=tasks.filter(x=>x.status==='inbox');
-  else if(S.view==='today')tasks=tasks.filter(x=>x.status!=='completed'&&(isToday(x.dueAt)||x.flagged));
-  else if(S.view==='upcoming')tasks=tasks.filter(x=>x.status!=='completed'&&x.dueAt&&x.dueAt>t);
-  else if(S.view==='flagged')tasks=tasks.filter(x=>x.status!=='completed'&&x.flagged);
+  if(S.view==='inbox')tasks=tasks.filter(x=>x.status==='inbox'||(S.showCompleted&&x.status==='completed'&&!x.projectId));
+  else if(S.view==='today')tasks=tasks.filter(x=>(isToday(x.dueAt)||x.flagged)&&(S.showCompleted||x.status!=='completed'));
+  else if(S.view==='upcoming')tasks=tasks.filter(x=>x.dueAt&&x.dueAt>t&&(S.showCompleted||x.status!=='completed'));
+  else if(S.view==='flagged')tasks=tasks.filter(x=>x.flagged&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='completed')tasks=tasks.filter(x=>x.status==='completed');
-  else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId);
-  else if(S.view==='tag')tasks=tasks.filter(x=>x.tagIds&&x.tagIds.includes(S.tagId));
+  else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
+  else if(S.view==='tag')tasks=tasks.filter(x=>x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
   return tasks.sort((a,b)=>(a.order||0)-(b.order||0));
 }
@@ -1215,8 +1216,12 @@ function renderNoteListOnly(){
 
 function renderList(){
   const tasks=getTasks().filter(t=>!t.parentTaskId);
-  if(!tasks.length)return renderEmpty();
-  let h='<div class="tlist">';
+  const showToggle=!['completed','search','forecast','review','notes'].includes(S.view);
+  const toggleBtn=showToggle
+    ?'<div style="display:flex;justify-content:flex-end;padding:6px 0 2px"><button data-a="tog-completed" style="font-size:12px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;cursor:pointer;color:'+(S.showCompleted?'var(--accent)':'var(--text3)')+'">'+( S.showCompleted?'✓ 完了を非表示':'○ 完了を表示')+'</button></div>'
+    :'';
+  if(!tasks.length)return toggleBtn+renderEmpty();
+  let h='<div class="tlist">'+toggleBtn;
   tasks.forEach(t=>{h+=renderRow(t)});
   if(S.view==='project')h+='<div class="nav-item muted" data-a="addsec" style="margin-top:8px;font-size:13px"><span style="font-size:16px">+</span> セクション追加</div>';
   h+='</div>';
@@ -1866,6 +1871,7 @@ else if(a==='sel'){
     const p=S.projects.find(x=>x.id===el.dataset.id);
     if(p){const d=new Date();d.setDate(d.getDate()+(p.reviewEveryDays||7));p.nextReviewAt=d.toISOString().slice(0,10);await saveProject(p);renderContent()}
   }
+  else if(a==='tog-completed'){S.showCompleted=!S.showCompleted;renderContent()}
   else if(a==='nav-edit'){openNavEdit()}
   else if(a==='ai-open'){aiToggle()}
 });
@@ -2913,38 +2919,6 @@ document.addEventListener('visibilitychange',()=>{
 });
     // フォールバック: 30秒ごとにバックグラウンド同期
     setInterval(_syncNow, 30000);
-    // スキーマ診断: 新規タスクのINSERTテスト（空データで試行）
-    (async()=>{
-      const testId='__schema_test__';
-      const testTask={id:testId,title:'_test',notes:'',status:'inbox',project_id:null,parent_task_id:null,section_id:null,tag_ids:[],priority:4,due_at:null,start_at:null,deadline_at:null,repeat_rule:null,reminder_at:null,flagged:false,sort_order:1,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),completed_at:null};
-      const{error}=await SB.from('tasks').upsert(testTask,{onConflict:'id'});
-      if(error){
-        // INSERTエラー: 不足カラムを特定
-        const msg=error.message||'';
-        console.error('スキーマ診断エラー:',msg);
-        // テストレコードを削除（あっても無害だが念のため）
-        await SB.from('tasks').delete().eq('id',testId).catch(()=>{});
-        // 不足カラムのSQL提示
-        setTimeout(()=>{
-          if(typeof toast==='function'){
-            toast('⚠ Supabaseスキーマエラー: コンソールを確認してください');
-            console.warn('=== Supabaseスキーマ修正SQL ===\n'+
-              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notes text DEFAULT \'\';\n'+
-              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_at date;\n'+
-              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deadline_at date;\n'+
-              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_at timestamptz;\n'+
-              'ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sort_order bigint;\n'+
-              '\n-- Notesテーブル（メモ機能用）\n'+
-              'CREATE TABLE IF NOT EXISTS notes (id text PRIMARY KEY, title text DEFAULT \'\', content text DEFAULT \'\', pinned boolean DEFAULT false, tag_ids jsonb DEFAULT \'[]\', created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());\n'+
-              'ALTER TABLE notes DISABLE ROW LEVEL SECURITY;\n'+
-              '================================');
-          }
-        },2000);
-      } else {
-        // 成功: テストレコードを削除
-        await SB.from('tasks').delete().eq('id',testId).catch(()=>{});
-      }
-    })();
   }catch(e){console.error('Supabase init failed',e)}
 }
 // supabase.jsの直後に実行される
