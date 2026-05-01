@@ -495,7 +495,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .trow-edit-btn:active{background:var(--bg2);color:var(--accent)}
 }
 /* Toggle completed button */
-.toggle-btn-wrap{display:flex;align-items:center;justify-content:flex-start;padding:8px 0 8px 0}
+.toggle-btn-wrap{display:flex;align-items:center;justify-content:flex-start;padding:8px 0 8px 0;position:sticky;top:0;z-index:10;background:var(--bg)}
 .toggle-completed-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 16px;border-radius:20px;font-size:12px;font-weight:500;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text3);transition:all .15s;touch-action:manipulation}
 .toggle-completed-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
 .toggle-completed-btn:hover{border-color:var(--text2);color:var(--text2)}
@@ -1817,7 +1817,7 @@ function renderReview(){
   }
   if(rvProjs.length){
     h+='<div class="rv-card"><div class="rv-card-head"><span class="rv-card-title">レビュー必要なプロジェクト</span></div>';
-    rvProjs.forEach(p=>{h+='<div class="rv-item"><span class="pdot" style="background:'+esc(p.color)+'"></span><span style="flex:1">'+esc(p.name)+'</span><button class="act-btn" data-a="rv-proj" data-id="'+p.id+'">完了</button></div>'});
+    rvProjs.forEach(p=>{h+='<div class="rv-item"><span class="pdot" style="background:'+esc(p.color)+'"></span><span style="flex:1;cursor:pointer" data-a="goto-proj" data-id="'+p.id+'">'+esc(p.name)+'</span><button class="act-btn" data-a="rv-proj" data-id="'+p.id+'">完了</button></div>'});
     h+='</div>';
   }
   if(!overdue.length&&!stale.length&&!rvProjs.length)h+='<div class="empty"><div class="empty-ico">🎉</div><div class="empty-t">完璧です！</div><div class="empty-d">期限切れも停滞タスクもありません</div></div>';
@@ -2233,7 +2233,7 @@ document.addEventListener('click',async e=>{
   const a=el.dataset.a;
 
   if(a==='view'){if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
-  else if(a==='proj'){S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
+  else if(a==='proj'||a==='goto-proj'){S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
   else if(a==='tag'){S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='proj-toggle'){S.projsOpen=!S.projsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();}
