@@ -151,6 +151,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .note-stamp-btn{display:inline-flex;align-items:center;gap:3px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);cursor:pointer;border:1px solid var(--border);transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);white-space:nowrap}
 .date-adj-btn{font-size:10px;padding:2px 0;border-radius:4px;background:var(--bg2);border:1px solid var(--border);color:var(--text2);cursor:pointer;flex:1;text-align:center;touch-action:manipulation;transition:background .15s,color .15s}
 .date-adj-btn:hover{background:var(--bg3);color:var(--text)}
+.date-clr-btn{font-size:10px;padding:1px 5px;border-radius:4px;background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;flex-shrink:0;line-height:1.4;touch-action:manipulation;transition:background .15s,color .15s}
+.date-clr-btn:hover{background:var(--bg2);color:var(--text)}
 .note-stamp-btn:hover{background:var(--bg3);color:var(--text)}
 .link-popover{position:absolute;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);width:260px;display:flex;flex-direction:column;gap:8px}
 .link-popover input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);outline:none;font-family:var(--font)}
@@ -2020,8 +2022,8 @@ function renderDrawer(){
       +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
-        +'<div><label class="flabel">開始日</label><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'"><div style="display:flex;gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div></div>'
-        +'<div><label class="flabel">期限</label><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'"><div style="display:flex;gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div></div>'
+        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div></div>'
+        +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div></div>'
       +'</div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
@@ -2357,17 +2359,32 @@ else if(a==='sel-edit'){
     const field=el.dataset.field;
     const days=parseInt(el.dataset.days||'0');
     const months=parseInt(el.dataset.months||'0');
-    const task=S.tasks.find(t=>t.id===S.taskId);
-    if(!task)return;
-    const currentVal=field==='start'?task.startAt:task.dueAt;
-    const base=currentVal?new Date(currentVal+'T00:00:00'):new Date();
+    const inputId=field==='start'?'dt-start':'dt-due';
+    const input=el.closest('.expand-modal')?.querySelector('#'+inputId)||document.getElementById(inputId);
+    if(!input)return;
+    const base=input.value?new Date(input.value+'T00:00:00'):new Date();
     if(days)base.setDate(base.getDate()+days);
     if(months)base.setMonth(base.getMonth()+months);
     const newVal=base.toISOString().slice(0,10);
-    if(field==='start')task.startAt=newVal;
-    else task.dueAt=newVal;
-    await saveTask(task);
-    renderDrawer();renderContent();renderSidebar();
+    input.value=newVal;
+    const task=S.tasks.find(t=>t.id===S.taskId);
+    if(task){
+      if(field==='start')task.startAt=newVal;
+      else task.dueAt=newVal;
+      await saveTask(task);
+    }
+  }
+  else if(a==='date-clear'){
+    const field=el.dataset.field;
+    const inputId=field==='start'?'dt-start':'dt-due';
+    const input=el.closest('.expand-modal')?.querySelector('#'+inputId)||document.getElementById(inputId);
+    if(input)input.value='';
+    const task=S.tasks.find(t=>t.id===S.taskId);
+    if(task){
+      if(field==='start')task.startAt=null;
+      else task.dueAt=null;
+      await saveTask(task);
+    }
   }
   else if(a==='clear-task-notes'){
     openConfirmModal('メモをクリア','メモの内容をすべて削除しますか？',()=>{
