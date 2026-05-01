@@ -572,6 +572,69 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 #ai-key-wrap p{font-size:13px;color:var(--text2);line-height:1.6}
 #ai-key-input{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
 #ai-key-input:focus{border-color:var(--accent)}
+
+/* ===== VIEW HELP POPUP ===== */
+.vhelp-btn{
+  width:18px;height:18px;border-radius:50%;
+  border:1.5px solid var(--border);
+  font-size:10px;font-weight:700;color:var(--text3);
+  background:none;display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;transition:all .15s;line-height:1;
+  vertical-align:middle;margin-left:5px;
+}
+.vhelp-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.vhelp-popup{
+  position:fixed;top:58px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:0;
+  width:min(310px,calc(100vw - 24px));
+  box-shadow:0 8px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);
+  z-index:300;
+  overflow:hidden;
+  animation:vhelpIn .2s cubic-bezier(.34,1.3,.64,1);
+}
+@keyframes vhelpIn{
+  from{opacity:0;transform:translateY(-10px) scale(.95)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.vhelp-header{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 14px 12px;
+  border-bottom:1px solid var(--border);
+}
+.vhelp-icon{
+  width:34px;height:34px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.vhelp-name{font-size:14px;font-weight:700;letter-spacing:-.2px}
+.vhelp-close{
+  margin-left:auto;width:24px;height:24px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:var(--text3);background:none;border:none;cursor:pointer;
+  transition:background .12s,color .12s;
+}
+.vhelp-close:hover{background:var(--bg2);color:var(--text)}
+.vhelp-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.vhelp-desc{font-size:13px;color:var(--text2);line-height:1.65}
+.vhelp-cond{
+  background:var(--bg);border-radius:9px;
+  padding:10px 12px;display:flex;flex-direction:column;gap:5px;
+}
+.vhelp-cond-title{
+  font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.6px;color:var(--text3);margin-bottom:2px;
+}
+.vhelp-cond-row{
+  display:flex;align-items:flex-start;gap:6px;
+  font-size:12px;color:var(--text2);line-height:1.5;
+}
+.vhelp-cond-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--accent);flex-shrink:0;margin-top:5px;
+}
+.vhelp-ov{position:fixed;inset:0;z-index:299}
 </style>
 </head>
 <body>
@@ -656,7 +719,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
       <button class="icon-btn hamburger" data-a="menu" style="display:none">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <span class="topbar-title" id="viewTitle">Inbox</span>
+      <span class="topbar-title" id="viewTitle">Inbox</span><button class="vhelp-btn" id="vhelp-btn" data-a="view-help" title="このビューについて">?</button>
+      <div id="view-help-popup" class="vhelp-popup" style="display:none"></div>
+      <div id="view-help-ov" class="vhelp-ov" style="display:none"></div>
       <div id="global-srch-wrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input id="global-srch" type="search" placeholder="検索…" autocomplete="off">
@@ -1493,6 +1558,129 @@ function attachProjDragListeners(){
   });
 }
 
+// ===== VIEW HELP POPUP =====
+const VIEW_HELP={
+  inbox:{
+    name:'Inbox',
+    colorBg:'var(--accent-bg)',colorFg:'var(--accent)',
+    desc:'未分類・未整理のタスクが集まる受信箱です。新しく追加したタスクはまずInboxに入ります。定期的に整理してプロジェクトや期日を設定しましょう。',
+    conds:['ステータスが Inbox のタスク','プロジェクト未割り当てのタスク']
+  },
+  today:{
+    name:'Today',
+    colorBg:'var(--yellow-bg)',colorFg:'var(--yellow)',
+    desc:'今日やるべきことを一覧表示します。期限が今日のタスクと、重要マーク（フラグ）付きのタスクが自動的にまとめられます。',
+    conds:['期限日が今日のタスク','フラグ（★）が付いたタスク']
+  },
+  upcoming:{
+    name:'Upcoming',
+    colorBg:'var(--blue-bg)',colorFg:'var(--blue)',
+    desc:'明日以降に期限があるタスクを時系列で表示します。近い将来のスケジュールを把握して計画的に取り組めます。',
+    conds:['期限日が明日以降のタスク','期限未設定のタスクは非表示']
+  },
+  forecast:{
+    name:'Forecast',
+    colorBg:'var(--purple-bg)',colorFg:'var(--purple)',
+    desc:'カレンダー形式で今後のタスクを日別に表示します。どの日に何が集中しているか一目で把握でき、スケジュール調整に役立ちます。',
+    conds:['期限日ごとにタスクをグリッド表示','今日〜7日後＋期限超過タスクが対象']
+  },
+  flagged:{
+    name:'Flagged',
+    colorBg:'rgba(239,68,68,.1)',colorFg:'var(--p1)',
+    desc:'重要だとマークしたタスクの専用一覧です。どのビューからでもフラグを付けると、ここに集約されます。',
+    conds:['フラグ（★）が付いたタスクのみ表示','完了済みは非表示（設定で変更可）']
+  },
+  review:{
+    name:'Review',
+    colorBg:'var(--green-bg)',colorFg:'var(--green)',
+    desc:'プロジェクトの進捗を定期的に振り返るためのビューです。期日超過タスクや停滞しているプロジェクトを検出して整理できます。',
+    conds:['レビュー期限が来たプロジェクトを一覧表示','期日超過・未整理タスクのまとめ確認']
+  },
+  notes:{
+    name:'Notes',
+    colorBg:'var(--purple-bg)',colorFg:'var(--purple)',
+    desc:'タスクに紐付かない自由なメモを保存・管理できます。アイデア、参考リンク、議事録など何でも記録できます。',
+    conds:['プロジェクト・タスクに紐付かないノート','タイトル・本文でテキスト検索可能']
+  },
+  search:{
+    name:'Search',
+    colorBg:'var(--bg2)',colorFg:'var(--text2)',
+    desc:'全タスク・ノートをキーワードで横断検索します。タイトル・メモ・タグを対象に素早く目的の項目を見つけられます。',
+    conds:['全タスク・ノートをキーワード検索','タイトル・メモ・タグ名が検索対象']
+  },
+  project:{
+    name:'プロジェクト',
+    colorBg:'var(--blue-bg)',colorFg:'var(--blue)',
+    desc:'特定のプロジェクトに属するタスクのみを表示します。プロジェクト単位で作業に集中できます。',
+    conds:['選択したプロジェクトのタスクのみ表示','セクションで分類して整理が可能']
+  },
+  tag:{
+    name:'タグ',
+    colorBg:'var(--purple-bg)',colorFg:'var(--purple)',
+    desc:'同じタグが付いたタスクを横断して表示します。タグを使うと、複数プロジェクトにまたがる作業を一か所で管理できます。',
+    conds:['選択したタグが付いたタスクのみ表示','プロジェクト・ビューをまたいで集約']
+  },
+  completed:{
+    name:'Completed',
+    colorBg:'var(--green-bg)',colorFg:'var(--green)',
+    desc:'完了済みタスクのアーカイブです。過去の作業履歴を確認したり、完了タスクを元に戻したりできます。',
+    conds:['ステータスが「完了」のタスクのみ表示']
+  },
+};
+function openViewHelp(triggerEl){
+  const info=VIEW_HELP[S.view];
+  if(!info)return;
+  const popup=document.getElementById('view-help-popup');
+  const ov=document.getElementById('view-help-ov');
+  if(!popup)return;
+  // icon from ICONS map
+  const iconSvg=({inbox:ICONS.inbox,today:ICONS.today,upcoming:ICONS.upcoming,
+    forecast:ICONS.forecast,flagged:ICONS.flag,review:ICONS.review,
+    search:ICONS.search,notes:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
+    project:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>',
+    tag:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+    completed:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+  })[S.view]||'';
+  popup.innerHTML=`
+<div class="vhelp-header">
+  <div class="vhelp-icon" style="background:${info.colorBg};color:${info.colorFg}">${iconSvg}</div>
+  <div class="vhelp-name">${info.name}</div>
+  <button class="vhelp-close" data-a="close-vhelp" title="閉じる">✕</button>
+</div>
+<div class="vhelp-body">
+  <div class="vhelp-desc">${info.desc}</div>
+  <div class="vhelp-cond">
+    <div class="vhelp-cond-title">表示条件</div>
+    ${info.conds.map(c=>'<div class="vhelp-cond-row"><div class="vhelp-cond-dot"></div><div>'+c+'</div></div>').join('')}
+  </div>
+</div>`;
+  // 水平位置: triggerEl基準でポップアップを右寄りに配置、画面外に出ないよう調整
+  popup.style.display='block';
+  popup.style.transform='none';
+  const pw=Math.min(310,window.innerWidth-24);
+  popup.style.width=pw+'px';
+  if(triggerEl){
+    const rect=triggerEl.getBoundingClientRect();
+    let left=rect.left+rect.width/2-pw/2;
+    left=Math.max(12,Math.min(left,window.innerWidth-pw-12));
+    popup.style.left=left+'px';
+  } else {
+    popup.style.left=Math.max(12,(window.innerWidth-pw)/2)+'px';
+  }
+  ov.style.display='block';
+}
+function closeViewHelp(){
+  const popup=document.getElementById('view-help-popup');
+  const ov=document.getElementById('view-help-ov');
+  if(popup)popup.style.display='none';
+  if(ov)ov.style.display='none';
+}
+// オーバーレイクリックで閉じる
+document.addEventListener('DOMContentLoaded',()=>{
+  const ov=document.getElementById('view-help-ov');
+  if(ov)ov.addEventListener('click',closeViewHelp);
+});
+
 function renderSidebar(){
   const c=counts();
   const navItems=[
@@ -2237,7 +2425,7 @@ document.addEventListener('click',async e=>{
   if(!el)return;
   const a=el.dataset.a;
 
-  if(a==='view'){if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
+  if(a==='view'){closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
   else if(a==='proj'||a==='goto-proj'){S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
   else if(a==='tag'){S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
@@ -2309,6 +2497,8 @@ else if(a==='sel-edit'){
     }
   }
   
+  else if(a==='view-help'){e.stopPropagation();openViewHelp(el);}
+  else if(a==='close-vhelp'){closeViewHelp();}
   else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent()}
   
   else if(a==='note-new'){
