@@ -787,9 +787,10 @@ function dbDel(s,id){
 }
 
 // ===== STATE =====
+const _vst=(()=>{try{return JSON.parse(localStorage.getItem('focus_view_state')||'{}')}catch(e){return{}}})();
 let S={
   tasks:[],projects:[],sections:[],tags:[],
-  view:'inbox',projId:null,tagId:null,
+  view:_vst.view||'inbox',projId:_vst.projId||null,tagId:_vst.tagId||null,
   taskId:null,drawerOpen:false,
   dark:localStorage.getItem('dark')==='1',
   search:'',layout:'list',
@@ -2165,6 +2166,7 @@ setInd('saved');
 
 // ===== RENDER APP =====
 function render(){
+  localStorage.setItem('focus_view_state',JSON.stringify({view:S.view,projId:S.projId||null,tagId:S.tagId||null}));
   if(S.dark)document.documentElement.setAttribute('data-dark','');
   else document.documentElement.removeAttribute('data-dark');
   // sidebar open/close
@@ -3786,6 +3788,9 @@ async function init(){
     await openDB();
     await seed();
     await loadAll();
+    // 保存済みビューの有効性を検証（削除済みプロジェクト/タグへの参照を除去）
+    if(S.view==='project'&&!S.projects.find(p=>p.id===S.projId)){S.view='inbox';S.projId=null;}
+    if(S.view==='tag'&&!S.tags.find(t=>t.id===S.tagId)){S.view='inbox';S.tagId=null;}
     // ?note= URLパラメータからノートを開く
     const urlP=new URLSearchParams(location.search);
     const noteP=urlP.get('note');
