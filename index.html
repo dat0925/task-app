@@ -450,6 +450,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     box-shadow:0 -2px 12px rgba(0,0,0,.06);
     padding-bottom:4px;
   }
+  .toggle-btn-wrap{padding:6px 8px 6px 8px;justify-content:flex-start;gap:4px}
+  .toggle-completed-btn{padding:4px 8px;font-size:11px}
 }
 @media(min-width:769px){
   .hamburger{display:flex !important}
@@ -1684,8 +1686,8 @@ function renderList(){
   const showToggle=!['completed','search','forecast','review','notes'].includes(S.view);
   const toggleBtn=showToggle
     ?'<div class="toggle-btn-wrap" style="gap:4px;flex-wrap:wrap">'
-      +'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">'+(S.hideNotStarted?'⏳ 開始前:非表示':'⏳ 開始前:表示')+'</button>'
-      +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了:表示中':'○ 完了:非表示')+'</button>'
+      +'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">⏳ 開始前</button>'
+      +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了':'○ 完了')+'</button>'
       +'<button class="toggle-completed-btn'+(S.sort==='startAt'?' active':'')+'" data-a="tog-sort-start">'+(S.sort==='startAt'?'↓ 開始日':'↕ 開始日')+'</button>'
       +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort">'+(S.sort==='updated'?'↓ 更新日':'↕ 更新日')+'</button>'
     +'</div>'
