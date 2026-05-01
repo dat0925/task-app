@@ -2236,6 +2236,7 @@ document.addEventListener('click',async e=>{
 else if(a==='sel'){
   if(_touchMoved) return;
   if(window.innerWidth<=768) return; // スマホはsel-editまたは長押しで開く
+  if(e.target.closest('#drawer')) return; // ドロワー内クリックは無視
   const id=el.dataset.id;
   if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
   else{S.taskId=id;S.drawerOpen=true}
@@ -2333,7 +2334,13 @@ else if(a==='sel-edit'){
   }
   else if(a==='pri'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
-    if(task){task.priority=parseInt(el.dataset.p);await saveTask(task);renderDrawer();renderContent()}
+    if(task){
+      const tid=task.id;
+      task.priority=parseInt(el.dataset.p);
+      await saveTask(task);
+      S.taskId=tid;S.drawerOpen=true;
+      renderDrawer();renderContent();
+    }
   }
   else if(a==='tog-tag'){
     const task=S.tasks.find(t=>t.id===el.dataset.task);
@@ -3436,9 +3443,10 @@ document.getElementById('ai-input').addEventListener('input',function(){
   const LOCK_ENABLED_KEY='focus_lock_enabled';
   const screen=document.getElementById('lockScreen');
   if(!screen)return;
-  // ロック無効 or セッション認証済みならスキップ
+  // ロック無効 or セッション認証済み or ローカル開発環境ならスキップ
   const lockEnabled=localStorage.getItem(LOCK_ENABLED_KEY)!=='false';
-  if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'){screen.style.display='none';return}
+  const isLocalhost=['localhost','127.0.0.1',''].includes(location.hostname);
+  if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'||isLocalhost){screen.style.display='none';return}
   function getPin(){return localStorage.getItem(PIN_KEY)||DEFAULT_PIN;}
 
   function unlock(){
