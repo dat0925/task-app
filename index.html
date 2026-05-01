@@ -89,7 +89,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .qawrap input{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--text)}
 .qawrap input::placeholder{color:var(--text3);font-size:16px}
 .qa-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;min-height:0}
-.chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.chip{display:inline-flex;align-items:center;gap:3px;padding:1px 10px;border-radius:20px;font-size:11px;font-weight:500}
 .chip-date{background:var(--blue-bg);color:var(--blue)}
 .chip-pri{background:var(--accent-bg);color:var(--accent)}
 .chip-tag{background:var(--purple-bg);color:var(--purple)}
@@ -658,7 +658,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
         </button>
         <button class="ai-topbar-btn" data-a="ai-open" title="AI">✦</button>
-        <button class="btn btn-primary" data-a="newtask">+ 追加</button>
+        <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:6px 10px;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
+        <button class="btn btn-primary" data-a="newnote" title="ノートを追加" style="padding:6px 10px;gap:4px;background:var(--purple);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
       </div>
     </div>
 
@@ -881,6 +882,38 @@ function makeResizable(ta){
   });
   handle.addEventListener('touchstart',e=>{
     startY=e.touches[0].clientY;startH=ta.offsetHeight;
+    document.addEventListener('touchmove',onMove,{passive:false});
+    document.addEventListener('touchend',onEnd);
+    e.stopPropagation();
+  },{passive:true});
+}
+function makePreviewResizable(el){
+  if(!el||el._previewResizable)return;
+  el._previewResizable=true;
+  el.style.overflowY='auto';
+  const handle=document.createElement('div');
+  handle.className='resize-handle';
+  el.parentNode.insertBefore(handle,el.nextSibling);
+  let startY=0,startH=0;
+  const onMove=e=>{
+    const dy=(e.touches?e.touches[0].clientY:e.clientY)-startY;
+    el.style.height=Math.max(48,startH+dy)+'px';
+    e.preventDefault();
+  };
+  const onEnd=()=>{
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onEnd);
+    document.removeEventListener('touchmove',onMove);
+    document.removeEventListener('touchend',onEnd);
+  };
+  handle.addEventListener('mousedown',e=>{
+    startY=e.clientY;startH=el.offsetHeight;
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onEnd);
+    e.preventDefault();
+  });
+  handle.addEventListener('touchstart',e=>{
+    startY=e.touches[0].clientY;startH=el.offsetHeight;
     document.addEventListener('touchmove',onMove,{passive:false});
     document.addEventListener('touchend',onEnd);
     e.stopPropagation();
@@ -1659,6 +1692,7 @@ function renderList(){
 function renderRow(task){
   const subs=S.tasks.filter(t=>t.parentTaskId===task.id);
   const done=task.status==='completed';
+  const notStarted=!done&&task.startAt&&task.startAt>today();
   const pclass=task.priority<4?'p'+task.priority:'';
   let meta='';
   if(task.dueAt){
@@ -1684,7 +1718,7 @@ function renderRow(task){
   return '<div class="trow'+(done?' done':'')+(S.taskId===task.id?' sel':'')+(pclass?' '+pclass:'')+'" data-a="sel" data-id="'+task.id+'">'
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'">'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
-      +'<div class="ttitle" data-title-edit="'+task.id+'">'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
+      +'<div class="ttitle" data-title-edit="'+task.id+'"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
       +'<div class="tmeta">'+(meta||'')+updStr+'</div>'
     +'</div>'
     +'<button class="trow-expand-btn" data-a="task-expand" data-id="'+task.id+'" title="大きく表示">'
@@ -1779,7 +1813,7 @@ function renderNoteList(){
     +'<input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px;flex:1" autocomplete="off">'
     +'<button class="toggle-completed-btn'+(S.noteSortUpdated!==false?' active':'')+'" data-a="note-tog-sort" style="white-space:nowrap;flex-shrink:0">'+(S.noteSortUpdated!==false?'↓ 更新日':'↓ 作成日')+'</button>'
     +'</div>';
-  h+='<div class="nav-item" data-a="note-new" style="margin-bottom:8px;color:var(--accent)"><span style="font-size:18px;margin-right:4px">+</span> 新規メモ</div>';
+  h+='<button class="btn btn-primary" data-a="note-new" style="width:100%;margin-bottom:10px;justify-content:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新規メモ</button>';
   h+='<div id="note-list-items">';
   if(!notes.length){
     h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
@@ -1824,8 +1858,8 @@ function renderNoteDrawer(){
         +'</div>'
         +'<textarea class="finput" id="nt-body" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
         +'<div style="margin-top:6px">'
-          +'<button id="nt-preview-toggle" style="font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);display:flex;align-items:center;gap:4px">▶ プレビュー</button>'
-          +'<div id="nt-preview" style="display:none;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px"></div>'
+          +'<button id="nt-preview-toggle" style="font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
+          +'<div id="nt-preview" style="display:block;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:120px;overflow-y:auto"></div>'
         +'</div>'
         +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
       +'</div>'
@@ -1842,13 +1876,13 @@ function renderNoteDrawer(){
     ntPreviewToggle.addEventListener('click',()=>{
       const open=preview.style.display!=='none';
       preview.style.display=open?'none':'block';
-      ntPreviewToggle.textContent=(open?'▶':'▼')+' プレビュー';
+      ntPreviewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';
     });
   }
+  makePreviewResizable(preview);
   function updatePreview(){
     if(!bodyEl||!preview)return;
-    const linked=esc(bodyEl.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>');
-    preview.innerHTML=linked!==esc(bodyEl.value)?linked:'';
+    preview.innerHTML=esc(bodyEl.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>').replace(/\n/g,'<br>');
   }
   let nt;
   function schedSave(){
@@ -1952,8 +1986,8 @@ function renderDrawer(){
       +'</div>'
       +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
       +'<div style="margin-top:6px">'
-        +'<button id="dt-preview-toggle" style="font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);display:flex;align-items:center;gap:4px">▶ プレビュー</button>'
-        +'<div id="dt-preview" style="display:none;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px"></div>'
+        +'<button id="dt-preview-toggle" style="font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
+        +'<div id="dt-preview" style="display:block;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:120px;overflow-y:auto"></div>'
       +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
@@ -2061,16 +2095,16 @@ setInd('saved');
   function updateDtPreview(){
     const ta=document.getElementById('dt-notes');
     if(!ta||!dtPreview)return;
-    const linked=esc(ta.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent);text-decoration:underline">$1</a>').replace(/\n/g,'<br>');
-    dtPreview.innerHTML=linked!==esc(ta.value)?linked:'';
+    dtPreview.innerHTML=esc(ta.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent);text-decoration:underline">$1</a>').replace(/\n/g,'<br>');
   }
   updateDtPreview();
+  makePreviewResizable(dtPreview);
   const dtPreviewToggle=document.getElementById('dt-preview-toggle');
   if(dtPreviewToggle){
     dtPreviewToggle.addEventListener('click',()=>{
       const open=dtPreview.style.display!=='none';
       dtPreview.style.display=open?'none':'block';
-      dtPreviewToggle.textContent=(open?'▶':'▼')+' プレビュー';
+      dtPreviewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';
     });
   }
   const dtLinkBtn=document.getElementById('dt-link-btn');
@@ -2178,6 +2212,16 @@ document.addEventListener('click',async e=>{
     const task=mkTask({status:S.view==='project'?'active':'inbox',projectId:S.view==='project'?S.projId:null});
     await saveTask(task);S.taskId=task.id;S.drawerOpen=true;render();
     setTimeout(()=>document.getElementById('dt-title')?.focus(),50);
+  }
+  else if(a==='newnote'){
+    if(window._noteNewRunning)return;
+    window._noteNewRunning=true;
+    try{
+      S.view='notes';S.search='';
+      const n=mkNote();await saveNote(n);
+      S.noteId=n.id;S.noteOpen=true;render();
+      setTimeout(()=>document.getElementById('nt-title')?.focus(),50);
+    }finally{setTimeout(()=>{window._noteNewRunning=false},500);}
   }
   else if(a==='qa-submit'){await submitQA()}
   
@@ -2520,7 +2564,8 @@ function reattachModalEvents(modal, type, onClose){
     const previewToggle=modal.querySelector('#dt-preview-toggle');
     const preview=modal.querySelector('#dt-preview');
     if(previewToggle&&preview){
-      previewToggle.addEventListener('click',()=>{const open=preview.style.display!=='none';preview.style.display=open?'none':'block';previewToggle.textContent=(open?'▶':'▼')+' プレビュー';});
+      previewToggle.addEventListener('click',()=>{const open=preview.style.display!=='none';preview.style.display=open?'none':'block';previewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';});
+      makePreviewResizable(preview);
     }
     // copy url btn
     const copyUrlBtn=modal.querySelector('#copy-url-btn');
@@ -2537,7 +2582,8 @@ function reattachModalEvents(modal, type, onClose){
     const previewToggle=modal.querySelector('#nt-preview-toggle');
     const preview=modal.querySelector('#nt-preview');
     if(previewToggle&&preview){
-      previewToggle.addEventListener('click',()=>{const open=preview.style.display!=='none';preview.style.display=open?'none':'block';previewToggle.textContent=(open?'▶':'▼')+' プレビュー';});
+      previewToggle.addEventListener('click',()=>{const open=preview.style.display!=='none';preview.style.display=open?'none':'block';previewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';});
+      makePreviewResizable(preview);
     }
     let _c=false,nt2;
     const save=()=>{clearTimeout(nt2);nt2=setTimeout(async()=>{note.title=titleEl?.value||'';note.body=bodyEl?.value||'';await saveNote(note);const h=modal.querySelector('.drawer-head div div:last-child');if(h)h.textContent=note.title||'無題';},600);};
