@@ -208,7 +208,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .rv-btn{background:var(--green-bg);color:var(--green);border:1.5px solid var(--green);padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer}
 
 /* Modal */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.open{opacity:1;pointer-events:all}
 .modal{background:var(--surface);border-radius:12px;padding:22px;max-width:420px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2)}
 .modal-title{font-size:16px;font-weight:600;margin-bottom:14px}
@@ -467,6 +467,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .proj-item .proj-actions{display:none;align-items:center;gap:1px;flex-shrink:0}
 .proj-item:hover .proj-actions{display:flex}
 @media(max-width:768px){.proj-item .proj-actions{display:flex}}
+@media(max-width:768px){.trow-edit-btn{display:flex !important}}
 .proj-action-btn{width:24px;height:24px;border-radius:4px;font-size:13px;color:var(--text3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,color .15s;background:none;border:none;cursor:pointer;padding:0}
 .proj-action-btn:hover{background:var(--bg2);color:var(--text)}
 .proj-drag-handle{cursor:grab;color:var(--text3);font-size:15px;padding:0 2px;user-select:none;display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex-shrink:0;touch-action:none;-webkit-user-select:none}
@@ -2025,6 +2026,9 @@ function renderNoteRow(n){
       +'<div class="ttitle" data-note-title-edit="'+n.id+'">'+esc(n.title||'無題')+'</div>'
       +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+'</div>'
     +'</div>'
+    +'<button class="trow-edit-btn" data-a="note-sel-edit" data-id="'+n.id+'" title="編集" style="display:none;width:32px;height:32px;align-items:center;justify-content:center;border-radius:6px;color:var(--text3);flex-shrink:0;background:none;border:none;cursor:pointer">'
+      +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
+    +'</button>'
     +'<button class="trow-expand-btn" data-a="note-expand" data-id="'+n.id+'" title="大きく表示">'
       +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
     +'</button>'
@@ -2063,7 +2067,6 @@ function renderNoteDrawer(){
         +'<div style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(note.title||'無題')+'</div>'
       +'</div>'
       +'<div style="display:flex;gap:4px;margin-left:8px;align-items:center;flex-shrink:0">'
-        +'<button class="icon-btn" data-a="note-copy-body" data-id="'+note.id+'" title="メモ内容をコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>'
         +'<button class="icon-btn" data-a="note-dup" data-id="'+note.id+'" title="複製"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/><rect x="11" y="11" width="11" height="11" rx="2"/></svg></button>'
         +'<button class="icon-btn" data-a="note-copy-url" data-id="'+note.id+'" title="URLコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
         +'<button class="icon-btn" data-a="note-del" data-id="'+note.id+'" title="削除" style="color:var(--p1)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>'
@@ -2511,6 +2514,16 @@ else if(a==='sel-edit'){
     }finally{setTimeout(()=>{window._noteNewRunning=false},500);}
   }
   else if(a==='note-sel'){
+    if(_touchMoved)return;
+    if(window.innerWidth<=768)return; // モバイルはnote-sel-editで開く
+    const id=el.dataset.id;
+    if(S.noteId===id&&S.noteOpen){S.noteOpen=false;S.noteId=null;}
+    else{S.noteId=id;S.noteOpen=true;}
+    renderContent();
+  }
+  else if(a==='note-sel-edit'){
+    e.stopPropagation();
+    if(_touchMoved)return;
     const id=el.dataset.id;
     if(S.noteId===id&&S.noteOpen){S.noteOpen=false;S.noteId=null;}
     else{S.noteId=id;S.noteOpen=true;}
@@ -2543,8 +2556,15 @@ else if(a==='sel-edit'){
   else if(a==='note-dup'){
     const note=S.notes.find(n=>n.id===el.dataset.id);
     if(note){
-      const d={...note,id:uid(),title:(note.title||'無題')+' (コピー)',createdAt:now(),updatedAt:now()};
-      await saveNote(d);S.noteId=d.id;S.noteOpen=true;renderContent();toast('"'+(d.title)+'" を複製しました');
+      openConfirmModal(
+        'メモを複製',
+        '"'+(note.title||'無題')+'" を複製しますか？',
+        async()=>{
+          const d={...note,id:uid(),title:(note.title||'無題')+' (コピー)',createdAt:now(),updatedAt:now()};
+          await saveNote(d);S.noteId=d.id;S.noteOpen=true;renderContent();toast('"'+(d.title)+'" を複製しました');
+        },
+        '複製',false
+      );
     }
   }
   else if(a==='copy-task-notes'){
