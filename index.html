@@ -574,6 +574,24 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 #ai-key-input{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
 #ai-key-input:focus{border-color:var(--accent)}
 
+/* ===== SECTION HEADERS ===== */
+.sec-head{
+  display:flex;align-items:center;gap:6px;
+  padding:16px 4px 5px;margin-top:4px;
+  border-bottom:1.5px solid var(--border);
+  font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.6px;color:var(--text2);
+}
+.sec-head-name{flex:1}
+.sec-act-btn{
+  background:none;border:none;cursor:pointer;
+  color:var(--text3);padding:3px 6px;border-radius:5px;
+  font-size:11px;display:flex;align-items:center;
+  transition:background .12s,color .12s;
+}
+.sec-act-btn:hover{background:var(--bg2);color:var(--text)}
+.sec-act-btn.del:hover{background:rgba(239,68,68,.1);color:var(--p1)}
+
 /* ===== VIEW HELP POPUP ===== */
 .vhelp-btn{
   width:18px;height:18px;border-radius:50%;
@@ -1124,6 +1142,7 @@ async function deleteProject(id){
   S.projects=S.projects.filter(p=>p.id!==id);
 }
 async function saveSec(s){await dbPut('sections',s);const i=S.sections.findIndex(x=>x.id===s.id);i>=0?S.sections[i]=s:S.sections.push(s)}
+async function delSec(id){await dbDel('sections',id);S.sections=S.sections.filter(s=>s.id!==id)}
 
 function mkTask(o={}){return{id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:null,startAt:null,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o}}
 function mkProject(o={}){return{id:uid(),name:'新プロジェクト',type:'list',color:'#3b82f6',status:'active',reviewEveryDays:7,nextReviewAt:null,createdAt:now(),updatedAt:now(),...o}}
@@ -1897,10 +1916,35 @@ function renderNoteListOnly(){
 
 function renderList(){
   const tasks=getTasks().filter(t=>!t.parentTaskId);
+  if(S.view==='project'){
+    const projSecs=S.sections.filter(s=>s.projectId===S.projId).sort((a,b)=>a.order-b.order);
+    if(!tasks.length&&!projSecs.length)return renderEmpty();
+    let h='<div class="tlist">';
+    // セクション未割り当てのタスク
+    tasks.filter(t=>!t.sectionId).forEach(t=>{h+=renderRow(t)});
+    // 各セクション
+    projSecs.forEach(sec=>{
+      const secTasks=tasks.filter(t=>t.sectionId===sec.id);
+      h+='<div class="sec-head">'
+        +'<span class="sec-head-name">'+esc(sec.name)+'</span>'
+        +(secTasks.length?'<span class="badge" style="margin-right:2px">'+secTasks.length+'</span>':'')
+        +'<button class="sec-act-btn" data-a="sec-rename" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="名前変更">'
+          +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
+          +' 名前変更</button>'
+        +'<button class="sec-act-btn del" data-a="sec-del" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="削除">'
+          +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'
+          +' 削除</button>'
+      +'</div>';
+      if(secTasks.length){secTasks.forEach(t=>{h+=renderRow(t)});}
+      else{h+='<div style="padding:10px 10px;font-size:12px;color:var(--text3)">タスクなし</div>';}
+    });
+    h+='<div class="nav-item muted" data-a="addsec" style="margin-top:10px;font-size:13px"><span style="font-size:16px">+</span> セクション追加</div>';
+    h+='</div>';
+    return h;
+  }
   if(!tasks.length)return renderEmpty();
   let h='<div class="tlist">';
   tasks.forEach(t=>{h+=renderRow(t)});
-  if(S.view==='project')h+='<div class="nav-item muted" data-a="addsec" style="margin-top:8px;font-size:13px"><span style="font-size:16px">+</span> セクション追加</div>';
   h+='</div>';
   return h;
 }
@@ -2235,6 +2279,17 @@ function renderDrawer(){
           +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'"'+(task.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('')
         +'</select>'
       +'</div>'
+      +(task.projectId?(()=>{
+        const projSecs=S.sections.filter(s=>s.projectId===task.projectId).sort((a,b)=>a.order-b.order);
+        return projSecs.length
+          ?'<div class="fg"><label class="flabel">セクション</label>'
+            +'<select class="finput fselect" id="dt-sec">'
+              +'<option value="">（セクションなし）</option>'
+              +projSecs.map(s=>'<option value="'+s.id+'"'+(task.sectionId===s.id?' selected':'')+'>'+esc(s.name)+'</option>').join('')
+            +'</select>'
+            +'</div>'
+          :'';
+      })():'')
       +'<div class="fg"><label class="flabel">タグ</label>'
         +'<div class="tag-wrap">'
           +S.tags.map(t=>'<span class="topt'+(task.tagIds&&task.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-task="'+task.id+'" data-tag="'+t.id+'" style="'+(task.tagIds&&task.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
@@ -2304,6 +2359,7 @@ function renderDrawer(){
       t2.dueAt=document.getElementById('dt-due')?.value||null;
       t2.startAt=document.getElementById('dt-start')?.value||null;
       t2.projectId=document.getElementById('dt-proj')?.value||null;
+      t2.sectionId=document.getElementById('dt-sec')?.value||null;
       t2.repeatRule=document.getElementById('dt-repeat')?.value||null;
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
       
@@ -2313,7 +2369,7 @@ setInd('saved');
 
       
       
-      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
+      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-sec','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
       if(!drawerInputIds.includes(activeId)){
         renderSidebar();renderContent();
       }
@@ -2347,7 +2403,7 @@ setInd('saved');
     el.addEventListener('input',()=>{autosave();if(id==='dt-notes')updateDtPreview();});
   });
   // 日付・セレクトはcomposition不要
-  ['dt-due','dt-start','dt-proj','dt-repeat'].forEach(id=>{
+  ['dt-due','dt-start','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('change',()=>autosave(true));
   });
@@ -2742,8 +2798,56 @@ else if(a==='sel-edit'){
   else if(a==='newproj'){openModal('project')}
   else if(a==='newtag'){openModal('tag')}
   else if(a==='addsec'){
-    const name=prompt('セクション名:');
-    if(name){const s={id:uid(),projectId:S.projId,name,order:Date.now()};await saveSec(s);render()}
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">セクション追加</div>'
+      +'<div class="fg"><label class="flabel">セクション名</label><input class="finput" id="m-secname" placeholder="例：設計、実装、レビュー…" autocomplete="off"></div>'
+      +'<div class="modal-foot"><button class="btn btn-ghost" id="m-cancel">キャンセル</button><button class="btn btn-primary" id="m-ok">追加</button></div>'
+      +'</div>';
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    const inp=document.getElementById('m-secname');
+    setTimeout(()=>inp?.focus(),80);
+    document.getElementById('m-cancel').onclick=()=>ov.remove();
+    document.getElementById('m-ok').onclick=async()=>{
+      const name=(inp?.value||'').trim();
+      if(!name)return;
+      const s={id:uid(),projectId:S.projId,name,order:Date.now()};
+      await saveSec(s);ov.remove();renderContent();
+    };
+    inp?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('m-ok')?.click();if(e.key==='Escape')ov.remove();});
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  }
+  else if(a==='sec-rename'){
+    const id=el.dataset.id;const oldName=el.dataset.name;
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">セクション名を変更</div>'
+      +'<div class="fg"><label class="flabel">セクション名</label><input class="finput" id="m-secname" value="'+esc(oldName)+'" autocomplete="off"></div>'
+      +'<div class="modal-foot"><button class="btn btn-ghost" id="m-cancel">キャンセル</button><button class="btn btn-primary" id="m-ok">変更</button></div>'
+      +'</div>';
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    const inp=document.getElementById('m-secname');
+    setTimeout(()=>{inp?.focus();inp?.select();},80);
+    document.getElementById('m-cancel').onclick=()=>ov.remove();
+    document.getElementById('m-ok').onclick=async()=>{
+      const name=(inp?.value||'').trim();if(!name)return;
+      const sec=S.sections.find(s=>s.id===id);if(!sec)return;
+      sec.name=name;await saveSec(sec);ov.remove();renderContent();
+    };
+    inp?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('m-ok')?.click();if(e.key==='Escape')ov.remove();});
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  }
+  else if(a==='sec-del'){
+    const id=el.dataset.id;const name=el.dataset.name;
+    openConfirmModal(
+      '"'+name+'" を削除',
+      'セクションを削除します。タスクはセクションなしに移動します。',
+      async()=>{
+        const affected=S.tasks.filter(t=>t.sectionId===id);
+        for(const t of affected){t.sectionId=null;await saveTask(t);}
+        await delSec(id);
+        if(S.taskId){const t=S.tasks.find(x=>x.id===S.taskId);if(t&&t.sectionId===id){t.sectionId=null;}}
+        renderContent();renderDrawer();
+      },'削除',true
+    );
   }
   else if(a==='stamp'){
     const ta=document.getElementById('dt-notes');
@@ -2836,6 +2940,7 @@ function reattachModalEvents(modal, type, onClose){
     const dueEl=modal.querySelector('#dt-due');
     const startEl=modal.querySelector('#dt-start');
     const projEl=modal.querySelector('#dt-proj');
+    const secEl=modal.querySelector('#dt-sec');
     const repeatEl=modal.querySelector('#dt-repeat');
     const indEl=modal.querySelector('#autosave-ind');
     const setInd=(s)=>{if(!indEl)return;indEl.className='autosave-ind '+s;indEl.textContent=s==='saving'?'保存中…':s==='saved'?'保存済み ✓':'自動保存 ✓'};
@@ -2851,6 +2956,7 @@ function reattachModalEvents(modal, type, onClose){
         if(dueEl)t.dueAt=dueEl.value||null;
         if(startEl)t.startAt=startEl.value||null;
         if(projEl)t.projectId=projEl.value||null;
+        if(secEl)t.sectionId=secEl.value||null;
         if(repeatEl)t.repeatRule=repeatEl.value||null;
         await saveTask(t);setInd('saved');
       },400);
@@ -2861,7 +2967,7 @@ function reattachModalEvents(modal, type, onClose){
       el.addEventListener('compositionend',()=>{_c=false;save(true);});
       el.addEventListener('input',()=>save());
     });
-    ['dt-due','dt-start','dt-proj','dt-repeat'].forEach(id=>{
+    ['dt-due','dt-start','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
       const el=modal.querySelector('#'+id);if(el)el.addEventListener('change',()=>save(true));
     });
     const subInp=modal.querySelector('#sub-inp');
