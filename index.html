@@ -1926,50 +1926,130 @@ function renderContent(){
 function setupSectionDrag(){
   const content=document.getElementById('content');
   if(!content)return;
-  let dragId=null;
-  // すべての .trow[data-id] を draggable に
-  content.querySelectorAll('.trow[data-id]').forEach(row=>{
-    row.setAttribute('draggable','true');
-    row.addEventListener('dragstart',e=>{
-      dragId=row.dataset.id;
-      row.classList.add('dragging');
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain',dragId);
-    });
-    row.addEventListener('dragend',()=>{
-      row.classList.remove('dragging');
-      content.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-      dragId=null;
-    });
-  });
-  // ドロップゾーン（sec-head と sec-drop-zone）
-  function getDrop(el){return el.closest('[data-drop-sec]');}
-  content.addEventListener('dragover',e=>{
-    const zone=getDrop(e.target);
-    if(!zone||!dragId)return;
-    e.preventDefault();e.dataTransfer.dropEffect='move';
-    content.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-    zone.classList.add('drag-over');
-  });
-  content.addEventListener('dragleave',e=>{
-    const zone=getDrop(e.target);
-    if(zone&&!zone.contains(e.relatedTarget))zone.classList.remove('drag-over');
-  });
-  content.addEventListener('drop',async e=>{
-    const zone=getDrop(e.target);
-    if(!zone||!dragId)return;
-    e.preventDefault();
-    content.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+
+  // 前回のリスナーを確実に削除（蓄積防止）
+  if(content._secDragAC){content._secDragAC.abort();}
+  const ac=new AbortController();
+  content._secDragAC=ac;
+  const sig=ac.signal;
+
+  const isMobile=window.innerWidth<=768;
+  const rows=[...content.querySelectorAll('.trow[data-id]')];
+  const getDrop=el=>el?el.closest('[data-drop-sec]'):null;
+  const clearDragOver=()=>content.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+
+  async function applyDrop(taskId,zone){
+    clearDragOver();
+    if(!zone||!taskId)return;
     const secId=zone.dataset.dropSec==='null'?null:zone.dataset.dropSec;
-    const task=S.tasks.find(t=>t.id===dragId);
+    const task=S.tasks.find(t=>t.id===taskId);
     if(task&&task.sectionId!==secId){
       task.sectionId=secId;
       await saveTask(task);
       renderContent();
-      if(S.view==='project')setupSectionDrag();
     }
-    dragId=null;
-  });
+  }
+
+  if(!isMobile){
+    // ===== PC: HTML5 Drag & Drop =====
+    rows.forEach(row=>{
+      row.setAttribute('draggable','true');
+    });
+    let dragId=null;
+    content.addEventListener('dragstart',e=>{
+      const row=e.target.closest('.trow[data-id]');
+      if(!row)return;
+      dragId=row.dataset.id;
+      setTimeout(()=>row.classList.add('dragging'),0);
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',dragId);
+    },{signal:sig});
+    content.addEventListener('dragend',()=>{
+      content.querySelectorAll('.dragging').forEach(el=>el.classList.remove('dragging'));
+      clearDragOver();dragId=null;
+    },{signal:sig});
+    content.addEventListener('dragover',e=>{
+      const zone=getDrop(e.target);
+      if(!zone||!dragId)return;
+      e.preventDefault();e.dataTransfer.dropEffect='move';
+      clearDragOver();zone.classList.add('drag-over');
+    },{signal:sig});
+    content.addEventListener('drop',async e=>{
+      e.preventDefault();
+      const id=dragId;dragId=null;
+      await applyDrop(id,getDrop(e.target));
+    },{signal:sig});
+
+  } else {
+    // ===== モバイル: タッチドラッグ (長押し500msで開始) =====
+    let ghost=null,dragId=null,dragRow=null;
+    let startX=0,startY=0,dragging=false;
+    let lpTimer=null;
+    const LONG_MS=500,MOVE_LIMIT=12;
+
+    rows.forEach(row=>{
+      row.addEventListener('touchstart',e=>{
+        if(e.touches.length>1)return;
+        const t=e.touches[0];
+        startX=t.clientX;startY=t.clientY;
+        dragId=row.dataset.id;dragRow=row;dragging=false;
+        lpTimer=setTimeout(()=>{
+          // 長押し成立 → ドラッグ開始
+          dragging=true;
+          navigator.vibrate?.(40);
+          const rect=row.getBoundingClientRect();
+          ghost=row.cloneNode(true);
+          Object.assign(ghost.style,{
+            position:'fixed',zIndex:'9999',opacity:'.85',
+            pointerEvents:'none',width:rect.width+'px',
+            left:rect.left+'px',top:(t.clientY-rect.height/2)+'px',
+            boxShadow:'0 8px 28px rgba(0,0,0,.25)',borderRadius:'8px',
+            transform:'scale(1.03)',transition:'none',background:'var(--surface)'
+          });
+          document.body.appendChild(ghost);
+          row.style.opacity='.3';
+        },LONG_MS);
+      },{signal:sig,passive:true});
+
+      row.addEventListener('touchmove',e=>{
+        const t=e.touches[0];
+        const dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
+        // 長押し前に大きく動いたらキャンセル
+        if(!dragging&&(dx>MOVE_LIMIT||dy>MOVE_LIMIT)){clearTimeout(lpTimer);dragId=null;}
+        if(!dragging)return;
+        e.preventDefault();
+        // ゴーストを指に追従
+        if(ghost)ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';
+        // ドロップゾーンをハイライト
+        ghost.style.pointerEvents='none';
+        clearDragOver();
+        const el=document.elementFromPoint(t.clientX,t.clientY);
+        const zone=getDrop(el);
+        if(zone)zone.classList.add('drag-over');
+      },{signal:sig,passive:false});
+
+      row.addEventListener('touchend',async e=>{
+        clearTimeout(lpTimer);
+        if(ghost){ghost.remove();ghost=null;}
+        if(dragRow)dragRow.style.opacity='';
+        if(!dragging){dragId=null;dragRow=null;return;}
+        dragging=false;
+        const t=e.changedTouches[0];
+        const el=document.elementFromPoint(t.clientX,t.clientY);
+        const zone=getDrop(el);
+        const id=dragId;
+        dragId=null;dragRow=null;
+        await applyDrop(id,zone);
+      },{signal:sig});
+
+      row.addEventListener('touchcancel',()=>{
+        clearTimeout(lpTimer);
+        if(ghost){ghost.remove();ghost=null;}
+        if(dragRow)dragRow.style.opacity='';
+        clearDragOver();dragging=false;dragId=null;dragRow=null;
+      },{signal:sig,passive:true});
+    });
+  }
 }
 
 // ノート検索時: 検索ボックスを再生成せずリスト部分だけ更新
