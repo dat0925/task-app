@@ -2205,9 +2205,9 @@ document.addEventListener('click',async e=>{
   if(!el)return;
   const a=el.dataset.a;
 
-  if(a==='view'){if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
-  else if(a==='proj'){S.search='';S.view='project';S.projId=el.dataset.id;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
-  else if(a==='tag'){S.search='';S.view='tag';S.tagId=el.dataset.id;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
+  if(a==='view'){if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
+  else if(a==='proj'){S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
+  else if(a==='tag'){S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='proj-toggle'){S.projsOpen=!S.projsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();}
   else if(a==='hidden-proj-toggle'){S.hiddenProjsOpen=!S.hiddenProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();}
