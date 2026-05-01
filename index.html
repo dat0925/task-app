@@ -529,11 +529,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .expand-modal .drawer-foot{border-radius:0 0 14px 14px}
 /* Note title inline edit in list */
 .note-title-edit-inp{width:100%;font:inherit;font-size:13.5px;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:1px 6px;color:var(--text);outline:none;box-sizing:border-box}
-/* AI mobile button in topbar */
-.ai-topbar-btn{display:none}
-@media(max-width:768px){
-  .ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation}
-}
+/* AI button in topbar (PC + mobile) */
+.ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation;transition:opacity .15s,transform .15s}
+.ai-topbar-btn:hover{opacity:.85;transform:scale(1.05)}
 
 /* ===== SETTINGS MODAL ===== */
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border)}
@@ -544,10 +542,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .tog.on{background:var(--accent)}
 .tog::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .tog.on::after{transform:translateX(16px);box-shadow:0 2px 6px rgba(232,93,58,.4)}
-#ai-btn{display:none;position:fixed;bottom:28px;right:28px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-size:22px;z-index:190;box-shadow:0 4px 16px rgba(232,93,58,.4);transition:transform .2s,box-shadow .2s,background .2s;align-items:center;justify-content:center}
-@media(min-width:769px){#ai-btn.pc-visible{display:flex}}
-#ai-btn:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(232,93,58,.5)}
-#ai-btn.open{background:var(--text2)}
+#ai-btn{display:none !important}
+
 #ai-panel{position:fixed;bottom:0;right:0;width:100%;max-width:420px;height:75vh;background:var(--surface);border-top:1px solid var(--border);border-left:1px solid var(--border);border-radius:20px 20px 0 0;display:flex;flex-direction:column;z-index:199;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);box-shadow:0 -8px 32px rgba(0,0,0,.12)}
 #ai-panel.open{transform:translateY(0)}
 #ai-panel-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -573,6 +569,23 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 #ai-key-wrap p{font-size:13px;color:var(--text2);line-height:1.6}
 #ai-key-input{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
 #ai-key-input:focus{border-color:var(--accent)}
+
+/* ===== SECTION DRAG & DROP ===== */
+.trow[draggable="true"]{cursor:grab}
+.trow[draggable="true"]:active{cursor:grabbing}
+.trow.dragging{opacity:.4;pointer-events:none}
+.sec-drop-zone{
+  height:6px;border-radius:4px;margin:2px 0;
+  transition:height .15s,background .15s;
+}
+.sec-drop-zone.drag-over,.sec-drop-zone.drag-active{
+  height:28px;background:var(--accent-bg);
+  border:1.5px dashed var(--accent);border-radius:6px;
+}
+.sec-head.drag-over{
+  background:var(--accent-bg);border-color:var(--accent);
+  border-radius:6px;
+}
 
 /* ===== SECTION HEADERS ===== */
 .sec-head{
@@ -1878,6 +1891,15 @@ function renderContent(){
   // global-srch の値をS.searchと同期
   const gs=document.getElementById('global-srch');
   if(gs&&gs.value!==S.search)gs.value=S.search;
+  // モバイル: 検索ビュー以外ではsrch展開状態をリセットしてタイトルを復元
+  if(S.view!=='search'&&window.innerWidth<=768){
+    const wrap=document.getElementById('global-srch-wrap');
+    const topbar=wrap?.closest('.topbar');
+    if(wrap?.classList.contains('srch-expanded')){
+      wrap.classList.remove('srch-expanded');
+      topbar?.classList.remove('srch-active');
+    }
+  }
 
   // qabarを表示/非表示
   const qabar=document.getElementById('qabar');
@@ -1897,6 +1919,57 @@ function renderContent(){
   if(S.view==='search'){el.innerHTML=renderSearch();return}
   if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();return}
   el.innerHTML=renderList();
+  if(S.view==='project')setupSectionDrag();
+}
+
+// ===== SECTION DRAG & DROP =====
+function setupSectionDrag(){
+  const content=document.getElementById('content');
+  if(!content)return;
+  let dragId=null;
+  // すべての .trow[data-id] を draggable に
+  content.querySelectorAll('.trow[data-id]').forEach(row=>{
+    row.setAttribute('draggable','true');
+    row.addEventListener('dragstart',e=>{
+      dragId=row.dataset.id;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',dragId);
+    });
+    row.addEventListener('dragend',()=>{
+      row.classList.remove('dragging');
+      content.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+      dragId=null;
+    });
+  });
+  // ドロップゾーン（sec-head と sec-drop-zone）
+  function getDrop(el){return el.closest('[data-drop-sec]');}
+  content.addEventListener('dragover',e=>{
+    const zone=getDrop(e.target);
+    if(!zone||!dragId)return;
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    content.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+    zone.classList.add('drag-over');
+  });
+  content.addEventListener('dragleave',e=>{
+    const zone=getDrop(e.target);
+    if(zone&&!zone.contains(e.relatedTarget))zone.classList.remove('drag-over');
+  });
+  content.addEventListener('drop',async e=>{
+    const zone=getDrop(e.target);
+    if(!zone||!dragId)return;
+    e.preventDefault();
+    content.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+    const secId=zone.dataset.dropSec==='null'?null:zone.dataset.dropSec;
+    const task=S.tasks.find(t=>t.id===dragId);
+    if(task&&task.sectionId!==secId){
+      task.sectionId=secId;
+      await saveTask(task);
+      renderContent();
+      if(S.view==='project')setupSectionDrag();
+    }
+    dragId=null;
+  });
 }
 
 // ノート検索時: 検索ボックスを再生成せずリスト部分だけ更新
@@ -1919,13 +1992,21 @@ function renderList(){
   if(S.view==='project'){
     const projSecs=S.sections.filter(s=>s.projectId===S.projId).sort((a,b)=>a.order-b.order);
     if(!tasks.length&&!projSecs.length)return renderEmpty();
+    const unsectioned=tasks.filter(t=>!t.sectionId);
     let h='<div class="tlist">';
-    // セクション未割り当てのタスク
-    tasks.filter(t=>!t.sectionId).forEach(t=>{h+=renderRow(t)});
+    // セクション未割り当てエリア（セクションがある場合はヘッダーとドロップゾーンを追加）
+    if(projSecs.length){
+      h+='<div class="sec-head" data-drop-sec="null">'
+        +'<span class="sec-head-name" style="color:var(--text3)">セクションなし</span>'
+        +(unsectioned.length?'<span class="badge">'+unsectioned.length+'</span>':'')
+        +'</div>';
+    }
+    unsectioned.forEach(t=>{h+=renderRow(t)});
     // 各セクション
     projSecs.forEach(sec=>{
       const secTasks=tasks.filter(t=>t.sectionId===sec.id);
-      h+='<div class="sec-head">'
+      h+='<div class="sec-drop-zone" data-drop-sec="null" style="margin-top:0"></div>';
+      h+='<div class="sec-head" data-drop-sec="'+sec.id+'">'
         +'<span class="sec-head-name">'+esc(sec.name)+'</span>'
         +(secTasks.length?'<span class="badge" style="margin-right:2px">'+secTasks.length+'</span>':'')
         +'<button class="sec-act-btn" data-a="sec-rename" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="名前変更">'
@@ -1936,7 +2017,7 @@ function renderList(){
           +' 削除</button>'
       +'</div>';
       if(secTasks.length){secTasks.forEach(t=>{h+=renderRow(t)});}
-      else{h+='<div style="padding:10px 10px;font-size:12px;color:var(--text3)">タスクなし</div>';}
+      else{h+='<div class="sec-drop-zone" data-drop-sec="'+sec.id+'" style="height:40px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3)">ここにドラッグ</div>';}
     });
     h+='<div class="nav-item muted" data-a="addsec" style="margin-top:10px;font-size:13px"><span style="font-size:16px">+</span> セクション追加</div>';
     h+='</div>';
@@ -2484,9 +2565,9 @@ document.addEventListener('click',async e=>{
   if(!el)return;
   const a=el.dataset.a;
 
-  if(a==='view'){closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
-  else if(a==='proj'||a==='goto-proj'){S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
-  else if(a==='tag'){S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
+  if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
+  else if(a==='proj'||a==='goto-proj'){if(_touchMoved)return;S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
+  else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='proj-toggle'){S.projsOpen=!S.projsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();}
   else if(a==='hidden-proj-toggle'){S.hiddenProjsOpen=!S.hiddenProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();}
@@ -3119,11 +3200,9 @@ renderContent=function(){
   }
 };
 
-// ===== SWIPE TO OPEN SIDEBAR (PWA only) =====
+// ===== SWIPE TO OPEN SIDEBAR (disabled) =====
 (function(){
-  // PWA（スタンドアロン）モードのみ有効
-  const isPWA=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-  if(!isPWA)return;
+  return; // 誤操作が多いため無効化
   let startX=0,startY=0,tracking=false;
   const EDGE=30; // 左端30px以内からスワイプ開始
   const MIN_DIST=60; // 最低60px右に動かす
