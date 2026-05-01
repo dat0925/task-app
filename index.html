@@ -789,6 +789,7 @@ let S={
   search:'',layout:'list',
   showCompleted:false,
   sort:'order',
+  hideNotStarted:false,
   sidebarOpen:false,
   notes:[],noteId:null,noteOpen:false,noteSearch:'',noteSortUpdated:true,
   projsOpen:true,hiddenProjsOpen:false,
@@ -1054,7 +1055,9 @@ function getTasks(){
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='tag')tasks=tasks.filter(x=>x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
+  if(S.hideNotStarted){const t2=today();tasks=tasks.filter(x=>!x.startAt||x.startAt<=t2||x.status==='completed')}
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+  if(S.sort==='startAt') return tasks.sort((a,b)=>{if(!a.startAt&&!b.startAt)return 0;if(!a.startAt)return 1;if(!b.startAt)return -1;return a.startAt.localeCompare(b.startAt);});
   return tasks.sort((a,b)=>(a.order||0)-(b.order||0));
 }
 function counts(){
@@ -1640,11 +1643,13 @@ function renderContent(){
   const gs=document.getElementById('global-srch');
   if(gs&&gs.value!==S.search)gs.value=S.search;
 
-  // モバイルでqabarを表示/非表示
+  // qabarを表示/非表示
   const qabar=document.getElementById('qabar');
-  if(qabar&&window.innerWidth<=768){
+  if(qabar){
     const qaHidden=['search','forecast','review','completed','notes'];
-    qabar.style.display=qaHidden.includes(S.view)?'none':'';
+    if(qaHidden.includes(S.view)){qabar.style.display='none';}
+    else if(window.innerWidth<=768){qabar.style.display='';}
+    else{qabar.style.display='';}
   }
 
   // notes以外ではnoteドロワーを閉じる
@@ -1676,9 +1681,11 @@ function renderList(){
   const tasks=getTasks().filter(t=>!t.parentTaskId);
   const showToggle=!['completed','search','forecast','review','notes'].includes(S.view);
   const toggleBtn=showToggle
-    ?'<div class="toggle-btn-wrap">'
-      +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort" style="margin-right:6px">'+(S.sort==='updated'?'↓ 更新日':'↕ 更新日')+'</button>'
-      +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了を非表示':'○ 完了を表示')+'</button>'
+    ?'<div class="toggle-btn-wrap" style="gap:4px;flex-wrap:wrap">'
+      +'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">'+(S.hideNotStarted?'⏳ 開始前:非表示':'⏳ 開始前:表示')+'</button>'
+      +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了:表示中':'○ 完了:非表示')+'</button>'
+      +'<button class="toggle-completed-btn'+(S.sort==='startAt'?' active':'')+'" data-a="tog-sort-start">'+(S.sort==='startAt'?'↓ 開始日':'↕ 開始日')+'</button>'
+      +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort">'+(S.sort==='updated'?'↓ 更新日':'↕ 更新日')+'</button>'
     +'</div>'
     :'';
   if(!tasks.length)return toggleBtn+renderEmpty();
@@ -1813,7 +1820,6 @@ function renderNoteList(){
     +'<input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px;flex:1" autocomplete="off">'
     +'<button class="toggle-completed-btn'+(S.noteSortUpdated!==false?' active':'')+'" data-a="note-tog-sort" style="white-space:nowrap;flex-shrink:0">'+(S.noteSortUpdated!==false?'↓ 更新日':'↓ 作成日')+'</button>'
     +'</div>';
-  h+='<button class="btn btn-primary" data-a="note-new" style="width:100%;margin-bottom:10px;justify-content:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新規メモ</button>';
   h+='<div id="note-list-items">';
   if(!notes.length){
     h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
@@ -2458,7 +2464,9 @@ else if(a==='sel-edit'){
     if(p){const d=new Date();d.setDate(d.getDate()+(p.reviewEveryDays||7));p.nextReviewAt=d.toISOString().slice(0,10);await saveProject(p);renderContent()}
   }
   else if(a==='tog-completed'){S.showCompleted=!S.showCompleted;renderContent()}
+  else if(a==='tog-hide-notstarted'){S.hideNotStarted=!S.hideNotStarted;renderContent()}
   else if(a==='tog-sort'){S.sort=S.sort==='updated'?'order':'updated';renderContent()}
+  else if(a==='tog-sort-start'){S.sort=S.sort==='startAt'?'order':'startAt';renderContent()}
   else if(a==='note-tog-sort'){S.noteSortUpdated=S.noteSortUpdated===false?true:false;renderContent()}
   else if(a==='task-expand'){
     e.stopPropagation();
