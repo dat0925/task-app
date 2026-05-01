@@ -638,7 +638,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     <div class="sidebar-head">
       <div class="logo">F</div>
       <span class="app-name">Focus</span>
-      <button class="icon-btn" style="margin-left:auto" data-a="dark" title="ダーク">☾</button>
+      <a href="https://dat0925.github.io/gantt-app.html" target="_blank" class="icon-btn" style="margin-left:auto;text-decoration:none;font-size:12px;font-weight:700;color:var(--text2)" title="ガントチャート"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="10" width="8" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="16" width="6" height="4" rx="1" fill="currentColor" stroke="none"/><line x1="9" y1="6" x2="21" y2="6"/><line x1="13" y1="12" x2="21" y2="12"/><line x1="11" y1="18" x2="21" y2="18"/></svg></a>
+      <button class="icon-btn" data-a="dark" title="ダーク">☾</button>
       <button class="icon-btn" data-a="settings" title="設定">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       </button>
@@ -2354,18 +2355,19 @@ else if(a==='sel-edit'){
   }
   else if(a==='date-adj'){
     const field=el.dataset.field;
-    const inputId=field==='start'?'dt-start':'dt-due';
-    const container=el.closest('.expand-modal')||el.closest('.drawer');
-    const input=container?container.querySelector('#'+inputId):document.getElementById(inputId);
-    if(!input)return;
     const days=parseInt(el.dataset.days||'0');
     const months=parseInt(el.dataset.months||'0');
-    const base=input.value?new Date(input.value+'T00:00:00'):new Date();
+    const task=S.tasks.find(t=>t.id===S.taskId);
+    if(!task)return;
+    const currentVal=field==='start'?task.startAt:task.dueAt;
+    const base=currentVal?new Date(currentVal+'T00:00:00'):new Date();
     if(days)base.setDate(base.getDate()+days);
     if(months)base.setMonth(base.getMonth()+months);
-    input.value=base.toISOString().slice(0,10);
-    input.dispatchEvent(new Event('change'));
-    input.dispatchEvent(new Event('input'));
+    const newVal=base.toISOString().slice(0,10);
+    if(field==='start')task.startAt=newVal;
+    else task.dueAt=newVal;
+    await saveTask(task);
+    renderDrawer();renderContent();renderSidebar();
   }
   else if(a==='clear-task-notes'){
     openConfirmModal('メモをクリア','メモの内容をすべて削除しますか？',()=>{
