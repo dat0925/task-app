@@ -686,7 +686,21 @@ html.dark .del-btn{box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,25
   user-select:none;pointer-events:none;line-height:1;
 }
 .sec-head.sec-collapsed .sec-chevron{transform:rotate(-90deg)}
-.sec-body{overflow:hidden}
+.sec-body{overflow:hidden;max-height:5000px;opacity:1;transition:max-height .32s ease,opacity .25s ease}
+.sec-body.sec-hidden{max-height:0!important;opacity:0}
+/* サブタスク アコーディオン */
+.sub-rows{overflow:hidden;max-height:0;opacity:0;transition:max-height .32s ease,opacity .22s ease}
+.sub-rows.open{max-height:5000px;opacity:1}
+.sub-chev{display:inline-block;transition:transform .2s ease;font-size:9px;line-height:1;margin-right:1px}
+.sub-chev.open{transform:rotate(90deg)}
+.sub-toggle-btn{background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:1px;color:inherit;padding:0;font-size:11px;line-height:inherit}
+/* 一括編集 */
+.bulk-bar{position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--surface);border-top:2px solid var(--accent);padding:8px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;box-shadow:0 -2px 20px rgba(0,0,0,.15);animation:tin .18s ease}
+.bulk-btn{padding:5px 10px;font-size:12px;border-radius:6px;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text2);white-space:nowrap;transition:all .15s}
+.bulk-btn:hover{background:var(--bg2);color:var(--text);border-color:var(--text3)}
+.trow.bulk-sel{background:var(--accent-bg)!important;border-color:var(--accent)!important}
+.sel-check{width:20px;height:20px;min-width:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;background:none;transition:all .15s;margin-top:2px;font-size:10px;font-weight:700;color:#fff}
+.sel-check.on{background:var(--accent);border-color:var(--accent)}
 .sec-drag-handle{
   cursor:grab;color:var(--text3);font-size:16px;
   padding:0 2px;flex-shrink:0;line-height:1;
@@ -895,6 +909,9 @@ html.dark .del-btn{box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,25
   <!-- DRAWER -->
   <div class="drawer" id="drawer" style="display:none"></div>
 
+  <!-- BULK BAR -->
+  <div id="bulk-bar" style="display:none"></div>
+
 </div>
 
 <!-- Mobile bottom nav -->
@@ -1013,6 +1030,8 @@ let S={
   notes:[],noteId:null,noteOpen:false,noteSearch:'',noteSortUpdated:true,
   projsOpen:true,hiddenProjsOpen:false,
   secCollapsed:JSON.parse(localStorage.getItem('secCollapsed')||'{}'),
+  openSubs:{},
+  selectMode:false,selectedIds:[],
 };
 
 // ===== PWA vs ブラウザ検出 =====
@@ -1149,7 +1168,7 @@ function makePreviewResizable(el){
   },{passive:true});
 }
 function now(){return new Date().toISOString()}
-function today(){return new Date().toISOString().slice(0,10)}
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 function wdStr(d){
@@ -2617,7 +2636,7 @@ function renderList(){
         +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="__null__" style="color:var(--text3);cursor:pointer">セクションなし</span>'
         +(unsectioned.length?'<span class="badge">'+unsectioned.length+'</span>':'')
         +'</div>';
-      h+='<div class="sec-body" id="sec-body-__null__"'+(uc?' style="display:none"':'')+' data-drop-sec="null">';
+      h+='<div class="sec-body'+(uc?' sec-hidden':'')+'" id="sec-body-__null__" data-drop-sec="null">';
       unsectioned.forEach(t=>{h+=renderRow(t)});
       h+='</div>';
     } else {
@@ -2640,7 +2659,7 @@ function renderList(){
           +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'
           +' 削除</button>'
       +'</div>';
-      h+='<div class="sec-body" id="sec-body-'+sec.id+'"'+(collapsed?' style="display:none"':'')+' data-drop-sec="'+sec.id+'">';
+      h+='<div class="sec-body'+(collapsed?' sec-hidden':'')+'" id="sec-body-'+sec.id+'" data-drop-sec="'+sec.id+'">';
       if(secTasks.length){secTasks.forEach(t=>{h+=renderRow(t)});}
       else{h+='<div class="sec-drop-zone" data-drop-sec="'+sec.id+'" style="height:40px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3)">ここにドラッグ</div>';}
       h+='</div>';
@@ -2664,7 +2683,8 @@ function renderTaskFilters(){
   tf.innerHTML='<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">⏳ 開始前</button>'
     +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了':'○ 完了')+'</button>'
     +'<button class="toggle-completed-btn'+(S.sort==='startAt'?' active':'')+'" data-a="tog-sort-start">'+(S.sort==='startAt'?'↓ 開始日':'↕ 開始日')+'</button>'
-    +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort">'+(S.sort==='updated'?'↓ 更新日':'↕ 更新日')+'</button>';
+    +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort">'+(S.sort==='updated'?'↓ 更新日':'↕ 更新日')+'</button>'
+    +'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">☑ 選択</button>';
 }
 
 function renderRow(task){
@@ -2672,6 +2692,8 @@ function renderRow(task){
   const done=task.status==='completed';
   const notStarted=!done&&task.startAt&&task.startAt>today();
   const pclass=task.priority<4?'p'+task.priority:'';
+  const isSel=S.selectedIds.includes(task.id);
+  const subsOpen=subs.length>0&&!!S.openSubs[task.id];
   let meta='';
   if(task.startAt&&task.startAt!==task.dueAt){
     const cls=isToday(task.startAt)?'td':isSoon(task.startAt)?'sn':'';
@@ -2693,25 +2715,34 @@ function renderRow(task){
   }
   if(task.repeatRule)meta+='<span class="mc">↻</span>';
   if(task.flagged)meta+='<span>🚩</span>';
-  if(subs.length)meta+='<span class="mc">'+subs.filter(s=>s.status==='completed').length+'/'+subs.length+'</span>';
-  // 更新日
+  if(subs.length){
+    const dc=subs.filter(s=>s.status==='completed').length;
+    meta+='<button class="mc sub-toggle-btn" data-a="tog-subs" data-id="'+task.id+'" title="サブタスクを展開"><span class="sub-chev'+(subsOpen?' open':'')+'">▶</span>'+dc+'/'+subs.length+'</button>';
+  }
   const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">'+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
 
-  return '<div class="trow'+(done?' done':'')+(S.taskId===task.id?' sel':'')+(pclass?' '+pclass:'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
+  let html='<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
     +(S.view==='project'?'<span class="task-drag-handle" title="ドラッグで並び替え">⠿</span>':'')
+    +(S.selectMode?'<button class="sel-check'+(isSel?' on':'')+'" data-a="tog-sel" data-id="'+task.id+'">'+(isSel?'✓':'')+'</button>':'')
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'">'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
       +'<div class="ttitle" data-title-edit="'+task.id+'"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
       +'<div class="tmeta">'+(meta||'')+updStr+'</div>'
     +'</div>'
-    +'<button class="trow-expand-btn" data-a="task-expand" data-id="'+task.id+'" title="大きく表示">'
-      +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
-    +'</button>'
-    +'<button class="trow-edit-btn" data-a="sel-edit" data-id="'+task.id+'" title="詳細">'
-      +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
-    +'</button>'
-  +'</div>'
-  +(subs.length?subs.map(s=>'<div style="padding-left:28px">'+renderRow(s)+'</div>').join(''):'');
+    +(S.selectMode?'':
+      '<button class="trow-expand-btn" data-a="task-expand" data-id="'+task.id+'" title="大きく表示">'
+        +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
+      +'</button>'
+      +'<button class="trow-edit-btn" data-a="sel-edit" data-id="'+task.id+'" title="詳細">'
+        +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
+      +'</button>')
+  +'</div>';
+  if(subs.length){
+    html+='<div class="sub-rows'+(subsOpen?' open':'')+'" id="sub-rows-'+task.id+'">';
+    html+=subs.map(s=>'<div style="padding-left:28px">'+renderRow(s)+'</div>').join('');
+    html+='</div>';
+  }
+  return html;
 }
 
 function renderEmpty(){
@@ -2843,7 +2874,9 @@ function renderNoteDrawer(){
         +'<textarea class="finput" id="nt-body" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
         +'<div style="margin-top:6px">'
           +'<button id="nt-preview-toggle" style="font-size:11px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text2);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
-          +'<div id="nt-preview" style="display:block;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;padding:6px 8px;background:var(--bg);min-height:48px"></div>'
+          +'<div id="nt-preview-anim" style="overflow:hidden;transition:max-height .32s ease,opacity .25s ease;max-height:600px;opacity:1">'
+            +'<div id="nt-preview" style="font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;padding:6px 8px;background:var(--bg);min-height:48px"></div>'
+          +'</div>'
         +'</div>'
         +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
       +'</div>'
@@ -2856,10 +2889,12 @@ function renderNoteDrawer(){
   if(ntLinkBtn)ntLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(ntLinkBtn,'nt-body');});
   const preview=document.getElementById('nt-preview');
   const ntPreviewToggle=document.getElementById('nt-preview-toggle');
-  if(ntPreviewToggle){
+  const ntPreviewAnim=document.getElementById('nt-preview-anim');
+  if(ntPreviewToggle&&ntPreviewAnim){
     ntPreviewToggle.addEventListener('click',()=>{
-      const open=preview.style.display!=='none';
-      preview.style.display=open?'none':'block';
+      const open=ntPreviewAnim.style.maxHeight!=='0px';
+      ntPreviewAnim.style.maxHeight=open?'0px':'600px';
+      ntPreviewAnim.style.opacity=open?'0':'1';
       ntPreviewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';
     });
   }
@@ -2974,7 +3009,9 @@ function renderDrawer(){
       +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
       +'<div style="margin-top:6px">'
         +'<button id="dt-preview-toggle" style="font-size:11px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text2);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
-        +'<div id="dt-preview" style="display:block;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;padding:6px 8px;background:var(--bg);min-height:48px"></div>'
+        +'<div id="dt-preview-anim" style="overflow:hidden;transition:max-height .32s ease,opacity .25s ease;max-height:500px;opacity:1">'
+          +'<div id="dt-preview" style="font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;padding:6px 8px;background:var(--bg);min-height:48px"></div>'
+        +'</div>'
       +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
@@ -3099,10 +3136,12 @@ setInd('saved');
   updateDtPreview();
   makePreviewResizable(dtPreview);
   const dtPreviewToggle=document.getElementById('dt-preview-toggle');
-  if(dtPreviewToggle){
+  const dtPreviewAnim=document.getElementById('dt-preview-anim');
+  if(dtPreviewToggle&&dtPreviewAnim){
     dtPreviewToggle.addEventListener('click',()=>{
-      const open=dtPreview.style.display!=='none';
-      dtPreview.style.display=open?'none':'block';
+      const open=dtPreviewAnim.style.maxHeight!=='0px';
+      dtPreviewAnim.style.maxHeight=open?'0px':'500px';
+      dtPreviewAnim.style.opacity=open?'0':'1';
       dtPreviewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';
     });
   }
@@ -3135,6 +3174,100 @@ setInd('saved');
   });
 }
 
+// ===== BULK EDIT =====
+function renderBulkBar(){
+  const bb=document.getElementById('bulk-bar');
+  if(!bb)return;
+  if(!S.selectMode){bb.style.display='none';return;}
+  const n=S.selectedIds.length;
+  bb.style.display='flex';
+  bb.innerHTML='<span style="font-size:13px;font-weight:600;color:var(--text);flex-shrink:0;white-space:nowrap">'+n+'件選択</span>'
+    +'<button class="bulk-btn" data-a="bulk-edit" data-field="startAt">▶ 開始日</button>'
+    +'<button class="bulk-btn" data-a="bulk-edit" data-field="dueAt">📅 期限</button>'
+    +'<button class="bulk-btn" data-a="bulk-edit" data-field="tags"># タグ</button>'
+    +'<button class="bulk-btn" data-a="bulk-edit" data-field="project">📁 プロジェクト</button>'
+    +'<button class="bulk-btn" data-a="bulk-edit" data-field="repeat">↻ 繰り返し</button>'
+    +'<button class="bulk-btn" data-a="bulk-edit" data-field="flag">🚩 フラグ</button>'
+    +'<button class="bulk-btn" data-a="bulk-cancel" style="margin-left:auto;color:var(--p1);border-color:var(--p1)">✕ キャンセル</button>';
+}
+
+async function handleBulkEdit(field){
+  const tasks=S.tasks.filter(t=>S.selectedIds.includes(t.id));
+  if(!tasks.length){toast('タスクを選択してください');return;}
+  if(field==='startAt'||field==='dueAt'){
+    const label=field==='startAt'?'開始日':'期限';
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">'+label+'を一括設定</div>'
+      +'<div class="fg"><label class="flabel">'+label+'</label><input type="date" id="bulk-date-inp" class="finput"></div>'
+      +'<div style="display:flex;gap:8px;margin-top:12px">'
+        +'<button class="btn btn-primary" id="bulk-date-ok">設定する</button>'
+        +'<button class="btn btn-ghost" id="bulk-date-clr">クリア</button>'
+        +'<button class="btn btn-ghost" id="bulk-date-cancel">キャンセル</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    const doApply=async(val)=>{ov.remove();for(const t of tasks){t[field]=val||null;await saveTask(t);}toast(tasks.length+'件を更新しました');render();};
+    document.getElementById('bulk-date-cancel').onclick=()=>ov.remove();
+    document.getElementById('bulk-date-clr').onclick=()=>doApply(null);
+    document.getElementById('bulk-date-ok').onclick=()=>doApply(document.getElementById('bulk-date-inp').value);
+  } else if(field==='tags'){
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括追加</div>'
+      +'<div style="max-height:220px;overflow-y:auto;margin-bottom:12px">'
+      +S.tags.map(t=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer"><input type="checkbox" data-tag="'+t.id+'"><span style="color:'+t.color+'">#'+esc(t.name)+'</span></label>').join('')
+      +'</div>'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-primary" id="bulk-tag-ok">追加</button>'
+        +'<button class="btn btn-ghost" id="bulk-tag-cancel">キャンセル</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    document.getElementById('bulk-tag-cancel').onclick=()=>ov.remove();
+    document.getElementById('bulk-tag-ok').onclick=async()=>{
+      const checked=[...ov.querySelectorAll('input[data-tag]:checked')].map(i=>i.dataset.tag);
+      ov.remove();if(!checked.length)return;
+      for(const t of tasks){checked.forEach(tid=>{if(!t.tagIds.includes(tid))t.tagIds.push(tid);});await saveTask(t);}
+      toast(tasks.length+'件にタグを追加しました');render();
+    };
+  } else if(field==='project'){
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">プロジェクトを一括設定</div>'
+      +'<select id="bulk-proj-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
+      +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('')
+      +'</select>'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-primary" id="bulk-proj-ok">設定する</button>'
+        +'<button class="btn btn-ghost" id="bulk-proj-cancel">キャンセル</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    document.getElementById('bulk-proj-cancel').onclick=()=>ov.remove();
+    document.getElementById('bulk-proj-ok').onclick=async()=>{
+      const val=document.getElementById('bulk-proj-sel').value||null;ov.remove();
+      for(const t of tasks){t.projectId=val;if(!val)t.sectionId=null;await saveTask(t);}
+      toast(tasks.length+'件を更新しました');render();
+    };
+  } else if(field==='repeat'){
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">繰り返しを一括設定</div>'
+      +'<select id="bulk-rep-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
+      +['daily:毎日','weekdays:平日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'">'+l+'</option>'}).join('')
+      +'</select>'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-primary" id="bulk-rep-ok">設定する</button>'
+        +'<button class="btn btn-ghost" id="bulk-rep-cancel">キャンセル</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    document.getElementById('bulk-rep-cancel').onclick=()=>ov.remove();
+    document.getElementById('bulk-rep-ok').onclick=async()=>{
+      const val=document.getElementById('bulk-rep-sel').value||null;ov.remove();
+      for(const t of tasks){t.repeatRule=val;await saveTask(t);}
+      toast(tasks.length+'件を更新しました');render();
+    };
+  } else if(field==='flag'){
+    const anyUnflagged=tasks.some(t=>!t.flagged);
+    for(const t of tasks){t.flagged=anyUnflagged;await saveTask(t);}
+    toast(tasks.length+'件を'+(anyUnflagged?'フラグ付き':'フラグなし')+'に設定しました');render();
+  }
+}
+
 // ===== RENDER APP =====
 function render(){
   localStorage.setItem('focus_view_state',JSON.stringify({view:S.view,projId:S.projId||null,tagId:S.tagId||null}));
@@ -3152,6 +3285,7 @@ function render(){
   renderBotNav();
   renderContent();
   renderDrawer();
+  renderBulkBar();
   setupQA();
 }
 
@@ -3260,8 +3394,15 @@ document.addEventListener('click',async e=>{
   
 else if(a==='sel'){
   if(_touchMoved) return;
+  if(e.target.closest('#drawer')) return;
+  if(S.selectMode){
+    const id=el.dataset.id;
+    const idx=S.selectedIds.indexOf(id);
+    if(idx>=0)S.selectedIds.splice(idx,1);else S.selectedIds.push(id);
+    renderContent();renderBulkBar();
+    return;
+  }
   if(window.innerWidth<=768) return; // スマホはsel-editボタンで開く
-  if(e.target.closest('#drawer')) return; // ドロワー内クリックは無視
   const id=el.dataset.id;
   if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
   else{S.taskId=id;S.drawerOpen=true;playSE('open');}
@@ -3583,7 +3724,7 @@ else if(a==='sel-edit'){
     try{localStorage.setItem('secCollapsed',JSON.stringify(S.secCollapsed))}catch(_){}
     const body=document.getElementById('sec-body-'+secId);
     const head=el.closest('.sec-head');
-    if(body)body.style.display=S.secCollapsed[secId]?'none':'';
+    if(body)body.classList.toggle('sec-hidden',!!S.secCollapsed[secId]);
     if(head)head.classList.toggle('sec-collapsed',!!S.secCollapsed[secId]);
   }
   else if(a==='addsec'){
@@ -3662,6 +3803,29 @@ else if(a==='sel-edit'){
   else if(a==='tog-hide-notstarted'){S.hideNotStarted=!S.hideNotStarted;renderContent()}
   else if(a==='tog-sort'){S.sort=S.sort==='updated'?'order':'updated';renderContent()}
   else if(a==='tog-sort-start'){S.sort=S.sort==='startAt'?'order':'startAt';renderContent()}
+  else if(a==='tog-select-mode'){
+    S.selectMode=!S.selectMode;
+    if(!S.selectMode){S.selectedIds=[];S.drawerOpen=false;S.taskId=null;}
+    renderContent();renderBulkBar();
+  }
+  else if(a==='tog-sel'){
+    e.stopPropagation();
+    const id=el.dataset.id;
+    const idx=S.selectedIds.indexOf(id);
+    if(idx>=0)S.selectedIds.splice(idx,1);else S.selectedIds.push(id);
+    renderContent();renderBulkBar();
+  }
+  else if(a==='tog-subs'){
+    e.stopPropagation();
+    const id=el.dataset.id;
+    S.openSubs[id]=!S.openSubs[id];
+    const rows=document.getElementById('sub-rows-'+id);
+    if(rows)rows.classList.toggle('open',!!S.openSubs[id]);
+    const chev=el.querySelector('.sub-chev');
+    if(chev)chev.classList.toggle('open',!!S.openSubs[id]);
+  }
+  else if(a==='bulk-edit'){await handleBulkEdit(el.dataset.field);}
+  else if(a==='bulk-cancel'){S.selectMode=false;S.selectedIds=[];renderContent();renderBulkBar();}
   else if(a==='note-tog-sort'){S.noteSortUpdated=S.noteSortUpdated===false?true:false;renderContent()}
   else if(a==='task-expand'){
     e.stopPropagation();
@@ -3796,9 +3960,9 @@ function reattachModalEvents(modal, type, onClose){
     if(!note)return;
     makeResizable(bodyEl);
     const previewToggle=modal.querySelector('#nt-preview-toggle');
-    const preview=modal.querySelector('#nt-preview');
-    if(previewToggle&&preview){
-      previewToggle.addEventListener('click',()=>{const open=preview.style.display!=='none';preview.style.display=open?'none':'block';previewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';});
+    const previewAnim=modal.querySelector('#nt-preview-anim');
+    if(previewToggle&&previewAnim){
+      previewToggle.addEventListener('click',()=>{const open=previewAnim.style.maxHeight!=='0px';previewAnim.style.maxHeight=open?'0px':'600px';previewAnim.style.opacity=open?'0':'1';previewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';});
       makePreviewResizable(preview);
     }
     let _c=false,nt2;
