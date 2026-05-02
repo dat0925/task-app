@@ -243,10 +243,31 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .bnav-step:last-child{border-left:1px solid var(--border)}
 .bnav-step:active{color:var(--accent);background:var(--accent-bg)}
 .bnav-next{
-  width:40px;background:var(--accent);color:#fff;border-left:none!important;
-  border-radius:8px 0 0 8px;margin:5px 0 5px 0;font-weight:600;font-size:22px;
+  width:42px;
+  background:linear-gradient(180deg,#f0f0f0 0%,#d8d8d8 100%);
+  color:#555;
+  border-left:none!important;
+  border-radius:10px 0 0 10px;
+  margin:6px 0 6px 0;
+  font-weight:700;font-size:22px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 2px 4px rgba(0,0,0,.18),0 1px 2px rgba(0,0,0,.12);
+  border:1px solid rgba(0,0,0,.12);
+  border-right:none;
 }
-.bnav-next:active{background:var(--accent-hover,#2563eb);color:#fff}
+.bnav-next:active{
+  background:linear-gradient(180deg,#d0d0d0 0%,#c0c0c0 100%);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.15);
+  transform:translateY(1px);
+}
+html.dark .bnav-next{
+  background:linear-gradient(180deg,#4a4a4a 0%,#333 100%);
+  color:#ccc;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 2px 4px rgba(0,0,0,.4);
+  border-color:rgba(255,255,255,.08);
+}
+html.dark .bnav-next:active{
+  background:linear-gradient(180deg,#3a3a3a 0%,#2a2a2a 100%);
+}
 /* Browser mode (非PWA): safe-area値が0のためenv()に依存せず固定値で統一 */
 @media (max-width:768px){
   html.browser-mode .bot-nav{padding-bottom:0}
@@ -2117,19 +2138,11 @@ function getNavOrder(){
 }
 // ===== PREV/NEXT ナビゲーション =====
 function getNavSequence(){
-  // 表示順: システムビュー → 非表示でないプロジェクト → タグ (サイドバーと同じ順序)
+  // Nextボタン用: 8つのシステムビューのみ循環
   const sys=['inbox','today','upcoming','forecast','flagged','review','search','notes'];
-  const projs=getSortedProjects('active');
-  const tags=getSortedTags();
-  return[
-    ...sys.map(v=>({type:'view',v})),
-    ...projs.map(p=>({type:'proj',id:p.id,name:p.name})),
-    ...tags.map(t=>({type:'tag',id:t.id,name:t.name})),
-  ];
+  return sys.map(v=>({type:'view',v}));
 }
 function getCurrentNavIdx(seq){
-  if(S.view==='project')return seq.findIndex(x=>x.type==='proj'&&x.id===S.projId);
-  if(S.view==='tag')return seq.findIndex(x=>x.type==='tag'&&x.id===S.tagId);
   return seq.findIndex(x=>x.type==='view'&&x.v===S.view);
 }
 
