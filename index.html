@@ -61,6 +61,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Main */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .topbar{display:flex;align-items:center;gap:10px;padding:0 16px;height:52px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+/* Desktop: flatten rows into single flex row */
+.topbar-row1{display:contents}
+.topbar-row2{display:contents}
+.topbar-r1-right{margin-left:auto;display:flex;align-items:center;gap:10px}
 #save-status{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;opacity:0;transition:opacity .3s;white-space:nowrap}
 #save-status.show{opacity:1}
 #save-dot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
@@ -449,17 +453,20 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .drawer.open{transform:translateY(0) !important}
   .bot-nav{display:flex}
   .content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 90px)}
-  .topbar{position:fixed !important;top:0;left:0;right:0;z-index:60;box-shadow:0 1px 6px rgba(0,0,0,.08)}
-  .main{padding-top:52px}
+  /* モバイルトップバー：2段レイアウト */
+  .topbar{position:fixed !important;top:0;left:0;right:0;z-index:60;box-shadow:0 1px 6px rgba(0,0,0,.08);flex-direction:column;height:auto;padding:0;gap:0;align-items:stretch}
+  .topbar-row1{display:flex;align-items:center;width:100%;height:48px;padding:0 10px;gap:8px;flex-shrink:0}
+  .topbar-row2{display:flex;align-items:center;width:100%;padding:0 8px 8px;gap:6px;flex-shrink:0}
+  .topbar-r1-right{display:none}
+  .main{padding-top:96px}
   .hamburger{display:flex !important}
   .layout-toggle{display:none}
-  /* タイトルを表示、検索窓を折りたたみ式に */
-  .topbar-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0;transition:opacity .2s ease,max-width .25s ease,flex .25s ease}
-  .topbar.srch-active .topbar-title{opacity:0;max-width:0;flex:0 0 0;overflow:hidden}
-  #global-srch-wrap{flex:0 0 36px;min-width:36px!important;max-width:36px!important;padding:0;justify-content:center;cursor:pointer;transition:flex-basis .25s ease,max-width .25s ease,padding .25s ease}
-  #global-srch-wrap.srch-expanded{flex:1;min-width:0!important;max-width:260px!important;padding:0 10px;cursor:default;justify-content:flex-start}
-  #global-srch{width:0;opacity:0;pointer-events:none;transition:opacity .18s ease;padding:0;flex:0}
-  #global-srch-wrap.srch-expanded #global-srch{width:auto;flex:1;opacity:1;pointer-events:auto;padding:0}
+  .topbar-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0}
+  /* 検索窓は常時展開（行2で全幅） */
+  #global-srch-wrap{flex:1!important;min-width:0!important;max-width:none!important;padding:0 10px!important;justify-content:flex-start!important;cursor:default!important;transition:border-color .15s}
+  #global-srch-wrap.srch-expanded{flex:1!important;min-width:0!important;max-width:none!important;padding:0 10px!important}
+  #global-srch{width:auto!important;flex:1!important;opacity:1!important;pointer-events:auto!important;padding:0!important;transition:none}
+  #global-srch-wrap.srch-expanded #global-srch{width:auto!important;flex:1!important;opacity:1!important;pointer-events:auto!important}
   .qabar{
     position:fixed;
     bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
@@ -620,6 +627,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 }
 .sec-act-btn:hover{background:var(--bg2);color:var(--text)}
 .sec-act-btn.del:hover{background:rgba(239,68,68,.1);color:var(--p1)}
+
+/* Section collapse/expand all */
+.sec-actions-row{display:flex;gap:6px;padding:4px 4px 6px;justify-content:flex-end}
+.sec-ac-btn{font-size:11px;padding:2px 8px;border-radius:5px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);cursor:pointer;transition:background .15s,color .15s;touch-action:manipulation}
+.sec-ac-btn:hover{background:var(--bg3);color:var(--text)}
 
 /* ===== ACCORDION + SECTION DRAG ===== */
 .sec-chevron{
@@ -795,19 +807,25 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   <!-- MAIN -->
   <div class="main" id="main">
     <div class="topbar">
-      <button class="icon-btn hamburger" data-a="menu" style="display:none">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-      <span class="topbar-title" id="viewTitle">Inbox</span><button class="vhelp-btn" id="vhelp-btn" data-a="view-help" title="このビューについて">?</button>
-      <div id="view-help-popup" class="vhelp-popup" style="display:none"></div>
-      <div id="view-help-ov" class="vhelp-ov" style="display:none"></div>
-      <div id="global-srch-wrap">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="global-srch" type="search" placeholder="検索…" autocomplete="off">
-        <button id="srch-clear" title="クリア">✕</button>
+      <!-- Row 1: タイトルエリア -->
+      <div class="topbar-row1">
+        <button class="icon-btn hamburger" data-a="menu" style="display:none">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span class="topbar-title" id="viewTitle">Inbox</span><button class="vhelp-btn" id="vhelp-btn" data-a="view-help" title="このビューについて">?</button>
+        <div id="view-help-popup" class="vhelp-popup" style="display:none"></div>
+        <div id="view-help-ov" class="vhelp-ov" style="display:none"></div>
+        <div class="topbar-r1-right">
+          <div id="save-status"><div id="save-dot"></div><span id="save-label"></span></div>
+        </div>
       </div>
-      <div class="ml flex items-c gap-2">
-        <div id="save-status"><div id="save-dot"></div><span id="save-label"></span></div>
+      <!-- Row 2: 検索・アクション -->
+      <div class="topbar-row2">
+        <div id="global-srch-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="global-srch" type="search" placeholder="検索…" autocomplete="off">
+          <button id="srch-clear" title="クリア">✕</button>
+        </div>
         <button class="ai-topbar-btn" data-a="ai-open" title="AI">✦</button>
         <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:6px 10px;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
         <button class="btn btn-primary" data-a="newnote" title="ノートを追加" style="padding:6px 10px;gap:4px;background:var(--purple);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
@@ -848,6 +866,9 @@ const SCROLL_THRESHOLD = 8; // px
 document.addEventListener('touchstart', e => {
   _touchStartY = e.touches[0].clientY;
   _touchMoved = false;
+  // 前ドラッグのゴースト残留を自動クリア
+  document.querySelectorAll('.drag-ghost-fixed').forEach(el=>el.remove());
+  if(window.__activeDragEl){window.__activeDragEl.style.opacity='';window.__activeDragEl=null;}
 }, { passive: true });
 
 document.addEventListener('touchmove', e => {
@@ -943,7 +964,7 @@ let S={
   showCompleted:false,
   sort:'order',
   hideNotStarted:false,
-  sidebarOpen:true,
+  sidebarOpen:window.innerWidth>768,
   notes:[],noteId:null,noteOpen:false,noteSearch:'',noteSortUpdated:true,
   projsOpen:true,hiddenProjsOpen:false,
   secCollapsed:JSON.parse(localStorage.getItem('secCollapsed')||'{}'),
@@ -2172,9 +2193,11 @@ function setupSectionDrag(){
         boxShadow:'0 8px 28px rgba(0,0,0,.25)',borderRadius:'8px',
         transform:'scale(1.03)',transition:'none',background:'var(--surface)'
       });
+      ghost.classList.add('drag-ghost-fixed');
       document.body.appendChild(ghost);
       el.style.opacity='.3';
       activeEl=el;
+      window.__activeDragEl=el;
       dtype=ty;
     }
 
@@ -2182,6 +2205,7 @@ function setupSectionDrag(){
       clearTimeout(lpTimer);
       if(ghost){ghost.remove();ghost=null;}
       if(activeEl){activeEl.style.opacity='';activeEl=null;}
+      if(window.__activeDragEl){window.__activeDragEl.style.opacity='';window.__activeDragEl=null;}
       clearInd();dragging=false;dtype=null;dragId=null;dragSecId=null;
     }
 
@@ -2315,6 +2339,12 @@ function renderList(){
     if(!tasks.length&&!projSecs.length)return renderEmpty();
     const unsectioned=tasks.filter(t=>!t.sectionId);
     let h='<div class="tlist">';
+    if(projSecs.length){
+      h+='<div class="sec-actions-row">'
+        +'<button class="sec-ac-btn" data-a="sec-collapse-all">▴ 全て閉じる</button>'
+        +'<button class="sec-ac-btn" data-a="sec-expand-all">▾ 全て開く</button>'
+        +'</div>';
+    }
     // セクション未割り当てエリア（セクションがある場合はヘッダーとドロップゾーンを追加）
     if(projSecs.length){
       const uc=S.secCollapsed['__null__'];
@@ -3232,6 +3262,20 @@ else if(a==='sel-edit'){
   }
   else if(a==='newproj'){openModal('project')}
   else if(a==='newtag'){openModal('tag')}
+  else if(a==='sec-collapse-all'){
+    const secs=S.sections.filter(s=>s.projectId===S.projId);
+    secs.forEach(s=>{S.secCollapsed[s.id]=true;});
+    S.secCollapsed['__null__']=true;
+    try{localStorage.setItem('secCollapsed',JSON.stringify(S.secCollapsed))}catch(_){}
+    renderContent();
+  }
+  else if(a==='sec-expand-all'){
+    const secs=S.sections.filter(s=>s.projectId===S.projId);
+    secs.forEach(s=>{delete S.secCollapsed[s.id];});
+    delete S.secCollapsed['__null__'];
+    try{localStorage.setItem('secCollapsed',JSON.stringify(S.secCollapsed))}catch(_){}
+    renderContent();
+  }
   else if(a==='sec-toggle'){
     const secId=el.dataset.secId;
     if(!secId)return;
