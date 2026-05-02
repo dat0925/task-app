@@ -697,12 +697,7 @@ html.dark .del-btn{box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,25
 .sub-chev.open{transform:rotate(90deg)}
 .sub-toggle-btn{background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:1px;color:inherit;padding:0;font-size:11px;line-height:inherit}
 /* 一括編集 */
-.bulk-bar{position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--surface);border-top:2px solid var(--accent);padding:8px 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;box-shadow:0 -2px 20px rgba(0,0,0,.15);animation:tin .18s ease}
-.bulk-btn{padding:5px 10px;font-size:12px;border-radius:6px;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text2);white-space:nowrap;transition:all .15s}
-.bulk-btn:hover{background:var(--bg2);color:var(--text);border-color:var(--text3)}
 .trow.bulk-sel{background:var(--accent-bg)!important;border-color:var(--accent)!important}
-.sel-check{width:20px;height:20px;min-width:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;background:none;transition:all .15s;margin-top:2px;font-size:10px;font-weight:700;color:#fff}
-.sel-check.on{background:var(--accent);border-color:var(--accent)}
 .sec-drag-handle{
   cursor:grab;color:var(--text3);font-size:16px;
   padding:0 2px;flex-shrink:0;line-height:1;
@@ -911,8 +906,6 @@ html.dark .del-btn{box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,25
   <!-- DRAWER -->
   <div class="drawer" id="drawer" style="display:none"></div>
 
-  <!-- BULK BAR -->
-  <div id="bulk-bar" style="display:none"></div>
 
 </div>
 
@@ -2682,6 +2675,17 @@ function renderTaskFilters(){
   const showToggle=!['completed','search','forecast','review','notes'].includes(S.view);
   if(!showToggle){tf.style.display='none';tf.innerHTML='';return;}
   tf.style.display='flex';
+  if(S.selectMode){
+    tf.innerHTML='<span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;flex-shrink:0;padding:0 4px">'+S.selectedIds.length+'件選択</span>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="startAt">開始日</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="dueAt">期限</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="tags">タグ</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="project">PJ</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="repeat">繰返</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="flag">🚩</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-cancel" style="margin-left:auto;border-color:var(--p1);color:var(--p1)">✕ 終了</button>';
+    return;
+  }
   tf.innerHTML='<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">⏳ 未来</button>'
     +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了':'○ 完了')+'</button>'
     +'<button class="toggle-completed-btn'+(S.sort==='startAt'?' active':'')+'" data-a="tog-sort-start">'+(S.sort==='startAt'?'↓ 開始':'↕ 開始')+'</button>'
@@ -2725,7 +2729,6 @@ function renderRow(task){
 
   let html='<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
     +(S.view==='project'?'<span class="task-drag-handle" title="ドラッグで並び替え">⠿</span>':'')
-    +(S.selectMode?'<button class="sel-check'+(isSel?' on':'')+'" data-a="tog-sel" data-id="'+task.id+'">'+(isSel?'✓':'')+'</button>':'')
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'">'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
       +'<div class="ttitle" data-title-edit="'+task.id+'"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
@@ -3177,22 +3180,6 @@ setInd('saved');
 }
 
 // ===== BULK EDIT =====
-function renderBulkBar(){
-  const bb=document.getElementById('bulk-bar');
-  if(!bb)return;
-  if(!S.selectMode){bb.style.display='none';return;}
-  const n=S.selectedIds.length;
-  bb.style.display='flex';
-  bb.innerHTML='<span style="font-size:13px;font-weight:600;color:var(--text);flex-shrink:0;white-space:nowrap">'+n+'件選択</span>'
-    +'<button class="bulk-btn" data-a="bulk-edit" data-field="startAt">▶ 開始日</button>'
-    +'<button class="bulk-btn" data-a="bulk-edit" data-field="dueAt">📅 期限</button>'
-    +'<button class="bulk-btn" data-a="bulk-edit" data-field="tags"># タグ</button>'
-    +'<button class="bulk-btn" data-a="bulk-edit" data-field="project">📁 プロジェクト</button>'
-    +'<button class="bulk-btn" data-a="bulk-edit" data-field="repeat">↻ 繰り返し</button>'
-    +'<button class="bulk-btn" data-a="bulk-edit" data-field="flag">🚩 フラグ</button>'
-    +'<button class="bulk-btn" data-a="bulk-cancel" style="margin-left:auto;color:var(--p1);border-color:var(--p1)">✕ キャンセル</button>';
-}
-
 async function handleBulkEdit(field){
   const tasks=S.tasks.filter(t=>S.selectedIds.includes(t.id));
   if(!tasks.length){toast('タスクを選択してください');return;}
@@ -3287,7 +3274,6 @@ function render(){
   renderBotNav();
   renderContent();
   renderDrawer();
-  renderBulkBar();
   setupQA();
 }
 
@@ -3401,7 +3387,7 @@ else if(a==='sel'){
     const id=el.dataset.id;
     const idx=S.selectedIds.indexOf(id);
     if(idx>=0)S.selectedIds.splice(idx,1);else S.selectedIds.push(id);
-    renderContent();renderBulkBar();
+    renderContent();
     return;
   }
   if(window.innerWidth<=768) return; // スマホはsel-editボタンで開く
@@ -3808,14 +3794,7 @@ else if(a==='sel-edit'){
   else if(a==='tog-select-mode'){
     S.selectMode=!S.selectMode;
     if(!S.selectMode){S.selectedIds=[];S.drawerOpen=false;S.taskId=null;}
-    renderContent();renderBulkBar();
-  }
-  else if(a==='tog-sel'){
-    e.stopPropagation();
-    const id=el.dataset.id;
-    const idx=S.selectedIds.indexOf(id);
-    if(idx>=0)S.selectedIds.splice(idx,1);else S.selectedIds.push(id);
-    renderContent();renderBulkBar();
+    renderContent();
   }
   else if(a==='tog-subs'){
     e.stopPropagation();
@@ -3827,7 +3806,7 @@ else if(a==='sel-edit'){
     if(chev)chev.classList.toggle('open',!!S.openSubs[id]);
   }
   else if(a==='bulk-edit'){await handleBulkEdit(el.dataset.field);}
-  else if(a==='bulk-cancel'){S.selectMode=false;S.selectedIds=[];renderContent();renderBulkBar();}
+  else if(a==='bulk-cancel'){S.selectMode=false;S.selectedIds=[];renderContent();}
   else if(a==='note-tog-sort'){S.noteSortUpdated=S.noteSortUpdated===false?true:false;renderContent()}
   else if(a==='task-expand'){
     e.stopPropagation();
