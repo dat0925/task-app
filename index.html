@@ -2140,8 +2140,13 @@ function setupSectionDrag(){
       clearInd();dragging=false;dtype=null;dragId=null;dragSecId=null;
     }
 
+    // ドキュメントレベルのフォールバック（scroll等でtouchendが届かなかった場合のゴースト残留防止）
+    document.addEventListener('touchend',()=>{if(ghost||dragging)cancelAll();},{signal:sig,passive:true});
+    document.addEventListener('touchcancel',()=>cancelAll(),{signal:sig,passive:true});
+
     // task rows
     content.querySelectorAll('.trow[data-id]').forEach(row=>{
+      // passive:false にして touchmove 内での e.preventDefault() を有効化（iOS scroll乗っ取り防止）
       row.addEventListener('touchstart',e=>{
         if(e.touches.length>1){cancelAll();return;}
         const t=e.touches[0];startX=t.clientX;startY=t.clientY;
@@ -2149,7 +2154,7 @@ function setupSectionDrag(){
           dragging=true;navigator.vibrate?.(40);
           dragId=row.dataset.id;spawnGhost(row,'task');
         },LONG_MS);
-      },{signal:sig,passive:true});
+      },{signal:sig,passive:false});
 
       row.addEventListener('touchmove',e=>{
         const t=e.touches[0];
@@ -2157,7 +2162,7 @@ function setupSectionDrag(){
           if(Math.abs(t.clientX-startX)>MOVE_LIM||Math.abs(t.clientY-startY)>MOVE_LIM)clearTimeout(lpTimer);
           return;
         }
-        e.preventDefault();
+        e.preventDefault();// dragging中はスクロール禁止
         if(ghost)ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';
         clearInd();ghost.style.pointerEvents='none';
         const el=document.elementFromPoint(t.clientX,t.clientY);
@@ -2203,7 +2208,7 @@ function setupSectionDrag(){
           dragging=true;navigator.vibrate?.(40);
           dragSecId=handle.dataset.dragSec;spawnGhost(secHead||handle,'sec');
         },LONG_MS);
-      },{signal:sig,passive:true});
+      },{signal:sig,passive:false});
 
       handle.addEventListener('touchmove',e=>{
         const t=e.touches[0];
@@ -3005,12 +3010,15 @@ else if(a==='sel-edit'){
     if(input.value){
       const[y,m,d]=input.value.split('-').map(Number);
       base=new Date(Date.UTC(y,m-1,d));
+      if(days)base.setUTCDate(base.getUTCDate()+days);
+      if(months)base.setUTCMonth(base.getUTCMonth()+months);
     }else{
+      // 空欄の場合は「今日」を初期値にする（+1日は次のクリックから）
       const n=new Date();
       base=new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
+      // 月単位の調整は空欄からでも適用
+      if(months)base.setUTCMonth(base.getUTCMonth()+months);
     }
-    if(days)base.setUTCDate(base.getUTCDate()+days);
-    if(months)base.setUTCMonth(base.getUTCMonth()+months);
     const newVal=base.toISOString().slice(0,10);
     input.value=newVal;
     const task=S.tasks.find(t=>t.id===S.taskId);
@@ -3852,8 +3860,20 @@ function openConfirmModal(title,message,onOk,okLabel='削除',danger=true){
     +'</div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
-  document.getElementById('m-cancel').onclick=()=>ov.remove();
-  document.getElementById('m-ok').onclick=async()=>{ov.remove();await onOk()};
+  // ov.querySelector で ID重複を回避（複数モーダルが重なっても正しく動作）
+  const cancelBtn=ov.querySelector('#m-cancel');
+  const okBtn=ov.querySelector('#m-ok');
+  cancelBtn.onclick=()=>ov.remove();
+  okBtn.onclick=async()=>{ov.remove();await onOk()};
+  // フォーカスをキャンセルボタンへ移動（Enterキーで背後のボタンが再発火するのを防ぐ）
+  requestAnimationFrame(()=>cancelBtn?.focus());
+  // キーボード操作
+  ov.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){e.stopPropagation();ov.remove();}
+    else if(e.key==='Enter'){e.stopPropagation();}// デフォルト(キャンセルボタンが focused のため Enter=キャンセル)
+  });
+  // オーバーレイ外クリックで閉じる
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
 }
 
 // ===== MODAL =====
