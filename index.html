@@ -3465,13 +3465,19 @@ else if(a==='sel-edit'){
   }
   else if(a==='complete'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
-    if(task){task.status='completed';task.completedAt=now();await saveTask(task);S.drawerOpen=false;S.taskId=null;render()}
+    if(task){
+      task.status='completed';task.completedAt=now();await saveTask(task);
+      if(task.repeatRule&&task.dueAt){const next=nextRepeat(task);if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}}
+      S.drawerOpen=false;S.taskId=null;render();
+    }
   }
   else if(a==='complete-confirm'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(!task)return;
     openConfirmModal('タスクを完了','"'+(task.title||'無題')+'" を完了にしますか？',async()=>{
-      task.status='completed';task.completedAt=now();await saveTask(task);playSE('complete');S.drawerOpen=false;S.taskId=null;render();
+      task.status='completed';task.completedAt=now();await saveTask(task);playSE('complete');
+      if(task.repeatRule&&task.dueAt){const next=nextRepeat(task);if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}}
+      S.drawerOpen=false;S.taskId=null;render();
     },'完了にする',false);
   }
   else if(a==='del-confirm-hdr'){
