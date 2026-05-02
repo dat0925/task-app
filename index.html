@@ -84,6 +84,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-primary:hover{background:var(--accent2)}
+.btn-complete{background:#22c55e;color:#fff}
+.btn-complete:hover{background:#16a34a}
 .btn-ghost{color:var(--text2)}
 .btn-ghost:hover{background:var(--bg2)}
 
@@ -541,6 +543,19 @@ html.dark .bnav-next:active{
 .proj-edit-popup button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 11px;border-radius:6px;font-size:13px;text-align:left;background:none;border:none;cursor:pointer;color:var(--text);transition:background .12s;font-family:var(--font);touch-action:manipulation}
 .proj-edit-popup button:hover,.proj-edit-popup button:active{background:var(--bg2)}
 .proj-edit-popup button.red:hover,.proj-edit-popup button.red:active{background:rgba(239,68,68,.1);color:var(--p1)}
+/* 削除ボタン共通スタイル */
+.del-btn{
+  font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;
+  font-family:var(--font);touch-action:manipulation;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  color:var(--text2);
+  box-shadow:0 1px 3px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5);
+  transition:background .12s,box-shadow .12s;
+}
+.del-btn:hover{background:var(--bg3,#e8e8e8);border-color:var(--text3);}
+.del-btn:active{box-shadow:inset 0 1px 3px rgba(0,0,0,.12);transform:translateY(1px);}
+html.dark .del-btn{box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);}
 /* Task row edit button (mobile only) */
 .trow-edit-btn{display:none}
 @media(max-width:768px){
@@ -825,6 +840,7 @@ html.dark .bnav-next:active{
       <div class="logo"><img src="icon-192.png" alt="Taskra"></div>
       <span class="app-name">Taskra</span>
       <a href="https://dat0925.github.io/gantt-app.html" target="_blank" class="icon-btn" style="margin-left:auto;text-decoration:none;font-size:12px;font-weight:700;color:var(--text2)" title="ガントチャート"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="10" width="8" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="16" width="6" height="4" rx="1" fill="currentColor" stroke="none"/><line x1="9" y1="6" x2="21" y2="6"/><line x1="13" y1="12" x2="21" y2="12"/><line x1="11" y1="18" x2="21" y2="18"/></svg></a>
+      <a href="https://www.notion.so/" target="_blank" class="icon-btn" style="text-decoration:none;color:var(--text2)" title="Notion"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="7" x2="17" y2="7"/><line x1="12" y1="11" x2="17" y2="11"/></svg></a>
       <button class="icon-btn" data-a="dark" title="ダーク">☾</button>
       <button class="icon-btn" data-a="settings" title="設定">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -1323,11 +1339,14 @@ function toast(msg,undoFn){
         const g=_gain(ctx,0,t);g.gain.linearRampToValueAtTime(0.18,t+0.01);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);
         o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.12);
       } else if(type==='complete'){
-        // 達成感のある2音チャイム
-        [[0,660,0.12],[0.07,880,0.1]].forEach(([dt,freq,dur])=>{
-          const o=ctx.createOscillator();o.type='sine';o.frequency.value=freq;
-          const g=_gain(ctx,0,t+dt);g.gain.linearRampToValueAtTime(0.15,t+dt+0.01);g.gain.exponentialRampToValueAtTime(0.001,t+dt+dur);
-          o.connect(g);g.connect(ctx.destination);o.start(t+dt);o.stop(t+dt+dur+0.02);
+        // スーパーマリオ コイン音: 短い高音 → 少し低めの余韻
+        [[0,1319,0.045,'square'],[0.045,1760,0.18,'square']].forEach(([dt,freq,dur,wt])=>{
+          const o=ctx.createOscillator();o.type=wt;o.frequency.value=freq;
+          const g=ctx.createGain();
+          g.gain.setValueAtTime(0,t+dt);
+          g.gain.linearRampToValueAtTime(0.13,t+dt+0.004);
+          g.gain.exponentialRampToValueAtTime(0.001,t+dt+dur);
+          o.connect(g);g.connect(ctx.destination);o.start(t+dt);o.stop(t+dt+dur+0.01);
         });
       } else if(type==='delete'){
         // 下降する短音
@@ -2796,7 +2815,7 @@ function renderNoteDrawer(){
       +'<div style="display:flex;gap:4px;margin-left:8px;align-items:center;flex-shrink:0">'
         +'<button class="icon-btn" data-a="note-dup" data-id="'+note.id+'" title="複製"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/><rect x="11" y="11" width="11" height="11" rx="2"/></svg></button>'
         +'<button class="icon-btn" data-a="note-copy-url" data-id="'+note.id+'" title="URLコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
-        +'<button class="btn btn-ghost" data-a="note-del" data-id="'+note.id+'" title="削除" style="font-size:12px;padding:4px 8px;color:var(--p1)">削除</button>'
+        +'<button class="del-btn" data-a="note-del" data-id="'+note.id+'" title="削除">削除</button>'
         +(window.innerWidth>768?'<button class="icon-btn" data-a="note-expand" data-id="'+note.id+'" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
         +'<button class="icon-btn" data-a="close-note" style="font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center">✕</button>'
       +'</div>'
@@ -2930,7 +2949,7 @@ function renderDrawer(){
         +'<button class="icon-btn" data-a="drawer-expand" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>'
         +'<button class="icon-btn" id="copy-url-btn" title="URLをコピー" style="font-size:14px">🔗</button>'
         +'<button class="icon-btn" data-a="dup" data-id="'+task.id+'" title="複製">'+ICONS.copy+'</button>'
-        +'<button class="btn btn-ghost" data-a="del-confirm-hdr" data-id="'+task.id+'" title="削除" style="font-size:12px;padding:4px 8px;color:var(--p1)">削除</button>'
+        +'<button class="del-btn" data-a="del-confirm-hdr" data-id="'+task.id+'" title="削除">削除</button>'
       +'</div>'
     +'</div>'
     +'<div class="drawer-body">'
@@ -3004,7 +3023,7 @@ function renderDrawer(){
     +'</div>'
     +'<div class="drawer-foot">'
       +(!done
-        ?'<button class="btn btn-primary" data-a="complete-confirm" data-id="'+task.id+'">✓ 完了</button>'
+        ?'<button class="btn btn-complete" data-a="complete-confirm" data-id="'+task.id+'">✓ 完了</button>'
         :'<button class="btn btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 未完了に戻す</button>')
       +'<button class="btn btn-ghost" data-a="close-drawer" style="margin-left:auto">✕ 閉じる</button>'
     +'</div>';
