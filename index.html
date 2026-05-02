@@ -605,6 +605,37 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .sec-act-btn:hover{background:var(--bg2);color:var(--text)}
 .sec-act-btn.del:hover{background:rgba(239,68,68,.1);color:var(--p1)}
 
+/* ===== ACCORDION + SECTION DRAG ===== */
+.sec-chevron{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;flex-shrink:0;
+  color:var(--text3);font-size:11px;
+  transition:transform .2s ease;
+  user-select:none;pointer-events:none;
+}
+.sec-head.sec-collapsed .sec-chevron{transform:rotate(-90deg)}
+.sec-body{overflow:hidden}
+.sec-drag-handle{
+  cursor:grab;color:var(--text3);font-size:16px;
+  padding:0 2px;flex-shrink:0;line-height:1;
+  opacity:.35;transition:opacity .15s;user-select:none;
+}
+.sec-drag-handle:hover{opacity:.9}
+.sec-drag-handle:active{cursor:grabbing}
+.task-drag-handle{
+  cursor:grab;color:var(--text3);font-size:14px;
+  padding:0 3px 0 0;flex-shrink:0;line-height:1;
+  opacity:0;transition:opacity .15s;user-select:none;align-self:center;
+}
+.trow:hover .task-drag-handle{opacity:.45}
+.task-drag-handle:active{cursor:grabbing}
+/* Drop indicators */
+.trow.drop-before{box-shadow:inset 0 2px 0 var(--accent)}
+.trow.drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
+.sec-head.drop-sec-before{box-shadow:inset 0 2px 0 var(--accent)}
+.sec-head.drop-sec-after{box-shadow:inset 0 -2px 0 var(--accent)}
+.sec-head.sec-dragging{opacity:.35}
+
 /* ===== VIEW HELP POPUP ===== */
 .vhelp-btn{
   width:18px;height:18px;border-radius:50%;
@@ -899,6 +930,7 @@ let S={
   sidebarOpen:true,
   notes:[],noteId:null,noteOpen:false,noteSearch:'',noteSortUpdated:true,
   projsOpen:true,hiddenProjsOpen:false,
+  secCollapsed:JSON.parse(localStorage.getItem('secCollapsed')||'{}'),
 };
 
 // ===== UTILS =====
@@ -1927,127 +1959,286 @@ function setupSectionDrag(){
   const content=document.getElementById('content');
   if(!content)return;
 
-  // 前回のリスナーを確実に削除（蓄積防止）
-  if(content._secDragAC){content._secDragAC.abort();}
+  if(content._secDragAC)content._secDragAC.abort();
   const ac=new AbortController();
   content._secDragAC=ac;
   const sig=ac.signal;
 
   const isMobile=window.innerWidth<=768;
-  const rows=[...content.querySelectorAll('.trow[data-id]')];
-  const getDrop=el=>el?el.closest('[data-drop-sec]'):null;
-  const clearDragOver=()=>content.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
 
-  async function applyDrop(taskId,zone){
-    clearDragOver();
-    if(!zone||!taskId)return;
-    const secId=zone.dataset.dropSec==='null'?null:zone.dataset.dropSec;
-    const task=S.tasks.find(t=>t.id===taskId);
-    if(task&&task.sectionId!==secId){
-      task.sectionId=secId;
-      await saveTask(task);
-      renderContent();
-    }
+  // ── helpers ──────────────────────────────────────────
+  function clearInd(){
+    content.querySelectorAll('.drag-over,.drop-before,.drop-after,.drop-sec-before,.drop-sec-after,.sec-dragging,.dragging').forEach(el=>{
+      el.classList.remove('drag-over','drop-before','drop-after','drop-sec-before','drop-sec-after','sec-dragging','dragging');
+    });
+  }
+  function getSortedSecs(){
+    return S.sections.filter(s=>s.projectId===S.projId).sort((a,b)=>a.order-b.order);
+  }
+  function getSortedTasksForSec(secId){
+    // secId===null → unsectioned tasks
+    const all=getTasks().filter(t=>!t.parentTaskId);
+    return secId===null?all.filter(t=>!t.sectionId):all.filter(t=>t.sectionId===secId);
   }
 
+  // ── apply section reorder ─────────────────────────────
+  async function applySecReorder(dragSecId,targetSecId,pos){
+    clearInd();
+    if(!dragSecId||!targetSecId||dragSecId===targetSecId)return;
+    const secs=getSortedSecs();
+    const from=secs.findIndex(s=>s.id===dragSecId);
+    if(from===-1)return;
+    const [moved]=secs.splice(from,1);
+    let to=secs.findIndex(s=>s.id===targetSecId);
+    if(to===-1)return;
+    if(pos==='after')to++;
+    secs.splice(to,0,moved);
+    for(let i=0;i<secs.length;i++){secs[i].order=(i+1)*1000;await saveSec(secs[i]);}
+    renderContent();
+  }
+
+  // ── apply task drop (cross-section + reorder) ─────────
+  async function applyTaskDrop(taskId,targetEl,pos){
+    // pos: 'before'|'after'|'sec'
+    clearInd();
+    if(!taskId||!targetEl)return;
+    const task=S.tasks.find(t=>t.id===taskId);
+    if(!task)return;
+
+    let newSecId,targetTaskId=null;
+    if(pos==='sec'){
+      newSecId=targetEl.dataset.dropSec==='null'?null:targetEl.dataset.dropSec;
+    } else {
+      targetTaskId=targetEl.dataset.id;
+      const tt=S.tasks.find(t=>t.id===targetTaskId);
+      if(!tt)return;
+      newSecId=tt.sectionId||null;
+    }
+
+    // build new order for target section
+    const secTasks=getSortedTasksForSec(newSecId).filter(t=>t.id!==taskId);
+    let idx=secTasks.length;
+    if(targetTaskId){
+      const ti=secTasks.findIndex(t=>t.id===targetTaskId);
+      idx=pos==='before'?ti:ti+1;
+      if(idx<0)idx=0;
+    }
+    secTasks.splice(idx,0,task);
+
+    // if sectionId changed, also reorder old section
+    const oldSecId=task.sectionId||null;
+    const secChanged=oldSecId!==newSecId;
+    task.sectionId=newSecId;
+
+    for(let i=0;i<secTasks.length;i++){
+      secTasks[i].order=(i+1)*1000;
+      await saveTask(secTasks[i]);
+    }
+    if(secChanged&&oldSecId!==null){
+      const oldTasks=getSortedTasksForSec(oldSecId).filter(t=>t.id!==taskId);
+      for(let i=0;i<oldTasks.length;i++){oldTasks[i].order=(i+1)*1000;await saveTask(oldTasks[i]);}
+    }
+    renderContent();
+  }
+
+  // ════════════════════════════════════════════════════
   if(!isMobile){
-    // ===== PC: HTML5 Drag & Drop =====
-    rows.forEach(row=>{
-      row.setAttribute('draggable','true');
-    });
-    let dragId=null;
+    // ── PC: HTML5 Drag & Drop ──────────────────────────
+    let dtype=null,dragId=null,dragSecId=null;
+
+    content.querySelectorAll('.trow[data-id]').forEach(r=>r.setAttribute('draggable','true'));
+    content.querySelectorAll('[data-drag-sec]').forEach(h=>h.setAttribute('draggable','true'));
+
     content.addEventListener('dragstart',e=>{
+      const sh=e.target.closest('[data-drag-sec]');
       const row=e.target.closest('.trow[data-id]');
-      if(!row)return;
-      dragId=row.dataset.id;
-      setTimeout(()=>row.classList.add('dragging'),0);
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain',dragId);
+      if(sh){
+        dtype='sec';dragSecId=sh.dataset.dragSec;
+        const head=sh.closest('.sec-head');
+        setTimeout(()=>head?.classList.add('sec-dragging'),0);
+        e.dataTransfer.effectAllowed='move';
+      } else if(row){
+        dtype='task';dragId=row.dataset.id;
+        setTimeout(()=>row.classList.add('dragging'),0);
+        e.dataTransfer.effectAllowed='move';
+      } else {e.preventDefault();}
     },{signal:sig});
-    content.addEventListener('dragend',()=>{
-      content.querySelectorAll('.dragging').forEach(el=>el.classList.remove('dragging'));
-      clearDragOver();dragId=null;
-    },{signal:sig});
+
+    content.addEventListener('dragend',()=>{clearInd();dtype=null;dragId=null;dragSecId=null;},{signal:sig});
+
     content.addEventListener('dragover',e=>{
-      const zone=getDrop(e.target);
-      if(!zone||!dragId)return;
-      e.preventDefault();e.dataTransfer.dropEffect='move';
-      clearDragOver();zone.classList.add('drag-over');
+      if(!dtype)return;
+      e.preventDefault();clearInd();
+      if(dtype==='sec'){
+        const sh=e.target.closest('.sec-head[data-sec-id]');
+        if(sh&&sh.dataset.secId!==dragSecId){
+          const r=sh.getBoundingClientRect();
+          sh.classList.add(e.clientY<r.top+r.height/2?'drop-sec-before':'drop-sec-after');
+        }
+      } else {
+        const row=e.target.closest('.trow[data-id]');
+        if(row&&row.dataset.id!==dragId){
+          const r=row.getBoundingClientRect();
+          row.classList.add(e.clientY<r.top+r.height/2?'drop-before':'drop-after');
+          e.dataTransfer.dropEffect='move';
+        } else {
+          const zone=e.target.closest('[data-drop-sec]');
+          if(zone){zone.classList.add('drag-over');e.dataTransfer.dropEffect='move';}
+        }
+      }
     },{signal:sig});
+
     content.addEventListener('drop',async e=>{
       e.preventDefault();
-      const id=dragId;dragId=null;
-      await applyDrop(id,getDrop(e.target));
+      if(dtype==='sec'){
+        const sh=e.target.closest('.sec-head[data-sec-id]');
+        if(sh&&sh.dataset.secId!==dragSecId){
+          const r=sh.getBoundingClientRect();
+          const pos=e.clientY<r.top+r.height/2?'before':'after';
+          const id=dragSecId;dtype=null;dragSecId=null;
+          await applySecReorder(id,sh.dataset.secId,pos);
+        }
+      } else if(dtype==='task'){
+        const row=e.target.closest('.trow[data-id]');
+        const id=dragId;dtype=null;dragId=null;
+        if(row&&row.dataset.id!==id){
+          const r=row.getBoundingClientRect();
+          const pos=e.clientY<r.top+r.height/2?'before':'after';
+          await applyTaskDrop(id,row,pos);
+        } else {
+          const zone=e.target.closest('[data-drop-sec]');
+          if(zone)await applyTaskDrop(id,zone,'sec');
+        }
+      }
     },{signal:sig});
 
   } else {
-    // ===== モバイル: タッチドラッグ (長押し500msで開始) =====
-    let ghost=null,dragId=null,dragRow=null;
-    let startX=0,startY=0,dragging=false;
-    let lpTimer=null;
-    const LONG_MS=500,MOVE_LIMIT=12;
+    // ── モバイル: 長押しタッチドラッグ ──────────────────────
+    let ghost=null,dtype=null,dragId=null,dragSecId=null;
+    let startX=0,startY=0,dragging=false,lpTimer=null,activeEl=null;
+    const LONG_MS=480,MOVE_LIM=12;
 
-    rows.forEach(row=>{
+    function spawnGhost(el,ty){
+      const rect=el.getBoundingClientRect();
+      ghost=el.cloneNode(true);
+      Object.assign(ghost.style,{
+        position:'fixed',zIndex:'9999',opacity:'.85',pointerEvents:'none',
+        width:rect.width+'px',left:rect.left+'px',top:(startY-rect.height/2)+'px',
+        boxShadow:'0 8px 28px rgba(0,0,0,.25)',borderRadius:'8px',
+        transform:'scale(1.03)',transition:'none',background:'var(--surface)'
+      });
+      document.body.appendChild(ghost);
+      el.style.opacity='.3';
+      activeEl=el;
+      dtype=ty;
+    }
+
+    function cancelAll(){
+      clearTimeout(lpTimer);
+      if(ghost){ghost.remove();ghost=null;}
+      if(activeEl){activeEl.style.opacity='';activeEl=null;}
+      clearInd();dragging=false;dtype=null;dragId=null;dragSecId=null;
+    }
+
+    // task rows
+    content.querySelectorAll('.trow[data-id]').forEach(row=>{
       row.addEventListener('touchstart',e=>{
-        if(e.touches.length>1)return;
-        const t=e.touches[0];
-        startX=t.clientX;startY=t.clientY;
-        dragId=row.dataset.id;dragRow=row;dragging=false;
+        if(e.touches.length>1){cancelAll();return;}
+        const t=e.touches[0];startX=t.clientX;startY=t.clientY;
         lpTimer=setTimeout(()=>{
-          // 長押し成立 → ドラッグ開始
-          dragging=true;
-          navigator.vibrate?.(40);
-          const rect=row.getBoundingClientRect();
-          ghost=row.cloneNode(true);
-          Object.assign(ghost.style,{
-            position:'fixed',zIndex:'9999',opacity:'.85',
-            pointerEvents:'none',width:rect.width+'px',
-            left:rect.left+'px',top:(t.clientY-rect.height/2)+'px',
-            boxShadow:'0 8px 28px rgba(0,0,0,.25)',borderRadius:'8px',
-            transform:'scale(1.03)',transition:'none',background:'var(--surface)'
-          });
-          document.body.appendChild(ghost);
-          row.style.opacity='.3';
+          dragging=true;navigator.vibrate?.(40);
+          dragId=row.dataset.id;spawnGhost(row,'task');
         },LONG_MS);
       },{signal:sig,passive:true});
 
       row.addEventListener('touchmove',e=>{
         const t=e.touches[0];
-        const dx=Math.abs(t.clientX-startX),dy=Math.abs(t.clientY-startY);
-        // 長押し前に大きく動いたらキャンセル
-        if(!dragging&&(dx>MOVE_LIMIT||dy>MOVE_LIMIT)){clearTimeout(lpTimer);dragId=null;}
-        if(!dragging)return;
+        if(!dragging){
+          if(Math.abs(t.clientX-startX)>MOVE_LIM||Math.abs(t.clientY-startY)>MOVE_LIM)clearTimeout(lpTimer);
+          return;
+        }
         e.preventDefault();
-        // ゴーストを指に追従
         if(ghost)ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';
-        // ドロップゾーンをハイライト
-        ghost.style.pointerEvents='none';
-        clearDragOver();
+        clearInd();ghost.style.pointerEvents='none';
         const el=document.elementFromPoint(t.clientX,t.clientY);
-        const zone=getDrop(el);
-        if(zone)zone.classList.add('drag-over');
+        const row2=el?.closest('.trow[data-id]');
+        if(row2&&row2.dataset.id!==dragId){
+          const r=row2.getBoundingClientRect();
+          row2.classList.add(t.clientY<r.top+r.height/2?'drop-before':'drop-after');
+        } else {
+          const zone=el?.closest('[data-drop-sec]');
+          if(zone)zone.classList.add('drag-over');
+        }
       },{signal:sig,passive:false});
 
       row.addEventListener('touchend',async e=>{
         clearTimeout(lpTimer);
+        const wasDragging=dragging;
         if(ghost){ghost.remove();ghost=null;}
-        if(dragRow)dragRow.style.opacity='';
-        if(!dragging){dragId=null;dragRow=null;return;}
+        if(activeEl){activeEl.style.opacity='';activeEl=null;}
+        if(!wasDragging){dragging=false;dragId=null;dtype=null;return;}
         dragging=false;
         const t=e.changedTouches[0];
         const el=document.elementFromPoint(t.clientX,t.clientY);
-        const zone=getDrop(el);
-        const id=dragId;
-        dragId=null;dragRow=null;
-        await applyDrop(id,zone);
+        const row2=el?.closest('.trow[data-id]');
+        const id=dragId;dragId=null;dtype=null;
+        if(row2&&row2.dataset.id!==id){
+          const r=row2.getBoundingClientRect();
+          await applyTaskDrop(id,row2,t.clientY<r.top+r.height/2?'before':'after');
+        } else {
+          const zone=el?.closest('[data-drop-sec]');
+          await applyTaskDrop(id,zone,'sec');
+        }
       },{signal:sig});
+      row.addEventListener('touchcancel',()=>cancelAll(),{signal:sig,passive:true});
+    });
 
-      row.addEventListener('touchcancel',()=>{
-        clearTimeout(lpTimer);
-        if(ghost){ghost.remove();ghost=null;}
-        if(dragRow)dragRow.style.opacity='';
-        clearDragOver();dragging=false;dragId=null;dragRow=null;
+    // section drag handles
+    content.querySelectorAll('[data-drag-sec]').forEach(handle=>{
+      const secHead=handle.closest('.sec-head');
+      handle.addEventListener('touchstart',e=>{
+        if(e.touches.length>1){cancelAll();return;}
+        const t=e.touches[0];startX=t.clientX;startY=t.clientY;
+        lpTimer=setTimeout(()=>{
+          dragging=true;navigator.vibrate?.(40);
+          dragSecId=handle.dataset.dragSec;spawnGhost(secHead||handle,'sec');
+        },LONG_MS);
       },{signal:sig,passive:true});
+
+      handle.addEventListener('touchmove',e=>{
+        const t=e.touches[0];
+        if(!dragging){
+          if(Math.abs(t.clientX-startX)>MOVE_LIM||Math.abs(t.clientY-startY)>MOVE_LIM)clearTimeout(lpTimer);
+          return;
+        }
+        e.preventDefault();
+        if(ghost)ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';
+        clearInd();ghost.style.pointerEvents='none';
+        const el=document.elementFromPoint(t.clientX,t.clientY);
+        const sh=el?.closest('.sec-head[data-sec-id]');
+        if(sh&&sh.dataset.secId!==dragSecId){
+          const r=sh.getBoundingClientRect();
+          sh.classList.add(t.clientY<r.top+r.height/2?'drop-sec-before':'drop-sec-after');
+        }
+      },{signal:sig,passive:false});
+
+      handle.addEventListener('touchend',async e=>{
+        clearTimeout(lpTimer);
+        const wasDragging=dragging;
+        if(ghost){ghost.remove();ghost=null;}
+        if(activeEl){activeEl.style.opacity='';activeEl=null;}
+        if(!wasDragging){dragging=false;dragSecId=null;dtype=null;return;}
+        dragging=false;
+        const t=e.changedTouches[0];
+        const el=document.elementFromPoint(t.clientX,t.clientY);
+        const sh=el?.closest('.sec-head[data-sec-id]');
+        const id=dragSecId;dragSecId=null;dtype=null;
+        if(sh&&sh.dataset.secId!==id){
+          const r=sh.getBoundingClientRect();
+          await applySecReorder(id,sh.dataset.secId,t.clientY<r.top+r.height/2?'before':'after');
+        }
+      },{signal:sig});
+      handle.addEventListener('touchcancel',()=>cancelAll(),{signal:sig,passive:true});
     });
   }
 }
@@ -2076,18 +2267,27 @@ function renderList(){
     let h='<div class="tlist">';
     // セクション未割り当てエリア（セクションがある場合はヘッダーとドロップゾーンを追加）
     if(projSecs.length){
-      h+='<div class="sec-head" data-drop-sec="null">'
-        +'<span class="sec-head-name" style="color:var(--text3)">セクションなし</span>'
+      const uc=S.secCollapsed['__null__'];
+      h+='<div class="sec-head'+(uc?' sec-collapsed':'')+'" data-drop-sec="null" data-sec-id="__null__">'
+        +'<span class="sec-chevron">▾</span>'
+        +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="__null__" style="color:var(--text3);cursor:pointer">セクションなし</span>'
         +(unsectioned.length?'<span class="badge">'+unsectioned.length+'</span>':'')
         +'</div>';
+      h+='<div class="sec-body" id="sec-body-__null__"'+(uc?' style="display:none"':'')+' data-drop-sec="null">';
+      unsectioned.forEach(t=>{h+=renderRow(t)});
+      h+='</div>';
+    } else {
+      unsectioned.forEach(t=>{h+=renderRow(t)});
     }
-    unsectioned.forEach(t=>{h+=renderRow(t)});
     // 各セクション
     projSecs.forEach(sec=>{
-      const secTasks=tasks.filter(t=>t.sectionId===sec.id);
+      const secTasks=tasks.filter(t=>t.sectionId===sec.id).sort((a,b)=>(a.order||0)-(b.order||0));
+      const collapsed=S.secCollapsed[sec.id];
       h+='<div class="sec-drop-zone" data-drop-sec="null" style="margin-top:0"></div>';
-      h+='<div class="sec-head" data-drop-sec="'+sec.id+'">'
-        +'<span class="sec-head-name">'+esc(sec.name)+'</span>'
+      h+='<div class="sec-head'+(collapsed?' sec-collapsed':'')+'" data-drop-sec="'+sec.id+'" data-sec-id="'+sec.id+'">'
+        +'<span class="sec-drag-handle" data-drag-sec="'+sec.id+'" title="ドラッグでセクションを並び替え">⠿</span>'
+        +'<span class="sec-chevron">▾</span>'
+        +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="'+sec.id+'" style="cursor:pointer">'+esc(sec.name)+'</span>'
         +(secTasks.length?'<span class="badge" style="margin-right:2px">'+secTasks.length+'</span>':'')
         +'<button class="sec-act-btn" data-a="sec-rename" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="名前変更">'
           +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
@@ -2096,8 +2296,10 @@ function renderList(){
           +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'
           +' 削除</button>'
       +'</div>';
+      h+='<div class="sec-body" id="sec-body-'+sec.id+'"'+(collapsed?' style="display:none"':'')+' data-drop-sec="'+sec.id+'">';
       if(secTasks.length){secTasks.forEach(t=>{h+=renderRow(t)});}
       else{h+='<div class="sec-drop-zone" data-drop-sec="'+sec.id+'" style="height:40px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3)">ここにドラッグ</div>';}
+      h+='</div>';
     });
     h+='<div class="nav-item muted" data-a="addsec" style="margin-top:10px;font-size:13px"><span style="font-size:16px">+</span> セクション追加</div>';
     h+='</div>';
@@ -2147,7 +2349,8 @@ function renderRow(task){
   // 更新日
   const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">'+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
 
-  return '<div class="trow'+(done?' done':'')+(S.taskId===task.id?' sel':'')+(pclass?' '+pclass:'')+'" data-a="sel" data-id="'+task.id+'">'
+  return '<div class="trow'+(done?' done':'')+(S.taskId===task.id?' sel':'')+(pclass?' '+pclass:'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
+    +(S.view==='project'?'<span class="task-drag-handle" title="ドラッグで並び替え">⠿</span>':'')
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'">'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
       +'<div class="ttitle" data-title-edit="'+task.id+'"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
@@ -2958,6 +3161,16 @@ else if(a==='sel-edit'){
   }
   else if(a==='newproj'){openModal('project')}
   else if(a==='newtag'){openModal('tag')}
+  else if(a==='sec-toggle'){
+    const secId=el.dataset.secId;
+    if(!secId)return;
+    S.secCollapsed[secId]=!S.secCollapsed[secId];
+    try{localStorage.setItem('secCollapsed',JSON.stringify(S.secCollapsed))}catch(_){}
+    const body=document.getElementById('sec-body-'+secId);
+    const head=el.closest('.sec-head');
+    if(body)body.style.display=S.secCollapsed[secId]?'none':'';
+    if(head)head.classList.toggle('sec-collapsed',!!S.secCollapsed[secId]);
+  }
   else if(a==='addsec'){
     const ov=document.createElement('div');ov.className='overlay';
     ov.innerHTML='<div class="modal"><div class="modal-title">セクション追加</div>'
