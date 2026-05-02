@@ -232,7 +232,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .bnav{flex:1;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 2px;font-size:9px;font-weight:500;color:var(--text3);cursor:pointer;gap:3px;transition:color .15s;touch-action:pan-x;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .bnav.on{color:var(--accent)}
 .bnav svg{width:21px;height:21px}
-.bnav-ai{color:var(--accent)}
+.bnav-ai{color:#3b82f6}
 /* Prev / Next step buttons */
 .bnav-step{
   flex-shrink:0;width:34px;display:flex;align-items:center;justify-content:center;
@@ -553,7 +553,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Note title inline edit in list */
 .note-title-edit-inp{width:100%;font:inherit;font-size:13.5px;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:1px 6px;color:var(--text);outline:none;box-sizing:border-box}
 /* AI button in topbar (PC + mobile) */
-.ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation;transition:opacity .15s,transform .15s}
+.ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#a78bfa);color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation;transition:opacity .15s,transform .15s}
 .ai-topbar-btn:hover{opacity:.85;transform:scale(1.05)}
 
 /* ===== SETTINGS MODAL ===== */
@@ -827,8 +827,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
           <button id="srch-clear" title="クリア">✕</button>
         </div>
         <button class="ai-topbar-btn" data-a="ai-open" title="AI">✦</button>
-        <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:6px 10px;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
-        <button class="btn btn-primary" data-a="newnote" title="ノートを追加" style="padding:6px 10px;gap:4px;background:var(--purple);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
+        <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:6px 10px;gap:4px;background:#3b82f6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
+        <button class="btn btn-primary" data-a="newnote" title="ノートを追加" style="padding:6px 10px;gap:4px;background:#6b7280;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
       </div>
     </div>
 
