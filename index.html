@@ -1152,14 +1152,20 @@ function now(){return new Date().toISOString()}
 function today(){return new Date().toISOString().slice(0,10)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
+function wdStr(d){
+  if(!d)return'';
+  return['日','月','火','水','木','金','土'][new Date(d+'T00:00:00').getDay()]+'曜';
+}
 function fmtDate(d){
   if(!d)return'';
   const t=today(),dd=new Date(d+'T00:00:00'),td=new Date(t+'T00:00:00');
   const diff=Math.round((dd-td)/86400000);
-  if(diff===0)return'今日';if(diff===1)return'明日';if(diff===-1)return'昨日';
-  if(diff<0)return Math.abs(diff)+'日前';
-  if(diff<7)return['日','月','火','水','木','金','土'][dd.getDay()]+'曜';
-  return(dd.getMonth()+1)+'/'+(dd.getDate());
+  const wd=wdStr(d);
+  if(diff===0)return'今日('+wd+')';
+  if(diff===1)return'明日('+wd+')';
+  if(diff===-1)return'昨日('+wd+')';
+  if(diff<0)return Math.abs(diff)+'日前('+wd+')';
+  return(dd.getMonth()+1)+'/'+(dd.getDate())+'('+wd+')';
 }
 function isOv(d){return d&&d<today()}
 function isToday(d){return d===today()}
@@ -2667,6 +2673,10 @@ function renderRow(task){
   const notStarted=!done&&task.startAt&&task.startAt>today();
   const pclass=task.priority<4?'p'+task.priority:'';
   let meta='';
+  if(task.startAt&&task.startAt!==task.dueAt){
+    const cls=isToday(task.startAt)?'td':isSoon(task.startAt)?'sn':'';
+    meta+='<span class="mc'+( cls?' '+cls:'')+'">▶ '+fmtDate(task.startAt)+'</span>';
+  }
   if(task.dueAt){
     const cls=isOv(task.dueAt)?'ov':isToday(task.dueAt)?'td':isSoon(task.dueAt)?'sn':'';
     meta+='<span class="mc'+( cls?' '+cls:'')+'">📅 '+fmtDate(task.dueAt)+'</span>';
@@ -2968,8 +2978,8 @@ function renderDrawer(){
       +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
-        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div></div>'
-        +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div></div>'
+        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><span id="dt-start-wd" style="font-size:12px;color:var(--text3);white-space:nowrap">'+wdStr(task.startAt)+'</span><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div></div>'
+        +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1"><span id="dt-due-wd" style="font-size:12px;color:var(--text3);white-space:nowrap">'+wdStr(task.dueAt)+'</span><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div></div>'
       +'</div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
@@ -3108,7 +3118,13 @@ setInd('saved');
   // 日付・セレクトはcomposition不要
   ['dt-due','dt-start','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
     const el=document.getElementById(id);
-    if(el)el.addEventListener('change',()=>autosave(true));
+    if(el)el.addEventListener('change',()=>{
+      autosave(true);
+      if(id==='dt-due'||id==='dt-start'){
+        const wd=document.getElementById('dt-'+( id==='dt-due'?'due':'start')+'-wd');
+        if(wd)wd.textContent=wdStr(el.value);
+      }
+    });
   });
   const si=document.getElementById('sub-inp');
   if(si)si.addEventListener('keydown',async e=>{
@@ -3384,6 +3400,7 @@ else if(a==='sel-edit'){
     }
     const newVal=base.toISOString().slice(0,10);
     input.value=newVal;
+    document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>s.textContent=wdStr(newVal));
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
       if(field==='start')task.startAt=newVal;
@@ -3396,6 +3413,7 @@ else if(a==='sel-edit'){
     const inputId=field==='start'?'dt-start':'dt-due';
     const input=el.closest('.expand-modal')?.querySelector('#'+inputId)||document.getElementById(inputId);
     if(input)input.value='';
+    document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>s.textContent='');
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
       if(field==='start')task.startAt=null;
@@ -3733,7 +3751,14 @@ function reattachModalEvents(modal, type, onClose){
       el.addEventListener('input',()=>save());
     });
     ['dt-due','dt-start','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
-      const el=modal.querySelector('#'+id);if(el)el.addEventListener('change',()=>save(true));
+      const el=modal.querySelector('#'+id);
+      if(el)el.addEventListener('change',()=>{
+        save(true);
+        if(id==='dt-due'||id==='dt-start'){
+          const wd=modal.querySelector('#dt-'+( id==='dt-due'?'due':'start')+'-wd');
+          if(wd)wd.textContent=wdStr(el.value);
+        }
+      });
     });
     const subInp=modal.querySelector('#sub-inp');
     if(subInp)subInp.addEventListener('keydown',async e=>{
