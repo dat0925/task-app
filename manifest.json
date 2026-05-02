@@ -1,6 +1,6 @@
 {
-  "name": "Focus — Task Manager",
-  "short_name": "Focus",
+  "name": "Taskra — Task Manager",
+  "short_name": "Taskra",
   "description": "高機能タスク管理PWA - Inbox, Today, Forecast, Review",
   "start_url": "/task-app/",
   "scope": "/task-app/",

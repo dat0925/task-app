@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#e85d3a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Focus">
+<meta name="apple-mobile-web-app-title" content="Taskra">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Focus</title>
+<title>Taskra</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -47,9 +47,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   transition:transform .25s ease,width .25s ease,min-width .25s ease;
 }
 .sidebar-head{padding:14px 12px 8px;display:flex;align-items:center;gap:8px}
-.logo{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0}
+.logo{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.logo img{width:100%;height:100%;object-fit:cover;border-radius:7px;display:block}
 .app-name{font-size:15px;font-weight:600}
-.sidebar-body{flex:1;overflow-y:auto;padding:4px 6px 16px}
+.sidebar-body{flex:1;overflow-y:auto;padding:4px 6px 16px;overscroll-behavior:contain}
 .nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:13.5px;color:var(--text2);transition:background .15s,color .15s;user-select:none}
 .nav-item:hover{background:var(--bg3);color:var(--text)}
 .nav-item.on{background:var(--surface);color:var(--text);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -261,14 +262,14 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .lock-bg::before{
   content:'';position:absolute;
   width:480px;height:480px;
-  background:radial-gradient(circle, rgba(232,93,58,.18) 0%, transparent 70%);
+  background:radial-gradient(circle, rgba(59,130,246,.18) 0%, transparent 70%);
   top:-80px;left:50%;transform:translateX(-50%);
   border-radius:50%;
 }
 .lock-bg::after{
   content:'';position:absolute;
   width:320px;height:320px;
-  background:radial-gradient(circle, rgba(124,58,237,.12) 0%, transparent 70%);
+  background:radial-gradient(circle, rgba(6,182,212,.13) 0%, transparent 70%);
   bottom:60px;left:50%;transform:translateX(-50%);
   border-radius:50%;
 }
@@ -284,14 +285,13 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 }
 .lock-logo{
   width:72px;height:72px;
-  background:linear-gradient(135deg,var(--accent) 0%,#c44a29 100%);
   border-radius:22px;
   display:flex;align-items:center;justify-content:center;
-  color:#fff;font-weight:800;font-size:32px;
-  box-shadow:0 8px 32px rgba(232,93,58,.35),0 2px 8px rgba(0,0,0,.15);
+  box-shadow:0 8px 32px rgba(59,130,246,.35),0 2px 8px rgba(0,0,0,.15);
   margin-bottom:20px;
-  letter-spacing:-1px;
+  overflow:hidden;
 }
+.lock-logo img{width:100%;height:100%;object-fit:cover;display:block;border-radius:22px}
 .lock-title{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:5px}
 .lock-sub{font-size:13px;color:var(--text3);margin-bottom:28px;font-weight:400}
 .lock-dots{display:flex;gap:14px;margin-bottom:8px}
@@ -506,7 +506,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Nav label toggle button */
 .nav-label-row{display:flex;align-items:center;padding:10px 8px 3px;cursor:pointer;user-select:none}
 .nav-label-row .nav-label{padding:0;flex:1}
-.nav-label-row .toggle-chevron{font-size:10px;color:var(--text3);transition:transform .25s ease;display:inline-block}
+.nav-label-row .toggle-chevron{font-size:16px;color:var(--text2);transition:transform .25s ease;display:inline-block;line-height:1}
 .nav-label-row.collapsed .toggle-chevron{transform:rotate(-90deg)}
 .proj-edit-popup{position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:4px;min-width:130px}
 .proj-edit-popup button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 11px;border-radius:6px;font-size:13px;text-align:left;background:none;border:none;cursor:pointer;color:var(--text);transition:background .12s;font-family:var(--font);touch-action:manipulation}
@@ -615,8 +615,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   display:flex;align-items:center;gap:6px;
   padding:16px 4px 5px;margin-top:4px;
   border-bottom:1.5px solid var(--border);
-  font-size:11px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.6px;color:var(--text2);
+  font-size:13px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--text2);
 }
 .sec-head-name{flex:1}
 .sec-act-btn{
@@ -636,10 +636,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* ===== ACCORDION + SECTION DRAG ===== */
 .sec-chevron{
   display:inline-flex;align-items:center;justify-content:center;
-  width:14px;height:14px;flex-shrink:0;
-  color:var(--text3);font-size:11px;
+  width:20px;height:20px;flex-shrink:0;
+  color:var(--text2);font-size:16px;
   transition:transform .2s ease;
-  user-select:none;pointer-events:none;
+  user-select:none;pointer-events:none;line-height:1;
 }
 .sec-head.sec-collapsed .sec-chevron{transform:rotate(-90deg)}
 .sec-body{overflow:hidden}
@@ -734,8 +734,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 <div class="lock-screen" id="lockScreen">
   <div class="lock-bg"></div>
   <div class="lock-card">
-    <div class="lock-logo">F</div>
-    <div class="lock-title">Focus</div>
+    <div class="lock-logo"><img src="icon-192.png" alt="Taskra"></div>
+    <div class="lock-title">Taskra</div>
     <div class="lock-sub">PINを入力してください</div>
     <div class="lock-dots" id="lockDots">
       <div class="lock-dot" id="ld0"></div>
@@ -774,7 +774,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   <div id="ai-panel-head">
     <div class="ai-avatar">✦</div>
     <div>
-      <div class="ai-title">Focus AI</div>
+      <div class="ai-title">Taskra AI</div>
       <div class="ai-sub">タスクをAIで操作</div>
     </div>
     <button class="icon-btn" id="ai-close" style="margin-left:auto;width:36px;height:36px;font-size:20px;display:flex;align-items:center;justify-content:center">✕</button>
@@ -793,8 +793,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   <!-- SIDEBAR -->
   <div class="sidebar" id="sidebar">
     <div class="sidebar-head">
-      <div class="logo">F</div>
-      <span class="app-name">Focus</span>
+      <div class="logo"><img src="icon-192.png" alt="Taskra"></div>
+      <span class="app-name">Taskra</span>
       <a href="https://dat0925.github.io/gantt-app.html" target="_blank" class="icon-btn" style="margin-left:auto;text-decoration:none;font-size:12px;font-weight:700;color:var(--text2)" title="ガントチャート"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="10" width="8" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="16" width="6" height="4" rx="1" fill="currentColor" stroke="none"/><line x1="9" y1="6" x2="21" y2="6"/><line x1="13" y1="12" x2="21" y2="12"/><line x1="11" y1="18" x2="21" y2="18"/></svg></a>
       <button class="icon-btn" data-a="dark" title="ダーク">☾</button>
       <button class="icon-btn" data-a="settings" title="設定">
@@ -1247,7 +1247,7 @@ function getTasks(){
   else if(S.view==='flagged')tasks=tasks.filter(x=>x.flagged&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='completed')tasks=tasks.filter(x=>x.status==='completed');
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
-  else if(S.view==='tag')tasks=tasks.filter(x=>x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
+  else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
   if(S.hideNotStarted){const t2=today();tasks=tasks.filter(x=>!x.startAt||x.startAt<=t2||x.status==='completed')}
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
@@ -1341,17 +1341,6 @@ function attachProjRenameListeners(){
       e.stopPropagation();
       startProjRename(span);
     });
-    // モバイル: ロングプレス（500ms）
-    let _lpt=null;
-    span.addEventListener('touchstart',e=>{
-      _lpt=setTimeout(()=>{
-        _lpt=null;
-        e.preventDefault();
-        startProjRename(span);
-      },500);
-    },{passive:true});
-    span.addEventListener('touchend',()=>{if(_lpt){clearTimeout(_lpt);_lpt=null;}});
-    span.addEventListener('touchmove',()=>{if(_lpt){clearTimeout(_lpt);_lpt=null;}});
   });
 }
 
@@ -1553,6 +1542,8 @@ function attachProjDragListeners(){
       let dropTargetId=null;
       let dropBefore=true;
       item.style.opacity='0.6';
+      const sidebarBody=document.querySelector('.sidebar-body');
+      if(sidebarBody)sidebarBody.style.overflowY='hidden';
       const onMove=ev=>{
         ev.preventDefault();
         const touch=ev.touches[0];
@@ -1572,6 +1563,7 @@ function attachProjDragListeners(){
       const onEnd=()=>{
         item.style.opacity='';
         _clearDropLines(nav);
+        if(sidebarBody)sidebarBody.style.overflowY='';
         document.removeEventListener('touchmove',onMove);
         document.removeEventListener('touchend',onEnd);
         if(dropTargetId){
@@ -1645,6 +1637,8 @@ function attachProjDragListeners(){
       const srcId=item.dataset.id;
       let dropTargetId=null;
       item.style.opacity='0.6';
+      const sidebarBody=document.querySelector('.sidebar-body');
+      if(sidebarBody)sidebarBody.style.overflowY='hidden';
       const onMove=ev=>{
         ev.preventDefault();
         const touch=ev.touches[0];
@@ -1659,6 +1653,7 @@ function attachProjDragListeners(){
       };
       const onEnd=()=>{
         item.style.opacity='';hDropLines.forEach(l=>l.classList.remove('active'));
+        if(sidebarBody)sidebarBody.style.overflowY='';
         document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);
         if(dropTargetId){_projDragEndedAt=Date.now();doHiddenReorder(srcId,dropTargetId);}
       };
@@ -1814,7 +1809,7 @@ function renderSidebar(){
   const projsOpen=S.projsOpen!==false;
   h+='<div class="nav-label-row'+(projsOpen?'':' collapsed')+'" data-a="proj-toggle">'
     +'<span class="nav-label">プロジェクト</span>'
-    +'<span class="toggle-chevron">▾</span>'
+    +'<span class="toggle-chevron">▼</span>'
     +'</div>';
   h+='<div class="proj-section-wrap'+(projsOpen?'':' collapsed')+'" id="proj-section-wrap">';
   h+='<div class="proj-section-inner">';
@@ -1838,7 +1833,7 @@ function renderSidebar(){
     const hOpen=S.hiddenProjsOpen===true;
     h+='<div class="nav-label-row'+(hOpen?'':' collapsed')+'" data-a="hidden-proj-toggle" style="margin-top:4px">'
       +'<span class="nav-label" style="font-size:10px;opacity:.6">非表示のプロジェクト</span>'
-      +'<span class="toggle-chevron">▾</span>'
+      +'<span class="toggle-chevron">▼</span>'
       +'</div>';
     h+='<div class="proj-section-wrap'+(hOpen?'':' collapsed')+'" id="hidden-proj-section-wrap">';
     h+='<div class="proj-section-inner">';
@@ -1857,6 +1852,10 @@ function renderSidebar(){
     h+='</div></div>';
   }
   h+='<div class="nav-label">タグ</div>';
+  h+='<div class="nav-item'+(S.view==='tag'&&S.tagId==='__none__'?' on':'')+'" data-a="tag" data-id="__none__">'
+    +'<span style="color:var(--text3)">⬡</span>'
+    +'<span>タグなし</span>'
+  +'</div>';
   S.tags.forEach(t=>{
     h+='<div class="nav-item'+(S.view==='tag'&&S.tagId===t.id?' on':'')+'" data-a="tag" data-id="'+t.id+'">'
       +'<span style="color:'+esc(t.color)+'">⬡</span>'
@@ -1983,7 +1982,7 @@ function renderContent(){
   const el=document.getElementById('content');
   const titles={inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'Search',completed:'Completed',notes:'Notes',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
-    tag:S.tags.find(t=>t.id===S.tagId)?.name||''};
+    tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||''};
   const isSearchPC=S.view==='search'&&window.innerWidth>768;
   document.getElementById('viewTitle').textContent=isSearchPC?'':titles[S.view]||'';
   // global-srch の値をS.searchと同期
@@ -2349,7 +2348,7 @@ function renderList(){
     if(projSecs.length){
       const uc=S.secCollapsed['__null__'];
       h+='<div class="sec-head'+(uc?' sec-collapsed':'')+'" data-drop-sec="null" data-sec-id="__null__">'
-        +'<span class="sec-chevron">▾</span>'
+        +'<span class="sec-chevron">▼</span>'
         +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="__null__" style="color:var(--text3);cursor:pointer">セクションなし</span>'
         +(unsectioned.length?'<span class="badge">'+unsectioned.length+'</span>':'')
         +'</div>';
@@ -2366,7 +2365,7 @@ function renderList(){
       h+='<div class="sec-drop-zone" data-drop-sec="null" style="margin-top:0"></div>';
       h+='<div class="sec-head'+(collapsed?' sec-collapsed':'')+'" data-drop-sec="'+sec.id+'" data-sec-id="'+sec.id+'">'
         +'<span class="sec-drag-handle" data-drag-sec="'+sec.id+'" title="ドラッグでセクションを並び替え">⠿</span>'
-        +'<span class="sec-chevron">▾</span>'
+        +'<span class="sec-chevron">▼</span>'
         +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="'+sec.id+'" style="cursor:pointer">'+esc(sec.name)+'</span>'
         +(secTasks.length?'<span class="badge" style="margin-right:2px">'+secTasks.length+'</span>':'')
         +'<button class="sec-act-btn" data-a="sec-rename" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="名前変更">'
@@ -2573,7 +2572,7 @@ function renderNoteDrawer(){
         +'</div>'
         +'<textarea class="finput" id="nt-body" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
         +'<div style="margin-top:6px">'
-          +'<button id="nt-preview-toggle" style="font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
+          +'<button id="nt-preview-toggle" style="font-size:14px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text2);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
           +'<div id="nt-preview" style="display:block;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:120px;overflow-y:auto"></div>'
         +'</div>'
         +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
@@ -2704,7 +2703,7 @@ function renderDrawer(){
       +'</div>'
       +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
       +'<div style="margin-top:6px">'
-        +'<button id="dt-preview-toggle" style="font-size:12px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text3);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
+        +'<button id="dt-preview-toggle" style="font-size:14px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text2);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
         +'<div id="dt-preview" style="display:block;font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:120px;overflow-y:auto"></div>'
       +'</div>'
       +'</div>'
@@ -2868,8 +2867,8 @@ function render(){
   // sidebar open/close
   const sb=document.getElementById('sidebar');
   const sov=document.getElementById('sov');
-  if(S.sidebarOpen){sb.classList.add('open');sov.classList.add('open')}
-  else{sb.classList.remove('open');sov.classList.remove('open')}
+  if(S.sidebarOpen){sb.classList.add('open');sov.classList.add('open');if(window.innerWidth<=768)document.body.style.overflow='hidden';}
+  else{sb.classList.remove('open');sov.classList.remove('open');document.body.style.overflow='';}
   renderSidebar();
   attachProjRenameListeners();
   attachProjDragListeners();
@@ -2976,7 +2975,7 @@ document.addEventListener('click',async e=>{
   
 else if(a==='sel'){
   if(_touchMoved) return;
-  if(window.innerWidth<=768) return; // スマホはsel-editまたは長押しで開く
+  if(window.innerWidth<=768) return; // スマホはsel-editボタンで開く
   if(e.target.closest('#drawer')) return; // ドロワー内クリックは無視
   const id=el.dataset.id;
   if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
@@ -3663,29 +3662,6 @@ renderContent=function(){
   });
 })();
 
-// ===== LONG PRESS TO OPEN TASK DRAWER (スマホ) =====
-(function(){
-  let _lpTimer=null,_lpRow=null;
-  const content=document.getElementById('content');
-  if(!content)return;
-  content.addEventListener('touchstart',e=>{
-    if(window.innerWidth>768)return;
-    const row=e.target.closest('.trow[data-a="sel"]');
-    if(!row)return;
-    if(e.target.closest('[data-a="chk"]')||e.target.closest('[data-a="sel-edit"]'))return;
-    _lpRow=row;
-    _lpTimer=setTimeout(()=>{
-      _lpTimer=null;
-      const id=_lpRow?.dataset.id;
-      if(!id)return;
-      if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null;}
-      else{S.taskId=id;S.drawerOpen=true;}
-      renderContent();renderSidebar();renderDrawer();
-    },500);
-  },{passive:true});
-  content.addEventListener('touchend',()=>{if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}},{passive:true});
-  content.addEventListener('touchmove',()=>{if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}},{passive:true});
-})();
 
 // ===== MOBILE SEARCH EXPAND/COLLAPSE =====
 (function(){
@@ -4249,7 +4225,7 @@ async function aiSend(){
     today:today(),
   };
 
-  const systemPrompt=`あなたはタスク管理アプリ「Focus」のAIアシスタントです。
+  const systemPrompt=`あなたはタスク管理アプリ「Taskra」のAIアシスタントです。
 ユーザーの依頼に応じてタスクの操作を行います。
 
 ## 現在のデータ
@@ -4381,8 +4357,8 @@ document.getElementById('ai-input').addEventListener('input',function(){
       const challenge=crypto.getRandomValues(new Uint8Array(32));
       const cred=await navigator.credentials.create({publicKey:{
         challenge,
-        rp:{name:'Focus Task',id:location.hostname},
-        user:{id:new TextEncoder().encode('focus-user'),name:'user',displayName:'Focus User'},
+        rp:{name:'Taskra',id:location.hostname},
+        user:{id:new TextEncoder().encode('taskra-user'),name:'user',displayName:'Taskra User'},
         pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
         authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
         timeout:60000
@@ -4610,7 +4586,7 @@ async function init(){
     await loadAll();
     // 保存済みビューの有効性を検証（削除済みプロジェクト/タグへの参照を除去）
     if(S.view==='project'&&!S.projects.find(p=>p.id===S.projId)){S.view='inbox';S.projId=null;}
-    if(S.view==='tag'&&!S.tags.find(t=>t.id===S.tagId)){S.view='inbox';S.tagId=null;}
+    if(S.view==='tag'&&S.tagId!=='__none__'&&!S.tags.find(t=>t.id===S.tagId)){S.view='inbox';S.tagId=null;}
     // ?note= URLパラメータからノートを開く
     const urlP=new URLSearchParams(location.search);
     const noteP=urlP.get('note');
