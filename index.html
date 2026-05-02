@@ -505,7 +505,9 @@ html.dark .bnav-next:active{
     padding-bottom:4px;
   }
   .toggle-btn-wrap{padding:6px 8px 6px 8px;justify-content:flex-start;gap:4px}
-  .toggle-completed-btn{padding:4px 8px;font-size:11px}
+  .toggle-completed-btn{padding:4px 7px;font-size:11px}
+  #task-filters{flex-wrap:nowrap;overflow-x:auto;padding:4px 8px;gap:3px;scrollbar-width:none}
+  #task-filters::-webkit-scrollbar{display:none}
 }
 @media(min-width:769px){
   .hamburger{display:flex !important}
@@ -2680,10 +2682,10 @@ function renderTaskFilters(){
   const showToggle=!['completed','search','forecast','review','notes'].includes(S.view);
   if(!showToggle){tf.style.display='none';tf.innerHTML='';return;}
   tf.style.display='flex';
-  tf.innerHTML='<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">⏳ 開始前</button>'
+  tf.innerHTML='<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">⏳ 未来</button>'
     +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了':'○ 完了')+'</button>'
-    +'<button class="toggle-completed-btn'+(S.sort==='startAt'?' active':'')+'" data-a="tog-sort-start">'+(S.sort==='startAt'?'↓ 開始日':'↕ 開始日')+'</button>'
-    +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort">'+(S.sort==='updated'?'↓ 更新日':'↕ 更新日')+'</button>'
+    +'<button class="toggle-completed-btn'+(S.sort==='startAt'?' active':'')+'" data-a="tog-sort-start">'+(S.sort==='startAt'?'↓ 開始':'↕ 開始')+'</button>'
+    +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort">'+(S.sort==='updated'?'↓ 更新':'↕ 更新')+'</button>'
     +'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">☑ 選択</button>';
 }
 
