@@ -2690,7 +2690,7 @@ function renderTaskFilters(){
     +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了':'○ 完了')+'</button>'
     +'<button class="toggle-completed-btn'+(S.sort==='startAt'?' active':'')+'" data-a="tog-sort-start">'+(S.sort==='startAt'?'↓ 開始':'↕ 開始')+'</button>'
     +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort">'+(S.sort==='updated'?'↓ 更新':'↕ 更新')+'</button>'
-    +'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">☑ 選択</button>';
+    +'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto" title="複数選択">☑</button>';
 }
 
 function renderRow(task){
