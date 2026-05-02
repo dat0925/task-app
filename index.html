@@ -221,13 +221,29 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .toast-undo{background:var(--accent);color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer}
 
 /* Mobile bottom nav */
-.bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:80;padding-bottom:env(safe-area-inset-bottom)}
-.bot-nav-inner{display:flex;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x}
+.bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:80;padding-bottom:env(safe-area-inset-bottom);flex-direction:row;align-items:stretch}
+.bot-nav-inner{display:flex;flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x}
 .bot-nav-inner::-webkit-scrollbar{display:none}
 .bnav{flex:1;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 2px;font-size:9px;font-weight:500;color:var(--text3);cursor:pointer;gap:3px;transition:color .15s;touch-action:pan-x;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .bnav.on{color:var(--accent)}
 .bnav svg{width:21px;height:21px}
 .bnav-ai{color:var(--accent)}
+/* Prev / Next step buttons */
+.bnav-step{
+  flex-shrink:0;width:34px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:400;color:var(--text3);background:none;border:none;
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);
+  transition:color .15s,background .15s;user-select:none;
+}
+.bnav-step:first-child{border-right:1px solid var(--border)}
+.bnav-step:last-child{border-left:1px solid var(--border)}
+.bnav-step:active{color:var(--accent);background:var(--accent-bg)}
+/* Browser mode (非PWA): safe-area値が0のためenv()に依存せず固定値で統一 */
+@media (max-width:768px){
+  html.browser-mode .bot-nav{padding-bottom:0}
+  html.browser-mode .qabar{bottom:var(--nav-h)}
+  html.browser-mode .content{padding-bottom:calc(var(--nav-h) + 90px)}
+}
 /* Lock screen */
 .lock-screen{
   position:fixed;inset:0;z-index:9999;
@@ -431,7 +447,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     transition:transform .25s ease;
   }
   .drawer.open{transform:translateY(0) !important}
-  .bot-nav{display:block}
+  .bot-nav{display:flex}
   .content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 90px)}
   .topbar{position:fixed !important;top:0;left:0;right:0;z-index:60;box-shadow:0 1px 6px rgba(0,0,0,.08)}
   .main{padding-top:52px}
@@ -932,6 +948,14 @@ let S={
   projsOpen:true,hiddenProjsOpen:false,
   secCollapsed:JSON.parse(localStorage.getItem('secCollapsed')||'{}'),
 };
+
+// ===== PWA vs ブラウザ検出 =====
+(function(){
+  const pwa=window.matchMedia('(display-mode: standalone)').matches
+          ||window.matchMedia('(display-mode: minimal-ui)').matches
+          ||(typeof navigator.standalone!=='undefined'&&navigator.standalone===true);
+  document.documentElement.classList.add(pwa?'pwa-mode':'browser-mode');
+})();
 
 // ===== UTILS =====
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -1843,20 +1867,41 @@ function getNavOrder(){
   }catch(e){}
   return['inbox','today','forecast','_sidebar','search','ai','_edit'];
 }
+// ===== PREV/NEXT ナビゲーション =====
+function getNavSequence(){
+  // 表示順: システムビュー → 非表示でないプロジェクト → タグ
+  const sys=['inbox','today','upcoming','forecast','flagged','notes'];
+  const projs=S.projects.filter(p=>p.status!=='hidden').sort((a,b)=>(a.order||0)-(b.order||0));
+  const tags=[...S.tags].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  return[
+    ...sys.map(v=>({type:'view',v})),
+    ...projs.map(p=>({type:'proj',id:p.id,name:p.name})),
+    ...tags.map(t=>({type:'tag',id:t.id,name:t.name})),
+  ];
+}
+function getCurrentNavIdx(seq){
+  if(S.view==='project')return seq.findIndex(x=>x.type==='proj'&&x.id===S.projId);
+  if(S.view==='tag')return seq.findIndex(x=>x.type==='tag'&&x.id===S.tagId);
+  return seq.findIndex(x=>x.type==='view'&&x.v===S.view);
+}
+
 function renderBotNav(){
   const order=getNavOrder();
   const aiEnabled=getSetting('aiChat',true);
   const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean).filter(i=>i.special!=='ai'||aiEnabled).filter(i=>i.special!=='edit');
-  document.getElementById('botnav').innerHTML=
-    '<div class="bot-nav-inner">'+
-    items.map(i=>{
-      const isAI=i.special==='ai';
-      const isEdit=i.special==='edit';
-      const isSidebar=i.special==='sidebar';
-      const on=(!isAI&&!isEdit&&!isSidebar&&S.view===i.v)||(isSidebar&&S.sidebarOpen);
-      return'<div class="bnav'+(on?' on':'')+(isAI?' bnav-ai':'')+'" data-a="'+(isAI?'ai-open':isEdit?'nav-edit':isSidebar?'menu':'view')+'"'+((!isAI&&!isEdit&&!isSidebar)?(' data-v="'+i.v+'"'):'')+'>'+i.icon()+'<span>'+i.label+'</span></div>';
-    }).join('')+
-    '</div>';
+  const isMobile=window.innerWidth<=768;
+  const inner=items.map(i=>{
+    const isAI=i.special==='ai';
+    const isEdit=i.special==='edit';
+    const isSidebar=i.special==='sidebar';
+    const on=(!isAI&&!isEdit&&!isSidebar&&S.view===i.v)||(isSidebar&&S.sidebarOpen);
+    return'<div class="bnav'+(on?' on':'')+(isAI?' bnav-ai':'')+'" data-a="'+(isAI?'ai-open':isEdit?'nav-edit':isSidebar?'menu':'view')+'"'+((!isAI&&!isEdit&&!isSidebar)?(' data-v="'+i.v+'"'):'')+'>'+i.icon()+'<span>'+i.label+'</span></div>';
+  }).join('');
+  document.getElementById('botnav').innerHTML=isMobile
+    ?'<button class="bnav-step" data-a="nav-prev" aria-label="前へ">‹</button>'
+      +'<div class="bot-nav-inner">'+inner+'</div>'
+      +'<button class="bnav-step" data-a="nav-next" aria-label="次へ">›</button>'
+    :'<div class="bot-nav-inner">'+inner+'</div>';
 }
 function openNavEdit(){
   const ov=document.createElement('div');ov.className='overlay';
@@ -2862,6 +2907,24 @@ document.addEventListener('click',async e=>{
   else if(a==='hidden-proj-edit'){e.stopPropagation();showHiddenProjEditPopup(el,el.dataset.id,el.dataset.name);}
   
   else if(a==='menu'){if(Date.now()-_drawerClosedAt<400)return;S.sidebarOpen=!S.sidebarOpen;render()}
+
+  else if(a==='nav-prev'||a==='nav-next'){
+    const seq=getNavSequence();
+    if(!seq.length)return;
+    const cur=getCurrentNavIdx(seq);
+    const len=seq.length;
+    // curが-1（未知のビュー）のときは先頭/末尾へ
+    let ni;
+    if(a==='nav-prev') ni=cur<=0?len-1:cur-1;
+    else ni=cur>=len-1?0:cur+1;
+    const item=seq[ni];
+    if(!item)return;
+    S.taskId=null;S.drawerOpen=false;
+    if(item.type==='view'){S.view=item.v;}
+    else if(item.type==='proj'){S.view='project';S.projId=item.id;}
+    else if(item.type==='tag'){S.view='tag';S.tagId=item.id;}
+    render();
+  }
   
   else if(a==='dark'){S.dark=!S.dark;localStorage.setItem('dark',S.dark?'1':'0');render()}
   else if(a==='newtask'){
