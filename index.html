@@ -240,9 +240,13 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);
   transition:color .15s,background .15s;user-select:none;
 }
-.bnav-step:first-child{border-right:1px solid var(--border)}
 .bnav-step:last-child{border-left:1px solid var(--border)}
 .bnav-step:active{color:var(--accent);background:var(--accent-bg)}
+.bnav-next{
+  width:40px;background:var(--accent);color:#fff;border-left:none!important;
+  border-radius:8px 0 0 8px;margin:5px 0 5px 0;font-weight:600;font-size:22px;
+}
+.bnav-next:active{background:var(--accent-hover,#2563eb);color:#fff}
 /* Browser mode (非PWA): safe-area値が0のためenv()に依存せず固定値で統一 */
 @media (max-width:768px){
   html.browser-mode .bot-nav{padding-bottom:0}
@@ -836,10 +840,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
       </div>
     </div>
 
-    <div class="qabar">
-      <div class="qawrap">
-        <span style="color:var(--text3);font-size:16px;flex-shrink:0">+</span>
-        <input id="qainput" type="text" placeholder="タスクを追加… #タグ !高 @プロジェクト 明日" autocomplete="off">
+    <div class="qabar" id="qabar">
+      <div class="qawrap" id="qawrap">
+        <span style="color:var(--text3);font-size:16px;flex-shrink:0;touch-action:manipulation;cursor:text">+</span>
+        <input id="qainput" type="text" placeholder="タスクを追加… #タグ !高 @プロジェクト 明日" autocomplete="off" style="touch-action:manipulation">
         <button class="btn btn-ghost" id="qabtn" style="display:none;padding:4px 8px;font-size:12px" data-a="qa-submit">追加</button>
       </div>
       <div class="qa-chips" id="qachips"></div>
@@ -1385,6 +1389,16 @@ function startTagRename(span){
 function showTagEditPopup(btn,tagId,tagName){
   document.querySelectorAll('.proj-edit-popup').forEach(el=>el.remove());
   const popup=document.createElement('div');popup.className='proj-edit-popup';
+
+  const addBtn=document.createElement('button');
+  addBtn.innerHTML='＋ タグ追加';
+  addBtn.onclick=ev=>{ev.stopPropagation();popup.remove();openModal('tag');};
+  popup.appendChild(addBtn);
+
+  const sep=document.createElement('div');
+  sep.style.cssText='height:1px;background:var(--border);margin:2px 0';
+  popup.appendChild(sep);
+
   const renameBtn=document.createElement('button');
   renameBtn.innerHTML='✏️ タグ名変更';
   renameBtn.onclick=ev=>{
@@ -1406,8 +1420,18 @@ function showTagEditPopup(btn,tagId,tagName){
   popup.appendChild(renameBtn);popup.appendChild(delBtn);
   document.body.appendChild(popup);
   const r=btn.getBoundingClientRect();
-  popup.style.top=(r.bottom+4)+'px';popup.style.left=Math.max(4,r.left-popup.offsetWidth+r.width)+'px';
-  setTimeout(()=>document.addEventListener('click',()=>popup.remove(),{once:true}),0);
+  const pw=popup.offsetWidth||140;
+  const ph=popup.offsetHeight||100;
+  let top=r.bottom+4;
+  let left=Math.max(4,r.right-pw);
+  if(top+ph>window.innerHeight-12)top=r.top-ph-4;
+  if(top<4)top=4;
+  popup.style.top=top+'px';popup.style.left=left+'px';
+  setTimeout(()=>{
+    const close=ev=>{if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('click',close);document.removeEventListener('touchstart',close);}};
+    document.addEventListener('click',close);
+    document.addEventListener('touchstart',close,{passive:true});
+  },0);
 }
 function attachTagDragListeners(){
   const nav=document.getElementById('sidenav');if(!nav)return;
@@ -1540,6 +1564,15 @@ function showProjEditPopup(btn, projId, projName){
   document.querySelectorAll('.proj-edit-popup').forEach(el=>el.remove());
   const popup=document.createElement('div');
   popup.className='proj-edit-popup';
+
+  const addBtn=document.createElement('button');
+  addBtn.innerHTML='＋ プロジェクト追加';
+  addBtn.onclick=ev=>{ev.stopPropagation();popup.remove();openModal('project');};
+  popup.appendChild(addBtn);
+
+  const sep=document.createElement('div');
+  sep.style.cssText='height:1px;background:var(--border);margin:2px 0';
+  popup.appendChild(sep);
 
   const renameBtn=document.createElement('button');
   renameBtn.innerHTML='✏️ プロジェクト名変更';
@@ -2016,7 +2049,6 @@ function renderSidebar(){
     +'</div>';
   });
   h+='<div class="proj-drop-line" data-drop-after="last"></div>';
-  h+='<div class="nav-item muted" data-a="newproj" style="font-size:13px"><span style="font-size:16px">+</span> プロジェクト追加</div>';
   h+='</div></div>';
   // Hidden projects section with accordion
   const hiddenProjs=S.projects.filter(p=>p.status==='hidden').sort((a,b)=>(a.hiddenOrder||0)-(b.hiddenOrder||0));
@@ -2059,7 +2091,6 @@ function renderSidebar(){
     +'</div>';
   });
   h+='<div class="tag-drop-line" data-tdrop-after="last" style="height:2px;background:var(--accent);border-radius:2px;margin:0 4px;pointer-events:none;display:none"></div>';
-  h+='<div class="nav-item muted" data-a="newtag" style="font-size:13px"><span style="font-size:16px">+</span> タグ追加</div>';
   document.getElementById('sidenav').innerHTML=h;
 }
 
@@ -2086,10 +2117,10 @@ function getNavOrder(){
 }
 // ===== PREV/NEXT ナビゲーション =====
 function getNavSequence(){
-  // 表示順: システムビュー → 非表示でないプロジェクト → タグ
-  const sys=['inbox','today','upcoming','forecast','flagged','notes'];
-  const projs=S.projects.filter(p=>p.status!=='hidden').sort((a,b)=>(a.order||0)-(b.order||0));
-  const tags=[...S.tags].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  // 表示順: システムビュー → 非表示でないプロジェクト → タグ (サイドバーと同じ順序)
+  const sys=['inbox','today','upcoming','forecast','flagged','review','search','notes'];
+  const projs=getSortedProjects('active');
+  const tags=getSortedTags();
   return[
     ...sys.map(v=>({type:'view',v})),
     ...projs.map(p=>({type:'proj',id:p.id,name:p.name})),
@@ -2115,9 +2146,8 @@ function renderBotNav(){
     return'<div class="bnav'+(on?' on':'')+(isAI?' bnav-ai':'')+'" data-a="'+(isAI?'ai-open':isEdit?'nav-edit':isSidebar?'menu':'view')+'"'+((!isAI&&!isEdit&&!isSidebar)?(' data-v="'+i.v+'"'):'')+'>'+i.icon()+'<span>'+i.label+'</span></div>';
   }).join('');
   document.getElementById('botnav').innerHTML=isMobile
-    ?'<button class="bnav-step" data-a="nav-prev" aria-label="前へ">‹</button>'
-      +'<div class="bot-nav-inner">'+inner+'</div>'
-      +'<button class="bnav-step" data-a="nav-next" aria-label="次へ">›</button>'
+    ?'<div class="bot-nav-inner">'+inner+'</div>'
+      +'<button class="bnav-step bnav-next" data-a="nav-next" aria-label="次へ">›</button>'
     :'<div class="bot-nav-inner">'+inner+'</div>';
 }
 function openNavEdit(){
@@ -3085,6 +3115,13 @@ function setupQA(){
   if(!inp)return;
   if(inp.dataset.qaReady)return;
   inp.dataset.qaReady='1';
+  // モバイルで即座にキーボードを出す
+  const wrap=document.getElementById('qawrap');
+  if(wrap){
+    wrap.addEventListener('touchend',e=>{
+      if(!e.target.matches('button,input'))inp.focus();
+    },{passive:true});
+  }
   inp.addEventListener('input',()=>{
     const p=parseQA(inp.value);
     let h='';
@@ -3127,17 +3164,17 @@ document.addEventListener('click',async e=>{
   if(!el)return;
   const a=el.dataset.a;
 
-  if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;if(el.dataset.v==='search'&&window.innerWidth<=768){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
-  else if(a==='proj'||a==='goto-proj'){if(_touchMoved)return;S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
-  else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768&&Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;render()}
+  if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}if(el.dataset.v==='search'&&window.innerWidth<=768){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
+  else if(a==='proj'||a==='goto-proj'){if(_touchMoved)return;S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
+  else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='proj-toggle'){S.projsOpen=!S.projsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='hidden-proj-toggle'){S.hiddenProjsOpen=!S.hiddenProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='hidden-proj-edit'){e.stopPropagation();showHiddenProjEditPopup(el,el.dataset.id,el.dataset.name);}
   
-  else if(a==='menu'){if(Date.now()-_drawerClosedAt<400)return;S.sidebarOpen=!S.sidebarOpen;render()}
+  else if(a==='menu'){if(Date.now()-_drawerClosedAt<400)return;playSE('toggle');S.sidebarOpen=!S.sidebarOpen;render()}
 
-  else if(a==='nav-prev'||a==='nav-next'){
+  else if(a==='nav-prev'||a==='nav-next'){playSE('toggle');
     const seq=getNavSequence();
     if(!seq.length)return;
     const cur=getCurrentNavIdx(seq);
