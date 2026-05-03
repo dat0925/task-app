@@ -1041,7 +1041,7 @@ let S={
   secCollapsed:JSON.parse(localStorage.getItem('secCollapsed')||'{}'),
   openSubs:{},
   selectMode:false,selectedIds:[],
-  filterTagId:null,
+  filterTagIds:[],
 };
 
 // ===== PWA vs ブラウザ検出 =====
@@ -1330,7 +1330,7 @@ function getTasks(){
   else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
   if(S.hideNotStarted){const t2=today();tasks=tasks.filter(x=>!x.startAt||x.startAt<=t2||x.status==='completed')}
-  if(S.filterTagId&&S.view!=='tag')tasks=tasks.filter(x=>x.tagIds&&x.tagIds.includes(S.filterTagId));
+  if(S.filterTagIds&&S.filterTagIds.length&&S.view!=='tag')tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   if(S.sort==='startAt') return tasks.sort((a,b)=>{if(!a.startAt&&!b.startAt)return 0;if(!a.startAt)return 1;if(!b.startAt)return -1;return a.startAt.localeCompare(b.startAt);});
   return tasks.sort((a,b)=>(a.order||0)-(b.order||0));
@@ -2706,7 +2706,7 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-cancel" style="margin-left:auto;border-color:var(--p1);color:var(--p1)">✕ 終了</button>';
     return;
   }
-  const filterOn=S.hideNotStarted||S.showCompleted||!!S.filterTagId;
+  const filterOn=S.hideNotStarted||S.showCompleted||!!(S.filterTagIds&&S.filterTagIds.length);
   const sortOn=S.sort!=='order';
   const ICON_FILTER='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
   const ICON_SORT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 6h13M8 12h9M8 18h5"/><polyline points="3 6 3 3 6 3"/><polyline points="3 18 3 21 6 21"/></svg>';
@@ -2748,11 +2748,11 @@ function openFilterPopup(btn){
     +(tags.length
       ?'<div class="tf-popup-sep"></div><div class="tf-popup-label">タグで絞り込み</div>'
         +'<div class="tf-popup-item" data-a="fpop-tag" data-id="">'
-          +'<span>すべて</span><span class="tf-popup-check'+(!S.filterTagId?' on':'')+'">✓</span>'
+          +'<span>すべて（解除）</span><span class="tf-popup-check'+((!S.filterTagIds||!S.filterTagIds.length)?' on':'')+'">✓</span>'
         +'</div>'
         +tags.map(t=>'<div class="tf-popup-item" data-a="fpop-tag" data-id="'+t.id+'">'
           +'<span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:'+t.color+';flex-shrink:0;display:inline-block"></span>'+esc(t.name)+'</span>'
-          +'<span class="tf-popup-check'+(S.filterTagId===t.id?' on':'')+'">✓</span>'
+          +'<span class="tf-popup-check'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' on':'')+'">✓</span>'
         +'</div>').join('')
       :'');
   _tfBackdrop();
@@ -3886,7 +3886,7 @@ else if(a==='sel-edit'){
   else if(a==='tog-sort-start'){S.sort=S.sort==='startAt'?'order':'startAt';renderContent()}
   else if(a==='tog-filter-btn'){openFilterPopup(el);}
   else if(a==='tog-sort-btn'){openSortPopup(el);}
-  else if(a==='clear-filters'){S.hideNotStarted=false;S.showCompleted=false;S.filterTagId=null;renderTaskFilters();renderContent();}
+  else if(a==='clear-filters'){S.hideNotStarted=false;S.showCompleted=false;S.filterTagIds=[];renderTaskFilters();renderContent();}
   else if(a==='bulk-sel-all'){S.selectedIds=getTasks().filter(t=>!t.parentTaskId).map(t=>t.id);renderTaskFilters();renderContent();}
   else if(a==='bulk-desel-all'){S.selectedIds=[];renderTaskFilters();renderContent();}
   else if(a==='fpop-toggle'){
@@ -3898,8 +3898,24 @@ else if(a==='sel-edit'){
   }
   else if(a==='fpop-tag'){
     const id=el.dataset.id||null;
-    S.filterTagId=id;
-    _closeTfPopups();renderTaskFilters();renderContent();
+    if(!id){
+      S.filterTagIds=[];
+    } else {
+      if(!S.filterTagIds)S.filterTagIds=[];
+      const idx=S.filterTagIds.indexOf(id);
+      if(idx>=0)S.filterTagIds.splice(idx,1);
+      else S.filterTagIds.push(id);
+    }
+    const pop=document.querySelector('.tf-popup.filter-pop');
+    if(pop){
+      pop.querySelectorAll('[data-a="fpop-tag"]').forEach(item=>{
+        const iid=item.dataset.id||null;
+        const chk=item.querySelector('.tf-popup-check');
+        if(!chk)return;
+        chk.classList.toggle('on',!iid?!S.filterTagIds.length:S.filterTagIds.includes(iid));
+      });
+    }
+    renderTaskFilters();renderContent();
   }
   else if(a==='spop-sort'){
     S.sort=el.dataset.val||'order';
