@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -697,7 +697,9 @@ html.dark .del-btn{box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,25
 .sub-chev.open{transform:rotate(90deg)}
 .sub-toggle-btn{background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:1px;color:inherit;padding:0;font-size:11px;line-height:inherit}
 /* 一括編集 */
-.trow.bulk-sel{background:var(--accent-bg)!important;border-color:var(--accent)!important}
+.trow.bulk-sel{background:var(--accent-bg)!important;outline:1.5px solid var(--accent);border-radius:7px}
+.bulk-sel-circle{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:transparent;transition:all .15s;pointer-events:none}
+.trow.bulk-sel .bulk-sel-circle{border-color:var(--accent);background:var(--accent);color:#fff}
 .sec-drag-handle{
   cursor:grab;color:var(--text3);font-size:16px;
   padding:0 2px;flex-shrink:0;line-height:1;
@@ -2686,7 +2688,7 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-cancel" style="margin-left:auto;border-color:var(--p1);color:var(--p1)">✕ 終了</button>';
     return;
   }
-  tf.innerHTML='<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">⏳ 未来</button>'
+  tf.innerHTML='<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">現在</button>'
     +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了':'○ 完了')+'</button>'
     +'<button class="toggle-completed-btn'+(S.sort==='startAt'?' active':'')+'" data-a="tog-sort-start">'+(S.sort==='startAt'?'↓ 開始':'↕ 開始')+'</button>'
     +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort">'+(S.sort==='updated'?'↓ 更新':'↕ 更新')+'</button>'
@@ -2728,8 +2730,9 @@ function renderRow(task){
   const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">'+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
 
   let html='<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
-    +(S.view==='project'?'<span class="task-drag-handle" title="ドラッグで並び替え">⠿</span>':'')
-    +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'">'+(done?'✓':'')+'</button>'
+    +(S.view==='project'&&!S.selectMode?'<span class="task-drag-handle" title="ドラッグで並び替え">⠿</span>':'')
+    +(S.selectMode?'<div class="bulk-sel-circle">'+(isSel?'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</div>':'')
+    +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'"'+(S.selectMode?' style="pointer-events:none"':'')+' >'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
       +'<div class="ttitle" data-title-edit="'+task.id+'"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
       +'<div class="tmeta">'+(meta||'')+updStr+'</div>'
@@ -3794,6 +3797,7 @@ else if(a==='sel-edit'){
   else if(a==='tog-select-mode'){
     S.selectMode=!S.selectMode;
     if(!S.selectMode){S.selectedIds=[];S.drawerOpen=false;S.taskId=null;}
+    else{toast('タスクをタップして選択 → 上のボタンで一括変更');}
     renderContent();
   }
   else if(a==='tog-subs'){
