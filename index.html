@@ -2748,10 +2748,11 @@ function renderTaskFilters(){
   const sortOn=S.sort!=='order';
   const ICON_FILTER='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
   const ICON_SORT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 6h13M8 12h9M8 18h5"/><polyline points="3 6 3 3 6 3"/><polyline points="3 18 3 21 6 21"/></svg>';
+  const isForecast=S.view==='forecast';
   tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
     +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
-    +'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>'
-    +'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>';
+    +(!isForecast?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
+    +(!isForecast?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
 }
 
 function _closeTfPopups(){document.querySelectorAll('.tf-popup,.tf-backdrop').forEach(p=>p.remove());}
@@ -3409,6 +3410,12 @@ function render(){
   renderContent();
   renderDrawer();
   setupQA();
+}
+function renderInstant(){
+  const sb=document.getElementById('sidebar');
+  if(sb)sb.style.transition='none';
+  render();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{const sb=document.getElementById('sidebar');if(sb)sb.style.transition='';}));
 }
 
 // ===== QUICK ADD =====
@@ -5228,7 +5235,7 @@ async function init(){
     if(noteP&&S.notes.find(n=>n.id===noteP)){
       S.view='notes';S.noteId=noteP;S.noteOpen=true;
       history.replaceState(null,'',location.pathname);
-      render();
+      renderInstant();
       applySettings();
       setTimeout(()=>renderNoteDrawer(),150);
       if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
@@ -5243,14 +5250,14 @@ async function init(){
       else{
         // ハッシュをリセットしてトーストで通知
         history.replaceState(null,'',location.pathname);
-        render();
+        renderInstant();
         applySettings();
         setTimeout(()=>toast('タスクが見つかりませんでした'),500);
         if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
         return;
       }
     }
-    render();
+    renderInstant();
     applySettings();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }catch(err){
