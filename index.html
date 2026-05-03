@@ -161,6 +161,21 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .date-clr-btn{font-size:10px;padding:1px 5px;border-radius:4px;background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;flex-shrink:0;line-height:1.4;touch-action:manipulation;transition:background .15s,color .15s}
 .date-clr-btn:hover{background:var(--bg2);color:var(--text)}
 .note-stamp-btn:hover{background:var(--bg3);color:var(--text)}
+/* Calculator modal */
+.calc-modal{background:var(--surface);border-radius:16px;width:min(320px,92vw);padding:16px;box-shadow:0 12px 48px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:10px}
+.calc-display{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-align:right;min-height:68px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
+.calc-expr{font-size:12px;color:var(--text3);min-height:16px;word-break:break-all;font-family:monospace}
+.calc-result{font-size:26px;font-weight:700;color:var(--text);word-break:break-all;line-height:1.2}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.calc-btn{padding:13px 0;border-radius:10px;font-size:17px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text);transition:background .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;-webkit-user-select:none}
+.calc-btn:active{background:var(--bg3)}
+.calc-btn.cop{background:var(--blue-bg);color:var(--blue);border-color:rgba(59,130,246,.2)}
+.calc-btn.ceq{background:linear-gradient(180deg,#6aaee8 0%,#1e5aab 100%);color:#fff;border-color:rgba(15,50,110,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 5px rgba(30,90,171,.3)}
+.calc-btn.cfn{background:var(--bg3);color:var(--text2);font-size:14px}
+.calc-btn.cac{background:var(--accent-bg);color:var(--accent);border-color:rgba(232,93,58,.2);font-size:13px;font-weight:600}
+.calc-paste-row{display:flex;gap:5px}
+.calc-paste-btn{flex:1;padding:7px 4px;border-radius:8px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:background .12s;touch-action:manipulation;white-space:nowrap;text-align:center}
+.calc-paste-btn:hover{background:var(--bg3);color:var(--text)}
 .link-popover{position:absolute;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);width:260px;display:flex;flex-direction:column;gap:8px}
 .link-popover input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);outline:none;font-family:var(--font)}
 .link-popover input:focus{border-color:var(--accent)}
@@ -228,7 +243,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .toast-undo{background:var(--accent);color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer}
 
 /* Mobile bottom nav */
-.bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:80;padding-bottom:env(safe-area-inset-bottom);flex-direction:row;align-items:stretch}
+.bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:80;padding-bottom:env(safe-area-inset-bottom);flex-direction:row;align-items:stretch;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .bot-nav-inner{display:flex;flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x}
 .bot-nav-inner::-webkit-scrollbar{display:none}
 .bnav{flex:1;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 2px;font-size:9px;font-weight:500;color:var(--text3);cursor:pointer;gap:3px;transition:color .15s;touch-action:pan-x;-webkit-tap-highlight-color:rgba(0,0,0,0)}
@@ -3000,6 +3015,7 @@ function renderNoteDrawer(){
           +'<button class="note-stamp-btn" data-a="clear-note-body">🗑 クリア</button>'
           +'<button class="note-stamp-btn" data-a="copy-note-body-inline" title="メモ内容をコピー">📋 コピー</button>'
           +'<button class="note-stamp-btn" id="nt-link-btn">🔗 リンク</button>'
+          +'<button class="note-stamp-btn" data-a="calc-open" data-target="nt-body">🧮 電卓</button>'
         +'</div>'
         +'<textarea class="finput" id="nt-body" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
         +'<div style="margin-top:6px">'
@@ -3121,7 +3137,7 @@ function renderDrawer(){
       +'<button class="icon-btn" data-a="close-drawer">'+ICONS.x+'</button>'
       +'<span style="font-size:13px;font-weight:500;color:var(--text2)">タスク詳細</span>'
       +'<div style="margin-left:auto;display:flex;gap:4px">'
-        +'<button class="icon-btn" data-a="drawer-expand" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>'
+        +(window.innerWidth>768?'<button class="icon-btn" data-a="drawer-expand" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
         +'<button class="icon-btn" id="copy-url-btn" title="URLをコピー" style="font-size:14px">🔗</button>'
         +'<button class="icon-btn" data-a="dup" data-id="'+task.id+'" title="複製">'+ICONS.copy+'</button>'
         +'<button class="del-btn" data-a="del-confirm-hdr" data-id="'+task.id+'" title="削除">削除</button>'
@@ -3135,6 +3151,7 @@ function renderDrawer(){
         +'<button class="note-stamp-btn" data-a="clear-task-notes">🗑 クリア</button>'
         +'<button class="note-stamp-btn" data-a="copy-task-notes" title="メモ内容をコピー">📋 コピー</button>'
         +'<button class="note-stamp-btn" id="dt-link-btn">🔗 リンク</button>'
+        +'<button class="note-stamp-btn" data-a="calc-open" data-target="dt-notes">🧮 電卓</button>'
       +'</div>'
       +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
       +'<div style="margin-top:6px">'
@@ -3727,7 +3744,11 @@ else if(a==='sel-edit'){
       const i=task.tagIds.indexOf(tid);
       i>=0?task.tagIds.splice(i,1):task.tagIds.push(tid);
       playSE('toggle');
+      const drBody=document.querySelector('#drawer .drawer-body');
+      const scrollY=drBody?drBody.scrollTop:0;
       await saveTask(task);renderDrawer();
+      const drBody2=document.querySelector('#drawer .drawer-body');
+      if(drBody2)drBody2.scrollTop=scrollY;
     }
   }
   else if(a==='tog-flag'){
@@ -3775,6 +3796,12 @@ else if(a==='sel-edit'){
   else if(a==='dup'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(task){const d={...task,id:uid(),title:task.title+' (コピー)',createdAt:now(),updatedAt:now(),completedAt:null,order:Date.now()};await saveTask(d);S.taskId=d.id;render()}
+  }
+  else if(a==='calc-open'){
+    const targetId=el.dataset.target;
+    const ctx=el.closest('.expand-modal,#drawer');
+    const ta=(ctx&&ctx.querySelector('#'+targetId))||document.getElementById(targetId);
+    showCalcModal(ta);
   }
   else if(a==='del'){
     const id=el.dataset.id;
@@ -4015,6 +4042,85 @@ else if(a==='sel-edit'){
 
 // sidebar overlay click
 document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false;render()});
+
+// ===== CALCULATOR MODAL =====
+function showCalcModal(textareaEl){
+  const ov=document.createElement('div');
+  ov.className='overlay';
+  ov.style.cssText='align-items:center;justify-content:center';
+  let expr='',result='',justEvaled=false;
+  function safeCalc(s){
+    try{
+      if(!s||!/^[0-9+\-*/.() ]+$/.test(s))return null;
+      const r=new Function('return('+s+')')();
+      if(typeof r!=='number'||!isFinite(r))return null;
+      return String(Math.round(r*1e10)/1e10);
+    }catch(e){return null;}
+  }
+  function upd(){
+    const ex=document.getElementById('calc-expr');
+    const re=document.getElementById('calc-result');
+    if(ex)ex.textContent=expr||'';
+    if(re)re.textContent=result||'0';
+  }
+  function pressNum(n){if(justEvaled){expr=n;result='';justEvaled=false;}else expr+=n;const r=safeCalc(expr);if(r!=null)result=r;upd();}
+  function pressOp(op){justEvaled=false;if(expr&&'+-*/'.includes(expr.slice(-1)))expr=expr.slice(0,-1);expr+=op;upd();}
+  function pressDot(){const seg=(expr.match(/[0-9.]*$/)||[''])[0];if(seg.includes('.'))return;if(!expr||'+-*/'.includes(expr.slice(-1)))expr+='0';expr+='.';justEvaled=false;upd();}
+  function pressEq(){if(!expr)return;const r=safeCalc(expr);if(r!=null){result=r;justEvaled=true;}upd();}
+  function pressBS(){if(justEvaled){expr='';result='';justEvaled=false;upd();return;}expr=expr.slice(0,-1);const r=safeCalc(expr);if(r!=null)result=r;else if(!expr)result='';upd();}
+  function pressAC(){expr='';result='';justEvaled=false;upd();}
+  function pressPM(){const m=expr.match(/^(.*[+\-*/])?(-?)(\d+\.?\d*)$/);if(m){expr=(m[1]||'')+(m[2]==='-'?'':'-')+m[3];}else if(!expr){expr='-';}else if(expr==='-'){expr='';}const r=safeCalc(expr);if(r!=null)result=r;upd();}
+  function paste(text){if(!textareaEl||!text)return;const s=textareaEl.selectionStart??textareaEl.value.length,e2=textareaEl.selectionEnd??textareaEl.value.length;textareaEl.value=textareaEl.value.slice(0,s)+text+textareaEl.value.slice(e2);textareaEl.selectionStart=textareaEl.selectionEnd=s+text.length;textareaEl.dispatchEvent(new Event('input'));toast('貼り付けました');}
+  ov.innerHTML=
+    '<div class="calc-modal">'
+      +'<div style="display:flex;align-items:center;margin-bottom:2px">'
+        +'<span style="font-weight:600;font-size:15px">🧮 電卓</span>'
+        +'<button class="icon-btn" id="calc-close" style="margin-left:auto;font-size:18px">✕</button>'
+      +'</div>'
+      +'<div class="calc-display">'
+        +'<div class="calc-expr" id="calc-expr"></div>'
+        +'<div class="calc-result" id="calc-result">0</div>'
+      +'</div>'
+      +'<div class="calc-paste-row">'
+        +'<button class="calc-paste-btn" id="calc-paste-expr">📋 式を貼り付け</button>'
+        +'<button class="calc-paste-btn" id="calc-paste-result">📋 結果を貼り付け</button>'
+      +'</div>'
+      +'<div class="calc-grid">'
+        +'<button class="calc-btn cac" data-cv="AC">AC</button>'
+        +'<button class="calc-btn cfn" data-cv="±">±</button>'
+        +'<button class="calc-btn cfn" data-cv="BS">⌫</button>'
+        +'<button class="calc-btn cop" data-cv="/">÷</button>'
+        +'<button class="calc-btn" data-cv="7">7</button>'
+        +'<button class="calc-btn" data-cv="8">8</button>'
+        +'<button class="calc-btn" data-cv="9">9</button>'
+        +'<button class="calc-btn cop" data-cv="*">×</button>'
+        +'<button class="calc-btn" data-cv="4">4</button>'
+        +'<button class="calc-btn" data-cv="5">5</button>'
+        +'<button class="calc-btn" data-cv="6">6</button>'
+        +'<button class="calc-btn cop" data-cv="-">−</button>'
+        +'<button class="calc-btn" data-cv="1">1</button>'
+        +'<button class="calc-btn" data-cv="2">2</button>'
+        +'<button class="calc-btn" data-cv="3">3</button>'
+        +'<button class="calc-btn cop" data-cv="+">+</button>'
+        +'<button class="calc-btn" data-cv="0" style="grid-column:span 2">0</button>'
+        +'<button class="calc-btn cfn" data-cv=".">.</button>'
+        +'<button class="calc-btn ceq" data-cv="=">=</button>'
+      +'</div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('open'));
+  document.getElementById('calc-close').onclick=()=>ov.remove();
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.getElementById('calc-paste-expr').onclick=()=>{if(expr)paste(expr.replace(/\*/g,'×').replace(/\//g,'÷'));};
+  document.getElementById('calc-paste-result').onclick=()=>{if(result)paste(result);};
+  ov.querySelector('.calc-grid').addEventListener('click',e=>{
+    const btn=e.target.closest('[data-cv]');if(!btn)return;
+    const v=btn.dataset.cv;
+    if(v==='AC')pressAC();else if(v==='±')pressPM();else if(v==='BS')pressBS();
+    else if(v==='/')pressOp('/');else if(v==='*')pressOp('*');else if(v==='-')pressOp('-');else if(v==='+')pressOp('+');
+    else if(v==='=')pressEq();else if(v==='.')pressDot();else pressNum(v);
+  });
+}
 
 // ===== PC EXPAND MODAL =====
 function openExpandModal(type){
@@ -5277,7 +5383,7 @@ async function init(){
       document.addEventListener('contextmenu',_preventCtx,{passive:false});
       document.addEventListener('selectstart',e=>{if(_lpt!=null)e.preventDefault();},{passive:false});
       botnav.addEventListener('touchstart',e=>{
-        if(!e.target.closest('.bnav-next'))return;
+        if(!e.target.closest('.bnav-next,.bnav'))return;
         _lpmoved=false;_lpsx=e.touches[0].clientX;_lpsy=e.touches[0].clientY;
         lockSel();
         _lpt=setTimeout(()=>{
