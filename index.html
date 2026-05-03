@@ -2726,7 +2726,7 @@ function renderList(){
 function renderTaskFilters(){
   const tf=document.getElementById('task-filters');
   if(!tf)return;
-  const showToggle=!['completed','search','forecast','review','notes'].includes(S.view);
+  const showToggle=!['completed','search','review','notes'].includes(S.view);
   if(!showToggle){tf.style.display='none';tf.innerHTML='';return;}
   tf.style.display='flex';
   if(S.selectMode){
@@ -2880,19 +2880,22 @@ function renderEmpty(){
 
 function renderForecast(){
   const days=Array.from({length:14},(_,i)=>{const d=new Date(today()+'T00:00:00');d.setDate(d.getDate()+i);return d.toISOString().slice(0,10)});
-  const active=S.tasks.filter(t=>t.status!=='completed'&&t.status!=='archived');
+  let tasks=S.tasks.filter(t=>t.status!=='archived');
+  if(!S.showCompleted)tasks=tasks.filter(t=>t.status!=='completed');
+  if(S.hideNotStarted){const t2=today();tasks=tasks.filter(x=>!x.startAt||x.startAt<=t2||x.status==='completed');}
+  if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
   let h='<div class="fc-grid">';
   days.forEach(day=>{
     const d=new Date(day+'T00:00:00');
     const wd=['日','月','火','水','木','金','土'][d.getDay()];
-    const due=active.filter(t=>t.dueAt===day);
-    const start=active.filter(t=>t.startAt===day&&t.dueAt!==day);
+    const due=tasks.filter(t=>t.dueAt===day);
+    const start=tasks.filter(t=>t.startAt===day&&t.dueAt!==day);
     const all=[...due,...start];
     h+='<div class="fc-day'+(day===today()?' today':'')+'">'
       +'<div class="fc-head"><span class="fc-date">'+d.getDate()+'</span><span class="fc-wd">'+wd+'</span>'+(all.length?'<span style="margin-left:auto;font-size:11px;opacity:.6">'+all.length+'</span>':'')+'</div>'
       +'<div class="fc-tasks">'
-      +due.slice(0,4).map(t=>'<div class="fc-task" data-a="sel" data-id="'+t.id+'"><span>🗓</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title)+'</span></div>').join('')
-      +start.slice(0,2).map(t=>'<div class="fc-task" data-a="sel" data-id="'+t.id+'"><span style="color:var(--blue)">▶</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title)+'</span></div>').join('')
+      +due.slice(0,4).map(t=>'<div class="fc-task" data-a="sel-edit" data-id="'+t.id+'"><span>🗓</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title)+'</span></div>').join('')
+      +start.slice(0,2).map(t=>'<div class="fc-task" data-a="sel-edit" data-id="'+t.id+'"><span style="color:var(--blue)">▶</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title)+'</span></div>').join('')
       +(all.length===0?'<div style="font-size:11px;color:var(--text3);padding:3px 4px">予定なし</div>':'')
       +'</div></div>';
   });
