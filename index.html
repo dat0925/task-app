@@ -84,8 +84,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-primary:hover{background:var(--accent2)}
-.btn-complete{background:#22c55e;color:#fff}
-.btn-complete:hover{background:#16a34a}
+.btn-complete{background:linear-gradient(180deg,#fb923c 0%,#ea6c10 100%);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 5px rgba(234,108,16,.35);border:1px solid rgba(180,70,0,.25);text-shadow:0 1px 1px rgba(0,0,0,.15)}
+.btn-complete:hover{background:linear-gradient(180deg,#f97316 0%,#dc5a08 100%)}
 .btn-ghost{color:var(--text2)}
 .btn-ghost:hover{background:var(--bg2)}
 
@@ -246,33 +246,34 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .bnav-step:active{color:var(--accent);background:var(--accent-bg)}
 .bnav-next{
   width:42px;
-  background:linear-gradient(180deg,#4a90d9 0%,#1a5fa8 60%,#123f7a 100%);
-  color:#e8f4ff;
+  background:linear-gradient(180deg,#6aaee8 0%,#3578c8 55%,#1e5aab 100%);
+  color:#eef6ff;
   border-left:none!important;
   border-radius:10px 0 0 10px;
   margin:6px 0 6px 0;
   font-weight:700;font-size:22px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.25),0 3px 8px rgba(18,63,122,.45),0 1px 2px rgba(0,0,0,.2);
-  border:1px solid rgba(10,40,90,.55);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.2),0 3px 8px rgba(30,90,171,.4),0 1px 2px rgba(0,0,0,.18);
+  border:1px solid rgba(15,50,110,.5);
   border-right:none;
-  text-shadow:0 1px 2px rgba(0,0,0,.3);
+  text-shadow:0 1px 2px rgba(0,0,0,.25);
+  user-select:none;-webkit-user-select:none;
 }
 .bnav-next:active{
-  background:linear-gradient(180deg,#1a5fa8 0%,#123f7a 100%);
-  box-shadow:inset 0 2px 5px rgba(0,0,0,.35),0 1px 2px rgba(18,63,122,.3);
+  background:linear-gradient(180deg,#3578c8 0%,#1e5aab 100%);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.3),0 1px 2px rgba(30,90,171,.25);
   transform:translateY(1px);
-  color:#c8e4ff;
+  color:#d0e8ff;
 }
 html.dark .bnav-next{
-  background:linear-gradient(180deg,#2d6db5 0%,#1a4d8a 60%,#0f3060 100%);
-  color:#cce4ff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.15),inset 0 -1px 0 rgba(0,0,0,.4),0 3px 8px rgba(0,20,60,.6),0 1px 2px rgba(0,0,0,.35);
+  background:linear-gradient(180deg,#4a8fd4 0%,#2866b8 55%,#1a4d96 100%);
+  color:#d8edff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.35),0 3px 8px rgba(0,20,60,.55),0 1px 2px rgba(0,0,0,.3);
   border-color:rgba(255,255,255,.1);
-  text-shadow:0 1px 3px rgba(0,0,0,.5);
+  text-shadow:0 1px 3px rgba(0,0,0,.45);
 }
 html.dark .bnav-next:active{
-  background:linear-gradient(180deg,#1a4d8a 0%,#0f3060 100%);
-  box-shadow:inset 0 2px 5px rgba(0,0,0,.5);
+  background:linear-gradient(180deg,#2866b8 0%,#1a4d96 100%);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.45);
 }
 /* Browser mode (非PWA): safe-area値が0のためenv()に依存せず固定値で統一 */
 @media (max-width:768px){
@@ -553,15 +554,16 @@ html.dark .bnav-next:active{
 .del-btn{
   font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;
   font-family:var(--font);touch-action:manipulation;
-  background:var(--bg2);
-  border:1px solid var(--border);
-  color:var(--text2);
-  box-shadow:0 1px 3px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5);
+  background:#fef2f2;
+  border:1px solid #fca5a5;
+  color:#b91c1c;
+  box-shadow:0 1px 3px rgba(185,28,28,.1),inset 0 1px 0 rgba(255,255,255,.6);
   transition:background .12s,box-shadow .12s;
 }
-.del-btn:hover{background:var(--bg3,#e8e8e8);border-color:var(--text3);}
-.del-btn:active{box-shadow:inset 0 1px 3px rgba(0,0,0,.12);transform:translateY(1px);}
-html.dark .del-btn{box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);}
+.del-btn:hover{background:#fee2e2;border-color:#f87171;}
+.del-btn:active{box-shadow:inset 0 1px 3px rgba(185,28,28,.15);transform:translateY(1px);}
+html.dark .del-btn{background:#2a1515;border-color:#7f1d1d;color:#fca5a5;box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);}
+html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 /* Task row edit button (mobile only) */
 .trow-edit-btn{display:none}
 @media(max-width:768px){
@@ -5269,23 +5271,30 @@ async function init(){
       const botnav=document.getElementById('botnav');
       if(!botnav)return;
       let _lpt=null,_lpmoved=false,_lpsx=0,_lpsy=0;
+      const lockSel=()=>{document.documentElement.style.webkitUserSelect='none';document.documentElement.style.userSelect='none';};
+      const unlockSel=()=>{document.documentElement.style.webkitUserSelect='';document.documentElement.style.userSelect='';};
+      const _preventCtx=e=>{if(_lpt!=null)e.preventDefault();};
+      document.addEventListener('contextmenu',_preventCtx,{passive:false});
+      document.addEventListener('selectstart',e=>{if(_lpt!=null)e.preventDefault();},{passive:false});
       botnav.addEventListener('touchstart',e=>{
         if(!e.target.closest('.bnav-next'))return;
         _lpmoved=false;_lpsx=e.touches[0].clientX;_lpsy=e.touches[0].clientY;
+        lockSel();
         _lpt=setTimeout(()=>{
-          if(_lpmoved)return;
-          _lpt=null;
+          if(_lpmoved){unlockSel();return;}
+          _lpt=null;unlockSel();
           playSE('toggle');S.sidebarOpen=true;render();
         },500);
       },{passive:true});
       botnav.addEventListener('touchmove',e=>{
-        if(!_lpt)return;
+        if(_lpt==null)return;
         if(Math.abs(e.touches[0].clientX-_lpsx)>8||Math.abs(e.touches[0].clientY-_lpsy)>8){
-          _lpmoved=true;clearTimeout(_lpt);_lpt=null;
+          _lpmoved=true;clearTimeout(_lpt);_lpt=null;unlockSel();
         }
       },{passive:true});
-      botnav.addEventListener('touchend',()=>{if(_lpt){clearTimeout(_lpt);_lpt=null;}},{passive:true});
-      botnav.addEventListener('touchcancel',()=>{if(_lpt){clearTimeout(_lpt);_lpt=null;}},{passive:true});
+      const endLp=()=>{if(_lpt!=null){clearTimeout(_lpt);_lpt=null;}unlockSel();};
+      botnav.addEventListener('touchend',endLp,{passive:true});
+      botnav.addEventListener('touchcancel',endLp,{passive:true});
     })();
   }catch(err){
     console.error(err);
