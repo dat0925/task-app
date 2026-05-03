@@ -3196,11 +3196,12 @@ async function handleBulkEdit(field){
         +'<button class="btn btn-ghost" id="bulk-date-clr">クリア</button>'
         +'<button class="btn btn-ghost" id="bulk-date-cancel">キャンセル</button>'
       +'</div></div>';
-    document.body.appendChild(ov);
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
     const doApply=async(val)=>{ov.remove();for(const t of tasks){t[field]=val||null;await saveTask(t);}toast(tasks.length+'件を更新しました');render();};
-    document.getElementById('bulk-date-cancel').onclick=()=>ov.remove();
-    document.getElementById('bulk-date-clr').onclick=()=>doApply(null);
-    document.getElementById('bulk-date-ok').onclick=()=>doApply(document.getElementById('bulk-date-inp').value);
+    ov.querySelector('#bulk-date-cancel').onclick=()=>ov.remove();
+    ov.querySelector('#bulk-date-clr').onclick=()=>doApply(null);
+    ov.querySelector('#bulk-date-ok').onclick=()=>doApply(ov.querySelector('#bulk-date-inp').value);
   } else if(field==='tags'){
     const ov=document.createElement('div');ov.className='overlay';
     ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括追加</div>'
@@ -3211,12 +3212,13 @@ async function handleBulkEdit(field){
         +'<button class="btn btn-primary" id="bulk-tag-ok">追加</button>'
         +'<button class="btn btn-ghost" id="bulk-tag-cancel">キャンセル</button>'
       +'</div></div>';
-    document.body.appendChild(ov);
-    document.getElementById('bulk-tag-cancel').onclick=()=>ov.remove();
-    document.getElementById('bulk-tag-ok').onclick=async()=>{
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+    ov.querySelector('#bulk-tag-cancel').onclick=()=>ov.remove();
+    ov.querySelector('#bulk-tag-ok').onclick=async()=>{
       const checked=[...ov.querySelectorAll('input[data-tag]:checked')].map(i=>i.dataset.tag);
       ov.remove();if(!checked.length)return;
-      for(const t of tasks){checked.forEach(tid=>{if(!t.tagIds.includes(tid))t.tagIds.push(tid);});await saveTask(t);}
+      for(const t of tasks){if(!t.tagIds)t.tagIds=[];checked.forEach(tid=>{if(!t.tagIds.includes(tid))t.tagIds.push(tid);});await saveTask(t);}
       toast(tasks.length+'件にタグを追加しました');render();
     };
   } else if(field==='project'){
@@ -3229,10 +3231,11 @@ async function handleBulkEdit(field){
         +'<button class="btn btn-primary" id="bulk-proj-ok">設定する</button>'
         +'<button class="btn btn-ghost" id="bulk-proj-cancel">キャンセル</button>'
       +'</div></div>';
-    document.body.appendChild(ov);
-    document.getElementById('bulk-proj-cancel').onclick=()=>ov.remove();
-    document.getElementById('bulk-proj-ok').onclick=async()=>{
-      const val=document.getElementById('bulk-proj-sel').value||null;ov.remove();
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+    ov.querySelector('#bulk-proj-cancel').onclick=()=>ov.remove();
+    ov.querySelector('#bulk-proj-ok').onclick=async()=>{
+      const val=ov.querySelector('#bulk-proj-sel').value||null;ov.remove();
       for(const t of tasks){t.projectId=val;if(!val)t.sectionId=null;await saveTask(t);}
       toast(tasks.length+'件を更新しました');render();
     };
@@ -3246,10 +3249,11 @@ async function handleBulkEdit(field){
         +'<button class="btn btn-primary" id="bulk-rep-ok">設定する</button>'
         +'<button class="btn btn-ghost" id="bulk-rep-cancel">キャンセル</button>'
       +'</div></div>';
-    document.body.appendChild(ov);
-    document.getElementById('bulk-rep-cancel').onclick=()=>ov.remove();
-    document.getElementById('bulk-rep-ok').onclick=async()=>{
-      const val=document.getElementById('bulk-rep-sel').value||null;ov.remove();
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+    ov.querySelector('#bulk-rep-cancel').onclick=()=>ov.remove();
+    ov.querySelector('#bulk-rep-ok').onclick=async()=>{
+      const val=ov.querySelector('#bulk-rep-sel').value||null;ov.remove();
       for(const t of tasks){t.repeatRule=val;await saveTask(t);}
       toast(tasks.length+'件を更新しました');render();
     };
