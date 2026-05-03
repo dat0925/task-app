@@ -246,29 +246,33 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .bnav-step:active{color:var(--accent);background:var(--accent-bg)}
 .bnav-next{
   width:42px;
-  background:linear-gradient(180deg,#f0f0f0 0%,#d8d8d8 100%);
-  color:#555;
+  background:linear-gradient(180deg,#4a90d9 0%,#1a5fa8 60%,#123f7a 100%);
+  color:#e8f4ff;
   border-left:none!important;
   border-radius:10px 0 0 10px;
   margin:6px 0 6px 0;
   font-weight:700;font-size:22px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 2px 4px rgba(0,0,0,.18),0 1px 2px rgba(0,0,0,.12);
-  border:1px solid rgba(0,0,0,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.25),0 3px 8px rgba(18,63,122,.45),0 1px 2px rgba(0,0,0,.2);
+  border:1px solid rgba(10,40,90,.55);
   border-right:none;
+  text-shadow:0 1px 2px rgba(0,0,0,.3);
 }
 .bnav-next:active{
-  background:linear-gradient(180deg,#d0d0d0 0%,#c0c0c0 100%);
-  box-shadow:inset 0 2px 4px rgba(0,0,0,.15);
+  background:linear-gradient(180deg,#1a5fa8 0%,#123f7a 100%);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.35),0 1px 2px rgba(18,63,122,.3);
   transform:translateY(1px);
+  color:#c8e4ff;
 }
 html.dark .bnav-next{
-  background:linear-gradient(180deg,#4a4a4a 0%,#333 100%);
-  color:#ccc;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 2px 4px rgba(0,0,0,.4);
-  border-color:rgba(255,255,255,.08);
+  background:linear-gradient(180deg,#2d6db5 0%,#1a4d8a 60%,#0f3060 100%);
+  color:#cce4ff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.15),inset 0 -1px 0 rgba(0,0,0,.4),0 3px 8px rgba(0,20,60,.6),0 1px 2px rgba(0,0,0,.35);
+  border-color:rgba(255,255,255,.1);
+  text-shadow:0 1px 3px rgba(0,0,0,.5);
 }
 html.dark .bnav-next:active{
-  background:linear-gradient(180deg,#3a3a3a 0%,#2a2a2a 100%);
+  background:linear-gradient(180deg,#1a4d8a 0%,#0f3060 100%);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.5);
 }
 /* Browser mode (非PWA): safe-area値が0のためenv()に依存せず固定値で統一 */
 @media (max-width:768px){
@@ -2912,12 +2916,12 @@ function renderReview(){
   h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><div><div style="font-size:17px;font-weight:700;margin-bottom:3px">週次レビュー</div><div style="font-size:13px;color:var(--text3)">見落としを確認しましょう</div></div><button class="rv-btn" data-a="rv-done">✓ 完了</button></div>';
   if(overdue.length){
     h+='<div class="rv-card"><div class="rv-card-head"><span class="rv-card-title">期限切れ</span><span class="rv-badge rv-red">'+overdue.length+'件</span></div>';
-    overdue.forEach(t=>{h+='<div class="rv-item" data-a="sel" data-id="'+t.id+'" style="cursor:pointer"><span style="color:var(--p1)">!</span><span style="flex:1">'+esc(t.title)+'</span><span class="xs muted">'+fmtDate(t.dueAt)+'</span></div>'});
+    overdue.forEach(t=>{h+='<div class="rv-item" data-a="sel-edit" data-id="'+t.id+'" style="cursor:pointer"><span style="color:var(--p1)">!</span><span style="flex:1">'+esc(t.title)+'</span><span class="xs muted">'+fmtDate(t.dueAt)+'</span></div>'});
     h+='</div>';
   }
   if(stale.length){
     h+='<div class="rv-card"><div class="rv-card-head"><span class="rv-card-title">停滞タスク（7日以上）</span><span class="rv-badge rv-yellow">'+stale.length+'件</span></div>';
-    stale.forEach(t=>{h+='<div class="rv-item" data-a="sel" data-id="'+t.id+'" style="cursor:pointer"><span>📌</span><span style="flex:1">'+esc(t.title)+'</span></div>'});
+    stale.forEach(t=>{h+='<div class="rv-item" data-a="sel-edit" data-id="'+t.id+'" style="cursor:pointer"><span>📌</span><span style="flex:1">'+esc(t.title)+'</span></div>'});
     h+='</div>';
   }
   if(rvProjs.length){
@@ -5260,6 +5264,29 @@ async function init(){
     renderInstant();
     applySettings();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    // ===== BNAV-NEXT LONG-PRESS → SIDEBAR =====
+    (()=>{
+      const botnav=document.getElementById('botnav');
+      if(!botnav)return;
+      let _lpt=null,_lpmoved=false,_lpsx=0,_lpsy=0;
+      botnav.addEventListener('touchstart',e=>{
+        if(!e.target.closest('.bnav-next'))return;
+        _lpmoved=false;_lpsx=e.touches[0].clientX;_lpsy=e.touches[0].clientY;
+        _lpt=setTimeout(()=>{
+          if(_lpmoved)return;
+          _lpt=null;
+          playSE('toggle');S.sidebarOpen=true;render();
+        },500);
+      },{passive:true});
+      botnav.addEventListener('touchmove',e=>{
+        if(!_lpt)return;
+        if(Math.abs(e.touches[0].clientX-_lpsx)>8||Math.abs(e.touches[0].clientY-_lpsy)>8){
+          _lpmoved=true;clearTimeout(_lpt);_lpt=null;
+        }
+      },{passive:true});
+      botnav.addEventListener('touchend',()=>{if(_lpt){clearTimeout(_lpt);_lpt=null;}},{passive:true});
+      botnav.addEventListener('touchcancel',()=>{if(_lpt){clearTimeout(_lpt);_lpt=null;}},{passive:true});
+    })();
   }catch(err){
     console.error(err);
     document.getElementById('layout').innerHTML=
