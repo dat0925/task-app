@@ -2685,6 +2685,8 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="project">PJ</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="repeat">繰返</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="flag">🚩</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="complete" style="color:var(--green)">✓ 完了</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="delete" style="color:var(--p1)">🗑 削除</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-cancel" style="margin-left:auto;border-color:var(--p1);color:var(--p1)">✕ 終了</button>';
     return;
   }
@@ -2731,7 +2733,6 @@ function renderRow(task){
 
   let html='<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
     +(S.view==='project'&&!S.selectMode?'<span class="task-drag-handle" title="ドラッグで並び替え">⠿</span>':'')
-    +(S.selectMode?'<div class="bulk-sel-circle">'+(isSel?'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</div>':'')
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'"'+(S.selectMode?' style="pointer-events:none"':'')+' >'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
       +'<div class="ttitle" data-title-edit="'+task.id+'"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
@@ -3261,6 +3262,18 @@ async function handleBulkEdit(field){
     const anyUnflagged=tasks.some(t=>!t.flagged);
     for(const t of tasks){t.flagged=anyUnflagged;await saveTask(t);}
     toast(tasks.length+'件を'+(anyUnflagged?'フラグ付き':'フラグなし')+'に設定しました');render();
+  } else if(field==='complete'){
+    openConfirmModal(tasks.length+'件を完了にする',tasks.length+'件のタスクを完了にしますか？',async()=>{
+      for(const t of tasks){t.status='completed';t.completedAt=now();await saveTask(t);}
+      S.selectMode=false;S.selectedIds=[];
+      toast(tasks.length+'件を完了にしました');render();
+    },'完了にする',false);
+  } else if(field==='delete'){
+    openConfirmModal(tasks.length+'件を削除',tasks.length+'件のタスクを削除しますか？この操作は取り消せません。',async()=>{
+      for(const t of tasks)await delTask(t.id);
+      S.selectMode=false;S.selectedIds=[];
+      toast(tasks.length+'件を削除しました');render();
+    });
   }
 }
 
