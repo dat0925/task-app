@@ -698,8 +698,18 @@ html.dark .del-btn{box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,25
 .sub-toggle-btn{background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:1px;color:inherit;padding:0;font-size:11px;line-height:inherit}
 /* 一括編集 */
 .trow.bulk-sel{background:var(--accent-bg)!important;outline:1.5px solid var(--accent);border-radius:7px}
-.bulk-sel-circle{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:transparent;transition:all .15s;pointer-events:none}
-.trow.bulk-sel .bulk-sel-circle{border-color:var(--accent);background:var(--accent);color:#fff}
+/* フィルタ・並び替えアイコンボタン */
+.tf-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:28px;border-radius:6px;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text3);transition:all .15s;touch-action:manipulation;flex-shrink:0}
+.tf-icon-btn:hover{border-color:var(--text2);color:var(--text2)}
+.tf-icon-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+/* フィルタ・並び替えポップアップ */
+.tf-popup{position:fixed;z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.18);padding:5px;min-width:180px}
+.tf-popup-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text);transition:background .12s;touch-action:manipulation;user-select:none}
+.tf-popup-item:hover,.tf-popup-item:active{background:var(--bg2)}
+.tf-popup-check{color:var(--accent);font-size:13px;font-weight:700;flex-shrink:0;width:14px;text-align:center;opacity:0}
+.tf-popup-check.on{opacity:1}
+.tf-popup-sep{height:1px;background:var(--border);margin:4px 2px}
+.tf-popup-label{font-size:10px;font-weight:700;color:var(--text3);padding:6px 12px 2px;text-transform:uppercase;letter-spacing:.6px}
 .sec-drag-handle{
   cursor:grab;color:var(--text3);font-size:16px;
   padding:0 2px;flex-shrink:0;line-height:1;
@@ -1029,6 +1039,7 @@ let S={
   secCollapsed:JSON.parse(localStorage.getItem('secCollapsed')||'{}'),
   openSubs:{},
   selectMode:false,selectedIds:[],
+  filterTagId:null,
 };
 
 // ===== PWA vs ブラウザ検出 =====
@@ -1317,6 +1328,7 @@ function getTasks(){
   else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
   if(S.hideNotStarted){const t2=today();tasks=tasks.filter(x=>!x.startAt||x.startAt<=t2||x.status==='completed')}
+  if(S.filterTagId&&S.view!=='tag')tasks=tasks.filter(x=>x.tagIds&&x.tagIds.includes(S.filterTagId));
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   if(S.sort==='startAt') return tasks.sort((a,b)=>{if(!a.startAt&&!b.startAt)return 0;if(!a.startAt)return 1;if(!b.startAt)return -1;return a.startAt.localeCompare(b.startAt);});
   return tasks.sort((a,b)=>(a.order||0)-(b.order||0));
@@ -2690,11 +2702,64 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-cancel" style="margin-left:auto;border-color:var(--p1);color:var(--p1)">✕ 終了</button>';
     return;
   }
-  tf.innerHTML='<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="tog-hide-notstarted">現在</button>'
-    +'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="tog-completed">'+(S.showCompleted?'✓ 完了':'○ 完了')+'</button>'
-    +'<button class="toggle-completed-btn'+(S.sort==='startAt'?' active':'')+'" data-a="tog-sort-start">'+(S.sort==='startAt'?'↓ 開始':'↕ 開始')+'</button>'
-    +'<button class="toggle-completed-btn'+(S.sort==='updated'?' active':'')+'" data-a="tog-sort">'+(S.sort==='updated'?'↓ 更新':'↕ 更新')+'</button>'
-    +'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto" title="複数選択">☑</button>';
+  const filterOn=S.hideNotStarted||S.showCompleted||!!S.filterTagId;
+  const sortOn=S.sort!=='order';
+  const ICON_FILTER='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
+  const ICON_SORT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 6h13M8 12h9M8 18h5"/><polyline points="3 6 3 3 6 3"/><polyline points="3 18 3 21 6 21"/></svg>';
+  tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
+    +'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>'
+    +'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>';
+}
+
+function _closeTfPopups(){document.querySelectorAll('.tf-popup').forEach(p=>p.remove());}
+function _tfPopupPos(pop,btn){
+  const r=btn.getBoundingClientRect();
+  const pw=200;
+  let left=r.left;
+  left=Math.max(8,Math.min(left,window.innerWidth-pw-8));
+  Object.assign(pop.style,{position:'fixed',top:(r.bottom+6)+'px',left:left+'px',width:pw+'px'});
+}
+function openFilterPopup(btn){
+  if(document.querySelector('.tf-popup.filter-pop')){_closeTfPopups();return;}
+  _closeTfPopups();
+  const pop=document.createElement('div');pop.className='tf-popup filter-pop';
+  const tags=S.tags;
+  pop.innerHTML=
+    '<div class="tf-popup-item" data-a="fpop-toggle" data-key="hideNotStarted">'
+      +'<span>現在（開始前を除外）</span><span class="tf-popup-check'+(S.hideNotStarted?' on':'')+'">✓</span>'
+    +'</div>'
+    +'<div class="tf-popup-item" data-a="fpop-toggle" data-key="showCompleted">'
+      +'<span>完了を表示</span><span class="tf-popup-check'+(S.showCompleted?' on':'')+'">✓</span>'
+    +'</div>'
+    +(tags.length
+      ?'<div class="tf-popup-sep"></div><div class="tf-popup-label">タグで絞り込み</div>'
+        +'<div class="tf-popup-item" data-a="fpop-tag" data-id="">'
+          +'<span>すべて</span><span class="tf-popup-check'+(!S.filterTagId?' on':'')+'">✓</span>'
+        +'</div>'
+        +tags.map(t=>'<div class="tf-popup-item" data-a="fpop-tag" data-id="'+t.id+'">'
+          +'<span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:'+t.color+';flex-shrink:0;display:inline-block"></span>'+esc(t.name)+'</span>'
+          +'<span class="tf-popup-check'+(S.filterTagId===t.id?' on':'')+'">✓</span>'
+        +'</div>').join('')
+      :'');
+  document.body.appendChild(pop);_tfPopupPos(pop,btn);
+  setTimeout(()=>{
+    function h(e){if(!pop.contains(e.target)&&e.target!==btn){_closeTfPopups();document.removeEventListener('click',h);document.removeEventListener('touchend',h);}}
+    document.addEventListener('click',h);document.addEventListener('touchend',h);
+  },0);
+}
+function openSortPopup(btn){
+  if(document.querySelector('.tf-popup.sort-pop')){_closeTfPopups();return;}
+  _closeTfPopups();
+  const pop=document.createElement('div');pop.className='tf-popup sort-pop';
+  const opts=[['order','デフォルト'],['startAt','開始日'],['updated','更新日']];
+  pop.innerHTML=opts.map(([v,l])=>'<div class="tf-popup-item" data-a="spop-sort" data-val="'+v+'">'
+    +'<span>'+l+'</span><span class="tf-popup-check'+(S.sort===v?' on':'')+'">✓</span>'
+  +'</div>').join('');
+  document.body.appendChild(pop);_tfPopupPos(pop,btn);
+  setTimeout(()=>{
+    function h(e){if(!pop.contains(e.target)&&e.target!==btn){_closeTfPopups();document.removeEventListener('click',h);document.removeEventListener('touchend',h);}}
+    document.addEventListener('click',h);document.addEventListener('touchend',h);
+  },0);
 }
 
 function renderRow(task){
@@ -3811,6 +3876,24 @@ else if(a==='sel-edit'){
   else if(a==='tog-hide-notstarted'){S.hideNotStarted=!S.hideNotStarted;renderContent()}
   else if(a==='tog-sort'){S.sort=S.sort==='updated'?'order':'updated';renderContent()}
   else if(a==='tog-sort-start'){S.sort=S.sort==='startAt'?'order':'startAt';renderContent()}
+  else if(a==='tog-filter-btn'){openFilterPopup(el);}
+  else if(a==='tog-sort-btn'){openSortPopup(el);}
+  else if(a==='fpop-toggle'){
+    const key=el.dataset.key;
+    if(key==='hideNotStarted')S.hideNotStarted=!S.hideNotStarted;
+    else if(key==='showCompleted')S.showCompleted=!S.showCompleted;
+    el.querySelector('.tf-popup-check').classList.toggle('on');
+    renderTaskFilters();renderContent();
+  }
+  else if(a==='fpop-tag'){
+    const id=el.dataset.id||null;
+    S.filterTagId=id;
+    _closeTfPopups();renderTaskFilters();renderContent();
+  }
+  else if(a==='spop-sort'){
+    S.sort=el.dataset.val||'order';
+    _closeTfPopups();renderTaskFilters();renderContent();
+  }
   else if(a==='tog-select-mode'){
     S.selectMode=!S.selectMode;
     if(!S.selectMode){S.selectedIds=[];S.drawerOpen=false;S.taskId=null;}
