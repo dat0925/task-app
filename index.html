@@ -1482,6 +1482,24 @@ function showTagEditPopup(btn,tagId,tagName){
     const span=document.querySelector('.tag-name-label[data-tag-id="'+tagId+'"]');
     if(span)startTagRename(span);
   };
+  const colorBtn=document.createElement('button');
+  colorBtn.innerHTML='🎨 カラー変更';
+  colorBtn.onclick=ev=>{
+    ev.stopPropagation();popup.remove();
+    const tag=S.tags.find(x=>x.id===tagId);if(!tag)return;
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">タグのカラー変更</div>'
+      +'<div class="fg"><label class="flabel">カラー</label><input type="color" id="m-color" value="'+tag.color+'" style="width:100%;height:44px;border:none;border-radius:6px;cursor:pointer;padding:2px"></div>'
+      +'<div class="modal-foot"><button class="btn btn-ghost" id="m-cancel">キャンセル</button><button class="btn btn-primary" id="m-ok">変更</button></div>'
+      +'</div>';
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    document.getElementById('m-cancel').onclick=()=>ov.remove();
+    document.getElementById('m-ok').onclick=async()=>{
+      tag.color=document.getElementById('m-color').value;
+      await saveTag(tag);ov.remove();render();
+    };
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  };
   const delBtn=document.createElement('button');
   delBtn.className='red';delBtn.innerHTML='🗑 削除';
   delBtn.onclick=ev=>{
@@ -1493,7 +1511,7 @@ function showTagEditPopup(btn,tagId,tagName){
       render();
     },'削除',true);
   };
-  popup.appendChild(renameBtn);popup.appendChild(delBtn);
+  popup.appendChild(renameBtn);popup.appendChild(colorBtn);popup.appendChild(delBtn);
   document.body.appendChild(popup);
   const r=btn.getBoundingClientRect();
   const pw=popup.offsetWidth||140;
@@ -1658,6 +1676,25 @@ function showProjEditPopup(btn, projId, projName){
     if(span)startProjRename(span);
   };
 
+  const colorBtn=document.createElement('button');
+  colorBtn.innerHTML='🎨 カラー変更';
+  colorBtn.onclick=ev=>{
+    ev.stopPropagation();popup.remove();
+    const proj=S.projects.find(x=>x.id===projId);if(!proj)return;
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">プロジェクトのカラー変更</div>'
+      +'<div class="fg"><label class="flabel">カラー</label><input type="color" id="m-color" value="'+proj.color+'" style="width:100%;height:44px;border:none;border-radius:6px;cursor:pointer;padding:2px"></div>'
+      +'<div class="modal-foot"><button class="btn btn-ghost" id="m-cancel">キャンセル</button><button class="btn btn-primary" id="m-ok">変更</button></div>'
+      +'</div>';
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    document.getElementById('m-cancel').onclick=()=>ov.remove();
+    document.getElementById('m-ok').onclick=async()=>{
+      proj.color=document.getElementById('m-color').value;
+      await saveProject(proj);ov.remove();render();
+    };
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  };
+
   const hideBtn=document.createElement('button');
   hideBtn.innerHTML='🙈 非表示にする';
   hideBtn.onclick=async ev=>{
@@ -1679,6 +1716,7 @@ function showProjEditPopup(btn, projId, projName){
   };
 
   popup.appendChild(renameBtn);
+  popup.appendChild(colorBtn);
   popup.appendChild(hideBtn);
   popup.appendChild(delBtn);
   document.body.appendChild(popup);
