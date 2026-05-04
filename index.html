@@ -194,6 +194,20 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-hist-expr{flex:1;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px}
 .calc-hist-paste{flex-shrink:0;font-size:10px;padding:2px 7px;border-radius:4px;background:var(--bg2);border:1px solid var(--border);color:var(--text3);cursor:pointer;touch-action:manipulation}
 .calc-hist-paste:hover{background:var(--bg3);color:var(--text)}
+/* Calculator global drawer */
+.calc-drawer-ov{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.38);opacity:0;pointer-events:none;transition:opacity .28s}
+.calc-drawer-ov.open{opacity:1;pointer-events:auto}
+.calc-drawer{position:fixed;top:0;right:0;height:100%;width:340px;z-index:801;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden;box-shadow:-4px 0 24px rgba(0,0,0,.1)}
+.calc-drawer.open{transform:translateX(0)}
+@media(max-width:768px){.calc-drawer{width:75vw}}
+.calc-drawer-head{display:flex;align-items:center;padding:13px 14px 11px;border-bottom:1px solid var(--border);flex-shrink:0;gap:8px}
+.calc-drawer-head-title{font-size:15px;font-weight:600;flex:1}
+.calc-drawer-close{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:17px;transition:background .15s;flex-shrink:0}
+.calc-drawer-close:hover{background:var(--bg2)}
+.calc-drawer-body{flex:1;overflow-y:auto;padding:10px}
+.calc-expr-inline{font-family:monospace;font-size:12px;color:var(--text2);text-align:right;word-break:break-all;line-height:1.4;min-height:16px;cursor:pointer;padding:2px 2px;opacity:.85;transition:opacity .1s;white-space:pre-wrap}
+.calc-expr-inline:hover{opacity:1}
+.calc-topbar-btn{}
 /* Action bar (shown on all screen sizes) */
 .mob-action-bar{display:flex;align-items:center;gap:7px;padding:7px 14px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .mob-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:7px 13px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);border:none;font-family:var(--font);transition:transform .1s,box-shadow .1s;white-space:nowrap;flex-shrink:0}
@@ -951,6 +965,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
           <input id="global-srch" type="search" placeholder="検索…" autocomplete="off">
           <button id="srch-clear" title="クリア">✕</button>
         </div>
+        <button class="icon-btn calc-topbar-btn" data-a="calc-toggle" title="電卓"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1"/><circle cx="8.5" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="17.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="17.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="17.5" r="1" fill="currentColor" stroke="none"/></svg></button>
         <button class="ai-topbar-btn" data-a="ai-open" title="AI">✦</button>
         <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:6px 10px;gap:4px;background:#3b82f6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
         <button class="btn btn-primary" data-a="newnote" title="ノートを追加" style="padding:6px 10px;gap:4px;background:#6b7280;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
@@ -976,6 +991,16 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   <div class="drawer" id="drawer" style="display:none"></div>
 
 
+</div>
+
+<!-- Calculator drawer -->
+<div class="calc-drawer-ov" id="calc-drawer-ov"></div>
+<div class="calc-drawer" id="calc-drawer-global">
+  <div class="calc-drawer-head">
+    <span class="calc-drawer-head-title">電卓</span>
+    <button class="calc-drawer-close" id="calc-drawer-close-btn">✕</button>
+  </div>
+  <div class="calc-drawer-body" id="calc-drawer-body"></div>
 </div>
 
 <!-- Mobile bottom nav -->
@@ -3145,8 +3170,6 @@ function renderNoteDrawer(){
     });
   });
   renderNtPreview();
-  // 電卓が開いていた場合は再描画後に復元
-  if(_calcOpenForId==='nt-body'&&bodyEl)_buildInlineCalc(bodyEl);
 }
 
 function renderSearch(){
@@ -3374,8 +3397,6 @@ function renderDrawer(){
       await saveTask(s);si.value='';renderDrawer();
     }
   });
-  // 電卓が開いていた場合は再描画後に復元
-  if(_calcOpenForId==='dt-notes'){const ta=document.getElementById('dt-notes');if(ta)_buildInlineCalc(ta);}
 }
 
 // ===== BULK EDIT =====
@@ -3951,11 +3972,8 @@ else if(a==='sel-edit'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(task){const d={...task,id:uid(),title:task.title+' (コピー)',createdAt:now(),updatedAt:now(),completedAt:null,order:Date.now()};await saveTask(d);S.taskId=d.id;render()}
   }
-  else if(a==='calc-open'){
-    const targetId=el.dataset.target;
-    const ctx=el.closest('.expand-modal,#drawer');
-    const ta=(ctx&&ctx.querySelector('#'+targetId))||document.getElementById(targetId);
-    toggleInlineCalc(ta);
+  else if(a==='calc-open'||a==='calc-toggle'){
+    toggleCalcDrawer();
   }
   else if(a==='del'){
     const id=el.dataset.id;
@@ -4197,20 +4215,40 @@ else if(a==='sel-edit'){
 // sidebar overlay click
 document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false;render()});
 
-// ===== INLINE CALCULATOR =====
-// Track which textarea has the calc open so it survives drawer re-renders
-let _calcOpenForId=null;
+// ===== GLOBAL CALCULATOR DRAWER =====
 let _calcState={expr:'',result:'',history:[],justEvaled:false};
+let _calcBuilt=false;
 
-function toggleInlineCalc(textareaEl){
-  const existing=textareaEl.parentElement.querySelector('.inline-calc-wrap');
-  if(existing){existing.remove();_calcOpenForId=null;return;}
-  _calcOpenForId=textareaEl.id;
-  _buildInlineCalc(textareaEl);
+function openCalcDrawer(){
+  const ov=document.getElementById('calc-drawer-ov');
+  const dr=document.getElementById('calc-drawer-global');
+  if(!ov||!dr)return;
+  if(!_calcBuilt){_buildCalcInDrawer();_calcBuilt=true;}
+  ov.classList.add('open');
+  dr.classList.add('open');
 }
 
-function _buildInlineCalc(textareaEl){
-  // restore persisted state
+function closeCalcDrawer(){
+  const ov=document.getElementById('calc-drawer-ov');
+  const dr=document.getElementById('calc-drawer-global');
+  if(ov)ov.classList.remove('open');
+  if(dr)dr.classList.remove('open');
+}
+
+function toggleCalcDrawer(){
+  const dr=document.getElementById('calc-drawer-global');
+  if(dr&&dr.classList.contains('open'))closeCalcDrawer();
+  else openCalcDrawer();
+}
+
+// close on overlay click
+document.getElementById('calc-drawer-ov')?.addEventListener('click',closeCalcDrawer);
+document.getElementById('calc-drawer-close-btn')?.addEventListener('click',closeCalcDrawer);
+
+function _buildCalcInDrawer(){
+  const container=document.getElementById('calc-drawer-body');
+  if(!container)return;
+
   let expr=_calcState.expr,result=_calcState.result,calcHistory=_calcState.history,justEvaled=_calcState.justEvaled;
 
   function saveState(){_calcState={expr,result,history:calcHistory,justEvaled};}
@@ -4247,7 +4285,6 @@ function _buildInlineCalc(textareaEl){
   }
 
   function fmtExpr(s){
-    // 数値にコンマ・演算子を表示用に変換（報告用テキスト形式）
     return s.replace(/(\d+\.?\d*)/g,m=>fmtComma(m))
             .replace(/\*/g,'×')
             .replace(/\//g,'÷');
@@ -4260,15 +4297,12 @@ function _buildInlineCalc(textareaEl){
     });
   }
 
-  const COPY_ICON_SM='<svg class="calc-expr-top-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-
   const wrap=document.createElement('div');
-  wrap.className='inline-calc-wrap';
+  wrap.className='inline-calc';
   wrap.innerHTML=
-    '<div class="inline-calc">'
-      +'<div class="calc-expr-top" title="式をコピー"><span class="calc-expr-top-text" style="color:var(--text3);font-style:italic">式がここに表示されます</span>'+COPY_ICON_SM+'</div>'
-      +'<div class="calc-hist" style="display:none"></div>'
+      '<div class="calc-hist" style="display:none"></div>'
       +'<div class="calc-display" style="cursor:default">'
+        +'<div class="calc-expr-inline" title="クリックでコピー"></div>'
         +'<div class="calc-result-wrap" title="長押しでコピー">'
           +'<div style="flex:1">'
             +'<div class="calc-result">0</div>'
@@ -4302,31 +4336,22 @@ function _buildInlineCalc(textareaEl){
         +'<button class="calc-btn" data-cv="0" style="grid-column:span 2">0</button>'
         +'<button class="calc-btn cfn" data-cv=".">.</button>'
         +'<button class="calc-btn ceq" data-cv="=">=</button>'
-      +'</div>'
-    +'</div>';
+      +'</div>';
 
-  textareaEl.insertAdjacentElement('afterend',wrap);
+  container.appendChild(wrap);
 
-  const exEl=wrap.querySelector('.calc-expr-top-text');
-  const exTopEl=wrap.querySelector('.calc-expr-top');
+  const exEl=wrap.querySelector('.calc-expr-inline');
   const reEl=wrap.querySelector('.calc-result');
   const omEl=wrap.querySelector('.calc-okuMan');
   const histEl=wrap.querySelector('.calc-hist');
 
   function upd(){
-    if(expr){
-      exEl.textContent=fmtExpr(expr);
-      exEl.style.color='';exEl.style.fontStyle='';
-    }else{
-      exEl.textContent='式がここに表示されます';
-      exEl.style.color='var(--text3)';exEl.style.fontStyle='italic';
-    }
+    exEl.textContent=expr?fmtExpr(expr):'';
     reEl.textContent=result?fmtComma(result):'0';
     omEl.textContent=result?fmtOkuMan(result):'';
     saveState();
   }
 
-  // restore display on open
   upd();
 
   function renderHist(){
@@ -4361,7 +4386,7 @@ function _buildInlineCalc(textareaEl){
   function pressAC(){expr='';result='';justEvaled=false;upd();}
   function pressPM(){const m=expr.match(/^(.*[+\-*/])?(-?)(\d+\.?\d*)$/);if(m){expr=(m[1]||'')+(m[2]==='-'?'':'-')+m[3];}else if(!expr){expr='-';}else if(expr==='-'){expr='';}const r=safeCalc(expr);if(r!=null)result=r;upd();}
 
-  // 結果エリア長押しでコピー（PC/スマホ両対応）
+  // 結果エリア長押しでコピー
   let _resLpTimer=null;
   const resWrap=wrap.querySelector('.calc-result-wrap');
   function _copyResult(){
@@ -4374,7 +4399,6 @@ function _buildInlineCalc(textareaEl){
   }
   function _resLpStart(){_resLpTimer=setTimeout(()=>{_resLpTimer=null;_copyResult();},500);}
   function _resLpEnd(){if(_resLpTimer){clearTimeout(_resLpTimer);_resLpTimer=null;}}
-  resWrap.style.cursor='pointer';
   resWrap.addEventListener('touchstart',_resLpStart,{passive:true});
   resWrap.addEventListener('touchend',_resLpEnd);
   resWrap.addEventListener('touchcancel',_resLpEnd);
@@ -4383,10 +4407,7 @@ function _buildInlineCalc(textareaEl){
   resWrap.addEventListener('mouseleave',_resLpEnd);
 
   // 式エリアクリックでコピー
-  exTopEl.addEventListener('click',()=>{
-    if(!expr)return;
-    copyText(fmtExpr(expr));
-  });
+  exEl.addEventListener('click',()=>{if(!expr)return;copyText(fmtExpr(expr));});
 
   // 税込・税抜ボタン
   function applyTax(inclusive){
