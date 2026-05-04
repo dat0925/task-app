@@ -4302,6 +4302,10 @@ function openCalcDrawer(){
   const dr=document.getElementById('calc-drawer-global');
   if(!ov||!dr)return;
   if(!_calcBuilt){_buildCalcInDrawer();_calcBuilt=true;}
+  // スマホではキーボードを閉じる
+  if(document.activeElement&&(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='TEXTAREA')){
+    document.activeElement.blur();
+  }
   ov.classList.add('open');
   dr.classList.add('open');
 }
@@ -4409,11 +4413,11 @@ function _buildCalcInDrawer(){
   const wrap=document.createElement('div');
   wrap.className='inline-calc';
   wrap.innerHTML=
-      '<div class="calc-util-row">'
+      '<div class="calc-hist" style="display:none"></div>'
+      +'<div class="calc-util-row">'
         +'<button class="calc-util-btn" id="calc-expr-clear">式をクリア</button>'
-        +'<button class="calc-util-btn" id="calc-expr-copy">式をコピー</button>'
+        +'<button class="calc-util-btn" id="calc-expr-copy">式をすべてコピー</button>'
       +'</div>'
-      +'<div class="calc-hist" style="display:none"></div>'
       +'<div class="calc-display">'
         +'<div class="calc-expr-inline"></div>'
         +'<div class="calc-result-wrap">'
@@ -4519,8 +4523,9 @@ function _buildCalcInDrawer(){
   const exCopyBtn=wrap.querySelector('#calc-expr-copy');
   exClearBtn.addEventListener('click',()=>{calcHistory=[];_calcState.history=[];renderHist();showCleared(exClearBtn);});
   exCopyBtn.addEventListener('click',()=>{
-    if(!expr)return;
-    doCopy(fmtExpr(expr),()=>showCopied(exCopyBtn,'式をコピー'));
+    if(!calcHistory.length)return;
+    const text=calcHistory.map(h=>fmtExpr(h.expr)+' = '+fmtComma(h.result)).join('\n');
+    doCopy(text,()=>showCopied(exCopyBtn,'式をすべてコピー'));
   });
 
   // 税込・税抜ボタン
