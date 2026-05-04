@@ -1530,7 +1530,7 @@ function counts(){
   const t=today();
   return{
     inbox:S.tasks.filter(x=>x.status==='inbox').length,
-    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)).length,
+    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!x.startAt||x.startAt<=t)).length,
     flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged).length,
   };
 }
