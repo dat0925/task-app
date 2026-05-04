@@ -3051,7 +3051,7 @@ function renderNoteDrawer(){
         +'<div style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(note.title||'無題')+'</div>'
       +'</div>'
       +'<div style="display:flex;gap:4px;margin-left:8px;align-items:center;flex-shrink:0">'
-        +'<button class="icon-btn" data-a="calc-open" data-target="nt-body" title="電卓"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1" fill="currentColor" stroke="none" opacity=".65"/><circle cx="8" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><rect x="14" y="16.5" width="4" height="4" rx=".8" fill="currentColor" stroke="none"/></svg></button>'
+        +'<button class="note-stamp-btn" data-a="calc-open" data-target="nt-body">電卓</button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="note-dup" data-id="'+note.id+'" title="複製"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/><rect x="11" y="11" width="11" height="11" rx="2"/></svg></button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="note-copy-url" data-id="'+note.id+'" title="URLコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
         +'<button class="del-btn hdr-btn-desktop" data-a="note-del" data-id="'+note.id+'" title="削除">削除</button>'
@@ -3137,10 +3137,10 @@ function renderNoteDrawer(){
       const s=bodyEl.selectionStart,e=bodyEl.selectionEnd;
       bodyEl.value=bodyEl.value.slice(0,s)+ins+bodyEl.value.slice(e);
       bodyEl.selectionStart=bodyEl.selectionEnd=s+ins.length;
-      bodyEl.focus();schedSave();updatePreview();
+      bodyEl.focus();schedSave();renderNtPreview();
     });
   });
-  updatePreview();
+  renderNtPreview();
   // 電卓が開いていた場合は再描画後に復元
   if(_calcOpenForId==='nt-body'&&bodyEl)_buildInlineCalc(bodyEl);
 }
@@ -3193,7 +3193,7 @@ function renderDrawer(){
       +'<button class="icon-btn" data-a="close-drawer">'+ICONS.x+'</button>'
       +'<span style="font-size:13px;font-weight:500;color:var(--text2)">タスク詳細</span>'
       +'<div style="margin-left:auto;display:flex;gap:4px;align-items:center">'
-        +'<button class="icon-btn" data-a="calc-open" data-target="dt-notes" title="電卓"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1" fill="currentColor" stroke="none" opacity=".65"/><circle cx="8" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><rect x="14" y="16.5" width="4" height="4" rx=".8" fill="currentColor" stroke="none"/></svg></button>'
+        +'<button class="note-stamp-btn" data-a="calc-open" data-target="dt-notes">電卓</button>'
         +'<div style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 6px;border-radius:8px" data-a="tog-flag" data-id="'+task.id+'" title="フラグ">'
           +'<span style="font-size:15px;line-height:1">🚩</span>'
           +'<div class="tog'+(task.flagged?' on':'')+'"></div>'
@@ -5335,14 +5335,17 @@ document.getElementById('ai-input').addEventListener('input',function(){
   const LOCK_ENABLED_KEY='focus_lock_enabled';
   const screen=document.getElementById('lockScreen');
   if(!screen)return;
-  // ロック無効 or セッション認証済み or ローカル開発環境ならスキップ
+  // ロック無効 or セッション認証済み or 直近認証済み or ローカル開発環境ならスキップ
+  const UNLOCK_TS_KEY='focus_unlocked_ts';
   const lockEnabled=localStorage.getItem(LOCK_ENABLED_KEY)!=='false';
   const isLocalhost=['localhost','127.0.0.1',''].includes(location.hostname);
-  if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'||isLocalhost){screen.style.display='none';return}
+  const recentUnlock=Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_KEY)||'0')<3600000; // 1時間以内
+  if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'||recentUnlock||isLocalhost){screen.style.display='none';return}
   function getPin(){return localStorage.getItem(PIN_KEY)||DEFAULT_PIN;}
 
   function unlock(){
     sessionStorage.setItem(SESS_KEY,'1');
+    localStorage.setItem(UNLOCK_TS_KEY,String(Date.now())); // タイムスタンプ保存
     screen.style.transition='opacity .3s';
     screen.style.opacity='0';
     setTimeout(()=>screen.style.display='none',300);
