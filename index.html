@@ -1076,8 +1076,11 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 <div class="calc-drawer" id="calc-drawer-global">
   <div class="calc-drawer-head">
     <span class="calc-drawer-head-title">電卓</span>
-    <button class="calc-drawer-close" id="calc-new-note-btn" title="新規ノート作成" style="font-size:15px">📝</button>
-    <button class="calc-drawer-close" id="calc-drawer-close-btn">✕</button>
+    <div style="margin-left:auto;display:flex;gap:5px;align-items:center">
+      <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:5px 8px;gap:4px;background:#3b82f6;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
+      <button class="btn btn-primary" data-a="newnote" title="ノートを追加" style="padding:5px 8px;gap:4px;background:#6b7280;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
+      <button class="calc-drawer-close" id="calc-drawer-close-btn">✕</button>
+    </div>
   </div>
   <div class="calc-drawer-body" id="calc-drawer-body"></div>
 </div>
@@ -1540,7 +1543,7 @@ function toast(msg,undoFn){
   el.innerHTML='<span>'+esc(msg)+'</span>';
   if(undoFn){const b=document.createElement('button');b.className='toast-undo';b.textContent='Undo';b.onclick=()=>{undoFn();el.remove()};el.appendChild(b)}
   c.appendChild(el);
-  setTimeout(()=>el.remove(),4500);
+  setTimeout(()=>el.remove(),3150);
 }
 
 // ===== SE SOUNDS =====
@@ -4377,18 +4380,11 @@ function toggleCalcDrawer(){
 document.getElementById('calc-drawer-ov')?.addEventListener('click',closeCalcDrawer);
 document.getElementById('calc-drawer-close-btn')?.addEventListener('click',closeCalcDrawer);
 
-// new note from calc drawer
-document.getElementById('calc-new-note-btn')?.addEventListener('click',async()=>{
-  if(window._noteNewRunning)return;
-  window._noteNewRunning=true;
-  closeCalcDrawer();
-  try{
-    S.view='notes';S.search='';
-    const n=mkNote();await saveNote(n);
-    S.noteId=n.id;S.noteOpen=true;render();
-    setTimeout(()=>document.getElementById('nt-title')?.focus(),80);
-  }finally{setTimeout(()=>{window._noteNewRunning=false},500);}
-});
+// calc drawer の newtask/newnote ボタンは閉じてから実行
+document.getElementById('calc-drawer-global')?.addEventListener('click',e=>{
+  const btn=e.target.closest('[data-a="newtask"],[data-a="newnote"]');
+  if(btn)closeCalcDrawer();
+},true);
 
 // Right-edge swipe (≤22px from right) → open calc drawer
 (function(){
@@ -4476,7 +4472,7 @@ function _buildCalcInDrawer(){
   function pressAnimate(btn){
     if(!btn)return;
     btn.classList.add('pressed');
-    if(getSetting('soundFx',true))window.playClick?.();
+    window.playClick?.();
     setTimeout(()=>btn.classList.remove('pressed'),160);
   }
 
@@ -5649,6 +5645,49 @@ document.getElementById('ai-input').addEventListener('input',function(){
   },{passive:false});
 })();
 
+// ===== メカニカル打鍵音（電卓・PIN画面で共用） =====
+(function(){
+  let _audioCtx=null;
+  window.playClick=function(){
+    if(!getSetting('soundFx',true))return;
+    try{
+      if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      const ctx=_audioCtx;
+      const t=ctx.currentTime;
+      const sr=ctx.sampleRate;
+      const master=ctx.createGain();
+      master.gain.value=1.0;
+      const masterLP=ctx.createBiquadFilter();
+      masterLP.type='lowpass';masterLP.frequency.value=1800;masterLP.Q.value=0.5;
+      master.connect(masterLP);masterLP.connect(ctx.destination);
+      const clickSize=Math.floor(sr*0.008);
+      const clickBuf=ctx.createBuffer(1,clickSize,sr);
+      const cData=clickBuf.getChannelData(0);
+      for(let i=0;i<clickSize;i++){const env=Math.exp(-i/(sr*0.0018));cData[i]=(Math.random()*2-1)*env;}
+      const clickSrc=ctx.createBufferSource();clickSrc.buffer=clickBuf;
+      const clickBP=ctx.createBiquadFilter();clickBP.type='bandpass';clickBP.frequency.value=2800;clickBP.Q.value=1.8;
+      const gClick=ctx.createGain();gClick.gain.setValueAtTime(0.9,t);gClick.gain.exponentialRampToValueAtTime(0.001,t+0.01);
+      clickSrc.connect(clickBP);clickBP.connect(gClick);gClick.connect(master);
+      clickSrc.start(t);clickSrc.stop(t+0.012);
+      const bodyOsc=ctx.createOscillator();bodyOsc.type='triangle';
+      bodyOsc.frequency.setValueAtTime(130,t);bodyOsc.frequency.exponentialRampToValueAtTime(75,t+0.08);
+      const gBody=ctx.createGain();gBody.gain.setValueAtTime(0.0,t);gBody.gain.linearRampToValueAtTime(0.45,t+0.003);gBody.gain.exponentialRampToValueAtTime(0.001,t+0.11);
+      bodyOsc.connect(gBody);gBody.connect(master);bodyOsc.start(t);bodyOsc.stop(t+0.12);
+      const impSize=Math.floor(sr*0.015);const impBuf=ctx.createBuffer(1,impSize,sr);const impData=impBuf.getChannelData(0);
+      for(let i=0;i<impSize;i++){const env=Math.exp(-i/(sr*0.004));impData[i]=(Math.random()*2-1)*env;}
+      const impSrc=ctx.createBufferSource();impSrc.buffer=impBuf;
+      const impBP=ctx.createBiquadFilter();impBP.type='bandpass';impBP.frequency.value=650;impBP.Q.value=1.2;
+      const gImp=ctx.createGain();gImp.gain.setValueAtTime(0.0,t);gImp.gain.linearRampToValueAtTime(0.55,t+0.001);gImp.gain.exponentialRampToValueAtTime(0.001,t+0.018);
+      impSrc.connect(impBP);impBP.connect(gImp);gImp.connect(master);impSrc.start(t+0.003);impSrc.stop(t+0.02);
+      const resSize=Math.floor(sr*0.07);const resBuf=ctx.createBuffer(1,resSize,sr);const rData=resBuf.getChannelData(0);const rf=320;
+      for(let i=0;i<resSize;i++){const env=Math.exp(-i/(sr*0.022));rData[i]=(Math.sin(2*Math.PI*rf*i/sr)+Math.sin(2*Math.PI*rf*1.98*i/sr)*0.3)*env;}
+      const resSrc=ctx.createBufferSource();resSrc.buffer=resBuf;
+      const gRes=ctx.createGain();gRes.gain.setValueAtTime(0.0,t);gRes.gain.linearRampToValueAtTime(0.18,t+0.005);gRes.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+      resSrc.connect(gRes);gRes.connect(master);resSrc.start(t+0.002);resSrc.stop(t+0.09);
+    }catch(e){}
+  };
+})();
+
 // ===== LOCK SCREEN =====
 (function(){
   const DEFAULT_PIN='7086';
@@ -5778,101 +5817,10 @@ document.getElementById('ai-input').addEventListener('input',function(){
       }
     }
   }
-  // ===== メカニカル打鍵音（深め＋カチッ） =====
-  let _audioCtx=null;
-  window.playClick = function(){
-    try{
-      if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-      const ctx=_audioCtx;
-      const t=ctx.currentTime;
-      const sr=ctx.sampleRate;
-
-      const master=ctx.createGain();
-      master.gain.value=1.0;
-      // ローパスは1800Hzまで開放 → 高域の「カチッ」を残しつつ低域も豊か
-      const masterLP=ctx.createBiquadFilter();
-      masterLP.type='lowpass';masterLP.frequency.value=1800;masterLP.Q.value=0.5;
-      master.connect(masterLP);masterLP.connect(ctx.destination);
-
-      // --- Layer 1: 「カチッ」── スイッチ接点の鋭いアタック ---
-      // 2000-3500Hz帯のノイズバースト。極短く切れよく
-      const clickSize=Math.floor(sr*0.008);
-      const clickBuf=ctx.createBuffer(1,clickSize,sr);
-      const cData=clickBuf.getChannelData(0);
-      for(let i=0;i<clickSize;i++){
-        const env=Math.exp(-i/(sr*0.0018)); // 1.8ms で急減衰
-        cData[i]=(Math.random()*2-1)*env;
-      }
-      const clickSrc=ctx.createBufferSource();
-      clickSrc.buffer=clickBuf;
-      const clickBP=ctx.createBiquadFilter();
-      clickBP.type='bandpass';clickBP.frequency.value=2800;clickBP.Q.value=1.8;
-      const gClick=ctx.createGain();
-      gClick.gain.setValueAtTime(0.9,t);
-      gClick.gain.exponentialRampToValueAtTime(0.001,t+0.01);
-      clickSrc.connect(clickBP);clickBP.connect(gClick);gClick.connect(master);
-      clickSrc.start(t);clickSrc.stop(t+0.012);
-
-      // --- Layer 2: 「コ」── 金属スプリング＋筐体の低域ボディ ---
-      // 130Hz基音→80Hzへピッチダウン。深みと重さを担う
-      const bodyOsc=ctx.createOscillator();
-      bodyOsc.type='triangle';
-      bodyOsc.frequency.setValueAtTime(130,t);
-      bodyOsc.frequency.exponentialRampToValueAtTime(75,t+0.08);
-      const gBody=ctx.createGain();
-      gBody.gain.setValueAtTime(0.0,t);
-      gBody.gain.linearRampToValueAtTime(0.45,t+0.003);
-      gBody.gain.exponentialRampToValueAtTime(0.001,t+0.11);
-      bodyOsc.connect(gBody);gBody.connect(master);
-      bodyOsc.start(t);bodyOsc.stop(t+0.12);
-
-      // --- Layer 3: 「ト」── ボトムアウト衝撃（プレートへの打撃） ---
-      // メカニカルスイッチ特有：底板に当たる硬いインパクト
-      const impSize=Math.floor(sr*0.015);
-      const impBuf=ctx.createBuffer(1,impSize,sr);
-      const impData=impBuf.getChannelData(0);
-      for(let i=0;i<impSize;i++){
-        const env=Math.exp(-i/(sr*0.004));
-        impData[i]=(Math.random()*2-1)*env;
-      }
-      const impSrc=ctx.createBufferSource();
-      impSrc.buffer=impBuf;
-      const impBP=ctx.createBiquadFilter();
-      impBP.type='bandpass';impBP.frequency.value=650;impBP.Q.value=1.2;
-      const gImp=ctx.createGain();
-      gImp.gain.setValueAtTime(0.0,t);
-      gImp.gain.linearRampToValueAtTime(0.55,t+0.001);
-      gImp.gain.exponentialRampToValueAtTime(0.001,t+0.018);
-      impSrc.connect(impBP);impBP.connect(gImp);gImp.connect(master);
-      impSrc.start(t+0.003); // アタックより3ms遅れて底打ち
-      impSrc.stop(t+0.02);
-
-      // --- Layer 4: プレート共鳴の余韻 ---
-      // メカニカルキーボードのスチールプレートが鳴く「コーン」感
-      const resSize=Math.floor(sr*0.07);
-      const resBuf=ctx.createBuffer(1,resSize,sr);
-      const rData=resBuf.getChannelData(0);
-      const rf=320;
-      for(let i=0;i<resSize;i++){
-        const env=Math.exp(-i/(sr*0.022));
-        rData[i]=(Math.sin(2*Math.PI*rf*i/sr)
-                 +Math.sin(2*Math.PI*rf*1.98*i/sr)*0.3)*env;
-      }
-      const resSrc=ctx.createBufferSource();
-      resSrc.buffer=resBuf;
-      const gRes=ctx.createGain();
-      gRes.gain.setValueAtTime(0.0,t);
-      gRes.gain.linearRampToValueAtTime(0.18,t+0.005);
-      gRes.gain.exponentialRampToValueAtTime(0.001,t+0.08);
-      resSrc.connect(gRes);gRes.connect(master);
-      resSrc.start(t+0.002);resSrc.stop(t+0.09);
-
-    }catch(e){}
-  }
   function pressKey(k){
     if(!k)return;
     k.classList.add('pressed');
-    playClick();
+    window.playClick?.();
     // 深いストロークに合わせて押し込み保持を長めに
     setTimeout(()=>k.classList.remove('pressed'),160);
     handleKey(k);
