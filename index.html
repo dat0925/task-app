@@ -138,7 +138,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 
 /* Drawer */
 .drawer{
-  width:360px;min-width:360px;
+  width:460px;min-width:460px;
   background:var(--surface);border-left:1px solid var(--border);
   display:flex;flex-direction:column;overflow:hidden;
 }
@@ -3193,11 +3193,11 @@ function renderDrawer(){
       +'<button class="icon-btn" data-a="close-drawer">'+ICONS.x+'</button>'
       +'<span style="font-size:13px;font-weight:500;color:var(--text2)">タスク詳細</span>'
       +'<div style="margin-left:auto;display:flex;gap:4px;align-items:center">'
-        +'<button class="note-stamp-btn" data-a="calc-open" data-target="dt-notes">電卓</button>'
         +'<div style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 6px;border-radius:8px" data-a="tog-flag" data-id="'+task.id+'" title="フラグ">'
           +'<span style="font-size:15px;line-height:1">🚩</span>'
           +'<div class="tog'+(task.flagged?' on':'')+'"></div>'
         +'</div>'
+        +'<button class="note-stamp-btn" data-a="calc-open" data-target="dt-notes">電卓</button>'
         +(window.innerWidth>768?'<button class="icon-btn" data-a="drawer-expand" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
         +'<button class="icon-btn hdr-btn-desktop" id="copy-url-btn" title="URLをコピー" style="font-size:14px">🔗</button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="dup" data-id="'+task.id+'" title="複製">'+ICONS.copy+'</button>'
@@ -3281,7 +3281,7 @@ function renderDrawer(){
         ?'<button class="mob-btn mob-btn-complete" data-a="complete-confirm" data-id="'+task.id+'">完了</button>'
         :'<button class="mob-btn mob-btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 戻す</button>')
       +'<button class="mob-btn mob-btn-ghost" data-a="dup" data-id="'+task.id+'">複製</button>'
-      +'<button class="mob-btn mob-btn-ghost" id="copy-url-btn-mob" style="font-size:14px;padding:10px 11px">🔗</button>'
+      +'<button class="mob-btn mob-btn-ghost" id="copy-url-btn-mob" style="font-size:14px">🔗</button>'
       +'<button class="mob-btn-close" data-a="close-drawer">✕</button>'
     +'</div>';
 
