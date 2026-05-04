@@ -179,6 +179,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-btn.cac{background:var(--accent-bg);color:var(--accent);border-color:rgba(232,93,58,.2);font-size:13px;font-weight:600}
 .calc-copy-btn{padding:10px 4px;border-radius:10px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:background .12s;touch-action:manipulation;white-space:nowrap;text-align:center;display:flex;align-items:center;justify-content:center;gap:3px}
 .calc-copy-btn:hover{background:var(--bg3);color:var(--text)}
+.calc-okuMan{font-size:10px;color:var(--text3);text-align:right;line-height:1.3;min-height:13px;font-weight:400;letter-spacing:.02em}
 .mob-only{display:none}
 .calc-result-wrap{display:flex;align-items:center;gap:6px;cursor:pointer}
 .calc-result-wrap:active .calc-result{opacity:.7}
@@ -4101,6 +4102,7 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
 // ===== INLINE CALCULATOR =====
 // Track which textarea has the calc open so it survives drawer re-renders
 let _calcOpenForId=null;
+let _calcState={expr:'',result:'',history:[],justEvaled:false};
 
 function toggleInlineCalc(textareaEl){
   const existing=textareaEl.parentElement.querySelector('.inline-calc-wrap');
@@ -4110,7 +4112,10 @@ function toggleInlineCalc(textareaEl){
 }
 
 function _buildInlineCalc(textareaEl){
-  let expr='',result='',calcHistory=[],justEvaled=false;
+  // restore persisted state
+  let expr=_calcState.expr,result=_calcState.result,calcHistory=_calcState.history,justEvaled=_calcState.justEvaled;
+
+  function saveState(){_calcState={expr,result,history:calcHistory,justEvaled};}
 
   function safeCalc(s){
     try{
@@ -4119,6 +4124,33 @@ function _buildInlineCalc(textareaEl){
       if(typeof r!=='number'||!isFinite(r))return null;
       return String(Math.round(r*1e10)/1e10);
     }catch(e){return null;}
+  }
+
+  function fmtComma(s){
+    if(s===''||s==null)return s;
+    const neg=s[0]==='-';
+    const abs=neg?s.slice(1):s;
+    const [intPart,decPart]=abs.split('.');
+    const formatted=intPart.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    return (neg?'-':'')+formatted+(decPart!=null?'.'+decPart:'');
+  }
+
+  function fmtOkuMan(s){
+    const num=parseFloat(s);
+    if(isNaN(num)||!isFinite(num))return '';
+    const abs=Math.abs(num);
+    if(abs<10000)return '';
+    const sign=num<0?'-':'';
+    const oku=Math.floor(abs/100000000);
+    const man=Math.floor((abs%100000000)/10000);
+    if(oku>0&&man>0)return sign+fmtComma(String(oku))+'億'+fmtComma(String(man))+'万';
+    if(oku>0)return sign+fmtComma(String(oku))+'億';
+    return sign+fmtComma(String(man))+'万';
+  }
+
+  function fmtExpr(s){
+    // add commas to each number literal in the expression for display
+    return s.replace(/(\d+\.?\d*)/g,m=>fmtComma(m));
   }
 
   function copyText(text){
@@ -4138,7 +4170,10 @@ function _buildInlineCalc(textareaEl){
       +'<div class="calc-display" style="cursor:default">'
         +'<div class="calc-expr"></div>'
         +'<div class="calc-result-wrap" title="結果をコピー">'
-          +'<div class="calc-result" style="flex:1">0</div>'
+          +'<div style="flex:1">'
+            +'<div class="calc-result">0</div>'
+            +'<div class="calc-okuMan"></div>'
+          +'</div>'
         +'</div>'
       +'</div>'
       +'<div class="calc-action-row">'
@@ -4174,16 +4209,25 @@ function _buildInlineCalc(textareaEl){
 
   const exEl=wrap.querySelector('.calc-expr');
   const reEl=wrap.querySelector('.calc-result');
+  const omEl=wrap.querySelector('.calc-okuMan');
   const histEl=wrap.querySelector('.calc-hist');
 
-  function upd(){exEl.textContent=expr||'';reEl.textContent=result||'0';}
+  function upd(){
+    exEl.textContent=expr?fmtExpr(expr):'';
+    reEl.textContent=result?fmtComma(result):'0';
+    omEl.textContent=result?fmtOkuMan(result):'';
+    saveState();
+  }
+
+  // restore display on open
+  upd();
 
   function renderHist(){
     if(!calcHistory.length){histEl.style.display='none';return;}
     histEl.style.display='flex';
     histEl.innerHTML=calcHistory.slice(-10).reverse().map((h,i)=>
       '<div class="calc-hist-item">'
-        +'<span class="calc-hist-expr">'+esc(h.expr)+' = '+esc(h.result)+'</span>'
+        +'<span class="calc-hist-expr">'+esc(fmtExpr(h.expr))+' = '+esc(fmtComma(h.result))+'</span>'
         +'<button class="calc-hist-paste" data-hi="'+(calcHistory.length-1-i)+'">コピー</button>'
       +'</div>'
     ).join('');
@@ -4194,6 +4238,7 @@ function _buildInlineCalc(textareaEl){
       });
     });
   }
+  renderHist();
 
   function pressNum(n){if(justEvaled){expr=n;result='';justEvaled=false;}else expr+=n;const r=safeCalc(expr);if(r!=null)result=r;upd();}
   function pressOp(op){justEvaled=false;if(expr&&'+-*/'.includes(expr.slice(-1)))expr=expr.slice(0,-1);expr+=op;upd();}
@@ -4215,11 +4260,12 @@ function _buildInlineCalc(textareaEl){
   });
   // 式コピー: "式=結果" 形式
   wrap.querySelector('.calc-cpy-expr').onclick=()=>{
-    if(expr&&result)copyText(expr.replace(/\*/g,'×').replace(/\//g,'÷')+'='+result);
-    else if(expr)copyText(expr.replace(/\*/g,'×').replace(/\//g,'÷'));
+    const dispExpr=expr.replace(/\*/g,'×').replace(/\//g,'÷');
+    if(expr&&result)copyText(fmtExpr(dispExpr)+'='+fmtComma(result));
+    else if(expr)copyText(fmtExpr(dispExpr));
   };
   // 結果コピー
-  wrap.querySelector('.calc-cpy-res').onclick=()=>{if(result)copyText(result);};
+  wrap.querySelector('.calc-cpy-res').onclick=()=>{if(result)copyText(fmtComma(result));};
 
   wrap.querySelector('.calc-action-row').addEventListener('click',e=>{
     const btn=e.target.closest('[data-cv]');if(!btn)return;
