@@ -167,7 +167,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-display{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-align:right;min-height:68px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
 .calc-expr{font-size:12px;color:var(--text3);min-height:16px;word-break:break-all;font-family:monospace}
 .calc-result{font-size:26px;font-weight:700;color:var(--text);word-break:break-all;line-height:1.2}
-.calc-action-row{display:grid;grid-template-columns:1fr 1fr 1.6fr 1.6fr;gap:5px}
+.calc-action-row{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .calc-paren-btn{padding:10px 0;border-radius:10px;font-size:18px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:background .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;-webkit-user-select:none}
 .calc-paren-btn:active{background:var(--border)}
 .calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
@@ -179,8 +179,6 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-btn.cac{background:var(--accent-bg);color:var(--accent);border-color:rgba(232,93,58,.2);font-size:13px;font-weight:600}
 .calc-copy-btn{padding:10px 4px;border-radius:10px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:background .12s;touch-action:manipulation;white-space:nowrap;text-align:center;display:flex;align-items:center;justify-content:center;gap:3px}
 .calc-copy-btn:hover{background:var(--bg3);color:var(--text)}
-/* Mobile flag bar */
-.mob-flag-bar{display:none}
 .mob-only{display:none}
 .calc-result-wrap{display:flex;align-items:center;gap:6px;cursor:pointer}
 .calc-result-wrap:active .calc-result{opacity:.7}
@@ -557,8 +555,6 @@ html.dark .bnav-next:active{
   #task-filters::-webkit-scrollbar{display:none}
   /* Safe-area padding for action bar on notch phones */
   .mob-action-bar{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
-  /* Mobile flag bar */
-  .mob-flag-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
   .mob-only{display:flex !important}
 }
 @media(min-width:769px){
@@ -3177,16 +3173,16 @@ function renderDrawer(){
     '<div class="drawer-head">'
       +'<button class="icon-btn" data-a="close-drawer">'+ICONS.x+'</button>'
       +'<span style="font-size:13px;font-weight:500;color:var(--text2)">タスク詳細</span>'
-      +'<div style="margin-left:auto;display:flex;gap:4px">'
+      +'<div style="margin-left:auto;display:flex;gap:4px;align-items:center">'
+        +'<div style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 6px;border-radius:8px" data-a="tog-flag" data-id="'+task.id+'" title="フラグ">'
+          +'<span style="font-size:15px;line-height:1">🚩</span>'
+          +'<div class="tog'+(task.flagged?' on':'')+'"></div>'
+        +'</div>'
         +(window.innerWidth>768?'<button class="icon-btn" data-a="drawer-expand" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
         +'<button class="icon-btn hdr-btn-desktop" id="copy-url-btn" title="URLをコピー" style="font-size:14px">🔗</button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="dup" data-id="'+task.id+'" title="複製">'+ICONS.copy+'</button>'
         +'<button class="del-btn hdr-btn-desktop" data-a="del-confirm-hdr" data-id="'+task.id+'" title="削除">削除</button>'
       +'</div>'
-    +'</div>'
-    +'<div class="mob-flag-bar">'
-      +'<span style="font-size:13px;font-weight:600">🚩 フラグ</span>'
-      +'<div class="tog'+(task.flagged?' on':'')+'" data-a="tog-flag" data-id="'+task.id+'" style="cursor:pointer"></div>'
     +'</div>'
     +'<div class="drawer-body">'
       +'<div class="fg"><label class="flabel">タイトル</label><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名"></div>'
@@ -3245,10 +3241,6 @@ function renderDrawer(){
           +['daily:毎日','weekdays:平日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'"'+(task.repeatRule===v?' selected':'')+'>'+l+'</option>'}).join('')
         +'</select>'
       +'</div>'
-      +'<div class="toggle-row" data-a="tog-flag" data-id="'+task.id+'">'
-        +'<span style="font-size:13px;font-weight:500">🚩 フラグ</span>'
-        +'<div class="tog'+(task.flagged?' on':'')+'"></div>'
-      +'</div>'
       +'<div class="fg"><label class="flabel">サブタスク</label>'
         +'<div id="subs">'+subs.map(s=>'<div class="sub-item"><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
         +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…" style="margin-top:6px">'
@@ -3299,6 +3291,7 @@ function renderDrawer(){
     clearTimeout(autosave._t);
     autosave._t=setTimeout(async()=>{
       const t2=S.tasks.find(x=>x.id===S.taskId);if(!t2)return;
+      const prevStatus=t2.status;
       t2.title=document.getElementById('dt-title')?.value||'';
       t2.notes=document.getElementById('dt-notes')?.value||'';
       t2.dueAt=document.getElementById('dt-due')?.value||null;
@@ -3307,15 +3300,13 @@ function renderDrawer(){
       t2.sectionId=document.getElementById('dt-sec')?.value||null;
       t2.repeatRule=document.getElementById('dt-repeat')?.value||null;
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
-      
-      const activeId=document.activeElement?.id;  // ← await の前に移動
-await saveTask(t2);
-setInd('saved');
 
-      
-      
+      const activeId=document.activeElement?.id;
+      await saveTask(t2);
+      setInd('saved');
+
       const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-sec','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
-      if(!drawerInputIds.includes(activeId)){
+      if(t2.status!==prevStatus||!drawerInputIds.includes(activeId)){
         renderSidebar();renderContent();
       }
     },400);
@@ -4230,7 +4221,7 @@ function _buildInlineCalc(textareaEl){
   // 結果コピー
   wrap.querySelector('.calc-cpy-res').onclick=()=>{if(result)copyText(result);};
 
-  wrap.querySelector('.calc-paren-row').addEventListener('click',e=>{
+  wrap.querySelector('.calc-action-row').addEventListener('click',e=>{
     const btn=e.target.closest('[data-cv]');if(!btn)return;
     pressParen(btn.dataset.cv);
   });
