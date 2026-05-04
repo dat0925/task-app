@@ -177,9 +177,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-btn.ceq{background:linear-gradient(180deg,#6aaee8 0%,#1e5aab 100%);color:#fff;border-color:rgba(15,50,110,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 5px rgba(30,90,171,.3)}
 .calc-btn.cfn{background:var(--bg3);color:var(--text2);font-size:14px}
 .calc-btn.cac{background:var(--accent-bg);color:var(--accent);border-color:rgba(232,93,58,.2);font-size:13px;font-weight:600}
-.calc-paste-row{display:flex;gap:5px}
-.calc-paste-btn{flex:1;padding:7px 4px;border-radius:8px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:background .12s;touch-action:manipulation;white-space:nowrap;text-align:center}
-.calc-paste-btn:hover{background:var(--bg3);color:var(--text)}
+.calc-copy-row{display:flex;gap:5px}
+.calc-copy-btn{flex:1;padding:7px 4px;border-radius:8px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:background .12s;touch-action:manipulation;white-space:nowrap;text-align:center;display:flex;align-items:center;justify-content:center;gap:3px}
+.calc-copy-btn:hover{background:var(--bg3);color:var(--text)}
+.calc-result-wrap{display:flex;align-items:center;gap:6px;cursor:pointer}
+.calc-result-wrap:active .calc-result{opacity:.7}
 .calc-hist{max-height:100px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg);padding:4px 8px;display:flex;flex-direction:column;gap:0}
 .calc-hist-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid var(--border)}
 .calc-hist-item:last-child{border-bottom:none}
@@ -190,8 +192,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .mob-action-bar{display:none}
 .mob-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:10px 13px;border-radius:14px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);border:none;font-family:var(--font);transition:transform .1s,box-shadow .1s;white-space:nowrap;flex-shrink:0}
 .mob-btn:active{transform:translateY(1px)}
-.mob-btn-del{background:linear-gradient(180deg,#f87171 0%,#dc2626 100%);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 3px 8px rgba(220,38,38,.3),0 1px 2px rgba(220,38,38,.2);border:1px solid rgba(150,0,0,.2)}
-.mob-btn-complete{background:linear-gradient(180deg,#4ade80 0%,#16a34a 100%);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 3px 8px rgba(22,163,74,.3),0 1px 2px rgba(22,163,74,.2);border:1px solid rgba(0,100,0,.2)}
+.mob-btn-del{background:#fde8e8;color:#c0392b;border:1px solid #f5c0c0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.mob-btn-complete{background:#e8f5ec;color:#1a7d3b;border:1px solid #b8ddc5;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .mob-btn-ghost{background:var(--bg2);color:var(--text2);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .mob-btn-close{width:44px;height:44px;padding:0;border-radius:22px;background:var(--bg2);color:var(--text2);border:1px solid var(--border);font-size:19px;box-shadow:0 1px 3px rgba(0,0,0,.08);flex-shrink:0;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);cursor:pointer;font-family:var(--font)}
 .mob-btn-close:active{transform:translateY(1px)}
@@ -3041,7 +3043,8 @@ function renderNoteDrawer(){
           +'<button class="note-stamp-btn" data-ns="datetimeweek">📅 日時</button>'
           +'<button class="note-stamp-btn" data-a="clear-note-body">クリア</button>'
           +'<button class="note-stamp-btn" data-a="copy-note-body-inline" title="メモ内容をコピー">コピー</button>'
-          +'<button class="note-stamp-btn" id="nt-link-btn">🔗 リンク</button>'
+          +'<button class="note-stamp-btn" data-a="paste-to-field" data-target="nt-body" title="クリップボードから貼り付け">貼付</button>'
+          +'<button class="note-stamp-btn" id="nt-link-btn">Link</button>'
           +'<button class="note-stamp-btn" data-a="calc-open" data-target="nt-body"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1" fill="currentColor" stroke="none" opacity=".65"/><circle cx="8" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><rect x="14" y="16.5" width="4" height="4" rx=".8" fill="currentColor" stroke="none"/></svg> 電卓</button>'
         +'</div>'
         +'<textarea class="finput" id="nt-body" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
@@ -3055,7 +3058,7 @@ function renderNoteDrawer(){
       +'</div>'
     +'</div>'
     +'<div class="mob-action-bar">'
-      +'<button class="mob-btn mob-btn-del" data-a="note-del" data-id="'+note.id+'">🗑 削除</button>'
+      +'<button class="mob-btn mob-btn-del" data-a="note-del" data-id="'+note.id+'">削除</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-dup" data-id="'+note.id+'">複製</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-copy-url" data-id="'+note.id+'">🔗 リンクコピー</button>'
       +'<button class="mob-btn-close" data-a="close-note">✕</button>'
@@ -3120,6 +3123,8 @@ function renderNoteDrawer(){
     });
   });
   updatePreview();
+  // 電卓が開いていた場合は再描画後に復元
+  if(_calcOpenForId==='nt-body'&&bodyEl)_buildInlineCalc(bodyEl);
 }
 
 function renderSearch(){
@@ -3183,7 +3188,8 @@ function renderDrawer(){
         +'<button class="note-stamp-btn" data-a="stamp" data-type="datetimeweek">📅 日時</button>'
         +'<button class="note-stamp-btn" data-a="clear-task-notes">クリア</button>'
         +'<button class="note-stamp-btn" data-a="copy-task-notes" title="メモ内容をコピー">コピー</button>'
-        +'<button class="note-stamp-btn" id="dt-link-btn">🔗 リンク</button>'
+        +'<button class="note-stamp-btn" data-a="paste-to-field" data-target="dt-notes" title="クリップボードから貼り付け">貼付</button>'
+        +'<button class="note-stamp-btn" id="dt-link-btn">Link</button>'
         +'<button class="note-stamp-btn" data-a="calc-open" data-target="dt-notes"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1" fill="currentColor" stroke="none" opacity=".65"/><circle cx="8" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><rect x="14" y="16.5" width="4" height="4" rx=".8" fill="currentColor" stroke="none"/></svg> 電卓</button>'
       +'</div>'
       +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
@@ -3255,9 +3261,9 @@ function renderDrawer(){
       +'<button class="btn btn-ghost" data-a="close-drawer" style="margin-left:auto">✕ 閉じる</button>'
     +'</div>'
     +'<div class="mob-action-bar">'
-      +'<button class="mob-btn mob-btn-del" data-a="del-confirm-hdr" data-id="'+task.id+'">🗑 削除</button>'
+      +'<button class="mob-btn mob-btn-del" data-a="del-confirm-hdr" data-id="'+task.id+'">削除</button>'
       +(!done
-        ?'<button class="mob-btn mob-btn-complete" data-a="complete-confirm" data-id="'+task.id+'">✓ 完了</button>'
+        ?'<button class="mob-btn mob-btn-complete" data-a="complete-confirm" data-id="'+task.id+'">完了</button>'
         :'<button class="mob-btn mob-btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 戻す</button>')
       +'<button class="mob-btn mob-btn-ghost" data-a="dup" data-id="'+task.id+'">複製</button>'
       +'<button class="mob-btn mob-btn-ghost" id="copy-url-btn-mob" style="font-size:14px;padding:10px 11px">🔗</button>'
@@ -3354,6 +3360,8 @@ setInd('saved');
       await saveTask(s);si.value='';renderDrawer();
     }
   });
+  // 電卓が開いていた場合は再描画後に復元
+  if(_calcOpenForId==='dt-notes'){const ta=document.getElementById('dt-notes');if(ta)_buildInlineCalc(ta);}
 }
 
 // ===== BULK EDIT =====
@@ -3705,6 +3713,20 @@ else if(a==='sel-edit'){
     navigator.clipboard?.writeText(text).then(()=>toast('メモをコピーしました 📋')).catch(()=>{
       const inp=document.createElement('textarea');inp.value=text;document.body.appendChild(inp);inp.select();document.execCommand('copy');inp.remove();toast('メモをコピーしました 📋');
     });
+  }
+  else if(a==='paste-to-field'){
+    const targetId=el.dataset.target;
+    const ctx=el.closest('.expand-modal,#drawer');
+    const ta=(ctx&&ctx.querySelector('#'+targetId))||document.getElementById(targetId);
+    if(!ta)return;
+    if(navigator.clipboard&&navigator.clipboard.readText){
+      navigator.clipboard.readText().then(text=>{
+        const s=ta.selectionStart??ta.value.length,e2=ta.selectionEnd??ta.value.length;
+        ta.value=ta.value.slice(0,s)+text+ta.value.slice(e2);
+        ta.selectionStart=ta.selectionEnd=s+text.length;
+        ta.dispatchEvent(new Event('input'));ta.focus();toast('貼り付けました');
+      }).catch(()=>toast('クリップボードへのアクセスを許可してください'));
+    } else {toast('お使いのブラウザでは貼り付けをサポートしていません');}
   }
   else if(a==='date-adj'){
     const field=el.dataset.field;
@@ -4078,12 +4100,18 @@ else if(a==='sel-edit'){
 // sidebar overlay click
 document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false;render()});
 
-// ===== CALCULATOR MODAL =====
-function toggleInlineCalc(textareaEl){
-  // Toggle: remove if already exists for this textarea
-  const existing=textareaEl.parentElement.querySelector('.inline-calc-wrap');
-  if(existing){existing.remove();return;}
+// ===== INLINE CALCULATOR =====
+// Track which textarea has the calc open so it survives drawer re-renders
+let _calcOpenForId=null;
 
+function toggleInlineCalc(textareaEl){
+  const existing=textareaEl.parentElement.querySelector('.inline-calc-wrap');
+  if(existing){existing.remove();_calcOpenForId=null;return;}
+  _calcOpenForId=textareaEl.id;
+  _buildInlineCalc(textareaEl);
+}
+
+function _buildInlineCalc(textareaEl){
   let expr='',result='',calcHistory=[],justEvaled=false;
 
   function safeCalc(s){
@@ -4095,18 +4123,29 @@ function toggleInlineCalc(textareaEl){
     }catch(e){return null;}
   }
 
+  function copyText(text){
+    if(!text)return;
+    navigator.clipboard?.writeText(text).then(()=>toast('コピーしました 📋')).catch(()=>{
+      const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('コピーしました 📋');
+    });
+  }
+
+  const COPY_ICON='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+
   const wrap=document.createElement('div');
   wrap.className='inline-calc-wrap';
   wrap.innerHTML=
     '<div class="inline-calc">'
       +'<div class="calc-hist" style="display:none"></div>'
-      +'<div class="calc-display">'
+      +'<div class="calc-display" style="cursor:default">'
         +'<div class="calc-expr"></div>'
-        +'<div class="calc-result">0</div>'
+        +'<div class="calc-result-wrap" title="結果をコピー">'
+          +'<div class="calc-result" style="flex:1">0</div>'
+        +'</div>'
       +'</div>'
-      +'<div class="calc-paste-row">'
-        +'<button class="calc-paste-btn calc-pe">📋 式を貼り付け</button>'
-        +'<button class="calc-paste-btn calc-pr">📋 結果を貼り付け</button>'
+      +'<div class="calc-copy-row">'
+        +'<button class="calc-copy-btn calc-cpy-expr">'+COPY_ICON+' 式コピー</button>'
+        +'<button class="calc-copy-btn calc-cpy-res">'+COPY_ICON+' 結果コピー</button>'
       +'</div>'
       +'<div class="calc-paren-row">'
         +'<button class="calc-paren-btn" data-cv="(">(</button>'
@@ -4149,25 +4188,15 @@ function toggleInlineCalc(textareaEl){
     histEl.innerHTML=calcHistory.slice(-10).reverse().map((h,i)=>
       '<div class="calc-hist-item">'
         +'<span class="calc-hist-expr">'+esc(h.expr)+' = '+esc(h.result)+'</span>'
-        +'<button class="calc-hist-paste" data-hi="'+(calcHistory.length-1-i)+'">貼付</button>'
+        +'<button class="calc-hist-paste" data-hi="'+(calcHistory.length-1-i)+'">コピー</button>'
       +'</div>'
     ).join('');
     histEl.querySelectorAll('[data-hi]').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const h=calcHistory[parseInt(btn.dataset.hi)];
-        if(h)pasteText(h.result);
+        if(h)copyText(h.expr+'='+h.result);
       });
     });
-  }
-
-  function pasteText(text){
-    if(!textareaEl||!text)return;
-    const s=textareaEl.selectionStart??textareaEl.value.length;
-    const e2=textareaEl.selectionEnd??textareaEl.value.length;
-    textareaEl.value=textareaEl.value.slice(0,s)+text+textareaEl.value.slice(e2);
-    textareaEl.selectionStart=textareaEl.selectionEnd=s+text.length;
-    textareaEl.dispatchEvent(new Event('input'));
-    toast('貼り付けました');
   }
 
   function pressNum(n){if(justEvaled){expr=n;result='';justEvaled=false;}else expr+=n;const r=safeCalc(expr);if(r!=null)result=r;upd();}
@@ -4184,8 +4213,17 @@ function toggleInlineCalc(textareaEl){
   function pressAC(){expr='';result='';justEvaled=false;upd();}
   function pressPM(){const m=expr.match(/^(.*[+\-*/])?(-?)(\d+\.?\d*)$/);if(m){expr=(m[1]||'')+(m[2]==='-'?'':'-')+m[3];}else if(!expr){expr='-';}else if(expr==='-'){expr='';}const r=safeCalc(expr);if(r!=null)result=r;upd();}
 
-  wrap.querySelector('.calc-pe').onclick=()=>{if(expr)pasteText(expr.replace(/\*/g,'×').replace(/\//g,'÷'));};
-  wrap.querySelector('.calc-pr').onclick=()=>{if(result)pasteText(result);};
+  // 結果エリアタップでコピー
+  wrap.querySelector('.calc-result-wrap').addEventListener('click',()=>{
+    if(result&&result!=='0')copyText(result);
+  });
+  // 式コピー: "式=結果" 形式
+  wrap.querySelector('.calc-cpy-expr').onclick=()=>{
+    if(expr&&result)copyText(expr.replace(/\*/g,'×').replace(/\//g,'÷')+'='+result);
+    else if(expr)copyText(expr.replace(/\*/g,'×').replace(/\//g,'÷'));
+  };
+  // 結果コピー
+  wrap.querySelector('.calc-cpy-res').onclick=()=>{if(result)copyText(result);};
 
   wrap.querySelector('.calc-paren-row').addEventListener('click',e=>{
     const btn=e.target.closest('[data-cv]');if(!btn)return;
