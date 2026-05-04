@@ -2807,8 +2807,7 @@ function renderTaskFilters(){
     tf.innerHTML='<span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;flex-shrink:0;padding:0 4px">'+S.selectedIds.length+'件選択</span>'
       +'<button class="toggle-completed-btn" data-a="bulk-sel-all">全選択</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-desel-all">全解除</button>'
-      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="startAt">開始日</button>'
-      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="dueAt">期限</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="dates">日付</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="tags">タグ</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="project">PJ</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="repeat">繰返</button>'
@@ -3380,22 +3379,94 @@ function renderDrawer(){
 async function handleBulkEdit(field){
   const tasks=S.tasks.filter(t=>S.selectedIds.includes(t.id));
   if(!tasks.length){toast('タスクを選択してください');return;}
-  if(field==='startAt'||field==='dueAt'){
-    const label=field==='startAt'?'開始日':'期限';
+  if(field==='dates'){
     const ov=document.createElement('div');ov.className='overlay';
-    ov.innerHTML='<div class="modal"><div class="modal-title">'+label+'を一括設定</div>'
-      +'<div class="fg"><label class="flabel">'+label+'</label><input type="date" id="bulk-date-inp" class="finput"></div>'
-      +'<div style="display:flex;gap:8px;margin-top:12px">'
-        +'<button class="btn btn-primary" id="bulk-date-ok">設定する</button>'
-        +'<button class="btn btn-ghost" id="bulk-date-clr">クリア</button>'
-        +'<button class="btn btn-ghost" id="bulk-date-cancel">キャンセル</button>'
-      +'</div></div>';
+    ov.innerHTML='<div class="modal" style="max-width:370px">'
+      +'<div class="modal-title">日付を一括設定</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin:-4px 0 12px">空欄のままにしたフィールドは変更されません</div>'
+      // 開始日
+      +'<div class="fg"><label class="flabel">開始日</label>'
+        +'<div style="display:flex;gap:4px;align-items:center">'
+          +'<input type="date" id="bulk-start-inp" class="finput" style="flex:1">'
+          +'<button class="date-clr-btn" id="bulk-start-clr" title="クリア">✕</button>'
+        +'</div>'
+        +'<div style="display:flex;gap:3px;margin-top:4px;align-items:center">'
+          +'<button class="date-adj-btn" id="bulk-sadj-d1">+1日</button>'
+          +'<button class="date-adj-btn" id="bulk-sadj-d7">+7日</button>'
+          +'<button class="date-adj-btn" id="bulk-sadj-m1">+1月</button>'
+          +'<span id="bulk-start-wd" style="font-size:12px;color:var(--text3);margin-left:auto"></span>'
+        +'</div>'
+      +'</div>'
+      // 期限
+      +'<div class="fg"><label class="flabel">期限</label>'
+        +'<div style="display:flex;gap:4px;align-items:center">'
+          +'<input type="date" id="bulk-due-inp" class="finput" style="flex:1">'
+          +'<button class="date-clr-btn" id="bulk-due-clr" title="クリア">✕</button>'
+        +'</div>'
+        +'<div style="display:flex;gap:3px;margin-top:4px;align-items:center">'
+          +'<button class="date-adj-btn" id="bulk-dadj-d1">+1日</button>'
+          +'<button class="date-adj-btn" id="bulk-dadj-d7">+7日</button>'
+          +'<button class="date-adj-btn" id="bulk-dadj-m1">+1月</button>'
+          +'<span id="bulk-due-wd" style="font-size:12px;color:var(--text3);margin-left:auto"></span>'
+        +'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;margin-top:4px">'
+        +'<button class="btn btn-primary" id="bulk-dates-ok">設定する</button>'
+        +'<button class="btn btn-ghost" id="bulk-dates-cancel">キャンセル</button>'
+      +'</div>'
+    +'</div>';
     document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
     ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
-    const doApply=async(val)=>{ov.remove();for(const t of tasks){t[field]=val||null;await saveTask(t);}toast(tasks.length+'件を更新しました');render();};
-    ov.querySelector('#bulk-date-cancel').onclick=()=>ov.remove();
-    ov.querySelector('#bulk-date-clr').onclick=()=>doApply(null);
-    ov.querySelector('#bulk-date-ok').onclick=()=>doApply(ov.querySelector('#bulk-date-inp').value);
+
+    // 状態変数・DOM参照
+    let startCleared=false,dueCleared=false;
+    const startInp=ov.querySelector('#bulk-start-inp');
+    const dueInp=ov.querySelector('#bulk-due-inp');
+    const startWd=ov.querySelector('#bulk-start-wd');
+    const dueWd=ov.querySelector('#bulk-due-wd');
+    startInp.addEventListener('change',()=>{startWd.textContent=wdStr(startInp.value);startCleared=false;});
+    dueInp.addEventListener('change',()=>{dueWd.textContent=wdStr(dueInp.value);dueCleared=false;});
+
+    // 日付調整ヘルパー（タスク詳細と同じロジック）
+    function adjBulkDate(inp,wdEl,days,months){
+      let base;
+      if(inp.value){
+        const[y,m,d]=inp.value.split('-').map(Number);
+        base=new Date(Date.UTC(y,m-1,d));
+        if(days)base.setUTCDate(base.getUTCDate()+days);
+        if(months)base.setUTCMonth(base.getUTCMonth()+months);
+      }else{
+        const n=new Date();
+        base=new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
+        if(months)base.setUTCMonth(base.getUTCMonth()+months);
+      }
+      const v=base.toISOString().slice(0,10);
+      inp.value=v;wdEl.textContent=wdStr(v);
+    }
+    ov.querySelector('#bulk-sadj-d1').onclick=()=>adjBulkDate(startInp,startWd,1,0);
+    ov.querySelector('#bulk-sadj-d7').onclick=()=>adjBulkDate(startInp,startWd,7,0);
+    ov.querySelector('#bulk-sadj-m1').onclick=()=>adjBulkDate(startInp,startWd,0,1);
+    ov.querySelector('#bulk-dadj-d1').onclick=()=>adjBulkDate(dueInp,dueWd,1,0);
+    ov.querySelector('#bulk-dadj-d7').onclick=()=>adjBulkDate(dueInp,dueWd,7,0);
+    ov.querySelector('#bulk-dadj-m1').onclick=()=>adjBulkDate(dueInp,dueWd,0,1);
+
+    // クリアボタン：フィールドを空にして「クリア確定」フラグを立てる
+    ov.querySelector('#bulk-start-clr').onclick=()=>{startInp.value='';startWd.textContent='';startCleared=true;};
+    ov.querySelector('#bulk-due-clr').onclick=()=>{dueInp.value='';dueWd.textContent='';dueCleared=true;};
+
+    ov.querySelector('#bulk-dates-cancel').onclick=()=>ov.remove();
+    ov.querySelector('#bulk-dates-ok').onclick=async()=>{
+      const sv=startInp.value,dv=dueInp.value;
+      ov.remove();
+      for(const t of tasks){
+        if(sv)t.startAt=sv;
+        else if(startCleared)t.startAt=null;
+        if(dv)t.dueAt=dv;
+        else if(dueCleared)t.dueAt=null;
+        await saveTask(t);
+      }
+      toast(tasks.length+'件を更新しました');render();
+    };
   } else if(field==='tags'){
     const ov=document.createElement('div');ov.className='overlay';
     ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括追加</div>'
