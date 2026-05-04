@@ -190,8 +190,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-hist-expr{flex:1;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px}
 .calc-hist-paste{flex-shrink:0;font-size:10px;padding:2px 7px;border-radius:4px;background:var(--bg2);border:1px solid var(--border);color:var(--text3);cursor:pointer;touch-action:manipulation}
 .calc-hist-paste:hover{background:var(--bg3);color:var(--text)}
-/* Mobile action bar */
-.mob-action-bar{display:none}
+/* Action bar (shown on all screen sizes) */
+.mob-action-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .mob-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:10px 13px;border-radius:14px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);border:none;font-family:var(--font);transition:transform .1s,box-shadow .1s;white-space:nowrap;flex-shrink:0}
 .mob-btn:active{transform:translateY(1px)}
 .mob-btn-del{background:#fde8e8;color:#c0392b;border:1px solid #f5c0c0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -199,8 +199,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .mob-btn-ghost{background:var(--bg2);color:var(--text2);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .mob-btn-close{width:44px;height:44px;padding:0;border-radius:22px;background:var(--bg2);color:var(--text2);border:1px solid var(--border);font-size:19px;box-shadow:0 1px 3px rgba(0,0,0,.08);flex-shrink:0;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);cursor:pointer;font-family:var(--font)}
 .mob-btn-close:active{transform:translateY(1px)}
-/* hide desktop-only header action buttons on mobile */
-.hdr-btn-desktop{display:inline-flex}
+/* Header action buttons: always hidden (moved to action bar) */
+.hdr-btn-desktop{display:none !important}
+/* Desktop drawer footer: always hidden (replaced by action bar) */
+.drawer-foot-desktop{display:none !important}
 .link-popover{position:absolute;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);width:260px;display:flex;flex-direction:column;gap:8px}
 .link-popover input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);outline:none;font-family:var(--font)}
 .link-popover input:focus{border-color:var(--accent)}
@@ -553,12 +555,8 @@ html.dark .bnav-next:active{
   .toggle-completed-btn{padding:4px 7px;font-size:11px}
   #task-filters{flex-wrap:nowrap;overflow-x:auto;padding:4px 8px;gap:3px;scrollbar-width:none}
   #task-filters::-webkit-scrollbar{display:none}
-  /* Mobile action bar */
-  .mob-action-bar{display:flex;align-items:center;gap:7px;padding:10px 12px;padding-bottom:calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
-  /* Hide desktop-only header buttons in drawer on mobile */
-  .hdr-btn-desktop{display:none !important}
-  /* Hide desktop drawer footer on mobile (replaced by mob-action-bar) */
-  .drawer-foot-desktop{display:none !important}
+  /* Safe-area padding for action bar on notch phones */
+  .mob-action-bar{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
   /* Mobile flag bar */
   .mob-flag-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
   .mob-only{display:flex !important}
