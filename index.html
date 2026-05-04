@@ -166,10 +166,13 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .inline-calc-wrap{margin-top:8px;border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:hidden}
 .inline-calc{padding:12px;display:flex;flex-direction:column;gap:8px}
 .calc-display{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-align:right;min-height:68px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
-.calc-expr{font-size:12px;color:var(--text3);min-height:16px;word-break:break-all;font-family:monospace}
+.calc-expr-top{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;min-height:28px;transition:background .1s;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.calc-expr-top:active{background:var(--bg3)}
+.calc-expr-top-text{flex:1;text-align:right;font-family:monospace;font-size:12px;color:var(--text2);word-break:break-all;line-height:1.4}
+.calc-expr-top-icon{flex-shrink:0;opacity:.4}
 .calc-result{font-size:26px;font-weight:700;color:var(--text);word-break:break-all;line-height:1.2}
 .calc-action-row{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
-.calc-paren-btn{padding:10px 0;border-radius:10px;font-size:18px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:background .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;-webkit-user-select:none}
+.calc-paren-btn{padding:7px 0;border-radius:10px;font-size:18px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:background .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;-webkit-user-select:none}
 .calc-paren-btn:active{background:var(--border)}
 .calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .calc-btn{padding:13px 0;border-radius:10px;font-size:17px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text);transition:background .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;-webkit-user-select:none}
@@ -178,7 +181,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-btn.ceq{background:linear-gradient(180deg,#6aaee8 0%,#1e5aab 100%);color:#fff;border-color:rgba(15,50,110,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 5px rgba(30,90,171,.3)}
 .calc-btn.cfn{background:var(--bg3);color:var(--text2);font-size:14px}
 .calc-btn.cac{background:var(--accent-bg);color:var(--accent);border-color:rgba(232,93,58,.2);font-size:13px;font-weight:600}
-.calc-copy-btn{padding:10px 4px;border-radius:10px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:background .12s;touch-action:manipulation;white-space:nowrap;text-align:center;display:flex;align-items:center;justify-content:center;gap:3px}
+.calc-btn.csm{padding:9px 0}
+.calc-copy-btn{padding:7px 4px;border-radius:10px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);border:1px solid var(--border);cursor:pointer;transition:background .12s;touch-action:manipulation;white-space:nowrap;text-align:center;display:flex;align-items:center;justify-content:center;gap:3px}
 .calc-copy-btn:hover{background:var(--bg3);color:var(--text)}
 .calc-okuMan{font-size:10px;color:var(--text3);text-align:right;line-height:1.3;min-height:13px;font-weight:400;letter-spacing:.02em}
 .mob-only{display:none}
@@ -4256,16 +4260,16 @@ function _buildInlineCalc(textareaEl){
     });
   }
 
-  const COPY_ICON='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const COPY_ICON_SM='<svg class="calc-expr-top-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 
   const wrap=document.createElement('div');
   wrap.className='inline-calc-wrap';
   wrap.innerHTML=
     '<div class="inline-calc">'
+      +'<div class="calc-expr-top" title="式をコピー"><span class="calc-expr-top-text" style="color:var(--text3);font-style:italic">式がここに表示されます</span>'+COPY_ICON_SM+'</div>'
       +'<div class="calc-hist" style="display:none"></div>'
       +'<div class="calc-display" style="cursor:default">'
-        +'<div class="calc-expr"></div>'
-        +'<div class="calc-result-wrap" title="結果をコピー">'
+        +'<div class="calc-result-wrap" title="長押しでコピー">'
           +'<div style="flex:1">'
             +'<div class="calc-result">0</div>'
             +'<div class="calc-okuMan"></div>'
@@ -4279,10 +4283,10 @@ function _buildInlineCalc(textareaEl){
         +'<button class="calc-copy-btn calc-tax-out">税抜</button>'
       +'</div>'
       +'<div class="calc-grid">'
-        +'<button class="calc-btn cac" data-cv="AC">AC</button>'
-        +'<button class="calc-btn cfn" data-cv="±">±</button>'
-        +'<button class="calc-btn cfn" data-cv="BS">⌫</button>'
-        +'<button class="calc-btn cop" data-cv="/">÷</button>'
+        +'<button class="calc-btn cac csm" data-cv="AC">AC</button>'
+        +'<button class="calc-btn cfn csm" data-cv="±">±</button>'
+        +'<button class="calc-btn cfn csm" data-cv="BS">⌫</button>'
+        +'<button class="calc-btn cop csm" data-cv="/">÷</button>'
         +'<button class="calc-btn" data-cv="7">7</button>'
         +'<button class="calc-btn" data-cv="8">8</button>'
         +'<button class="calc-btn" data-cv="9">9</button>'
@@ -4303,13 +4307,20 @@ function _buildInlineCalc(textareaEl){
 
   textareaEl.insertAdjacentElement('afterend',wrap);
 
-  const exEl=wrap.querySelector('.calc-expr');
+  const exEl=wrap.querySelector('.calc-expr-top-text');
+  const exTopEl=wrap.querySelector('.calc-expr-top');
   const reEl=wrap.querySelector('.calc-result');
   const omEl=wrap.querySelector('.calc-okuMan');
   const histEl=wrap.querySelector('.calc-hist');
 
   function upd(){
-    exEl.textContent=expr?fmtExpr(expr):'';
+    if(expr){
+      exEl.textContent=fmtExpr(expr);
+      exEl.style.color='';exEl.style.fontStyle='';
+    }else{
+      exEl.textContent='式がここに表示されます';
+      exEl.style.color='var(--text3)';exEl.style.fontStyle='italic';
+    }
     reEl.textContent=result?fmtComma(result):'0';
     omEl.textContent=result?fmtOkuMan(result):'';
     saveState();
@@ -4350,17 +4361,32 @@ function _buildInlineCalc(textareaEl){
   function pressAC(){expr='';result='';justEvaled=false;upd();}
   function pressPM(){const m=expr.match(/^(.*[+\-*/])?(-?)(\d+\.?\d*)$/);if(m){expr=(m[1]||'')+(m[2]==='-'?'':'-')+m[3];}else if(!expr){expr='-';}else if(expr==='-'){expr='';}const r=safeCalc(expr);if(r!=null)result=r;upd();}
 
-  // 結果エリア長押しでコピー
+  // 結果エリア長押しでコピー（PC/スマホ両対応）
   let _resLpTimer=null;
   const resWrap=wrap.querySelector('.calc-result-wrap');
-  function _resLpStart(){_resLpTimer=setTimeout(()=>{_resLpTimer=null;if(result&&result!=='0'){copyText(fmtComma(result));resWrap.style.opacity='.5';setTimeout(()=>{resWrap.style.opacity='';},200);}},500);}
+  function _copyResult(){
+    if(!result||result==='0')return;
+    const txt=fmtComma(result);
+    navigator.clipboard?.writeText(txt).then(()=>toast('計算結果をコピーしました 📋')).catch(()=>{
+      const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('計算結果をコピーしました 📋');
+    });
+    resWrap.style.opacity='.5';setTimeout(()=>{resWrap.style.opacity='';},200);
+  }
+  function _resLpStart(){_resLpTimer=setTimeout(()=>{_resLpTimer=null;_copyResult();},500);}
   function _resLpEnd(){if(_resLpTimer){clearTimeout(_resLpTimer);_resLpTimer=null;}}
+  resWrap.style.cursor='pointer';
   resWrap.addEventListener('touchstart',_resLpStart,{passive:true});
   resWrap.addEventListener('touchend',_resLpEnd);
   resWrap.addEventListener('touchcancel',_resLpEnd);
   resWrap.addEventListener('mousedown',_resLpStart);
   resWrap.addEventListener('mouseup',_resLpEnd);
   resWrap.addEventListener('mouseleave',_resLpEnd);
+
+  // 式エリアクリックでコピー
+  exTopEl.addEventListener('click',()=>{
+    if(!expr)return;
+    copyText(fmtExpr(expr));
+  });
 
   // 税込・税抜ボタン
   function applyTax(inclusive){
