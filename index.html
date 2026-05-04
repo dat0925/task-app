@@ -2081,7 +2081,7 @@ const VIEW_HELP={
     name:'Inbox',
     colorBg:'var(--accent-bg)',colorFg:'var(--accent)',
     desc:'未分類・未整理のタスクが集まる受信箱です。新しく追加したタスクはまずInboxに入ります。定期的に整理してプロジェクトや期日を設定しましょう。',
-    conds:['ステータスが Inbox のタスク','プロジェクト未割り当てのタスク']
+    conds:['プロジェクトがまだ割り当てられていないタスク','タスク追加直後はここに入る']
   },
   today:{
     name:'Today',
@@ -3501,7 +3501,11 @@ async function handleBulkEdit(field){
     ov.querySelector('#bulk-proj-cancel').onclick=()=>ov.remove();
     ov.querySelector('#bulk-proj-ok').onclick=async()=>{
       const val=ov.querySelector('#bulk-proj-sel').value||null;ov.remove();
-      for(const t of tasks){t.projectId=val;if(!val)t.sectionId=null;await saveTask(t);}
+      for(const t of tasks){
+        t.projectId=val;
+        if(!val)t.sectionId=null;
+        if(val&&t.status==='inbox')t.status='active'; // Inboxから移動
+      await saveTask(t);}
       toast(tasks.length+'件を更新しました');render();
     };
   } else if(field==='repeat'){
