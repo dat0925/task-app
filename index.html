@@ -208,6 +208,74 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-expr-inline{font-family:monospace;font-size:12px;color:var(--text2);text-align:right;word-break:break-all;line-height:1.4;min-height:16px;cursor:pointer;padding:2px 2px;opacity:.85;transition:opacity .1s;white-space:pre-wrap}
 .calc-expr-inline:hover{opacity:1}
 .calc-topbar-btn{}
+/* Calculator drawer: mechanical dark-key theme (matches PIN screen) */
+.calc-drawer-body{background:#111;padding:0!important}
+.calc-drawer .inline-calc{background:#111;padding:12px;gap:10px}
+.calc-drawer .calc-display{background:#0a0a0a;border:none;border-radius:10px;padding:14px 16px;min-height:80px;box-shadow:inset 0 2px 8px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.04);cursor:default}
+.calc-drawer .calc-expr-inline{color:#888;font-size:13px;min-height:18px}
+.calc-drawer .calc-result{color:#fff;font-size:32px;text-shadow:0 0 22px rgba(255,255,255,.1)}
+.calc-drawer .calc-okuMan{color:#666}
+.calc-drawer .calc-result-wrap{cursor:pointer}
+/* Dark pad base (same feel as .lock-pad) */
+.calc-pad-wrap{background:#1a1a1a;padding:12px;border-radius:16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 0 #0a0a0a,0 4px 12px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.04)}
+.calc-drawer .calc-grid{gap:12px 6px}
+.calc-drawer .calc-action-row{gap:6px;margin-bottom:0}
+/* Mechanical number/fn keys */
+.calc-drawer .calc-btn,.calc-drawer .calc-paren-btn{
+  padding:0;height:62px;border-radius:8px;font-size:19px;font-weight:700;
+  background:linear-gradient(175deg,#525252 0%,#3e3e3e 35%,#2e2e2e 70%,#252525 100%);
+  color:#ccc;
+  box-shadow:0 10px 0 0 #0d0d0d,0 9px 0 0 #161616,0 7px 0 0 #1c1c1c,0 5px 0 0 #222,0 3px 0 0 #282828,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.18),inset 1px 0 0 rgba(255,255,255,.08),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5);
+  border:none;border-top:1px solid rgba(255,255,255,.2);border-left:1px solid rgba(255,255,255,.08);border-right:1px solid rgba(0,0,0,.6);border-bottom:1px solid rgba(0,0,0,.7);
+  transform:translateY(0);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1);
+}
+.calc-drawer .calc-btn.pressed,.calc-drawer .calc-paren-btn.pressed{
+  transform:translateY(9px);
+  box-shadow:0 1px 0 0 #0d0d0d,0 3px 4px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5),inset 0 1px 0 rgba(0,0,0,.3),inset 1px 0 0 rgba(0,0,0,.3),inset -1px 0 0 rgba(0,0,0,.3);
+  background:linear-gradient(175deg,#3a3a3a 0%,#2e2e2e 40%,#262626 100%);
+  border-top-color:rgba(255,255,255,.06);
+}
+/* Paren keys (shorter) */
+.calc-drawer .calc-paren-btn{height:48px;font-size:16px;font-weight:600}
+.calc-drawer .calc-paren-btn.pressed{transform:translateY(7px)}
+/* Operator keys: amber */
+.calc-drawer .calc-btn.cop{
+  background:linear-gradient(175deg,#5c4a2a 0%,#4a3818 35%,#3a2c0e 70%,#2e2206 100%);
+  color:#f5a623;
+  box-shadow:0 10px 0 0 #0a0800,0 9px 0 0 #100d00,0 7px 0 0 #181200,0 5px 0 0 #1e1600,0 3px 0 0 #261c04,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,200,100,.15),inset 1px 0 0 rgba(255,200,100,.06),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5);
+  border-top:1px solid rgba(255,180,80,.2);border-left:1px solid rgba(255,180,80,.08);
+}
+.calc-drawer .calc-btn.cop.pressed{transform:translateY(9px);box-shadow:0 1px 0 0 #0a0800,0 3px 4px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5);background:linear-gradient(175deg,#3e3220 0%,#302814 40%,#261e0a 100%);border-top-color:rgba(255,180,80,.06)}
+/* Equals key: blue */
+.calc-drawer .calc-btn.ceq{
+  background:linear-gradient(175deg,#1e5090 0%,#163c78 35%,#0e2c60 70%,#0a2250 100%);
+  color:#7ab8f5;box-shadow:none;
+  box-shadow:0 10px 0 0 #020a14,0 9px 0 0 #060e1a,0 7px 0 0 #09142a,0 5px 0 0 #0c1a32,0 3px 0 0 #0f203a,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(120,180,255,.2),inset 1px 0 0 rgba(120,180,255,.06),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5);
+  border-top:1px solid rgba(100,160,255,.25);border-left:1px solid rgba(100,160,255,.1);
+  text-shadow:0 0 12px rgba(120,180,255,.45);
+}
+.calc-drawer .calc-btn.ceq.pressed{transform:translateY(9px);box-shadow:0 1px 0 0 #020a14,0 3px 4px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5);background:linear-gradient(175deg,#163878 0%,#102c60 40%,#0a2050 100%);border-top-color:rgba(100,160,255,.08)}
+/* AC key: red */
+.calc-drawer .calc-btn.cac{
+  background:linear-gradient(175deg,#6b2020 0%,#561818 35%,#421010 70%,#380a0a 100%);
+  color:#f07070;
+  box-shadow:0 10px 0 0 #0a0202,0 9px 0 0 #100404,0 7px 0 0 #180606,0 5px 0 0 #200808,0 3px 0 0 #280c0c,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,100,100,.15),inset 1px 0 0 rgba(255,100,100,.06),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5);
+  border-top:1px solid rgba(255,80,80,.2);border-left:1px solid rgba(255,80,80,.08);
+}
+.calc-drawer .calc-btn.cac.pressed{transform:translateY(9px);box-shadow:0 1px 0 0 #0a0202,0 3px 4px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5);background:linear-gradient(175deg,#4e1616 0%,#3e1010 40%,#300808 100%);border-top-color:rgba(255,80,80,.06)}
+/* Fn keys (±, ⌫, .) */
+.calc-drawer .calc-btn.cfn{background:linear-gradient(175deg,#404040 0%,#333 35%,#282828 70%,#202020 100%);color:#aaa;font-size:16px}
+/* Utility row (式クリア・式コピー) */
+.calc-util-row{display:flex;gap:6px}
+.calc-util-btn{flex:1;padding:9px 4px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:#232323;color:#999;transition:background .15s,color .15s,border-color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;gap:4px}
+.calc-util-btn:active{background:#2e2e2e}
+.calc-util-btn.copied{background:#132b1a;color:#4ade80;border-color:rgba(74,222,128,.35)}
+/* History in drawer */
+.calc-drawer .calc-hist{border-color:rgba(255,255,255,.08);background:#0d0d0d}
+.calc-drawer .calc-hist-item{border-color:rgba(255,255,255,.06);color:#777}
+.calc-drawer .calc-hist-item:last-child{border-bottom:none}
+.calc-drawer .calc-hist-paste{background:#222;border-color:rgba(255,255,255,.1);color:#777}
+.calc-drawer .calc-hist-paste:hover{background:#333;color:#ccc}
 /* Action bar (shown on all screen sizes) */
 .mob-action-bar{display:flex;align-items:center;gap:7px;padding:7px 14px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .mob-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:7px 13px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);border:none;font-family:var(--font);transition:transform .1s,box-shadow .1s;white-space:nowrap;flex-shrink:0}
@@ -4245,6 +4313,23 @@ function toggleCalcDrawer(){
 document.getElementById('calc-drawer-ov')?.addEventListener('click',closeCalcDrawer);
 document.getElementById('calc-drawer-close-btn')?.addEventListener('click',closeCalcDrawer);
 
+// Right-edge swipe (≤22px from right) → open calc drawer
+(function(){
+  let _sx=null,_sy=null;
+  document.addEventListener('touchstart',e=>{
+    const t=e.touches[0];
+    if(window.innerWidth-t.clientX<=22){_sx=t.clientX;_sy=t.clientY;}
+    else _sx=null;
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(_sx===null)return;
+    const t=e.touches[0];
+    const dx=_sx-t.clientX;
+    const dy=Math.abs(t.clientY-_sy);
+    if(dx>36&&dy<80){_sx=null;openCalcDrawer();}
+  },{passive:true});
+})();
+
 function _buildCalcInDrawer(){
   const container=document.getElementById('calc-drawer-body');
   if(!container)return;
@@ -4264,78 +4349,93 @@ function _buildCalcInDrawer(){
 
   function fmtComma(s){
     if(s===''||s==null)return s;
-    const neg=s[0]==='-';
-    const abs=neg?s.slice(1):s;
-    const [intPart,decPart]=abs.split('.');
-    const formatted=intPart.replace(/\B(?=(\d{3})+(?!\d))/g,',');
-    return (neg?'-':'')+formatted+(decPart!=null?'.'+decPart:'');
+    const neg=s[0]==='-';const abs=neg?s.slice(1):s;
+    const[intPart,decPart]=abs.split('.');
+    const fmt=intPart.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    return(neg?'-':'')+fmt+(decPart!=null?'.'+decPart:'');
   }
 
   function fmtOkuMan(s){
-    const num=parseFloat(s);
-    if(isNaN(num)||!isFinite(num))return '';
-    const abs=Math.abs(num);
-    if(abs<10000)return '';
+    const num=parseFloat(s);if(isNaN(num)||!isFinite(num))return '';
+    const abs=Math.abs(num);if(abs<10000)return '';
     const sign=num<0?'-':'';
-    const oku=Math.floor(abs/100000000);
-    const man=Math.floor((abs%100000000)/10000);
+    const oku=Math.floor(abs/100000000);const man=Math.floor((abs%100000000)/10000);
     if(oku>0&&man>0)return sign+fmtComma(String(oku))+'億'+fmtComma(String(man))+'万';
     if(oku>0)return sign+fmtComma(String(oku))+'億';
     return sign+fmtComma(String(man))+'万';
   }
 
   function fmtExpr(s){
-    return s.replace(/(\d+\.?\d*)/g,m=>fmtComma(m))
-            .replace(/\*/g,'×')
-            .replace(/\//g,'÷');
+    return s.replace(/(\d+\.?\d*)/g,m=>fmtComma(m)).replace(/\*/g,'×').replace(/\//g,'÷');
   }
 
-  function copyText(text){
+  function doCopy(text,doneCb){
     if(!text)return;
-    navigator.clipboard?.writeText(text).then(()=>toast('コピーしました 📋')).catch(()=>{
-      const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('コピーしました 📋');
+    navigator.clipboard?.writeText(text).then(doneCb).catch(()=>{
+      const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();doneCb?.();
     });
+  }
+
+  // Button press animation + sound
+  function pressAnimate(btn){
+    if(!btn)return;
+    btn.classList.add('pressed');
+    if(getSetting('soundFx',true))window.playClick?.();
+    setTimeout(()=>btn.classList.remove('pressed'),160);
+  }
+
+  // Copy feedback on utility buttons
+  function showCopied(btn,label){
+    btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg> コピー済';
+    btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent=label;btn.classList.remove('copied');},1400);
   }
 
   const wrap=document.createElement('div');
   wrap.className='inline-calc';
   wrap.innerHTML=
       '<div class="calc-hist" style="display:none"></div>'
-      +'<div class="calc-display" style="cursor:default">'
-        +'<div class="calc-expr-inline" title="クリックでコピー"></div>'
-        +'<div class="calc-result-wrap" title="長押しでコピー">'
+      +'<div class="calc-display">'
+        +'<div class="calc-expr-inline"></div>'
+        +'<div class="calc-result-wrap">'
           +'<div style="flex:1">'
             +'<div class="calc-result">0</div>'
             +'<div class="calc-okuMan"></div>'
           +'</div>'
         +'</div>'
       +'</div>'
-      +'<div class="calc-action-row">'
-        +'<button class="calc-paren-btn" data-cv="(">(</button>'
-        +'<button class="calc-paren-btn" data-cv=")">)</button>'
-        +'<button class="calc-copy-btn calc-tax-in">税込</button>'
-        +'<button class="calc-copy-btn calc-tax-out">税抜</button>'
+      +'<div class="calc-util-row">'
+        +'<button class="calc-util-btn" id="calc-expr-clear">式をクリア</button>'
+        +'<button class="calc-util-btn" id="calc-expr-copy">式をコピー</button>'
       +'</div>'
-      +'<div class="calc-grid">'
-        +'<button class="calc-btn cac csm" data-cv="AC">AC</button>'
-        +'<button class="calc-btn cfn csm" data-cv="±">±</button>'
-        +'<button class="calc-btn cfn csm" data-cv="BS">⌫</button>'
-        +'<button class="calc-btn cop csm" data-cv="/">÷</button>'
-        +'<button class="calc-btn" data-cv="7">7</button>'
-        +'<button class="calc-btn" data-cv="8">8</button>'
-        +'<button class="calc-btn" data-cv="9">9</button>'
-        +'<button class="calc-btn cop" data-cv="*">×</button>'
-        +'<button class="calc-btn" data-cv="4">4</button>'
-        +'<button class="calc-btn" data-cv="5">5</button>'
-        +'<button class="calc-btn" data-cv="6">6</button>'
-        +'<button class="calc-btn cop" data-cv="-">−</button>'
-        +'<button class="calc-btn" data-cv="1">1</button>'
-        +'<button class="calc-btn" data-cv="2">2</button>'
-        +'<button class="calc-btn" data-cv="3">3</button>'
-        +'<button class="calc-btn cop" data-cv="+">+</button>'
-        +'<button class="calc-btn" data-cv="0" style="grid-column:span 2">0</button>'
-        +'<button class="calc-btn cfn" data-cv=".">.</button>'
-        +'<button class="calc-btn ceq" data-cv="=">=</button>'
+      +'<div class="calc-pad-wrap">'
+        +'<div class="calc-action-row">'
+          +'<button class="calc-paren-btn" data-cv="(">(</button>'
+          +'<button class="calc-paren-btn" data-cv=")">)</button>'
+          +'<button class="calc-paren-btn calc-tax-in" style="font-size:13px">税込</button>'
+          +'<button class="calc-paren-btn calc-tax-out" style="font-size:13px">税抜</button>'
+        +'</div>'
+        +'<div class="calc-grid">'
+          +'<button class="calc-btn cac" data-cv="AC">AC</button>'
+          +'<button class="calc-btn cfn" data-cv="±">±</button>'
+          +'<button class="calc-btn cfn" data-cv="BS">⌫</button>'
+          +'<button class="calc-btn cop" data-cv="/">÷</button>'
+          +'<button class="calc-btn" data-cv="7">7</button>'
+          +'<button class="calc-btn" data-cv="8">8</button>'
+          +'<button class="calc-btn" data-cv="9">9</button>'
+          +'<button class="calc-btn cop" data-cv="*">×</button>'
+          +'<button class="calc-btn" data-cv="4">4</button>'
+          +'<button class="calc-btn" data-cv="5">5</button>'
+          +'<button class="calc-btn" data-cv="6">6</button>'
+          +'<button class="calc-btn cop" data-cv="-">−</button>'
+          +'<button class="calc-btn" data-cv="1">1</button>'
+          +'<button class="calc-btn" data-cv="2">2</button>'
+          +'<button class="calc-btn" data-cv="3">3</button>'
+          +'<button class="calc-btn cop" data-cv="+">+</button>'
+          +'<button class="calc-btn" data-cv="0" style="grid-column:span 2">0</button>'
+          +'<button class="calc-btn cfn" data-cv=".">.</button>'
+          +'<button class="calc-btn ceq" data-cv="=">=</button>'
+        +'</div>'
       +'</div>';
 
   container.appendChild(wrap);
@@ -4351,7 +4451,6 @@ function _buildCalcInDrawer(){
     omEl.textContent=result?fmtOkuMan(result):'';
     saveState();
   }
-
   upd();
 
   function renderHist(){
@@ -4366,7 +4465,7 @@ function _buildCalcInDrawer(){
     histEl.querySelectorAll('[data-hi]').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const h=calcHistory[parseInt(btn.dataset.hi)];
-        if(h)copyText(fmtExpr(h.expr)+'='+fmtComma(h.result));
+        if(h)doCopy(fmtExpr(h.expr)+'='+fmtComma(h.result),()=>toast('コピーしました 📋'));
       });
     });
   }
@@ -4376,12 +4475,7 @@ function _buildCalcInDrawer(){
   function pressOp(op){justEvaled=false;if(expr&&'+-*/'.includes(expr.slice(-1)))expr=expr.slice(0,-1);expr+=op;upd();}
   function pressParen(p){justEvaled=false;expr+=p;const r=safeCalc(expr);if(r!=null)result=r;upd();}
   function pressDot(){const seg=(expr.match(/[0-9.]*$/)||[''])[0];if(seg.includes('.'))return;if(!expr||'+-*/('.includes(expr.slice(-1)))expr+='0';expr+='.';justEvaled=false;upd();}
-  function pressEq(){
-    if(!expr)return;
-    const r=safeCalc(expr);
-    if(r!=null){calcHistory.push({expr,result:r});result=r;justEvaled=true;renderHist();}
-    upd();
-  }
+  function pressEq(){if(!expr)return;const r=safeCalc(expr);if(r!=null){calcHistory.push({expr,result:r});result=r;justEvaled=true;renderHist();}upd();}
   function pressBS(){if(justEvaled){expr='';result='';justEvaled=false;upd();return;}expr=expr.slice(0,-1);const r=safeCalc(expr);if(r!=null)result=r;else if(!expr)result='';upd();}
   function pressAC(){expr='';result='';justEvaled=false;upd();}
   function pressPM(){const m=expr.match(/^(.*[+\-*/])?(-?)(\d+\.?\d*)$/);if(m){expr=(m[1]||'')+(m[2]==='-'?'':'-')+m[3];}else if(!expr){expr='-';}else if(expr==='-'){expr='';}const r=safeCalc(expr);if(r!=null)result=r;upd();}
@@ -4391,11 +4485,10 @@ function _buildCalcInDrawer(){
   const resWrap=wrap.querySelector('.calc-result-wrap');
   function _copyResult(){
     if(!result||result==='0')return;
-    const txt=fmtComma(result);
-    navigator.clipboard?.writeText(txt).then(()=>toast('計算結果をコピーしました 📋')).catch(()=>{
-      const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('計算結果をコピーしました 📋');
+    doCopy(fmtComma(result),()=>{
+      resWrap.style.opacity='.4';setTimeout(()=>{resWrap.style.opacity='';},300);
+      toast('計算結果をコピーしました 📋');
     });
-    resWrap.style.opacity='.5';setTimeout(()=>{resWrap.style.opacity='';},200);
   }
   function _resLpStart(){_resLpTimer=setTimeout(()=>{_resLpTimer=null;_copyResult();},500);}
   function _resLpEnd(){if(_resLpTimer){clearTimeout(_resLpTimer);_resLpTimer=null;}}
@@ -4406,30 +4499,45 @@ function _buildCalcInDrawer(){
   resWrap.addEventListener('mouseup',_resLpEnd);
   resWrap.addEventListener('mouseleave',_resLpEnd);
 
-  // 式エリアクリックでコピー
-  exEl.addEventListener('click',()=>{if(!expr)return;copyText(fmtExpr(expr));});
+  // 式クリア・式コピーボタン
+  const exClearBtn=wrap.querySelector('#calc-expr-clear');
+  const exCopyBtn=wrap.querySelector('#calc-expr-copy');
+  exClearBtn.addEventListener('click',()=>{expr='';justEvaled=false;upd();});
+  exCopyBtn.addEventListener('click',()=>{
+    if(!expr)return;
+    doCopy(fmtExpr(expr),()=>showCopied(exCopyBtn,'式をコピー'));
+  });
 
   // 税込・税抜ボタン
   function applyTax(inclusive){
-    const num=parseFloat(result||'0');
-    if(isNaN(num)||num===0)return;
+    const num=parseFloat(result||'0');if(isNaN(num)||num===0)return;
     const rate=(typeof getSetting==='function'?getSetting('taxRate',10):10)/100;
     const r=Math.round((inclusive?num*(1+rate):num/(1+rate))*100)/100;
     result=String(r);expr='';justEvaled=true;upd();
   }
-  wrap.querySelector('.calc-tax-in').onclick=()=>applyTax(true);
-  wrap.querySelector('.calc-tax-out').onclick=()=>applyTax(false);
+  wrap.querySelector('.calc-tax-in').onclick=()=>{pressAnimate(wrap.querySelector('.calc-tax-in'));applyTax(true);}
+  wrap.querySelector('.calc-tax-out').onclick=()=>{pressAnimate(wrap.querySelector('.calc-tax-out'));applyTax(false);}
 
+  // Paren buttons with animation
   wrap.querySelector('.calc-action-row').addEventListener('click',e=>{
     const btn=e.target.closest('[data-cv]');if(!btn)return;
-    pressParen(btn.dataset.cv);
+    pressAnimate(btn);pressParen(btn.dataset.cv);
   });
-  wrap.querySelector('.calc-grid').addEventListener('click',e=>{
+
+  // Number/op grid: touch for animation + sound, click for logic
+  const grid=wrap.querySelector('.calc-grid');
+  grid.addEventListener('touchstart',e=>{
+    const btn=e.target.closest('[data-cv]');if(!btn)return;
+    pressAnimate(btn);
+  },{passive:true});
+  grid.addEventListener('click',e=>{
     const btn=e.target.closest('[data-cv]');if(!btn)return;
     const v=btn.dataset.cv;
     if(v==='AC')pressAC();else if(v==='±')pressPM();else if(v==='BS')pressBS();
     else if(v==='/')pressOp('/');else if(v==='*')pressOp('*');else if(v==='-')pressOp('-');else if(v==='+')pressOp('+');
     else if(v==='=')pressEq();else if(v==='.')pressDot();else pressNum(v);
+    // PC: also animate on click (no touchstart on desktop)
+    if(!('ontouchstart' in window))pressAnimate(btn);
   });
 }
 
@@ -5516,7 +5624,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
   }
   // ===== メカニカル打鍵音（深め＋カチッ） =====
   let _audioCtx=null;
-  function playClick(){
+  window.playClick = function(){
     try{
       if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
       const ctx=_audioCtx;
