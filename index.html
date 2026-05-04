@@ -112,7 +112,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Task List */
 .tlist{padding:8px 16px 80px}
 .tsec-head{display:flex;align-items:center;gap:6px;padding:10px 0 3px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);cursor:pointer}
-.trow{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:8px;background:var(--surface);border:1px solid transparent;cursor:pointer;margin-bottom:2px;transition:background .12s,border-color .12s}
+.trow{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:8px;background:var(--surface);border:1px solid transparent;cursor:pointer;margin-bottom:2px;transition:background .12s,border-color .12s;user-select:none;-webkit-user-select:none}
 .trow:hover{background:var(--bg2);border-color:var(--border)}
 .trow.sel{border-color:var(--accent)}
 .trow.done .ttitle{text-decoration:line-through;color:var(--text3)}
@@ -983,6 +983,30 @@ let _touchStartY = 0;
 let _drawerClosedAt = 0;
 let _touchMoved = false;
 const SCROLL_THRESHOLD = 8; // px
+
+// ===== LONG PRESS ON TASK/NOTE ROWS =====
+let _lpTimer=null,_lpRow=null;
+function _cancelLp(){if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}_lpRow=null;}
+document.addEventListener('touchstart',e=>{
+  // ignore taps on interactive elements inside row
+  if(e.target.closest('button,input,select,a,label'))return;
+  const row=e.target.closest('.trow[data-id]');
+  if(!row)return;
+  _lpRow=row;
+  _lpTimer=setTimeout(()=>{
+    _lpTimer=null;
+    window.getSelection()?.removeAllRanges();
+    const id=_lpRow?.dataset.id;
+    const a=_lpRow?.dataset.a;
+    if(!id)return;
+    if(a==='sel'){S.taskId=id;S.drawerOpen=true;playSE('open');renderContent();renderSidebar();renderDrawer();}
+    else if(a==='note-sel'){S.noteId=id;S.noteOpen=true;renderContent();}
+    _lpRow=null;
+  },600);
+},{passive:true});
+document.addEventListener('touchmove',()=>{_cancelLp();},{passive:true});
+document.addEventListener('touchend',_cancelLp,{passive:true});
+document.addEventListener('touchcancel',_cancelLp,{passive:true});
 
 document.addEventListener('touchstart', e => {
   _touchStartY = e.touches[0].clientY;
@@ -3028,6 +3052,7 @@ function renderNoteDrawer(){
         +'<div style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(note.title||'無題')+'</div>'
       +'</div>'
       +'<div style="display:flex;gap:4px;margin-left:8px;align-items:center;flex-shrink:0">'
+        +'<button class="icon-btn" data-a="calc-open" data-target="nt-body" title="電卓"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1" fill="currentColor" stroke="none" opacity=".65"/><circle cx="8" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><rect x="14" y="16.5" width="4" height="4" rx=".8" fill="currentColor" stroke="none"/></svg></button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="note-dup" data-id="'+note.id+'" title="複製"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/><rect x="11" y="11" width="11" height="11" rx="2"/></svg></button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="note-copy-url" data-id="'+note.id+'" title="URLコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
         +'<button class="del-btn hdr-btn-desktop" data-a="note-del" data-id="'+note.id+'" title="削除">削除</button>'
@@ -3045,15 +3070,10 @@ function renderNoteDrawer(){
           +'<button class="note-stamp-btn" data-a="copy-note-body-inline" title="メモ内容をコピー">コピー</button>'
           +'<button class="note-stamp-btn" data-a="paste-to-field" data-target="nt-body" title="クリップボードから貼り付け">貼付</button>'
           +'<button class="note-stamp-btn" id="nt-link-btn">Link</button>'
-          +'<button class="note-stamp-btn" data-a="calc-open" data-target="nt-body"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1" fill="currentColor" stroke="none" opacity=".65"/><circle cx="8" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><rect x="14" y="16.5" width="4" height="4" rx=".8" fill="currentColor" stroke="none"/></svg> 電卓</button>'
+          +'<button class="note-stamp-btn" id="nt-preview-btn">プレビュー</button>'
         +'</div>'
         +'<textarea class="finput" id="nt-body" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
-        +'<div style="margin-top:6px">'
-          +'<button id="nt-preview-toggle" style="font-size:11px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text2);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
-          +'<div id="nt-preview-anim" style="overflow:hidden;transition:max-height .32s ease,opacity .25s ease;max-height:600px;opacity:1">'
-            +'<div id="nt-preview" style="font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;padding:6px 8px;background:var(--bg);min-height:48px"></div>'
-          +'</div>'
-        +'</div>'
+        +'<div id="nt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:180px;word-break:break-word"></div>'
         +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
       +'</div>'
     +'</div>'
@@ -3069,21 +3089,20 @@ function renderNoteDrawer(){
   makeResizable(bodyEl);
   const ntLinkBtn=document.getElementById('nt-link-btn');
   if(ntLinkBtn)ntLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(ntLinkBtn,'nt-body');});
-  const preview=document.getElementById('nt-preview');
-  const ntPreviewToggle=document.getElementById('nt-preview-toggle');
-  const ntPreviewAnim=document.getElementById('nt-preview-anim');
-  if(ntPreviewToggle&&ntPreviewAnim){
-    ntPreviewToggle.addEventListener('click',()=>{
-      const open=ntPreviewAnim.style.maxHeight!=='0px';
-      ntPreviewAnim.style.maxHeight=open?'0px':'600px';
-      ntPreviewAnim.style.opacity=open?'0':'1';
-      ntPreviewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';
-    });
+  // プレビュー切替
+  const ntPreviewBtn=document.getElementById('nt-preview-btn');
+  const ntPreviewArea=document.getElementById('nt-preview-area');
+  let ntPrevMode=false;
+  function renderNtPreview(){
+    if(!bodyEl||!ntPreviewArea)return;
+    ntPreviewArea.innerHTML=esc(bodyEl.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>').replace(/\n/g,'<br>');
   }
-  makePreviewResizable(preview);
-  function updatePreview(){
-    if(!bodyEl||!preview)return;
-    preview.innerHTML=esc(bodyEl.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>').replace(/\n/g,'<br>');
+  if(ntPreviewBtn){
+    ntPreviewBtn.addEventListener('click',()=>{
+      ntPrevMode=!ntPrevMode;
+      if(ntPrevMode){renderNtPreview();bodyEl.style.display='none';ntPreviewArea.style.display='block';ntPreviewBtn.textContent='編集';}
+      else{bodyEl.style.display='';ntPreviewArea.style.display='none';ntPreviewBtn.textContent='プレビュー';}
+    });
   }
   let nt;
   function schedSave(){
@@ -3105,8 +3124,8 @@ function renderNoteDrawer(){
   titleEl?.addEventListener('compositionend',()=>{composing=false;schedSave()});
   titleEl?.addEventListener('input',()=>{if(!composing)schedSave()});
   bodyEl?.addEventListener('compositionstart',()=>{composing=true});
-  bodyEl?.addEventListener('compositionend',()=>{composing=false;schedSave();updatePreview()});
-  bodyEl?.addEventListener('input',()=>{if(!composing){schedSave();updatePreview();}});
+  bodyEl?.addEventListener('compositionend',()=>{composing=false;schedSave();});
+  bodyEl?.addEventListener('input',()=>{if(!composing){schedSave();}});
   dr.querySelectorAll('[data-ns]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       if(!bodyEl)return;
@@ -3175,6 +3194,7 @@ function renderDrawer(){
       +'<button class="icon-btn" data-a="close-drawer">'+ICONS.x+'</button>'
       +'<span style="font-size:13px;font-weight:500;color:var(--text2)">タスク詳細</span>'
       +'<div style="margin-left:auto;display:flex;gap:4px;align-items:center">'
+        +'<button class="icon-btn" data-a="calc-open" data-target="dt-notes" title="電卓"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1" fill="currentColor" stroke="none" opacity=".65"/><circle cx="8" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><rect x="14" y="16.5" width="4" height="4" rx=".8" fill="currentColor" stroke="none"/></svg></button>'
         +'<div style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 6px;border-radius:8px" data-a="tog-flag" data-id="'+task.id+'" title="フラグ">'
           +'<span style="font-size:15px;line-height:1">🚩</span>'
           +'<div class="tog'+(task.flagged?' on':'')+'"></div>'
@@ -3194,15 +3214,10 @@ function renderDrawer(){
         +'<button class="note-stamp-btn" data-a="copy-task-notes" title="メモ内容をコピー">コピー</button>'
         +'<button class="note-stamp-btn" data-a="paste-to-field" data-target="dt-notes" title="クリップボードから貼り付け">貼付</button>'
         +'<button class="note-stamp-btn" id="dt-link-btn">Link</button>'
-        +'<button class="note-stamp-btn" data-a="calc-open" data-target="dt-notes"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1" fill="currentColor" stroke="none" opacity=".65"/><circle cx="8" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor" stroke="none"/><rect x="14" y="16.5" width="4" height="4" rx=".8" fill="currentColor" stroke="none"/></svg> 電卓</button>'
+        +'<button class="note-stamp-btn" id="dt-preview-btn">プレビュー</button>'
       +'</div>'
       +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
-      +'<div style="margin-top:6px">'
-        +'<button id="dt-preview-toggle" style="font-size:11px;background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--text2);display:flex;align-items:center;gap:4px">▼ プレビュー</button>'
-        +'<div id="dt-preview-anim" style="overflow:hidden;transition:max-height .32s ease,opacity .25s ease;max-height:500px;opacity:1">'
-          +'<div id="dt-preview" style="font-size:13px;color:var(--text2);line-height:1.7;margin-top:4px;height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;padding:6px 8px;background:var(--bg);min-height:48px"></div>'
-        +'</div>'
-      +'</div>'
+      +'<div id="dt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:120px;word-break:break-word"></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
         +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button><span id="dt-start-wd" style="font-size:12px;color:var(--text3);margin-left:auto">'+wdStr(task.startAt)+'</span></div></div>'
@@ -3314,22 +3329,20 @@ function renderDrawer(){
   };
   // タイトル・メモはcomposition対応（IME変換中はautosave抑制）
   makeResizable(document.getElementById('dt-notes'));
-  const dtPreview=document.getElementById('dt-preview');
-  function updateDtPreview(){
-    const ta=document.getElementById('dt-notes');
-    if(!ta||!dtPreview)return;
-    dtPreview.innerHTML=esc(ta.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent);text-decoration:underline">$1</a>').replace(/\n/g,'<br>');
+  // プレビュー切替
+  const dtPreviewBtn=document.getElementById('dt-preview-btn');
+  const dtPreviewArea=document.getElementById('dt-preview-area');
+  const dtNotesEl=document.getElementById('dt-notes');
+  let dtPrevMode=false;
+  function renderDtPreview(){
+    if(!dtNotesEl||!dtPreviewArea)return;
+    dtPreviewArea.innerHTML=esc(dtNotesEl.value).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent);text-decoration:underline">$1</a>').replace(/\n/g,'<br>');
   }
-  updateDtPreview();
-  makePreviewResizable(dtPreview);
-  const dtPreviewToggle=document.getElementById('dt-preview-toggle');
-  const dtPreviewAnim=document.getElementById('dt-preview-anim');
-  if(dtPreviewToggle&&dtPreviewAnim){
-    dtPreviewToggle.addEventListener('click',()=>{
-      const open=dtPreviewAnim.style.maxHeight!=='0px';
-      dtPreviewAnim.style.maxHeight=open?'0px':'500px';
-      dtPreviewAnim.style.opacity=open?'0':'1';
-      dtPreviewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';
+  if(dtPreviewBtn){
+    dtPreviewBtn.addEventListener('click',()=>{
+      dtPrevMode=!dtPrevMode;
+      if(dtPrevMode){renderDtPreview();dtNotesEl.style.display='none';dtPreviewArea.style.display='block';dtPreviewBtn.textContent='編集';}
+      else{dtNotesEl.style.display='';dtPreviewArea.style.display='none';dtPreviewBtn.textContent='プレビュー';}
     });
   }
   const dtLinkBtn=document.getElementById('dt-link-btn');
@@ -3338,8 +3351,8 @@ function renderDrawer(){
     const el=document.getElementById(id);
     if(!el)return;
     el.addEventListener('compositionstart',()=>{_composing=true});
-    el.addEventListener('compositionend',()=>{_composing=false;autosave(true);if(id==='dt-notes')updateDtPreview();});
-    el.addEventListener('input',()=>{autosave();if(id==='dt-notes')updateDtPreview();});
+    el.addEventListener('compositionend',()=>{_composing=false;autosave(true);});
+    el.addEventListener('input',()=>{autosave();});
   });
   // 日付・セレクトはcomposition不要
   ['dt-due','dt-start','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
@@ -4179,8 +4192,8 @@ function _buildInlineCalc(textareaEl){
       +'<div class="calc-action-row">'
         +'<button class="calc-paren-btn" data-cv="(">(</button>'
         +'<button class="calc-paren-btn" data-cv=")">)</button>'
-        +'<button class="calc-copy-btn calc-cpy-expr">'+COPY_ICON+' 式コピー</button>'
-        +'<button class="calc-copy-btn calc-cpy-res">'+COPY_ICON+' 結果コピー</button>'
+        +'<button class="calc-copy-btn calc-tax-in">税込</button>'
+        +'<button class="calc-copy-btn calc-tax-out">税抜</button>'
       +'</div>'
       +'<div class="calc-grid">'
         +'<button class="calc-btn cac" data-cv="AC">AC</button>'
@@ -4254,18 +4267,28 @@ function _buildInlineCalc(textareaEl){
   function pressAC(){expr='';result='';justEvaled=false;upd();}
   function pressPM(){const m=expr.match(/^(.*[+\-*/])?(-?)(\d+\.?\d*)$/);if(m){expr=(m[1]||'')+(m[2]==='-'?'':'-')+m[3];}else if(!expr){expr='-';}else if(expr==='-'){expr='';}const r=safeCalc(expr);if(r!=null)result=r;upd();}
 
-  // 結果エリアタップでコピー
-  wrap.querySelector('.calc-result-wrap').addEventListener('click',()=>{
-    if(result&&result!=='0')copyText(result);
-  });
-  // 式コピー: "式=結果" 形式
-  wrap.querySelector('.calc-cpy-expr').onclick=()=>{
-    const dispExpr=expr.replace(/\*/g,'×').replace(/\//g,'÷');
-    if(expr&&result)copyText(fmtExpr(dispExpr)+'='+fmtComma(result));
-    else if(expr)copyText(fmtExpr(dispExpr));
-  };
-  // 結果コピー
-  wrap.querySelector('.calc-cpy-res').onclick=()=>{if(result)copyText(fmtComma(result));};
+  // 結果エリア長押しでコピー
+  let _resLpTimer=null;
+  const resWrap=wrap.querySelector('.calc-result-wrap');
+  function _resLpStart(){_resLpTimer=setTimeout(()=>{_resLpTimer=null;if(result&&result!=='0'){copyText(fmtComma(result));resWrap.style.opacity='.5';setTimeout(()=>{resWrap.style.opacity='';},200);}},500);}
+  function _resLpEnd(){if(_resLpTimer){clearTimeout(_resLpTimer);_resLpTimer=null;}}
+  resWrap.addEventListener('touchstart',_resLpStart,{passive:true});
+  resWrap.addEventListener('touchend',_resLpEnd);
+  resWrap.addEventListener('touchcancel',_resLpEnd);
+  resWrap.addEventListener('mousedown',_resLpStart);
+  resWrap.addEventListener('mouseup',_resLpEnd);
+  resWrap.addEventListener('mouseleave',_resLpEnd);
+
+  // 税込・税抜ボタン
+  function applyTax(inclusive){
+    const num=parseFloat(result||'0');
+    if(isNaN(num)||num===0)return;
+    const rate=(typeof getSetting==='function'?getSetting('taxRate',10):10)/100;
+    const r=Math.round((inclusive?num*(1+rate):num/(1+rate))*100)/100;
+    result=String(r);expr='';justEvaled=true;upd();
+  }
+  wrap.querySelector('.calc-tax-in').onclick=()=>applyTax(true);
+  wrap.querySelector('.calc-tax-out').onclick=()=>applyTax(false);
 
   wrap.querySelector('.calc-action-row').addEventListener('click',e=>{
     const btn=e.target.closest('[data-cv]');if(!btn)return;
@@ -4784,7 +4807,11 @@ function openSettingsModal(){
       +'<div><div class="settings-label">🔊 SE音</div><div class="settings-sub">操作時のサウンドエフェクト</div></div>'
       +'<button class="tog'+(seEnabled?' on':'')+'" id="s-se-tog"></button>'
     +'</div>'
-    +'<div class="modal-foot"><button class="btn btn-ghost" id="s-nav-edit">🗂 ナビ編集</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">🧾 消費税率</div><div class="settings-sub">電卓の税込/税抜計算に使用</div></div>'
+      +'<div style="display:flex;align-items:center;gap:4px"><input type="number" id="s-tax-rate" value="'+getSetting('taxRate',10)+'" min="0" max="99" step="1" style="width:52px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);text-align:center;font-family:var(--font)"><span style="font-size:13px;color:var(--text2)">%</span></div>'
+    +'</div>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" id="s-nav-edit">🗂 メニュー編集</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
 
@@ -4838,6 +4865,10 @@ function openSettingsModal(){
     const now=!getSetting('soundFx',true);
     setSetting('soundFx',now);
     document.getElementById('s-se-tog').classList.toggle('on',now);
+  });
+  document.getElementById('s-tax-rate')?.addEventListener('change',e=>{
+    const v=parseFloat(e.target.value);
+    setSetting('taxRate',isNaN(v)?10:Math.max(0,Math.min(99,v)));
   });
   addFastHandler('s-nav-edit',()=>{ov.remove();openNavEdit();});
   addFastHandler('s-backup',()=>{ov.remove();openBackupModal()});
