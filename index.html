@@ -4243,8 +4243,10 @@ function _buildInlineCalc(textareaEl){
   }
 
   function fmtExpr(s){
-    // add commas to each number literal in the expression for display
-    return s.replace(/(\d+\.?\d*)/g,m=>fmtComma(m));
+    // 数値にコンマ・演算子を表示用に変換（報告用テキスト形式）
+    return s.replace(/(\d+\.?\d*)/g,m=>fmtComma(m))
+            .replace(/\*/g,'×')
+            .replace(/\//g,'÷');
   }
 
   function copyText(text){
@@ -4328,7 +4330,7 @@ function _buildInlineCalc(textareaEl){
     histEl.querySelectorAll('[data-hi]').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const h=calcHistory[parseInt(btn.dataset.hi)];
-        if(h)copyText(h.expr+'='+h.result);
+        if(h)copyText(fmtExpr(h.expr)+'='+fmtComma(h.result));
       });
     });
   }
