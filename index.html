@@ -3716,6 +3716,23 @@ async function submitQA(){
   render();
 }
 
+// ===== NOTE STAMP BUTTONS: プレビュー中→編集モードへ自動切替（キャプチャで全ケース対応）=====
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('.note-stamp-btn');
+  if(!btn)return;
+  const ctx=btn.closest('#drawer,.expand-modal')||document;
+  // dt-notes (タスク詳細メモ)
+  const dtNotes=ctx.querySelector('#dt-notes')||document.getElementById('dt-notes');
+  if(dtNotes&&dtNotes.style.display==='none'){
+    (ctx.querySelector('#dt-preview-btn')||document.getElementById('dt-preview-btn'))?.click();
+  }
+  // nt-body (ノート詳細)
+  const ntBody=ctx.querySelector('#nt-body')||document.getElementById('nt-body');
+  if(ntBody&&ntBody.style.display==='none'){
+    (ctx.querySelector('#nt-preview-btn')||document.getElementById('nt-preview-btn'))?.click();
+  }
+},true); // capture: stopPropagationより先に実行
+
 // ===== EVENTS =====
 document.addEventListener('click',async e=>{
   const el=e.target.closest('[data-a]');
