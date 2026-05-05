@@ -232,7 +232,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-action-row{gap:6px;margin-bottom:0}
 /* Mechanical number/fn keys */
 .calc-drawer .calc-btn,.calc-drawer .calc-paren-btn{
-  padding:0;height:52px;border-radius:5px 5px 2px 2px;font-size:19px;font-weight:700;
+  padding:0;height:52px;border-radius:5px 5px 2px 2px;font-size:22px;font-weight:700;
   background:linear-gradient(180deg,#4a4a4a 0%,#3e3e3e 30%,#333 70%,#2c2c2c 100%);
   color:#d0d0d0;
   border:none;
@@ -275,31 +275,34 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-paren-btn.pressed{transform:translateY(4px)}
 /* Operator keys: amber */
 .calc-drawer .calc-btn.cop{
-  background:linear-gradient(175deg,#5c4a2a 0%,#4a3818 35%,#3a2c0e 70%,#2e2206 100%);
+  background:linear-gradient(180deg,#4a3c1a 0%,#3e3010 30%,#322608 70%,#281e04 100%);
   color:#f5a623;
-  box-shadow:0 10px 0 0 #0a0800,0 9px 0 0 #100d00,0 7px 0 0 #181200,0 5px 0 0 #1e1600,0 3px 0 0 #261c04,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,200,100,.15),inset 1px 0 0 rgba(255,200,100,.06),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5);
-  border-top:1px solid rgba(255,180,80,.2);border-left:1px solid rgba(255,180,80,.08);
+  box-shadow:0 1px 0 0 #483a18,0 2px 0 0 #3e3010,0 3px 0 0 #342808,0 4px 0 0 #2a2004,0 5px 0 0 #221a02,0 6px 0 0 #1c1400,0 7px 0 0 #161000,0 8px 0 0 #100c00,0 9px 0 0 #0c0800,0 10px 0 0 #080600,0 11px 0 0 #060400,0 12px 0 0 #040300,0 13px 0 0 #020200,0 15px 12px rgba(0,0,0,.75),inset 0 1px 2px rgba(255,200,100,.18),inset 0 -1px 3px rgba(0,0,0,.55);
+  border-top:1px solid rgba(255,180,80,.25);border-left:1px solid rgba(255,180,80,.1);border-right:1px solid rgba(0,0,0,.6);border-bottom:none;
+  transform:translateY(-8px);
 }
-.calc-drawer .calc-btn.cop.pressed{transform:translateY(9px);box-shadow:0 1px 0 0 #0a0800,0 3px 4px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5);background:linear-gradient(175deg,#3e3220 0%,#302814 40%,#261e0a 100%);border-top-color:rgba(255,180,80,.06)}
+.calc-drawer .calc-btn.cop.pressed{transform:translateY(0px);box-shadow:0 1px 0 0 #0a0800,0 2px 5px rgba(0,0,0,.65),inset 0 2px 6px rgba(0,0,0,.65),inset 0 1px 0 rgba(0,0,0,.45);background:linear-gradient(180deg,#302808 0%,#281e04 50%,#201600 100%);border-top-color:rgba(255,180,80,.08)}
 /* Equals key: blue */
 .calc-drawer .calc-btn.ceq{
-  background:linear-gradient(175deg,#1e5090 0%,#163c78 35%,#0e2c60 70%,#0a2250 100%);
-  color:#7ab8f5;box-shadow:none;
-  box-shadow:0 10px 0 0 #020a14,0 9px 0 0 #060e1a,0 7px 0 0 #09142a,0 5px 0 0 #0c1a32,0 3px 0 0 #0f203a,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(120,180,255,.2),inset 1px 0 0 rgba(120,180,255,.06),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5);
-  border-top:1px solid rgba(100,160,255,.25);border-left:1px solid rgba(100,160,255,.1);
+  background:linear-gradient(180deg,#1a4880 0%,#133870 30%,#0e2c5e 70%,#0a2250 100%);
+  color:#7ab8f5;
+  box-shadow:0 1px 0 0 #183878,0 2px 0 0 #102e68,0 3px 0 0 #0c2458,0 4px 0 0 #081c46,0 5px 0 0 #061638,0 6px 0 0 #04102c,0 7px 0 0 #030c22,0 8px 0 0 #02081a,0 9px 0 0 #010614,0 10px 0 0 #01050f,0 11px 0 0 #01040c,0 12px 0 0 #010308,0 13px 0 0 #010206,0 15px 12px rgba(0,0,0,.75),inset 0 1px 2px rgba(120,180,255,.22),inset 0 -1px 3px rgba(0,0,0,.55);
+  border-top:1px solid rgba(100,160,255,.28);border-left:1px solid rgba(100,160,255,.12);border-right:1px solid rgba(0,0,0,.6);border-bottom:none;
   text-shadow:0 0 12px rgba(120,180,255,.45);
+  transform:translateY(-8px);
 }
-.calc-drawer .calc-btn.ceq.pressed{transform:translateY(9px);box-shadow:0 1px 0 0 #020a14,0 3px 4px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5);background:linear-gradient(175deg,#163878 0%,#102c60 40%,#0a2050 100%);border-top-color:rgba(100,160,255,.08)}
+.calc-drawer .calc-btn.ceq.pressed{transform:translateY(0px);box-shadow:0 1px 0 0 #020a14,0 2px 5px rgba(0,0,0,.65),inset 0 2px 6px rgba(0,0,0,.65),inset 0 1px 0 rgba(0,0,0,.45);background:linear-gradient(180deg,#102c60 0%,#0c2250 50%,#081a40 100%);border-top-color:rgba(100,160,255,.08)}
 /* AC key: red */
 .calc-drawer .calc-btn.cac{
-  background:linear-gradient(175deg,#6b2020 0%,#561818 35%,#421010 70%,#380a0a 100%);
+  background:linear-gradient(180deg,#5c1c1c 0%,#4e1414 30%,#3e0e0e 70%,#340808 100%);
   color:#f07070;
-  box-shadow:0 10px 0 0 #0a0202,0 9px 0 0 #100404,0 7px 0 0 #180606,0 5px 0 0 #200808,0 3px 0 0 #280c0c,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,100,100,.15),inset 1px 0 0 rgba(255,100,100,.06),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5);
-  border-top:1px solid rgba(255,80,80,.2);border-left:1px solid rgba(255,80,80,.08);
+  box-shadow:0 1px 0 0 #501818,0 2px 0 0 #421010,0 3px 0 0 #360c0c,0 4px 0 0 #2c0808,0 5px 0 0 #240606,0 6px 0 0 #1c0404,0 7px 0 0 #160404,0 8px 0 0 #100202,0 9px 0 0 #0c0202,0 10px 0 0 #080202,0 11px 0 0 #060101,0 12px 0 0 #040101,0 13px 0 0 #020101,0 15px 12px rgba(0,0,0,.75),inset 0 1px 2px rgba(255,100,100,.18),inset 0 -1px 3px rgba(0,0,0,.55);
+  border-top:1px solid rgba(255,80,80,.22);border-left:1px solid rgba(255,80,80,.1);border-right:1px solid rgba(0,0,0,.6);border-bottom:none;
+  transform:translateY(-8px);
 }
-.calc-drawer .calc-btn.cac.pressed{transform:translateY(9px);box-shadow:0 1px 0 0 #0a0202,0 3px 4px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5);background:linear-gradient(175deg,#4e1616 0%,#3e1010 40%,#300808 100%);border-top-color:rgba(255,80,80,.06)}
+.calc-drawer .calc-btn.cac.pressed{transform:translateY(0px);box-shadow:0 1px 0 0 #0a0202,0 2px 5px rgba(0,0,0,.65),inset 0 2px 6px rgba(0,0,0,.65),inset 0 1px 0 rgba(0,0,0,.45);background:linear-gradient(180deg,#3e1010 0%,#340808 50%,#280606 100%);border-top-color:rgba(255,80,80,.06)}
 /* Fn keys (±, ⌫, .) */
-.calc-drawer .calc-btn.cfn{background:linear-gradient(175deg,#404040 0%,#333 35%,#282828 70%,#202020 100%);color:#aaa;font-size:16px}
+.calc-drawer .calc-btn.cfn{background:linear-gradient(180deg,#424242 0%,#383838 30%,#2e2e2e 70%,#262626 100%);color:#aaa;font-size:22px}
 /* Utility row (式クリア・式コピー) */
 .calc-util-row{display:flex;gap:6px}
 .calc-util-btn{flex:1;height:58px;border-radius:6px 6px 4px 4px;font-size:18px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(0,0,0,.5);border-bottom:none;background:linear-gradient(180deg,#4a4a4a 0%,#3e3e3e 30%,#333 70%,#2c2c2c 100%);color:#d0d0d0;box-shadow:0 1px 0 0 #484848,0 2px 0 0 #404040,0 3px 0 0 #383838,0 4px 0 0 #303030,0 5px 0 0 #282828,0 6px 0 0 #202020,0 7px 0 0 #1a1a1a,0 8px 0 0 #141414,0 9px 0 0 #0f0f0f,0 10px 0 0 #0a0a0a,0 11px 0 0 #070707,0 12px 0 0 #050505,0 13px 0 0 #030303,0 15px 12px rgba(0,0,0,.75),inset 0 1px 2px rgba(255,255,255,.16),inset 0 -1px 3px rgba(0,0,0,.55);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(-8px);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
