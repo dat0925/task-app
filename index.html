@@ -4376,16 +4376,22 @@ function openCalcDrawer(){
   if(!dr._tmHandler){
     dr._tmHandler=e=>{
       const scrollable=e.target.closest('.calc-top-scroll');
-      if(!scrollable){e.preventDefault();return;}
-      // スクロール可能エリアの端でも伝播を止める
-      const atTop=scrollable.scrollTop<=0;
-      const atBottom=scrollable.scrollTop+scrollable.clientHeight>=scrollable.scrollHeight;
-      const dy=e.touches[0]?.clientY-(scrollable._ty||e.touches[0]?.clientY);
-      if((atTop&&dy>0)||(atBottom&&dy<0))e.preventDefault();
+      if(scrollable){
+        // スクロール可能エリア内: 端での行き過ぎのみ止める
+        const atTop=scrollable.scrollTop<=0;
+        const atBottom=scrollable.scrollTop+scrollable.clientHeight>=scrollable.scrollHeight-1;
+        const startY=scrollable._startY??e.touches[0].clientY;
+        const dy=e.touches[0].clientY-startY;
+        if((atTop&&dy>0)||(atBottom&&dy<0))e.preventDefault();
+        // それ以外はブラウザのネイティブスクロールに任せる（preventDefault不要）
+      } else {
+        // スクロール不可エリア: 背後への伝播を完全遮断
+        e.preventDefault();
+      }
     };
     dr._tsHandler=e=>{
       const scrollable=e.target.closest('.calc-top-scroll');
-      if(scrollable)scrollable._ty=e.touches[0]?.clientY;
+      if(scrollable)scrollable._startY=e.touches[0].clientY;
     };
     dr.addEventListener('touchmove',dr._tmHandler,{passive:false});
     dr.addEventListener('touchstart',dr._tsHandler,{passive:true});
