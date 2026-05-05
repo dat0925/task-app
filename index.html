@@ -3308,6 +3308,9 @@ function renderDrawer(){
     if(!S.noteOpen){dr.style.display='none';dr.classList.remove('open');history.replaceState(null,'',location.pathname);}
     return;
   }
+  // スクロール位置を保持
+  const _drBody=dr.querySelector('.drawer-body');
+  const _scrollY=_drBody?_drBody.scrollTop:0;
   const task=S.tasks.find(t=>t.id===S.taskId);
   if(!task){dr.style.display='none';dr.classList.remove('open');return}
   dr.style.display='flex';
@@ -3498,15 +3501,19 @@ function renderDrawer(){
       const drBody=document.getElementById('drawer-body');
       const scrollY=drBody?drBody.scrollTop:0;
       await saveTask(s);si.value='';renderDrawer();
-      const drBody2=document.getElementById('drawer-body');
-      if(drBody2){
-        requestAnimationFrame(()=>{
-          drBody2.scrollTop=scrollY;
-          drBody2.querySelector('#sub-inp')?.focus();
-        });
-      }
+      setTimeout(()=>{
+        const drBody2=document.getElementById('drawer-body');
+        if(drBody2){drBody2.scrollTop=scrollY;drBody2.querySelector('#sub-inp')?.focus();}
+      },0);
     }
   });
+  // renderDrawer内でスクロール位置を復元
+  if(_scrollY>0){
+    setTimeout(()=>{
+      const _drBody2=document.getElementById('drawer-body');
+      if(_drBody2)_drBody2.scrollTop=_scrollY;
+    },0);
+  }
 }
 
 // ===== BULK EDIT =====
