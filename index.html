@@ -3500,11 +3500,17 @@ function renderDrawer(){
       const s=mkTask({title:si.value.trim(),parentTaskId:S.taskId,status:'active'});
       const drBody=document.getElementById('drawer-body');
       const scrollY=drBody?drBody.scrollTop:0;
-      await saveTask(s);si.value='';renderDrawer();
-      setTimeout(()=>{
-        const drBody2=document.getElementById('drawer-body');
-        if(drBody2){drBody2.scrollTop=scrollY;drBody2.querySelector('#sub-inp')?.focus();}
-      },50);
+      await saveTask(s);si.value='';
+      // renderDrawer()を呼ばずサブタスクリストだけ差し替えてスクロール位置を維持
+      const subsEl=document.getElementById('subs');
+      if(subsEl){
+        const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId);
+        subsEl.innerHTML=allSubs.map(sub=>
+          '<div class="sub-item"><button class="chk'+(sub.status==="completed"?' done':'')+' " data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+sub.title+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+        ).join('');
+      }
+      si.value='';
+      si.focus();
     }
   });
   // renderDrawer内でスクロール位置を復元
