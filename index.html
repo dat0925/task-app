@@ -216,11 +216,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-expr-inline:hover{opacity:1}
 .calc-topbar-btn{}
 /* Calculator drawer: mechanical dark-key theme (matches PIN screen) */
-.calc-drawer-body{background:#111;padding:0!important;overflow-y:auto;overflow-x:hidden}
-.calc-drawer .inline-calc{background:#111;padding:0;gap:0;display:flex;flex-direction:column;min-height:100vh}
-.calc-top-scroll{flex:0 0 auto;overflow-y:visible;min-height:0;padding:8px 12px 4px;display:flex;flex-direction:column;gap:6px}
-.calc-mid-section{flex-shrink:0;padding:8px 12px 0;display:flex;flex-direction:column;gap:8px;flex:1;justify-content:flex-end}
-.calc-drawer .calc-pad-wrap{flex-shrink:0;border-radius:0;margin:0;padding:12px;position:sticky;bottom:47px;z-index:2}
+.calc-drawer-body{background:#111;padding:0!important;display:flex;flex-direction:column;overflow:hidden}
+.calc-drawer .inline-calc{background:#111;padding:0;gap:0;flex:1;display:flex;flex-direction:column;min-height:0}
+.calc-top-scroll{flex:0 0 auto;overflow-y:auto;min-height:0;max-height:160px;padding:8px 12px 4px;display:flex;flex-direction:column;gap:6px;overscroll-behavior:contain;touch-action:pan-y}
+.calc-mid-section{flex-shrink:0;padding:8px 12px 0;display:flex;flex-direction:column;gap:8px}
+.calc-drawer .calc-pad-wrap{flex-shrink:0;border-radius:0;margin:0;padding:12px}
 .calc-drawer .calc-display{background:#0a0a0a;border:none;border-radius:10px;padding:14px 16px;min-height:80px;box-shadow:inset 0 2px 8px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.04);cursor:default}
 .calc-drawer .calc-expr-inline{color:#bbb;font-size:16px;min-height:1.4em;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px;border:1px solid rgba(255,255,255,.07)}
 .calc-drawer .calc-result{color:#fff;font-size:35px;text-shadow:0 0 22px rgba(255,255,255,.1)}
