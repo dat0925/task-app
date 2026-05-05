@@ -4615,9 +4615,10 @@ function _buildCalcInDrawer(){
       zone.addEventListener('touchmove',()=>{_moved=true;if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}},{passive:true});
       zone.addEventListener('touchend',()=>{if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}},{passive:true});
       zone.addEventListener('touchcancel',()=>{if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}},{passive:true});
-      // PC用: クリックでコピー
+      // PC用のみ: クリックでコピー（スマホはtouchstartが先に来るのでフラグで抑制）
       zone.addEventListener('click',e=>{
         e.stopPropagation();
+        if('ontouchstart' in window)return; // スマホは長押しのみ
         const h=calcHistory[idx];
         if(!h)return;
         doCopy(fmtExpr(h.expr)+'='+fmtComma(h.result),()=>{
