@@ -223,9 +223,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-pad-wrap{flex-shrink:0;border-radius:0;margin:0;padding:10px}
 .calc-drawer .calc-display{background:#0a0a0a;border:none;border-radius:10px;padding:14px 16px 20px;height:120px;box-shadow:inset 0 2px 8px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.04);cursor:default;display:flex;flex-direction:column;justify-content:flex-end;gap:6px}
 .calc-drawer .calc-expr-inline{color:#fff;font-size:16px;height:1.4em;line-height:1.4em;background:none;border-radius:0;padding:0 4px;border:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
-.calc-drawer .calc-result{color:#fff;font-size:35px;text-shadow:0 0 22px rgba(255,255,255,.1)}
+.calc-drawer .calc-result{color:#fff;font-size:35px;text-shadow:0 0 22px rgba(255,255,255,.1);position:relative;display:inline-block}
 .calc-drawer .calc-okuMan{color:#666;display:none}
-.calc-drawer .calc-result-wrap{cursor:pointer}
+.calc-unit-label{position:absolute;font-size:9px;font-weight:600;color:rgba(255,255,255,.45);letter-spacing:.03em;top:-1px;pointer-events:none;line-height:1}
+
+.calc-drawer .calc-result-wrap{cursor:pointer;display:flex;justify-content:flex-end}
 /* Dark pad base (same feel as .lock-pad) */
 .calc-pad-wrap{background:#1a1a1a;padding:12px;border-radius:16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 0 #0a0a0a,0 4px 12px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.04)}
 .calc-drawer .calc-grid{gap:8px 6px}
@@ -4651,6 +4653,37 @@ function _buildCalcInDrawer(){
     exEl.textContent=expr?fmtExpr(expr):'';
     reEl.textContent=result?fmtComma(result):'0';
     omEl.textContent=result?fmtOkuMan(result):'';
+    // 億・万ラベルをオーバーレイ
+    reEl.querySelectorAll('.calc-unit-label').forEach(el=>el.remove());
+    if(result){
+      const num=parseFloat(result);
+      if(!isNaN(num)&&Math.abs(num)>=10000){
+        const abs=Math.abs(num);
+        const formatted=fmtComma(result);
+        const len=formatted.replace(/[^0-9]/g,'').length;
+        // 億の位: 9桁以上
+        if(abs>=100000000){
+          const okuLabel=document.createElement('span');
+          okuLabel.className='calc-unit-label';
+          okuLabel.textContent='億';
+          // 右から何文字目か: 億は右から9桁目
+          const digitsFromRight=9;
+          const charsFromRight=digitsFromRight+Math.floor((digitsFromRight-1)/3);
+          okuLabel.style.right=(charsFromRight*0.605+'em');
+          reEl.appendChild(okuLabel);
+        }
+        // 万の位: 5桁以上（億未満の万も表示）
+        if(abs>=10000){
+          const manLabel=document.createElement('span');
+          manLabel.className='calc-unit-label';
+          manLabel.textContent='万';
+          const digitsFromRight=5;
+          const charsFromRight=digitsFromRight+Math.floor((digitsFromRight-1)/3);
+          manLabel.style.right=(charsFromRight*0.605+'em');
+          reEl.appendChild(manLabel);
+        }
+      }
+    }
     saveState();
   }
   upd();
