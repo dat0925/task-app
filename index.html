@@ -232,52 +232,43 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-action-row{gap:6px;margin-bottom:0}
 /* Mechanical number/fn keys */
 .calc-drawer .calc-btn,.calc-drawer .calc-paren-btn{
-  padding:0;height:58px;border-radius:6px 6px 3px 3px;font-size:20px;font-weight:700;
-  background:linear-gradient(180deg,#606060 0%,#505050 30%,#424242 70%,#383838 100%);
-  color:#e0e0e0;
+  padding:0;height:52px;border-radius:5px 5px 2px 2px;font-size:19px;font-weight:700;
+  background:linear-gradient(180deg,#4a4a4a 0%,#3e3e3e 30%,#333 70%,#2c2c2c 100%);
+  color:#d0d0d0;
   border:none;
-  border-top:1px solid rgba(255,255,255,.28);
-  border-left:1px solid rgba(255,255,255,.12);
-  border-right:1px solid rgba(0,0,0,.55);
+  border-top:1px solid rgba(255,255,255,.22);
+  border-left:1px solid rgba(255,255,255,.09);
+  border-right:1px solid rgba(0,0,0,.6);
   border-bottom:none;
   box-shadow:
-    0 1px 0 0 #585858,
-    0 2px 0 0 #4e4e4e,
-    0 3px 0 0 #424242,
-    0 4px 0 0 #363636,
-    0 5px 0 0 #2c2c2c,
-    0 6px 0 0 #242424,
-    0 7px 0 0 #1c1c1c,
-    0 8px 0 0 #161616,
-    0 9px 0 0 #111,
-    0 10px 0 0 #0c0c0c,
-    0 12px 10px rgba(0,0,0,.7),
-    inset 0 1px 2px rgba(255,255,255,.2),
-    inset 0 -1px 3px rgba(0,0,0,.5);
-  transform:translateY(-6px);
+    0 1px 0 0 #484848,
+    0 2px 0 0 #404040,
+    0 3px 0 0 #383838,
+    0 4px 0 0 #303030,
+    0 5px 0 0 #282828,
+    0 6px 0 0 #202020,
+    0 7px 0 0 #1a1a1a,
+    0 8px 0 0 #141414,
+    0 9px 0 0 #0f0f0f,
+    0 10px 0 0 #0a0a0a,
+    0 11px 0 0 #070707,
+    0 12px 0 0 #050505,
+    0 13px 0 0 #030303,
+    0 15px 12px rgba(0,0,0,.75),
+    inset 0 1px 2px rgba(255,255,255,.16),
+    inset 0 -1px 3px rgba(0,0,0,.55);
+  transform:translateY(-8px);
   transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1);
 }
 .calc-drawer .calc-btn.pressed,.calc-drawer .calc-paren-btn.pressed{
   transform:translateY(0px);
   box-shadow:
-    0 1px 0 0 #2a2a2a,
-    0 2px 4px rgba(0,0,0,.6),
-    inset 0 2px 5px rgba(0,0,0,.6),
-    inset 0 1px 0 rgba(0,0,0,.4);
-  background:linear-gradient(180deg,#3c3c3c 0%,#333 50%,#2a2a2a 100%);
-  border-top-color:rgba(255,255,255,.07);
-}
-/* 旧デザイン（比較用） */
-.calc-drawer .old-key{
-  background:linear-gradient(175deg,#525252 0%,#3e3e3e 35%,#2e2e2e 70%,#252525 100%) !important;
-  box-shadow:0 10px 0 0 #0d0d0d,0 9px 0 0 #161616,0 7px 0 0 #1c1c1c,0 5px 0 0 #222,0 3px 0 0 #282828,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.18),inset 1px 0 0 rgba(255,255,255,.08),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5) !important;
-  border-top:1px solid rgba(255,255,255,.2) !important;border-left:1px solid rgba(255,255,255,.08) !important;border-right:1px solid rgba(0,0,0,.6) !important;border-bottom:1px solid rgba(0,0,0,.7) !important;
-  border-radius:8px !important;
-  transform:translateY(0) !important;
-}
-.calc-drawer .old-key.pressed{
-  transform:translateY(9px) !important;
-  box-shadow:0 1px 0 0 #0d0d0d,0 3px 4px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5) !important;
+    0 1px 0 0 #222,
+    0 2px 5px rgba(0,0,0,.65),
+    inset 0 2px 6px rgba(0,0,0,.65),
+    inset 0 1px 0 rgba(0,0,0,.45);
+  background:linear-gradient(180deg,#303030 0%,#2a2a2a 50%,#242424 100%);
+  border-top-color:rgba(255,255,255,.06);
 }
 /* Paren keys (shorter) */
 .calc-drawer .calc-paren-btn{height:31px;font-size:14px;font-weight:600}
@@ -311,8 +302,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-btn.cfn{background:linear-gradient(175deg,#404040 0%,#333 35%,#282828 70%,#202020 100%);color:#aaa;font-size:16px}
 /* Utility row (式クリア・式コピー) */
 .calc-util-row{display:flex;gap:6px}
-.calc-util-btn{flex:1;height:58px;border-radius:6px 6px 4px 4px;font-size:18px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(0,0,0,.5);border-bottom:none;background:linear-gradient(180deg,#606060 0%,#505050 30%,#424242 70%,#383838 100%);color:#e0e0e0;box-shadow:0 1px 0 0 #585858,0 2px 0 0 #4e4e4e,0 3px 0 0 #424242,0 4px 0 0 #363636,0 5px 0 0 #2c2c2c,0 6px 0 0 #242424,0 7px 0 0 #1c1c1c,0 8px 0 0 #161616,0 9px 0 0 #111,0 10px 0 0 #0c0c0c,0 12px 10px rgba(0,0,0,.7),inset 0 1px 2px rgba(255,255,255,.2),inset 0 -1px 3px rgba(0,0,0,.5);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(-6px);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
-.calc-util-btn:active,.calc-util-btn.pressed{transform:translateY(0px);box-shadow:0 1px 0 0 #2a2a2a,0 2px 4px rgba(0,0,0,.6),inset 0 2px 5px rgba(0,0,0,.6),inset 0 1px 0 rgba(0,0,0,.4);background:linear-gradient(180deg,#3c3c3c 0%,#333 50%,#2a2a2a 100%);border-top-color:rgba(255,255,255,.07)}
+.calc-util-btn{flex:1;height:58px;border-radius:6px 6px 4px 4px;font-size:18px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(0,0,0,.5);border-bottom:none;background:linear-gradient(180deg,#4a4a4a 0%,#3e3e3e 30%,#333 70%,#2c2c2c 100%);color:#d0d0d0;box-shadow:0 1px 0 0 #484848,0 2px 0 0 #404040,0 3px 0 0 #383838,0 4px 0 0 #303030,0 5px 0 0 #282828,0 6px 0 0 #202020,0 7px 0 0 #1a1a1a,0 8px 0 0 #141414,0 9px 0 0 #0f0f0f,0 10px 0 0 #0a0a0a,0 11px 0 0 #070707,0 12px 0 0 #050505,0 13px 0 0 #030303,0 15px 12px rgba(0,0,0,.75),inset 0 1px 2px rgba(255,255,255,.16),inset 0 -1px 3px rgba(0,0,0,.55);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(-8px);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
+.calc-util-btn:active,.calc-util-btn.pressed{transform:translateY(0px);box-shadow:0 1px 0 0 #222,0 2px 5px rgba(0,0,0,.65),inset 0 2px 6px rgba(0,0,0,.65),inset 0 1px 0 rgba(0,0,0,.45);background:linear-gradient(180deg,#303030 0%,#2a2a2a 50%,#242424 100%);border-top-color:rgba(255,255,255,.06)}
 .calc-util-btn.copied{background:#132b1a;color:#4ade80;border-color:rgba(74,222,128,.35)}
 .calc-util-btn.cleared{background:#2a1616;color:#f87171;border-color:rgba(248,113,113,.3)}
 /* History in drawer */
@@ -4601,18 +4592,18 @@ function _buildCalcInDrawer(){
         +'<div class="calc-action-row">'
           +'<button class="calc-paren-btn" data-cv="(">(</button>'
           +'<button class="calc-paren-btn" data-cv=")">)</button>'
-          +'<button class="calc-paren-btn calc-tax-in old-key" style="font-size:13px">税込</button>'
-          +'<button class="calc-paren-btn calc-tax-out old-key" style="font-size:13px">税抜</button>'
+          +'<button class="calc-paren-btn calc-tax-in" style="font-size:13px">税込</button>'
+          +'<button class="calc-paren-btn calc-tax-out" style="font-size:13px">税抜</button>'
         +'</div>'
         +'<div class="calc-grid">'
-          +'<button class="calc-btn cac old-key" data-cv="AC">AC</button>'
-          +'<button class="calc-btn cfn old-key" data-cv="±">±</button>'
-          +'<button class="calc-btn cfn old-key" data-cv="BS">⌫</button>'
-          +'<button class="calc-btn cop old-key" data-cv="/">÷</button>'
-          +'<button class="calc-btn old-key" data-cv="7">7</button>'
-          +'<button class="calc-btn old-key" data-cv="8">8</button>'
-          +'<button class="calc-btn old-key" data-cv="9">9</button>'
-          +'<button class="calc-btn cop old-key" data-cv="*">×</button>'
+          +'<button class="calc-btn cac" data-cv="AC">AC</button>'
+          +'<button class="calc-btn cfn" data-cv="±">±</button>'
+          +'<button class="calc-btn cfn" data-cv="BS">⌫</button>'
+          +'<button class="calc-btn cop" data-cv="/">÷</button>'
+          +'<button class="calc-btn" data-cv="7">7</button>'
+          +'<button class="calc-btn" data-cv="8">8</button>'
+          +'<button class="calc-btn" data-cv="9">9</button>'
+          +'<button class="calc-btn cop" data-cv="*">×</button>'
           +'<button class="calc-btn" data-cv="4">4</button>'
           +'<button class="calc-btn" data-cv="5">5</button>'
           +'<button class="calc-btn" data-cv="6">6</button>'
