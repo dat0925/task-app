@@ -4680,9 +4680,9 @@ function _buildCalcInDrawer(){
             if(dCount===9){okuIdx=i;break;}
           }
           if(okuIdx>=0){
+            // okuIdxより右側の文字列の幅 = right値
             const rightStr=formatted.slice(okuIdx+1);
-            const charW=_ctx.measureText(formatted[okuIdx]).width;
-            const rOff=_ctx.measureText(rightStr).width+charW*0.5;
+            const rOff=_ctx.measureText(rightStr).width;
             const okuLabel=document.createElement('span');
             okuLabel.className='calc-unit-label';
             okuLabel.textContent='億';
@@ -4699,8 +4699,7 @@ function _buildCalcInDrawer(){
           }
           if(manIdx>=0){
             const rightStr=formatted.slice(manIdx+1);
-            const charW=_ctx.measureText(formatted[manIdx]).width;
-            const rOff=_ctx.measureText(rightStr).width+charW*0.5;
+            const rOff=_ctx.measureText(rightStr).width;
             const manLabel=document.createElement('span');
             manLabel.className='calc-unit-label';
             manLabel.textContent='万';
