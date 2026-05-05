@@ -5063,11 +5063,21 @@ function reattachModalEvents(modal, type, onClose){
       }
     });
     makeResizable(modal.querySelector('#dt-notes'));
-    const previewToggle=modal.querySelector('#dt-preview-toggle');
-    const preview=modal.querySelector('#dt-preview');
-    if(previewToggle&&preview){
-      previewToggle.addEventListener('click',()=>{const open=preview.style.display!=='none';preview.style.display=open?'none':'block';previewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';});
-      makePreviewResizable(preview);
+    // プレビュー切替
+    const dtPvBtn=modal.querySelector('#dt-preview-btn');
+    const dtPvArea=modal.querySelector('#dt-preview-area');
+    if(dtPvBtn&&dtPvArea){
+      let dtPvMode=false;
+      const renderDtPv=()=>{
+        if(!notesEl)return;
+        dtPvArea.innerHTML=esc(notesEl.value)
+          .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent);text-decoration:underline">$1</a>')
+          .replace(/\n/g,'<br>');
+      };
+      const dtEnterPv=()=>{renderDtPv();notesEl.style.display='none';dtPvArea.style.display='block';dtPvBtn.textContent='編集';dtPvMode=true;};
+      const dtExitPv=()=>{notesEl.style.display='';dtPvArea.style.display='none';dtPvBtn.textContent='プレビュー';dtPvMode=false;};
+      dtPvBtn.addEventListener('click',()=>{dtPvMode?dtExitPv():dtEnterPv();});
+      makePreviewResizable(dtPvArea);
     }
     // copy url btn
     const copyUrlBtn=modal.querySelector('#copy-url-btn');
@@ -5081,11 +5091,21 @@ function reattachModalEvents(modal, type, onClose){
     const note=S.notes.find(n=>n.id===S.noteId);
     if(!note)return;
     makeResizable(bodyEl);
-    const previewToggle=modal.querySelector('#nt-preview-toggle');
-    const previewAnim=modal.querySelector('#nt-preview-anim');
-    if(previewToggle&&previewAnim){
-      previewToggle.addEventListener('click',()=>{const open=previewAnim.style.maxHeight!=='0px';previewAnim.style.maxHeight=open?'0px':'600px';previewAnim.style.opacity=open?'0':'1';previewToggle.innerHTML=(open?'▶':'▼')+' プレビュー';});
-      makePreviewResizable(preview);
+    // プレビュー切替
+    const ntPvBtn=modal.querySelector('#nt-preview-btn');
+    const ntPvArea=modal.querySelector('#nt-preview-area');
+    if(ntPvBtn&&ntPvArea){
+      let ntPvMode=false;
+      const renderNtPv=()=>{
+        if(!bodyEl)return;
+        ntPvArea.innerHTML=esc(bodyEl.value)
+          .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>')
+          .replace(/\n/g,'<br>');
+      };
+      const ntEnterPv=()=>{renderNtPv();bodyEl.style.display='none';ntPvArea.style.display='block';ntPvBtn.textContent='編集';ntPvMode=true;};
+      const ntExitPv=()=>{bodyEl.style.display='';ntPvArea.style.display='none';ntPvBtn.textContent='プレビュー';ntPvMode=false;};
+      ntPvBtn.addEventListener('click',()=>{ntPvMode?ntExitPv():ntEnterPv();});
+      makePreviewResizable(ntPvArea);
     }
     let _c=false,nt2;
     const save=()=>{clearTimeout(nt2);nt2=setTimeout(async()=>{note.title=titleEl?.value||'';note.body=bodyEl?.value||'';await saveNote(note);const h=modal.querySelector('.drawer-head div div:last-child');if(h)h.textContent=note.title||'無題';},600);};
