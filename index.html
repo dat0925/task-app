@@ -4737,6 +4737,7 @@ function _buildCalcInDrawer(){
           _lpTimer=null;
           const h=calcHistory[idx];
           if(!h||_moved)return;
+          window.playClick?.();
           doCopy(fmtExpr(h.expr)+'='+fmtComma(h.result),()=>{
             zone.closest('.calc-hist-item').classList.add('flash');
             setTimeout(()=>zone.closest('.calc-hist-item')?.classList.remove('flash'),400);
@@ -4770,6 +4771,7 @@ function _buildCalcInDrawer(){
           lpTimer=null;
           const h=calcHistory[idx];
           if(!h)return;
+          window.playClick?.();
           doCopy(fmtComma(h.result),()=>{
             badge.closest('.calc-hist-item').classList.add('flash');
             setTimeout(()=>badge.closest('.calc-hist-item')?.classList.remove('flash'),500);
@@ -4783,6 +4785,7 @@ function _buildCalcInDrawer(){
           if(isTap){
             const h=calcHistory[idx];
             if(h){
+              window.playClickEq?.();
               pressNum(h.result);
               badge.closest('.calc-hist-item').classList.add('flash');
               setTimeout(()=>badge.closest('.calc-hist-item')?.classList.remove('flash'),250);
