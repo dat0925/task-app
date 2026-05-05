@@ -217,8 +217,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-topbar-btn{}
 /* Calculator drawer: mechanical dark-key theme (matches PIN screen) */
 .calc-drawer-body{background:#111;padding:0!important;display:flex;flex-direction:column;overflow:hidden}
-.calc-drawer .inline-calc{background:#111;padding:0;gap:0;flex:1;display:flex;flex-direction:column;min-height:0}
-.calc-top-scroll{flex:1;overflow-y:auto;min-height:0;padding:8px 12px 4px;display:flex;flex-direction:column;gap:6px}
+.calc-drawer .inline-calc{background:#111;padding:0;gap:0;flex:1;display:flex;flex-direction:column;min-height:0;justify-content:flex-end}
+.calc-top-scroll{flex:0 1 auto;overflow-y:auto;min-height:0;max-height:160px;padding:8px 12px 4px;display:flex;flex-direction:column;gap:6px}
 .calc-mid-section{flex-shrink:0;padding:8px 12px 0;display:flex;flex-direction:column;gap:8px}
 .calc-drawer .calc-pad-wrap{flex-shrink:0;border-radius:0;margin:0;padding:12px}
 .calc-drawer .calc-display{background:#0a0a0a;border:none;border-radius:10px;padding:14px 16px;min-height:80px;box-shadow:inset 0 2px 8px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.04);cursor:default}
@@ -246,8 +246,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   border-top-color:rgba(255,255,255,.06);
 }
 /* Paren keys (shorter) */
-.calc-drawer .calc-paren-btn{height:48px;font-size:16px;font-weight:600}
-.calc-drawer .calc-paren-btn.pressed{transform:translateY(7px)}
+.calc-drawer .calc-paren-btn{height:31px;font-size:14px;font-weight:600}
+.calc-drawer .calc-paren-btn.pressed{transform:translateY(4px)}
 /* Operator keys: amber */
 .calc-drawer .calc-btn.cop{
   background:linear-gradient(175deg,#5c4a2a 0%,#4a3818 35%,#3a2c0e 70%,#2e2206 100%);
@@ -277,8 +277,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-btn.cfn{background:linear-gradient(175deg,#404040 0%,#333 35%,#282828 70%,#202020 100%);color:#aaa;font-size:16px}
 /* Utility row (式クリア・式コピー) */
 .calc-util-row{display:flex;gap:6px}
-.calc-util-btn{flex:1;padding:5px 4px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.1);background:#232323;color:#bbb;transition:background .15s,color .15s,border-color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;gap:4px}
-.calc-util-btn:active{background:#2e2e2e}
+.calc-util-btn{flex:1;height:31px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.2);border-left:1px solid rgba(255,255,255,.08);border-right:1px solid rgba(0,0,0,.6);border-bottom:1px solid rgba(0,0,0,.7);background:linear-gradient(175deg,#525252 0%,#3e3e3e 35%,#2e2e2e 70%,#252525 100%);color:#ccc;box-shadow:0 5px 0 0 #0d0d0d,0 4px 0 0 #161616,0 3px 0 0 #1c1c1c,0 6px 4px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.18),inset 1px 0 0 rgba(255,255,255,.08),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(0);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
+.calc-util-btn:active,.calc-util-btn.pressed{transform:translateY(4px);box-shadow:0 1px 0 0 #0d0d0d,0 2px 3px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5);background:linear-gradient(175deg,#3a3a3a 0%,#2e2e2e 40%,#262626 100%);border-top-color:rgba(255,255,255,.06)}
 .calc-util-btn.copied{background:#132b1a;color:#4ade80;border-color:rgba(74,222,128,.35)}
 .calc-util-btn.cleared{background:#2a1616;color:#f87171;border-color:rgba(248,113,113,.3)}
 /* History in drawer */
@@ -4551,8 +4551,8 @@ function _buildCalcInDrawer(){
           +'<button class="calc-btn ceq" data-cv="=">=</button>'
         +'</div>'
         +'<div class="calc-util-row" style="margin-top:8px">'
-          +'<button class="calc-util-btn" data-cv="00">00</button>'
-          +'<button class="calc-util-btn" data-cv="000">000</button>'
+          +'<button class="calc-util-btn" data-cv="00">百</button>'
+          +'<button class="calc-util-btn" data-cv="000">千</button>'
           +'<button class="calc-util-btn" data-cv="万">万</button>'
           +'<button class="calc-util-btn" data-cv="億">億</button>'
         +'</div>'
