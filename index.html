@@ -305,7 +305,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-btn.cfn{background:linear-gradient(180deg,#424242 0%,#383838 30%,#2e2e2e 70%,#262626 100%);color:#aaa;font-size:22px}
 /* Utility row (式クリア・式コピー) */
 .calc-util-row{display:flex;gap:6px}
-.calc-util-btn{flex:1;height:58px;border-radius:6px 6px 4px 4px;font-size:18px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(0,0,0,.5);border-bottom:none;background:linear-gradient(180deg,#4a4a4a 0%,#3e3e3e 30%,#333 70%,#2c2c2c 100%);color:#d0d0d0;box-shadow:0 1px 0 0 #484848,0 2px 0 0 #404040,0 3px 0 0 #383838,0 4px 0 0 #303030,0 5px 0 0 #282828,0 6px 0 0 #202020,0 7px 0 0 #1a1a1a,0 8px 0 0 #141414,0 9px 0 0 #0f0f0f,0 10px 0 0 #0a0a0a,0 11px 0 0 #070707,0 12px 0 0 #050505,0 13px 0 0 #030303,0 15px 12px rgba(0,0,0,.75),inset 0 1px 2px rgba(255,255,255,.16),inset 0 -1px 3px rgba(0,0,0,.55);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(-8px);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
+.calc-util-btn{flex:1;height:52px;border-radius:6px 6px 4px 4px;font-size:18px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(0,0,0,.5);border-bottom:none;background:linear-gradient(180deg,#4a4a4a 0%,#3e3e3e 30%,#333 70%,#2c2c2c 100%);color:#d0d0d0;box-shadow:0 1px 0 0 #484848,0 2px 0 0 #404040,0 3px 0 0 #383838,0 4px 0 0 #303030,0 5px 0 0 #282828,0 6px 0 0 #202020,0 7px 0 0 #1a1a1a,0 8px 0 0 #141414,0 9px 0 0 #0f0f0f,0 10px 0 0 #0a0a0a,0 11px 0 0 #070707,0 12px 0 0 #050505,0 13px 0 0 #030303,0 15px 12px rgba(0,0,0,.75),inset 0 1px 2px rgba(255,255,255,.16),inset 0 -1px 3px rgba(0,0,0,.55);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(-8px);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
 .calc-util-btn:active,.calc-util-btn.pressed{transform:translateY(0px);box-shadow:0 1px 0 0 #222,0 2px 5px rgba(0,0,0,.65),inset 0 2px 6px rgba(0,0,0,.65),inset 0 1px 0 rgba(0,0,0,.45);background:linear-gradient(180deg,#303030 0%,#2a2a2a 50%,#242424 100%);border-top-color:rgba(255,255,255,.06)}
 .calc-util-btn.copied{background:#132b1a;color:#4ade80;border-color:rgba(74,222,128,.35)}
 .calc-util-btn.cleared{background:#2a1616;color:#f87171;border-color:rgba(248,113,113,.3)}
@@ -4561,6 +4561,18 @@ function _buildCalcInDrawer(){
     window.playClick?.();
     setTimeout(()=>btn.classList.remove('pressed'),160);
   }
+  function attachPressEvents(el){
+    el.addEventListener('touchstart',e=>{
+      const btn=e.target.closest('[data-cv]');if(!btn)return;
+      btn.classList.add('pressed');window.playClick?.();
+    },{passive:true});
+    el.addEventListener('touchend',e=>{
+      const btn=e.target.closest('[data-cv]');if(btn)btn.classList.remove('pressed');
+    },{passive:true});
+    el.addEventListener('touchcancel',e=>{
+      const btn=e.target.closest('[data-cv]');if(btn)btn.classList.remove('pressed');
+    },{passive:true});
+  }
 
   // Utility button feedback
   function showCopied(btn,label){
@@ -4788,10 +4800,7 @@ function _buildCalcInDrawer(){
 
   // Number/op grid: touch for animation + sound, click for logic
   const grid=wrap.querySelector('.calc-grid');
-  grid.addEventListener('touchstart',e=>{
-    const btn=e.target.closest('[data-cv]');if(!btn)return;
-    pressAnimate(btn);
-  },{passive:true});
+  attachPressEvents(grid);
   grid.addEventListener('click',e=>{
     const btn=e.target.closest('[data-cv]');if(!btn)return;
     const v=btn.dataset.cv;
@@ -4804,7 +4813,7 @@ function _buildCalcInDrawer(){
   // 入力補助ボタン（00 / 000 / 万 / 億）
   const utilRow=wrap.querySelector('.calc-util-row');
   if(utilRow){
-    utilRow.addEventListener('touchstart',e=>{const btn=e.target.closest('[data-cv]');if(btn)pressAnimate(btn);},{passive:true});
+    attachPressEvents(utilRow);
     utilRow.addEventListener('click',e=>{
       const btn=e.target.closest('[data-cv]');if(!btn)return;
       const v=btn.dataset.cv;
