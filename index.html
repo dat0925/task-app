@@ -4666,6 +4666,8 @@ function _buildCalcInDrawer(){
         const fs=parseFloat(getComputedStyle(reEl).fontSize)||35;
         _ctx.font=`700 ${fs}px system-ui,sans-serif`;
         const totalW=_ctx.measureText(formatted).width;
+        // 2行折り返し時はラベル表示しない
+        if(totalW>reEl.offsetWidth*1.05)return;
         function rightOffsetFor(suffixStr){
           return totalW-_ctx.measureText(formatted.slice(0,formatted.length-suffixStr.length)).width;
         }
