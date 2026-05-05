@@ -4669,18 +4669,17 @@ function _buildCalcInDrawer(){
         function rightOffsetFor(suffixStr){
           return totalW-_ctx.measureText(formatted.slice(0,formatted.length-suffixStr.length)).width;
         }
-        // 億: 右から9桁+カンマ → formatted末尾から「9桁分+カンマ」の文字列
+        // 億: 右から9桁目の数字の左端に配置
         if(abs>=100000000){
-          // 億の位の直前の文字インデックスを求める
-          // formatted例: "6,211,666,652" → 億は右から9文字目の数字 = index 2 ("6")
           let dCount=0,okuIdx=-1;
           for(let i=formatted.length-1;i>=0;i--){
             if(/[0-9]/.test(formatted[i]))dCount++;
             if(dCount===9){okuIdx=i;break;}
           }
           if(okuIdx>=0){
-            const suffix=formatted.slice(okuIdx);
-            const rOff=_ctx.measureText(suffix).width;
+            // okuIdxより右側の文字列の幅 = right値
+            const rightStr=formatted.slice(okuIdx+1);
+            const rOff=_ctx.measureText(rightStr).width;
             const okuLabel=document.createElement('span');
             okuLabel.className='calc-unit-label';
             okuLabel.textContent='億';
@@ -4688,7 +4687,7 @@ function _buildCalcInDrawer(){
             reEl.appendChild(okuLabel);
           }
         }
-        // 万: 右から5桁目の数字の上
+        // 万: 右から5桁目の数字の左端に配置
         if(abs>=10000){
           let dCount=0,manIdx=-1;
           for(let i=formatted.length-1;i>=0;i--){
@@ -4696,8 +4695,8 @@ function _buildCalcInDrawer(){
             if(dCount===5){manIdx=i;break;}
           }
           if(manIdx>=0){
-            const suffix=formatted.slice(manIdx);
-            const rOff=_ctx.measureText(suffix).width;
+            const rightStr=formatted.slice(manIdx+1);
+            const rOff=_ctx.measureText(rightStr).width;
             const manLabel=document.createElement('span');
             manLabel.className='calc-unit-label';
             manLabel.textContent='万';
