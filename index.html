@@ -4563,10 +4563,11 @@ function _buildCalcInDrawer(){
     window.playClick?.();
     setTimeout(()=>btn.classList.remove('pressed'),160);
   }
-  function attachPressEvents(el, onTouch){
+  function attachPressEvents(el, onTouch, noDefaultSound){
     el.addEventListener('touchstart',e=>{
       const btn=e.target.closest('[data-cv]');if(!btn)return;
-      btn.classList.add('pressed');window.playClick?.();
+      btn.classList.add('pressed');
+      if(!noDefaultSound)window.playClick?.();
       if(onTouch)onTouch(btn);
     },{passive:true});
     el.addEventListener('touchend',e=>{
@@ -4870,12 +4871,16 @@ function _buildCalcInDrawer(){
 
   // Number/op grid: touchstartで入力(スマホ), clickはPC専用
   function execBtn(v){
-    if(v==='AC')pressAC();else if(v==='±')pressPM();else if(v==='BS')pressBS();
-    else if(v==='/')pressOp('/');else if(v==='*')pressOp('*');else if(v==='-')pressOp('-');else if(v==='+')pressOp('+');
-    else if(v==='=')pressEq();else if(v==='.')pressDot();else pressNum(v);
+    if(v==='AC'){window.playClickAC?.();pressAC();}
+    else if(v==='='){window.playClickEq?.();pressEq();}
+    else{window.playClick?.();
+      if(v==='±')pressPM();else if(v==='BS')pressBS();
+      else if(v==='/')pressOp('/');else if(v==='*')pressOp('*');else if(v==='-')pressOp('-');else if(v==='+')pressOp('+');
+      else if(v==='.')pressDot();else pressNum(v);
+    }
   }
   const grid=wrap.querySelector('.calc-grid');
-  attachPressEvents(grid, btn=>execBtn(btn.dataset.cv));
+  attachPressEvents(grid, btn=>execBtn(btn.dataset.cv), true);
   grid.addEventListener('click',e=>{
     if('ontouchstart' in window)return; // スマホはtouchstartで処理済み
     const btn=e.target.closest('[data-cv]');if(!btn)return;
@@ -5891,6 +5896,44 @@ document.getElementById('ai-input').addEventListener('input',function(){
       const resSrc=ctx.createBufferSource();resSrc.buffer=resBuf;
       const gRes=ctx.createGain();gRes.gain.setValueAtTime(0.0,t);gRes.gain.linearRampToValueAtTime(0.18,t+0.005);gRes.gain.exponentialRampToValueAtTime(0.001,t+0.08);
       resSrc.connect(gRes);gRes.connect(master);resSrc.start(t+0.002);resSrc.stop(t+0.09);
+    }catch(e){}
+  };
+
+  // AC: 低くて鈍い音（リセット感）
+  window.playClickAC=function(){
+    if(!getSetting('soundFx',true))return;
+    try{
+      if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      const ctx=_audioCtx;const t=ctx.currentTime;const sr=ctx.sampleRate;
+      const master=ctx.createGain();master.gain.value=1.0;
+      master.connect(ctx.destination);
+      const osc=ctx.createOscillator();osc.type='sawtooth';
+      osc.frequency.setValueAtTime(80,t);osc.frequency.exponentialRampToValueAtTime(40,t+0.12);
+      const g=ctx.createGain();g.gain.setValueAtTime(0.0,t);g.gain.linearRampToValueAtTime(0.5,t+0.005);g.gain.exponentialRampToValueAtTime(0.001,t+0.15);
+      const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=400;
+      osc.connect(lp);lp.connect(g);g.connect(master);osc.start(t);osc.stop(t+0.16);
+      const ns=Math.floor(sr*0.02);const nb=ctx.createBuffer(1,ns,sr);const nd=nb.getChannelData(0);
+      for(let i=0;i<ns;i++){nd[i]=(Math.random()*2-1)*Math.exp(-i/(sr*0.005));}
+      const nsrc=ctx.createBufferSource();nsrc.buffer=nb;
+      const ng=ctx.createGain();ng.gain.setValueAtTime(0.4,t);ng.gain.exponentialRampToValueAtTime(0.001,t+0.025);
+      nsrc.connect(ng);ng.connect(master);nsrc.start(t);nsrc.stop(t+0.025);
+    }catch(e){}
+  };
+
+  // イコール: 明るく上昇する2音（確定感）
+  window.playClickEq=function(){
+    if(!getSetting('soundFx',true))return;
+    try{
+      if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      const ctx=_audioCtx;const t=ctx.currentTime;const sr=ctx.sampleRate;
+      const master=ctx.createGain();master.gain.value=0.8;
+      const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3000;
+      master.connect(lp);lp.connect(ctx.destination);
+      [[0,520,0.06],[0.055,780,0.07]].forEach(([delay,freq,dur])=>{
+        const o=ctx.createOscillator();o.type='sine';o.frequency.value=freq;
+        const g=ctx.createGain();g.gain.setValueAtTime(0.0,t+delay);g.gain.linearRampToValueAtTime(0.5,t+delay+0.008);g.gain.exponentialRampToValueAtTime(0.001,t+delay+dur);
+        o.connect(g);g.connect(master);o.start(t+delay);o.stop(t+delay+dur+0.01);
+      });
     }catch(e){}
   };
 })();
