@@ -222,9 +222,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-mid-section{flex-shrink:0;padding:8px 12px 0;display:flex;flex-direction:column;gap:8px}
 .calc-drawer .calc-pad-wrap{flex-shrink:0;border-radius:0;margin:0;padding:12px}
 .calc-drawer .calc-display{background:#0a0a0a;border:none;border-radius:10px;padding:14px 16px;min-height:80px;box-shadow:inset 0 2px 8px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.04);cursor:default}
-.calc-drawer .calc-expr-inline{color:#888;font-size:13px;min-height:1.4em}
-.calc-drawer .calc-result{color:#fff;font-size:32px;text-shadow:0 0 22px rgba(255,255,255,.1)}
-.calc-drawer .calc-okuMan{color:#666}
+.calc-drawer .calc-expr-inline{color:#bbb;font-size:16px;min-height:1.4em;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px;border:1px solid rgba(255,255,255,.07)}
+.calc-drawer .calc-result{color:#fff;font-size:35px;text-shadow:0 0 22px rgba(255,255,255,.1)}
+.calc-drawer .calc-okuMan{color:#666;display:none}
 .calc-drawer .calc-result-wrap{cursor:pointer}
 /* Dark pad base (same feel as .lock-pad) */
 .calc-pad-wrap{background:#1a1a1a;padding:12px;border-radius:16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 0 #0a0a0a,0 4px 12px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.04)}
@@ -232,7 +232,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-action-row{gap:6px;margin-bottom:0}
 /* Mechanical number/fn keys */
 .calc-drawer .calc-btn,.calc-drawer .calc-paren-btn{
-  padding:0;height:62px;border-radius:8px;font-size:19px;font-weight:700;
+  padding:0;height:62px;border-radius:8px;font-size:21px;font-weight:700;
   background:linear-gradient(175deg,#525252 0%,#3e3e3e 35%,#2e2e2e 70%,#252525 100%);
   color:#ccc;
   box-shadow:0 10px 0 0 #0d0d0d,0 9px 0 0 #161616,0 7px 0 0 #1c1c1c,0 5px 0 0 #222,0 3px 0 0 #282828,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.18),inset 1px 0 0 rgba(255,255,255,.08),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5);
