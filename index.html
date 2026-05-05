@@ -4561,10 +4561,11 @@ function _buildCalcInDrawer(){
     window.playClick?.();
     setTimeout(()=>btn.classList.remove('pressed'),160);
   }
-  function attachPressEvents(el){
+  function attachPressEvents(el, onTouch){
     el.addEventListener('touchstart',e=>{
       const btn=e.target.closest('[data-cv]');if(!btn)return;
       btn.classList.add('pressed');window.playClick?.();
+      if(onTouch)onTouch(btn);
     },{passive:true});
     el.addEventListener('touchend',e=>{
       const btn=e.target.closest('[data-cv]');if(btn)btn.classList.remove('pressed');
@@ -4773,11 +4774,11 @@ function _buildCalcInDrawer(){
   // 式クリア・式コピー（ヘッダーボタン）
   const exClearBtn=document.getElementById('calc-head-clear-btn');
   const exCopyBtn=document.getElementById('calc-head-copy-btn');
-  if(exClearBtn)exClearBtn.addEventListener('click',()=>{calcHistory=[];_calcState.history=[];renderHist();toast('式ログをクリアしました');});
+  if(exClearBtn)exClearBtn.addEventListener('click',()=>{calcHistory=[];_calcState.history=[];renderHist();playSE('delete');toast('式ログをクリアしました');});
   if(exCopyBtn)exCopyBtn.addEventListener('click',()=>{
     if(!calcHistory.length)return;
     const text=calcHistory.map(h=>fmtExpr(h.expr)+' = '+fmtComma(h.result)).join('\n');
-    doCopy(text,()=>toast('式ログをコピーしました 📋'));
+    window.playClick?.();doCopy(text,()=>toast('式ログをコピーしました 📋'));
   });
 
   // 税込・税抜ボタン
@@ -4794,43 +4795,50 @@ function _buildCalcInDrawer(){
     btn.addEventListener('touchend',()=>btn.classList.remove('pressed'),{passive:true});
     btn.addEventListener('touchcancel',()=>btn.classList.remove('pressed'),{passive:true});
   });
-  taxIn.addEventListener('click',()=>applyTax(true));
-  taxOut.addEventListener('click',()=>applyTax(false));
+  taxIn.addEventListener('touchstart',()=>{window.playClick?.();},{passive:true});
+  taxOut.addEventListener('touchstart',()=>{window.playClick?.();},{passive:true});
+  taxIn.addEventListener('click',()=>{if(!('ontouchstart' in window))window.playClick?.();applyTax(true);});
+  taxOut.addEventListener('click',()=>{if(!('ontouchstart' in window))window.playClick?.();applyTax(false);});
 
   // Paren buttons with animation
   const actionRow=wrap.querySelector('.calc-action-row');
-  attachPressEvents(actionRow);
+  attachPressEvents(actionRow, btn=>{if(btn.dataset.cv)pressParen(btn.dataset.cv);});
   actionRow.addEventListener('click',e=>{
+    if('ontouchstart' in window)return;
     const btn=e.target.closest('[data-cv]');if(!btn)return;
-    pressParen(btn.dataset.cv);
+    pressAnimate(btn);pressParen(btn.dataset.cv);
   });
 
   function pressMulti(s){if(justEvaled){expr=s;result='';justEvaled=false;}else expr+=s;const r=safeCalc(expr);if(r!=null)result=r;upd();}
 
-  // Number/op grid: touch for animation + sound, click for logic
-  const grid=wrap.querySelector('.calc-grid');
-  attachPressEvents(grid);
-  grid.addEventListener('click',e=>{
-    const btn=e.target.closest('[data-cv]');if(!btn)return;
-    const v=btn.dataset.cv;
+  // Number/op grid: touchstartで入力(スマホ), clickはPC専用
+  function execBtn(v){
     if(v==='AC')pressAC();else if(v==='±')pressPM();else if(v==='BS')pressBS();
     else if(v==='/')pressOp('/');else if(v==='*')pressOp('*');else if(v==='-')pressOp('-');else if(v==='+')pressOp('+');
     else if(v==='=')pressEq();else if(v==='.')pressDot();else pressNum(v);
-    if(!('ontouchstart' in window))pressAnimate(btn);
+  }
+  const grid=wrap.querySelector('.calc-grid');
+  attachPressEvents(grid, btn=>execBtn(btn.dataset.cv));
+  grid.addEventListener('click',e=>{
+    if('ontouchstart' in window)return; // スマホはtouchstartで処理済み
+    const btn=e.target.closest('[data-cv]');if(!btn)return;
+    pressAnimate(btn);execBtn(btn.dataset.cv);
   });
 
   // 入力補助ボタン（00 / 000 / 万 / 億）
   const utilRow=wrap.querySelector('.calc-util-row');
   if(utilRow){
-    attachPressEvents(utilRow);
-    utilRow.addEventListener('click',e=>{
-      const btn=e.target.closest('[data-cv]');if(!btn)return;
-      const v=btn.dataset.cv;
+    function execUtil(v){
       if(v==='00')pressMulti('00');
       else if(v==='000')pressMulti('000');
       else if(v==='万')pressMulti('0000');
       else if(v==='億')pressMulti('00000000');
-      if(!('ontouchstart' in window))pressAnimate(btn);
+    }
+    attachPressEvents(utilRow, btn=>execUtil(btn.dataset.cv));
+    utilRow.addEventListener('click',e=>{
+      if('ontouchstart' in window)return;
+      const btn=e.target.closest('[data-cv]');if(!btn)return;
+      pressAnimate(btn);execUtil(btn.dataset.cv);
     });
   }
 }
