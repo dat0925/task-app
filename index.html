@@ -1336,10 +1336,17 @@ function showLinkPopover(anchorBtn, taId, insertAtTop=false){
 function makeResizable(ta){
   if(!ta||ta._resizable)return;
   ta._resizable=true;
-  const wrap=document.createElement('div');
-  wrap.className='textarea-wrap';
-  ta.parentNode.insertBefore(wrap,ta);
-  wrap.appendChild(ta);
+  let wrap;
+  if(ta.parentNode&&ta.parentNode.classList.contains('textarea-wrap')){
+    // already wrapped (e.g. innerHTML copy from drawer) — reuse, strip dead handles
+    wrap=ta.parentNode;
+    wrap.querySelectorAll('.resize-handle').forEach(h=>h.remove());
+  } else {
+    wrap=document.createElement('div');
+    wrap.className='textarea-wrap';
+    ta.parentNode.insertBefore(wrap,ta);
+    wrap.appendChild(ta);
+  }
   const handle=document.createElement('div');
   handle.className='resize-handle';
   wrap.appendChild(handle);
@@ -4551,9 +4558,18 @@ function _buildCalcInDrawer(){
 
   function doCopy(text,doneCb){
     if(!text)return;
-    navigator.clipboard?.writeText(text).then(doneCb).catch(()=>{
-      const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();doneCb?.();
-    });
+    const _fb=()=>{
+      const t=document.createElement('textarea');t.value=text;
+      t.style.cssText='position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+      document.body.appendChild(t);t.focus();t.select();
+      try{document.execCommand('copy');}catch(e){}
+      t.remove();doneCb?.();
+    };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(doneCb).catch(_fb);
+    } else {
+      _fb();
+    }
   }
 
   // Button press animation + sound
@@ -4729,12 +4745,16 @@ function _buildCalcInDrawer(){
     // 式ゾーン: タップ → 式+結果をコピー
     histEl.querySelectorAll('.calc-hist-expr-zone').forEach(zone=>{
       const idx=parseInt(zone.dataset.copyHi);
-      // 長押し判定: touchendのタイミングでコピー（iOSのclipboard権限はジェスチャー直接呼び出しが必要）
-      let _lpReady=false,_moved=false,_startTime=0;
+      // 長押し判定: touchendで経過時間チェック（iOSはtouchend直接呼び出しが必要）
+      let _moved=false,_startTime=0,_sx=0,_sy=0;
       zone.addEventListener('touchstart',e=>{
-        _moved=false;_lpReady=false;_startTime=Date.now();
+        _moved=false;_startTime=Date.now();
+        _sx=e.touches[0].clientX;_sy=e.touches[0].clientY;
+        e.preventDefault(); // ブラウザの長押し選択メニューを抑制
+      },{passive:false});
+      zone.addEventListener('touchmove',e=>{
+        if(Math.abs(e.touches[0].clientX-_sx)>8||Math.abs(e.touches[0].clientY-_sy)>8)_moved=true;
       },{passive:true});
-      zone.addEventListener('touchmove',()=>{_moved=true;},{passive:true});
       zone.addEventListener('touchend',e=>{
         if(_moved)return;
         const elapsed=Date.now()-_startTime;
@@ -4766,6 +4786,40 @@ function _buildCalcInDrawer(){
     // 結果バッジ: タップ → 電卓に入力 / 長押し → 数値をコピー
     histEl.querySelectorAll('.calc-hist-result').forEach(badge=>{
       const idx=parseInt(badge.dataset.insertHi);
+      // モバイル: touchendで経過時間チェック（iOSはジェスチャー直接呼び出しが必要）
+      let _bMoved=false,_bTime=0,_bSx=0,_bSy=0;
+      badge.addEventListener('touchstart',e=>{
+        e.stopPropagation();e.preventDefault();
+        _bMoved=false;_bTime=Date.now();
+        _bSx=e.touches[0].clientX;_bSy=e.touches[0].clientY;
+      },{passive:false});
+      badge.addEventListener('touchmove',e=>{
+        if(Math.abs(e.touches[0].clientX-_bSx)>8||Math.abs(e.touches[0].clientY-_bSy)>8)_bMoved=true;
+      },{passive:true});
+      badge.addEventListener('touchend',e=>{
+        e.stopPropagation();e.preventDefault();
+        if(_bMoved)return;
+        const elapsed=Date.now()-_bTime;
+        const h=calcHistory[idx];
+        if(!h)return;
+        if(elapsed>=500){
+          // 長押し: コピー（touchend直接呼び出しでiOS Safariも動作）
+          window.playClick?.();
+          doCopy(fmtComma(h.result),()=>{
+            badge.closest('.calc-hist-item').classList.add('flash');
+            setTimeout(()=>badge.closest('.calc-hist-item')?.classList.remove('flash'),500);
+            toast('結果をコピーしました 📋');
+          });
+        } else {
+          // タップ: 電卓に入力
+          window.playClickEq?.();
+          pressNum(h.result);
+          badge.closest('.calc-hist-item').classList.add('flash');
+          setTimeout(()=>badge.closest('.calc-hist-item')?.classList.remove('flash'),250);
+        }
+      },{passive:false});
+      badge.addEventListener('touchcancel',()=>{_bMoved=true;},{passive:true});
+      // PC: マウス長押しでコピー（setTimeoutはPCでは正常動作）
       let lpTimer=null;
       const lpStart=()=>{
         lpTimer=setTimeout(()=>{
@@ -4795,9 +4849,6 @@ function _buildCalcInDrawer(){
         }
       };
       const lpCancel=()=>{if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}};
-      badge.addEventListener('touchstart',e=>{e.stopPropagation();e.preventDefault();lpStart();},{passive:false});
-      badge.addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();lpEnd(true);},{passive:false});
-      badge.addEventListener('touchcancel',lpCancel);
       badge.addEventListener('mousedown',e=>{e.stopPropagation();lpStart();});
       badge.addEventListener('mouseup',e=>{e.stopPropagation();lpEnd(true);});
       badge.addEventListener('mouseleave',lpCancel);
@@ -4824,11 +4875,23 @@ function _buildCalcInDrawer(){
       toast('計算結果をコピーしました 📋');
     });
   }
+  // モバイル: touchendで経過時間チェック（iOSはジェスチャー直接呼び出しが必要）
+  let _resTouchTime=0,_resTouchMoved=false,_resTouchSx=0,_resTouchSy=0;
+  resWrap.addEventListener('touchstart',e=>{
+    _resTouchTime=Date.now();_resTouchMoved=false;
+    _resTouchSx=e.touches[0].clientX;_resTouchSy=e.touches[0].clientY;
+  },{passive:true});
+  resWrap.addEventListener('touchmove',e=>{
+    if(Math.abs(e.touches[0].clientX-_resTouchSx)>8||Math.abs(e.touches[0].clientY-_resTouchSy)>8)_resTouchMoved=true;
+  },{passive:true});
+  resWrap.addEventListener('touchend',e=>{
+    if(_resTouchMoved)return;
+    if(Date.now()-_resTouchTime>=500)_copyResult();
+  },{passive:true});
+  resWrap.addEventListener('touchcancel',()=>{_resTouchMoved=true;},{passive:true});
+  // PC: マウス長押し（setTimeoutはPCでは正常動作）
   function _resLpStart(){_resLpTimer=setTimeout(()=>{_resLpTimer=null;_copyResult();},500);}
   function _resLpEnd(){if(_resLpTimer){clearTimeout(_resLpTimer);_resLpTimer=null;}}
-  resWrap.addEventListener('touchstart',_resLpStart,{passive:true});
-  resWrap.addEventListener('touchend',_resLpEnd);
-  resWrap.addEventListener('touchcancel',_resLpEnd);
   resWrap.addEventListener('mousedown',_resLpStart);
   resWrap.addEventListener('mouseup',_resLpEnd);
   resWrap.addEventListener('mouseleave',_resLpEnd);
