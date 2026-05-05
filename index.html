@@ -4970,6 +4970,47 @@ function _buildCalcInDrawer(){
       pressAnimate(btn);execUtil(btn.dataset.cv);
     });
   }
+
+  // ===== PCキーボード入力 =====
+  if(!('ontouchstart' in window)){
+    // ボタンアニメーションのみ（音はexecBtnが担当するので二重再生しない）
+    const _animBtn=btn=>{if(!btn)return;btn.classList.add('pressed');setTimeout(()=>btn.classList.remove('pressed'),160);};
+    document.addEventListener('keydown',e=>{
+      // 電卓ドロワーが閉じていれば無視
+      const dr=document.getElementById('calc-drawer-global');
+      if(!dr||!dr.classList.contains('open'))return;
+      // 修飾キー付きは無視（Ctrl+Z, Ctrl+C など）
+      if(e.ctrlKey||e.metaKey||e.altKey)return;
+      // input / textarea / select にフォーカスがあれば無視
+      const ae=document.activeElement;
+      if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT'||ae.isContentEditable))return;
+
+      const k=e.key;
+      // ( ) はグリッド外なので個別処理
+      if(k==='('||k===')'){
+        e.preventDefault();
+        _animBtn(wrap.querySelector('[data-cv="'+k+'"]'));
+        window.playClick?.();
+        pressParen(k);
+        return;
+      }
+      // グリッドボタンへのキーマップ
+      let cv=null;
+      if(k>='0'&&k<='9')cv=k;
+      else if(k==='+')cv='+';
+      else if(k==='-')cv='-';
+      else if(k==='*')cv='*';
+      else if(k==='/')cv='/';
+      else if(k==='.')cv='.';
+      else if(k==='Enter'||k==='=')cv='=';
+      else if(k==='Backspace')cv='BS';
+      else if(k==='Delete')cv='AC';
+      if(cv===null)return;
+      e.preventDefault();
+      _animBtn(wrap.querySelector('[data-cv="'+cv+'"]'));
+      execBtn(cv);
+    });
+  }
 }
 
 // ===== PC EXPAND MODAL =====
