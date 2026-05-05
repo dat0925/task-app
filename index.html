@@ -3826,6 +3826,8 @@ async function submitQA(){
 document.addEventListener('click',e=>{
   const btn=e.target.closest('.note-stamp-btn');
   if(!btn)return;
+  // プレビュー切替ボタン自身はスキップ（二重トグル防止）
+  if(btn.id==='dt-preview-btn'||btn.id==='nt-preview-btn')return;
   const ctx=btn.closest('#drawer,.expand-modal')||document;
   // dt-notes (タスク詳細メモ)
   const dtNotes=ctx.querySelector('#dt-notes')||document.getElementById('dt-notes');
