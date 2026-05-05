@@ -265,6 +265,18 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   background:linear-gradient(180deg,#404040 0%,#363636 50%,#2e2e2e 100%);
   border-top-color:rgba(255,255,255,.08);
 }
+/* 旧デザイン（比較用） */
+.calc-drawer .old-key{
+  background:linear-gradient(175deg,#525252 0%,#3e3e3e 35%,#2e2e2e 70%,#252525 100%) !important;
+  box-shadow:0 10px 0 0 #0d0d0d,0 9px 0 0 #161616,0 7px 0 0 #1c1c1c,0 5px 0 0 #222,0 3px 0 0 #282828,0 12px 8px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.18),inset 1px 0 0 rgba(255,255,255,.08),inset -1px 0 0 rgba(0,0,0,.5),inset 0 -2px 0 rgba(0,0,0,.5) !important;
+  border-top:1px solid rgba(255,255,255,.2) !important;border-left:1px solid rgba(255,255,255,.08) !important;border-right:1px solid rgba(0,0,0,.6) !important;border-bottom:1px solid rgba(0,0,0,.7) !important;
+  border-radius:8px !important;
+  transform:translateY(0) !important;
+}
+.calc-drawer .old-key.pressed{
+  transform:translateY(9px) !important;
+  box-shadow:0 1px 0 0 #0d0d0d,0 3px 4px rgba(0,0,0,.6),inset 0 2px 3px rgba(0,0,0,.5) !important;
+}
 /* Paren keys (shorter) */
 .calc-drawer .calc-paren-btn{height:31px;font-size:14px;font-weight:600}
 .calc-drawer .calc-paren-btn.pressed{transform:translateY(4px)}
@@ -4587,18 +4599,18 @@ function _buildCalcInDrawer(){
         +'<div class="calc-action-row">'
           +'<button class="calc-paren-btn" data-cv="(">(</button>'
           +'<button class="calc-paren-btn" data-cv=")">)</button>'
-          +'<button class="calc-paren-btn calc-tax-in" style="font-size:13px">税込</button>'
-          +'<button class="calc-paren-btn calc-tax-out" style="font-size:13px">税抜</button>'
+          +'<button class="calc-paren-btn calc-tax-in old-key" style="font-size:13px">税込</button>'
+          +'<button class="calc-paren-btn calc-tax-out old-key" style="font-size:13px">税抜</button>'
         +'</div>'
         +'<div class="calc-grid">'
-          +'<button class="calc-btn cac" data-cv="AC">AC</button>'
-          +'<button class="calc-btn cfn" data-cv="±">±</button>'
-          +'<button class="calc-btn cfn" data-cv="BS">⌫</button>'
-          +'<button class="calc-btn cop" data-cv="/">÷</button>'
-          +'<button class="calc-btn" data-cv="7">7</button>'
-          +'<button class="calc-btn" data-cv="8">8</button>'
-          +'<button class="calc-btn" data-cv="9">9</button>'
-          +'<button class="calc-btn cop" data-cv="*">×</button>'
+          +'<button class="calc-btn cac old-key" data-cv="AC">AC</button>'
+          +'<button class="calc-btn cfn old-key" data-cv="±">±</button>'
+          +'<button class="calc-btn cfn old-key" data-cv="BS">⌫</button>'
+          +'<button class="calc-btn cop old-key" data-cv="/">÷</button>'
+          +'<button class="calc-btn old-key" data-cv="7">7</button>'
+          +'<button class="calc-btn old-key" data-cv="8">8</button>'
+          +'<button class="calc-btn old-key" data-cv="9">9</button>'
+          +'<button class="calc-btn cop old-key" data-cv="*">×</button>'
           +'<button class="calc-btn" data-cv="4">4</button>'
           +'<button class="calc-btn" data-cv="5">5</button>'
           +'<button class="calc-btn" data-cv="6">6</button>'
