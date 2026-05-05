@@ -3302,6 +3302,17 @@ function renderSearchResults(q){
 }
 
 // ===== RENDER DRAWER =====
+
+// サブタスクリストのみ部分更新（スクロール位置を保持）
+function updateSubsOnly(){
+  const subsEl=document.getElementById('subs');
+  if(!subsEl||!S.taskId)return false;
+  const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId);
+  subsEl.innerHTML=allSubs.map(sub=>
+    '<div class="sub-item"><button class="chk'+(sub.status==="completed"?' done':'')+' " data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+  ).join('');
+  return true;
+}
 function renderDrawer(){
   const dr=document.getElementById('drawer');
   if(!S.drawerOpen||!S.taskId||S.view==='notes'){
@@ -3871,7 +3882,8 @@ else if(a==='sel-edit'){
     if(!task)return;
     if(task.status==='completed'){
       task.status=task.projectId?'active':'inbox';task.completedAt=null;
-      await saveTask(task);render();
+      await saveTask(task);
+      if(task.parentTaskId&&updateSubsOnly()){}else render();
     } else {
       const snap=JSON.stringify(task);
       task.status='completed';task.completedAt=now();
@@ -3886,8 +3898,12 @@ else if(a==='sel-edit'){
           const r=JSON.parse(snap);await saveTask(r);render();
         });
       }
-      if(S.taskId===task.id){S.drawerOpen=false;S.taskId=null}
-      render();
+      if(task.parentTaskId){
+        if(!updateSubsOnly())render();
+      } else {
+        if(S.taskId===task.id){S.drawerOpen=false;S.taskId=null}
+        render();
+      }
     }
   }
   
@@ -4135,10 +4151,16 @@ else if(a==='sel-edit'){
     const task=S.tasks.find(t=>t.id===id);
     if(!task)return;
     const snap=JSON.stringify(task);
-    if(S.taskId===id){S.drawerOpen=false;S.taskId=null}
-    await delTask(id);
-    toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render()});
-    render();
+    if(task.parentTaskId){
+      await delTask(id);
+      toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render()});
+      if(!updateSubsOnly())render();
+    } else {
+      if(S.taskId===id){S.drawerOpen=false;S.taskId=null}
+      await delTask(id);
+      toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render()});
+      render();
+    }
   }
   else if(a==='settings'){
     if(S._sidebarJustOpened&&Date.now()-S._sidebarJustOpened<400)return;
