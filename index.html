@@ -4653,34 +4653,57 @@ function _buildCalcInDrawer(){
     exEl.textContent=expr?fmtExpr(expr):'';
     reEl.textContent=result?fmtComma(result):'0';
     omEl.textContent=result?fmtOkuMan(result):'';
-    // 億・万ラベルをオーバーレイ
+    // 億・万ラベルをオーバーレイ（canvas幅計測で正確に配置）
     reEl.querySelectorAll('.calc-unit-label').forEach(el=>el.remove());
     if(result){
       const num=parseFloat(result);
       if(!isNaN(num)&&Math.abs(num)>=10000){
         const abs=Math.abs(num);
         const formatted=fmtComma(result);
-        const len=formatted.replace(/[^0-9]/g,'').length;
-        // 億の位: 9桁以上
-        if(abs>=100000000){
-          const okuLabel=document.createElement('span');
-          okuLabel.className='calc-unit-label';
-          okuLabel.textContent='億';
-          // 右から何文字目か: 億は右から9桁目
-          const digitsFromRight=9;
-          const charsFromRight=digitsFromRight+Math.floor((digitsFromRight-1)/3);
-          okuLabel.style.right=(charsFromRight*0.605+'em');
-          reEl.appendChild(okuLabel);
+        // canvas で文字幅を計測
+        const _cv=document.createElement('canvas');
+        const _ctx=_cv.getContext('2d');
+        const fs=parseFloat(getComputedStyle(reEl).fontSize)||35;
+        _ctx.font=`700 ${fs}px system-ui,sans-serif`;
+        const totalW=_ctx.measureText(formatted).width;
+        function rightOffsetFor(suffixStr){
+          return totalW-_ctx.measureText(formatted.slice(0,formatted.length-suffixStr.length)).width;
         }
-        // 万の位: 5桁以上（億未満の万も表示）
+        // 億: 右から9桁+カンマ → formatted末尾から「9桁分+カンマ」の文字列
+        if(abs>=100000000){
+          // 億の位の直前の文字インデックスを求める
+          // formatted例: "6,211,666,652" → 億は右から9文字目の数字 = index 2 ("6")
+          let dCount=0,okuIdx=-1;
+          for(let i=formatted.length-1;i>=0;i--){
+            if(/[0-9]/.test(formatted[i]))dCount++;
+            if(dCount===9){okuIdx=i;break;}
+          }
+          if(okuIdx>=0){
+            const suffix=formatted.slice(okuIdx);
+            const rOff=_ctx.measureText(suffix).width;
+            const okuLabel=document.createElement('span');
+            okuLabel.className='calc-unit-label';
+            okuLabel.textContent='億';
+            okuLabel.style.right=rOff+'px';
+            reEl.appendChild(okuLabel);
+          }
+        }
+        // 万: 右から5桁目の数字の上
         if(abs>=10000){
-          const manLabel=document.createElement('span');
-          manLabel.className='calc-unit-label';
-          manLabel.textContent='万';
-          const digitsFromRight=5;
-          const charsFromRight=digitsFromRight+Math.floor((digitsFromRight-1)/3);
-          manLabel.style.right=(charsFromRight*0.605+'em');
-          reEl.appendChild(manLabel);
+          let dCount=0,manIdx=-1;
+          for(let i=formatted.length-1;i>=0;i--){
+            if(/[0-9]/.test(formatted[i]))dCount++;
+            if(dCount===5){manIdx=i;break;}
+          }
+          if(manIdx>=0){
+            const suffix=formatted.slice(manIdx);
+            const rOff=_ctx.measureText(suffix).width;
+            const manLabel=document.createElement('span');
+            manLabel.className='calc-unit-label';
+            manLabel.textContent='万';
+            manLabel.style.right=rOff+'px';
+            reEl.appendChild(manLabel);
+          }
         }
       }
     }
