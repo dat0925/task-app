@@ -771,6 +771,11 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 /* Expand modal overlay */
 .expand-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;animation:tin .15s ease}
 .expand-modal{background:var(--surface);border-radius:14px;width:min(90vw,860px);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 60px rgba(0,0,0,.25);position:relative}
+/* 電卓ドロワーと expand modal を同時表示（PCのみ） */
+@media(min-width:769px){
+  .expand-overlay.calc-beside{right:374px}
+  .calc-drawer-ov.behind-modal{opacity:0!important;pointer-events:none!important}
+}
 .expand-modal .drawer-head{border-radius:14px 14px 0 0}
 .expand-modal .drawer-body{flex:1;overflow-y:auto}
 .expand-modal .drawer-foot{border-radius:0 0 14px 14px}
@@ -4438,6 +4443,22 @@ document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false
 let _calcState={expr:'',result:'',history:[],justEvaled:false};
 let _calcBuilt=false;
 
+// 電卓ドロワーと expand modal の同時表示を同期（PCのみ）
+function _syncExpandWithCalc(){
+  if(window.innerWidth<=768)return;
+  const calcDr=document.getElementById('calc-drawer-global');
+  const calcOv=document.getElementById('calc-drawer-ov');
+  const expandOv=document.querySelector('.expand-overlay');
+  const calcOpen=calcDr?.classList.contains('open');
+  if(calcOpen&&expandOv){
+    expandOv.classList.add('calc-beside');
+    calcOv?.classList.add('behind-modal');
+  } else {
+    expandOv?.classList.remove('calc-beside');
+    calcOv?.classList.remove('behind-modal');
+  }
+}
+
 function openCalcDrawer(){
   const ov=document.getElementById('calc-drawer-ov');
   const dr=document.getElementById('calc-drawer-global');
@@ -4449,7 +4470,7 @@ function openCalcDrawer(){
   }
   ov.classList.add('open');
   dr.classList.add('open');
-
+  _syncExpandWithCalc();
 }
 
 function closeCalcDrawer(){
@@ -4457,6 +4478,7 @@ function closeCalcDrawer(){
   const dr=document.getElementById('calc-drawer-global');
   if(ov)ov.classList.remove('open');
   if(dr)dr.classList.remove('open');
+  _syncExpandWithCalc();
 }
 
 function toggleCalcDrawer(){
@@ -5046,6 +5068,10 @@ function openExpandModal(type){
   renderInto();
   ov.addEventListener('click',e=>{if(e.target===ov){ov.remove();}});
   document.addEventListener('keydown',function escKey(e){if(e.key==='Escape'){ov.remove();document.removeEventListener('keydown',escKey);}});
+  // 電卓ドロワーと同時表示の同期
+  _syncExpandWithCalc();
+  const _syncObs=new MutationObserver(()=>{if(!document.contains(ov)){_syncObs.disconnect();_syncExpandWithCalc();}});
+  _syncObs.observe(document.body,{childList:true});
 }
 
 function reattachModalEvents(modal, type, onClose){
