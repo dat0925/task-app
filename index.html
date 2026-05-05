@@ -305,7 +305,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-btn.cfn{background:linear-gradient(180deg,#424242 0%,#383838 30%,#2e2e2e 70%,#262626 100%);color:#aaa;font-size:22px}
 /* Utility row (式クリア・式コピー) */
 .calc-util-row{display:flex;gap:6px}
-.calc-util-btn{flex:1;height:52px;border-radius:6px 6px 4px 4px;font-size:18px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(0,0,0,.5);border-bottom:none;background:linear-gradient(180deg,#4a4a4a 0%,#3e3e3e 30%,#333 70%,#2c2c2c 100%);color:#d0d0d0;box-shadow:0 1px 0 0 #484848,0 2px 0 0 #404040,0 3px 0 0 #383838,0 4px 0 0 #303030,0 5px 0 0 #282828,0 6px 0 0 #202020,0 7px 0 0 #1a1a1a,0 8px 0 0 #141414,0 9px 0 0 #0f0f0f,0 10px 0 0 #0a0a0a,0 11px 0 0 #070707,0 12px 0 0 #050505,0 13px 0 0 #030303,0 15px 12px rgba(0,0,0,.75),inset 0 1px 2px rgba(255,255,255,.16),inset 0 -1px 3px rgba(0,0,0,.55);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(-8px);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
+.calc-util-btn{flex:1;height:52px;border-radius:6px 6px 4px 4px;font-size:18px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(0,0,0,.5);border-bottom:none;background:linear-gradient(180deg,#4a4a4a 0%,#3e3e3e 30%,#333 70%,#2c2c2c 100%);color:#d0d0d0;box-shadow:0 1px 0 0 #484848,0 2px 0 0 #404040,0 3px 0 0 #383838,0 4px 0 0 #303030,0 5px 0 0 #282828,0 6px 0 0 #202020,0 7px 0 0 #1a1a1a,0 8px 0 0 #141414,0 9px 0 0 #0f0f0f,0 10px 0 0 #0a0a0a,0 11px 0 0 #070707,0 12px 0 0 #050505,0 13px 0 0 #030303,0 15px 12px rgba(0,0,0,.75),inset 0 1px 2px rgba(255,255,255,.16),inset 0 -1px 3px rgba(0,0,0,.55);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(-8px);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
 .calc-util-btn:active,.calc-util-btn.pressed{transform:translateY(0px);box-shadow:0 1px 0 0 #222,0 2px 5px rgba(0,0,0,.65),inset 0 2px 6px rgba(0,0,0,.65),inset 0 1px 0 rgba(0,0,0,.45);background:linear-gradient(180deg,#303030 0%,#2a2a2a 50%,#242424 100%);border-top-color:rgba(255,255,255,.06)}
 .calc-util-btn.copied{background:#132b1a;color:#4ade80;border-color:rgba(74,222,128,.35)}
 .calc-util-btn.cleared{background:#2a1616;color:#f87171;border-color:rgba(248,113,113,.3)}
@@ -4787,13 +4787,22 @@ function _buildCalcInDrawer(){
     const r=Math.round((inclusive?num*(1+rate):num/(1+rate))*100)/100;
     result=String(r);expr='';justEvaled=true;upd();
   }
-  wrap.querySelector('.calc-tax-in').onclick=()=>{pressAnimate(wrap.querySelector('.calc-tax-in'));applyTax(true);}
-  wrap.querySelector('.calc-tax-out').onclick=()=>{pressAnimate(wrap.querySelector('.calc-tax-out'));applyTax(false);}
+  const taxIn=wrap.querySelector('.calc-tax-in');
+  const taxOut=wrap.querySelector('.calc-tax-out');
+  [taxIn,taxOut].forEach(btn=>{
+    btn.addEventListener('touchstart',()=>btn.classList.add('pressed'),{passive:true});
+    btn.addEventListener('touchend',()=>btn.classList.remove('pressed'),{passive:true});
+    btn.addEventListener('touchcancel',()=>btn.classList.remove('pressed'),{passive:true});
+  });
+  taxIn.addEventListener('click',()=>applyTax(true));
+  taxOut.addEventListener('click',()=>applyTax(false));
 
   // Paren buttons with animation
-  wrap.querySelector('.calc-action-row').addEventListener('click',e=>{
+  const actionRow=wrap.querySelector('.calc-action-row');
+  attachPressEvents(actionRow);
+  actionRow.addEventListener('click',e=>{
     const btn=e.target.closest('[data-cv]');if(!btn)return;
-    pressAnimate(btn);pressParen(btn.dataset.cv);
+    pressParen(btn.dataset.cv);
   });
 
   function pressMulti(s){if(justEvaled){expr=s;result='';justEvaled=false;}else expr+=s;const r=safeCalc(expr);if(r!=null)result=r;upd();}
