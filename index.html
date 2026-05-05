@@ -3504,7 +3504,7 @@ function renderDrawer(){
       setTimeout(()=>{
         const drBody2=document.getElementById('drawer-body');
         if(drBody2){drBody2.scrollTop=scrollY;drBody2.querySelector('#sub-inp')?.focus();}
-      },0);
+      },50);
     }
   });
   // renderDrawer内でスクロール位置を復元
@@ -3512,7 +3512,7 @@ function renderDrawer(){
     setTimeout(()=>{
       const _drBody2=document.getElementById('drawer-body');
       if(_drBody2)_drBody2.scrollTop=_scrollY;
-    },0);
+    },50);
   }
 }
 
