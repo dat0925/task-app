@@ -189,7 +189,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-result-wrap{display:flex;align-items:center;gap:6px;cursor:pointer}
 .calc-result-wrap:active .calc-result{opacity:.7}
 .calc-hist{max-height:100px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg);padding:4px 8px;display:flex;flex-direction:column;gap:0}
-.calc-hist-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#aaa;padding:5px 4px;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;border-radius:6px;transition:background .12s;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.calc-hist-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#aaa;padding:5px 4px;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;border-radius:6px;transition:background .12s;-webkit-user-select:none;user-select:none}
 .calc-hist-item:last-child{border-bottom:none}
 .calc-hist-item:active{background:rgba(255,255,255,.06)}
 .calc-hist-item.flash{background:rgba(100,200,120,.18)!important}
@@ -204,7 +204,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Calculator global drawer */
 .calc-drawer-ov{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.38);opacity:0;pointer-events:none;transition:opacity .28s}
 .calc-drawer-ov.open{opacity:1;pointer-events:auto}
-.calc-drawer{position:fixed;top:0;right:0;height:100%;width:374px;z-index:801;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden;box-shadow:-4px 0 24px rgba(0,0,0,.1)}
+.calc-drawer{position:fixed;top:0;right:0;height:100%;width:374px;z-index:801;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden;box-shadow:-4px 0 24px rgba(0,0,0,.1);touch-action:none}
 .calc-drawer.open{transform:translateX(0)}
 @media(max-width:768px){.calc-drawer{width:82.5vw}}
 .calc-drawer-head{display:flex;align-items:center;padding:13px 14px 11px;border-bottom:1px solid var(--border);flex-shrink:0;gap:8px}
@@ -4372,14 +4372,7 @@ function openCalcDrawer(){
   }
   ov.classList.add('open');
   dr.classList.add('open');
-  // ドロワー内のtouchmoveが背後に伝播しないよう制御
-  if(!dr._tmHandler){
-    dr._tmHandler=e=>{
-      // calc-top-scroll内はネイティブスクロールに完全委譲、それ以外は背後への伝播を遮断
-      if(!e.target.closest('.calc-top-scroll'))e.preventDefault();
-    };
-    dr.addEventListener('touchmove',dr._tmHandler,{passive:false});
-  }
+
 }
 
 function closeCalcDrawer(){
