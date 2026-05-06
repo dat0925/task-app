@@ -430,6 +430,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   border-left:none;
   border-right:1px solid var(--border);
 }
+.bnav-next{
+  border-left:1px solid var(--border);
+  border-right:none;
+}
 .bnav-prev:active,.bnav-next:active{
   background:var(--bg3);
   color:var(--text);
@@ -2486,8 +2490,7 @@ function renderBotNav(){
     return'<div class="bnav'+(on?' on':'')+(isAI?' bnav-ai':'')+'" data-a="'+(isAI?'ai-open':isEdit?'nav-edit':isSidebar?'menu':'view')+'"'+((!isAI&&!isEdit&&!isSidebar)?(' data-v="'+i.v+'"'):'')+'>'+i.icon()+'<span>'+i.label+'</span></div>';
   }).join('');
   document.getElementById('botnav').innerHTML=isMobile
-    ?'<div class="bot-nav-inner">'+inner+'</div>'
-      +'<button class="bnav-step bnav-prev" data-a="nav-prev" aria-label="前へ">‹</button>'+'<button class="bnav-step bnav-next" data-a="nav-next" aria-label="次へ">›</button>'
+    ?'<button class="bnav-step bnav-prev" data-a="nav-prev" aria-label="前へ">‹</button>'+'<div class="bot-nav-inner">'+inner+'</div>'+'<button class="bnav-step bnav-next" data-a="nav-next" aria-label="次へ">›</button>'
     :'<div class="bot-nav-inner">'+inner+'</div>';
 }
 function openNavEdit(){
