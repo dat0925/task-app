@@ -4957,18 +4957,13 @@ function _buildCalcInDrawer(){
   const fxRow=wrap.querySelector('.calc-fx-row');
   if(fxRow){
     fxRow.querySelectorAll('.calc-util-btn-fx').forEach(btn=>{
-      btn.addEventListener('touchstart',()=>btn.classList.add('pressed'),{passive:true});
+      btn.addEventListener('touchstart',()=>{btn.classList.add('pressed');window.playClick?.();},{passive:true});
       btn.addEventListener('touchend',()=>{btn.classList.remove('pressed');},{passive:true});
       btn.addEventListener('touchcancel',()=>btn.classList.remove('pressed'),{passive:true});
-      btn.addEventListener('touchstart',()=>{window.playClick?.();},{passive:true});
       btn.addEventListener('click',()=>{
         if(!('ontouchstart' in window))window.playClick?.();
         applyFX(btn.dataset.fx==='jpy2usd');
       });
-      btn.addEventListener('touchend',e=>{
-        e.preventDefault();
-        applyFX(btn.dataset.fx==='jpy2usd');
-      },{passive:false});
     });
   }
 
