@@ -4999,7 +4999,14 @@ function _buildCalcInDrawer(){
   }
   renderHist();
 
-  function pressNum(n){if(justEvaled){expr=n;result='';justEvaled=false;}else expr+=n;const r=safeCalc(expr);if(r!=null)result=r;upd();}
+  function pressNum(n){
+    if(n==='0'&&!justEvaled){
+      const seg=(expr.match(/[0-9.]*$/)||[''])[0];
+      if(seg==='0'){window.playClickNG?.();return;}
+    }
+    if(justEvaled){expr=n;result='';justEvaled=false;}else expr+=n;
+    const r=safeCalc(expr);if(r!=null)result=r;upd();
+  }
   function pressOp(op){justEvaled=false;if(expr&&'+-*/'.includes(expr.slice(-1)))expr=expr.slice(0,-1);expr+=op;upd();}
   function pressParen(p){justEvaled=false;expr+=p;const r=safeCalc(expr);if(r!=null)result=r;upd();}
   function pressDot(){const seg=(expr.match(/[0-9.]*$/)||[''])[0];if(seg.includes('.'))return;if(!expr||'+-*/('.includes(expr.slice(-1)))expr+='0';expr+='.';justEvaled=false;upd();}
@@ -5151,8 +5158,7 @@ function _buildCalcInDrawer(){
   const utilRow=wrap.querySelector('.calc-util-flat-row');
   if(utilRow){
     function execUtil(v){
-      // 数値が未入力 or 0 のときは無視
-      if(!expr||parseFloat(result||'0')===0)return;
+      if(!expr||parseFloat(result||'0')===0){window.playClickNG?.();return;}
       if(v==='00')pressMulti('00');
       else if(v==='000')pressMulti('000');
       else if(v==='万')pressMulti('0000');
@@ -6298,6 +6304,20 @@ document.getElementById('ai-input').addEventListener('input',function(){
         const g=ctx.createGain();g.gain.setValueAtTime(0.0,t+delay);g.gain.linearRampToValueAtTime(0.5,t+delay+0.008);g.gain.exponentialRampToValueAtTime(0.001,t+delay+dur);
         o.connect(g);g.connect(master);o.start(t+delay);o.stop(t+delay+dur+0.01);
       });
+    }catch(e){}
+  };
+
+  // NG: 短い下降音（無効入力）
+  window.playClickNG=function(){
+    if(!getSetting('soundFx',true))return;
+    try{
+      if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      const ctx=_audioCtx;const t=ctx.currentTime;
+      const o=ctx.createOscillator();o.type='square';
+      o.frequency.setValueAtTime(220,t);o.frequency.exponentialRampToValueAtTime(130,t+0.09);
+      const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=700;
+      const g=ctx.createGain();g.gain.setValueAtTime(0.0,t);g.gain.linearRampToValueAtTime(0.07,t+0.005);g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+      o.connect(lp);lp.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.13);
     }catch(e){}
   };
 })();
