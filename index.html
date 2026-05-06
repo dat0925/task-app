@@ -3245,13 +3245,29 @@ function renderNoteDrawer(){
         +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
       +'</div>'
     +'</div>'
+    +'<div class="drawer-foot drawer-foot-desktop">'
+      +'<button class="btn btn-ghost" data-a="note-nav-prev" title="前のノート">↑ 前へ</button>'
+      +'<button class="btn btn-ghost" data-a="note-nav-next" title="次のノート">↓ 次へ</button>'
+      +'<button class="btn btn-ghost" data-a="close-note" style="margin-left:auto">✕ 閉じる</button>'
+    +'</div>'
     +'<div class="mob-action-bar">'
       +'<button class="mob-btn mob-btn-del" data-a="note-del" data-id="'+note.id+'">削除</button>'
+      +'<button class="mob-btn mob-btn-ghost" data-a="note-nav-prev" style="font-size:16px">↑</button>'
+      +'<button class="mob-btn mob-btn-ghost" data-a="note-nav-next" style="font-size:16px">↓</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-dup" data-id="'+note.id+'">複製</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-copy-url" data-id="'+note.id+'">🔗 リンクコピー</button>'
       +'<button class="mob-btn-close" data-a="close-note">✕</button>'
     +'</div>';
 
+  // Note nav button state
+  (()=>{
+    const q=(S.noteSearch||'').toLowerCase();
+    const sortKey=S.noteSort||'updatedAt';
+    const vn=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
+    const ci=vn.findIndex(n=>n.id===S.noteId);
+    dr.querySelectorAll('[data-a="note-nav-prev"]').forEach(b=>{if(ci<=0){b.disabled=true;b.style.opacity='0.35';}});
+    dr.querySelectorAll('[data-a="note-nav-next"]').forEach(b=>{if(ci>=vn.length-1){b.disabled=true;b.style.opacity='0.35';}});
+  })();
   const titleEl=document.getElementById('nt-title');
   const bodyEl=document.getElementById('nt-body');
   makeResizable(bodyEl);
@@ -3459,13 +3475,19 @@ function renderDrawer(){
       +(!done
         ?'<button class="btn btn-complete" data-a="complete-confirm" data-id="'+task.id+'">✓ 完了</button>'
         :'<button class="btn btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 未完了に戻す</button>')
-      +'<button class="btn btn-ghost" data-a="close-drawer" style="margin-left:auto">✕ 閉じる</button>'
+      +'<div style="display:flex;gap:4px;margin-left:auto;align-items:center">'
+        +'<button class="btn btn-ghost" data-a="task-nav-prev" title="前のタスク">↑ 前へ</button>'
+        +'<button class="btn btn-ghost" data-a="task-nav-next" title="次のタスク">↓ 次へ</button>'
+        +'<button class="btn btn-ghost" data-a="close-drawer">✕ 閉じる</button>'
+      +'</div>'
     +'</div>'
     +'<div class="mob-action-bar">'
       +'<button class="mob-btn mob-btn-del" data-a="del-confirm-hdr" data-id="'+task.id+'">削除</button>'
       +(!done
         ?'<button class="mob-btn mob-btn-complete" data-a="complete-confirm" data-id="'+task.id+'">完了</button>'
         :'<button class="mob-btn mob-btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 戻す</button>')
+      +'<button class="mob-btn mob-btn-ghost" data-a="task-nav-prev" style="font-size:16px">↑</button>'
+      +'<button class="mob-btn mob-btn-ghost" data-a="task-nav-next" style="font-size:16px">↓</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="dup" data-id="'+task.id+'">複製</button>'
       +'<button class="mob-btn mob-btn-ghost" id="copy-url-btn-mob" style="font-size:14px">🔗</button>'
       +'<button class="mob-btn-close" data-a="close-drawer">✕</button>'
@@ -3475,6 +3497,13 @@ function renderDrawer(){
   // URL sync
   const taskUrl=location.origin+location.pathname+'#task/'+task.id;
   history.replaceState(null,'',taskUrl);
+  // Nav button state
+  (()=>{
+    const vt=getTasks().filter(t=>!t.parentTaskId);
+    const ci=vt.findIndex(t=>t.id===S.taskId);
+    dr.querySelectorAll('[data-a="task-nav-prev"]').forEach(b=>{if(ci<=0){b.disabled=true;b.style.opacity='0.35';}});
+    dr.querySelectorAll('[data-a="task-nav-next"]').forEach(b=>{if(ci>=vt.length-1){b.disabled=true;b.style.opacity='0.35';}});
+  })();
 
   // copy URL button (desktop + mobile)
   async function copyTaskUrl(){
@@ -3957,6 +3986,12 @@ else if(a==='sel-edit'){
   else if(a==='view-help'){e.stopPropagation();openViewHelp(el);}
   else if(a==='close-vhelp'){closeViewHelp();}
   else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent()}
+  else if(a==='task-nav-prev'||a==='task-nav-next'){
+    const visibleTasks=getTasks().filter(t=>!t.parentTaskId);
+    const idx=visibleTasks.findIndex(t=>t.id===S.taskId);
+    const next=a==='task-nav-prev'?visibleTasks[idx-1]:visibleTasks[idx+1];
+    if(next){S.taskId=next.id;renderDrawer();renderContent();}
+  }
   
   else if(a==='note-new'){
     if(window._noteNewRunning)return;
@@ -3990,6 +4025,14 @@ else if(a==='sel-edit'){
     render();
   }
   else if(a==='close-note'){S.noteOpen=false;S.noteId=null;renderContent();}
+  else if(a==='note-nav-prev'||a==='note-nav-next'){
+    const q=(S.noteSearch||'').toLowerCase();
+    const sortKey=S.noteSort||'updatedAt';
+    const visibleNotes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
+    const idx=visibleNotes.findIndex(n=>n.id===S.noteId);
+    const next=a==='note-nav-prev'?visibleNotes[idx-1]:visibleNotes[idx+1];
+    if(next){S.noteId=next.id;renderNoteDrawer();renderContent();}
+  }
   else if(a==='note-del'){
     const id=el.dataset.id;
     openConfirmModal('メモを削除','このメモを削除しますか？',async()=>{
@@ -4678,17 +4721,17 @@ function _buildCalcInDrawer(){
           +'<button class="calc-btn cfn" data-cv=".">.</button>'
           +'<button class="calc-btn ceq" data-cv="=">=</button>'
         +'</div>'
+        +'<div class="calc-bottom-row">'
+          +'<button class="calc-paren-btn" data-fx="jpy2usd" style="font-size:12px">toドル</button>'
+          +'<button class="calc-paren-btn" data-fx="usd2jpy" style="font-size:12px">to円</button>'
+          +'<button class="calc-paren-btn calc-tax-in" style="font-size:12px">税込</button>'
+          +'<button class="calc-paren-btn calc-tax-out" style="font-size:12px">税抜</button>'
+        +'</div>'
         +'<div class="calc-util-flat-row">'
           +'<button class="calc-paren-btn" data-cv="00">百</button>'
           +'<button class="calc-paren-btn" data-cv="000">千</button>'
           +'<button class="calc-paren-btn" data-cv="万">万</button>'
           +'<button class="calc-paren-btn" data-cv="億">億</button>'
-        +'</div>'
-        +'<div class="calc-bottom-row">'
-          +'<button class="calc-paren-btn" data-fx="jpy2usd" style="font-size:12px">to USD</button>'
-          +'<button class="calc-paren-btn" data-fx="usd2jpy" style="font-size:12px">to JPY</button>'
-          +'<button class="calc-paren-btn calc-tax-in" style="font-size:12px">税込</button>'
-          +'<button class="calc-paren-btn calc-tax-out" style="font-size:12px">税抜</button>'
         +'</div>'
       +'</div>';
 
@@ -5105,6 +5148,15 @@ function openExpandModal(type){
         modal.innerHTML=dr.innerHTML;
         // re-attach events by cloning drawer logic into modal
         modal.querySelectorAll('[data-a="close-drawer"]').forEach(b=>{b.addEventListener('click',()=>{ov.remove();S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent();});});
+        modal.querySelectorAll('[data-a="task-nav-prev"],[data-a="task-nav-next"]').forEach(b=>{
+          b.addEventListener('click',()=>{
+            const dir=b.dataset.a;
+            const visibleTasks=getTasks().filter(t=>!t.parentTaskId);
+            const idx=visibleTasks.findIndex(t=>t.id===S.taskId);
+            const next=dir==='task-nav-prev'?visibleTasks[idx-1]:visibleTasks[idx+1];
+            if(next){S.taskId=next.id;renderInto();}
+          });
+        });
       }
     } else {
       renderNoteDrawer();
@@ -5112,6 +5164,17 @@ function openExpandModal(type){
       if(dr){
         modal.innerHTML=dr.innerHTML;
         modal.querySelectorAll('[data-a="close-note"]').forEach(b=>{b.addEventListener('click',()=>{ov.remove();S.noteOpen=false;S.noteId=null;renderNoteDrawer();renderContent();});});
+        modal.querySelectorAll('[data-a="note-nav-prev"],[data-a="note-nav-next"]').forEach(b=>{
+          b.addEventListener('click',()=>{
+            const dir=b.dataset.a;
+            const q=(S.noteSearch||'').toLowerCase();
+            const sortKey=S.noteSort||'updatedAt';
+            const visibleNotes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
+            const idx=visibleNotes.findIndex(n=>n.id===S.noteId);
+            const next=dir==='note-nav-prev'?visibleNotes[idx-1]:visibleNotes[idx+1];
+            if(next){S.noteId=next.id;renderInto();}
+          });
+        });
       }
     }
     // wire modal inner buttons via event delegation
