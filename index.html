@@ -171,7 +171,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-expr-top-text{flex:1;text-align:right;font-family:monospace;font-size:12px;color:var(--text2);word-break:break-all;line-height:1.4}
 .calc-expr-top-icon{flex-shrink:0;opacity:.4}
 .calc-result{font-size:26px;font-weight:700;color:var(--text);word-break:break-all;line-height:1.2}
-.calc-action-row{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.calc-action-row,.calc-util-flat-row,.calc-bottom-row{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .calc-paren-btn{padding:7px 0;border-radius:10px;font-size:18px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:background .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;-webkit-user-select:none}
 .calc-paren-btn:active{background:var(--border)}
 .calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
@@ -231,7 +231,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Dark pad base (same feel as .lock-pad) */
 .calc-pad-wrap{background:#1a1a1a;padding:12px;border-radius:16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 0 #0a0a0a,0 4px 12px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.04)}
 .calc-drawer .calc-grid{gap:8px 6px}
-.calc-drawer .calc-action-row{gap:6px;margin-bottom:0}
+.calc-drawer .calc-action-row,.calc-drawer .calc-util-flat-row,.calc-drawer .calc-bottom-row{gap:6px;margin-bottom:0}
 /* Mechanical number/fn keys */
 .calc-drawer .calc-btn,.calc-drawer .calc-paren-btn{
   padding:0;height:52px;border-radius:5px 5px 2px 2px;font-size:22px;font-weight:700;
@@ -4654,8 +4654,8 @@ function _buildCalcInDrawer(){
         +'<div class="calc-action-row">'
           +'<button class="calc-paren-btn" data-cv="(">(</button>'
           +'<button class="calc-paren-btn" data-cv=")">)</button>'
-          +'<button class="calc-paren-btn calc-tax-in" style="font-size:13px">税込</button>'
-          +'<button class="calc-paren-btn calc-tax-out" style="font-size:13px">税抜</button>'
+          +'<button class="calc-paren-btn" data-fn="pct" style="font-size:13px">%</button>'
+          +'<button class="calc-paren-btn" data-fn="int" style="font-size:13px">INT</button>'
         +'</div>'
         +'<div class="calc-grid">'
           +'<button class="calc-btn cac" data-cv="AC">AC</button>'
@@ -4678,15 +4678,17 @@ function _buildCalcInDrawer(){
           +'<button class="calc-btn cfn" data-cv=".">.</button>'
           +'<button class="calc-btn ceq" data-cv="=">=</button>'
         +'</div>'
-        +'<div class="calc-util-row">'
-          +'<button class="calc-util-btn" data-cv="00">百</button>'
-          +'<button class="calc-util-btn" data-cv="000">千</button>'
-          +'<button class="calc-util-btn" data-cv="万">万</button>'
-          +'<button class="calc-util-btn" data-cv="億">億</button>'
+        +'<div class="calc-util-flat-row">'
+          +'<button class="calc-paren-btn" data-cv="00">百</button>'
+          +'<button class="calc-paren-btn" data-cv="000">千</button>'
+          +'<button class="calc-paren-btn" data-cv="万">万</button>'
+          +'<button class="calc-paren-btn" data-cv="億">億</button>'
         +'</div>'
-        +'<div class="calc-util-row calc-fx-row">'
-          +'<button class="calc-util-btn calc-util-btn-fx" data-fx="jpy2usd">¥ → $</button>'
-          +'<button class="calc-util-btn calc-util-btn-fx" data-fx="usd2jpy">$ → ¥</button>'
+        +'<div class="calc-bottom-row">'
+          +'<button class="calc-paren-btn" data-fx="jpy2usd" style="font-size:12px">to USD</button>'
+          +'<button class="calc-paren-btn" data-fx="usd2jpy" style="font-size:12px">to JPY</button>'
+          +'<button class="calc-paren-btn calc-tax-in" style="font-size:12px">税込</button>'
+          +'<button class="calc-paren-btn calc-tax-out" style="font-size:12px">税抜</button>'
         +'</div>'
       +'</div>';
 
@@ -4954,17 +4956,14 @@ function _buildCalcInDrawer(){
       : Math.round(num*rate);          // $→¥
     result=String(r);expr='';justEvaled=true;upd();
   }
-  const fxRow=wrap.querySelector('.calc-fx-row');
-  if(fxRow){
-    fxRow.querySelectorAll('.calc-util-btn-fx').forEach(btn=>{
-      btn.addEventListener('touchstart',()=>{btn.classList.add('pressed');window.playClick?.();},{passive:true});
-      btn.addEventListener('touchend',()=>{btn.classList.remove('pressed');},{passive:true});
-      btn.addEventListener('touchcancel',()=>btn.classList.remove('pressed'),{passive:true});
-      btn.addEventListener('click',()=>{
-        if(!('ontouchstart' in window))window.playClick?.();
-        applyFX(btn.dataset.fx==='jpy2usd');
-      });
-    });
+  // % / INT ボタン
+  function applyPct(){
+    const num=parseFloat(result||'0');if(isNaN(num)||num===0)return;
+    result=String(Math.round(num/100*1e10)/1e10);expr='';justEvaled=true;upd();
+  }
+  function applyInt(){
+    const num=parseFloat(result||'0');if(isNaN(num)||num===0)return;
+    result=String(Math.trunc(num));expr='';justEvaled=true;upd();
   }
 
   const taxIn=wrap.querySelector('.calc-tax-in');
@@ -4979,14 +4978,33 @@ function _buildCalcInDrawer(){
   taxIn.addEventListener('click',()=>{if(!('ontouchstart' in window))window.playClick?.();applyTax(true);});
   taxOut.addEventListener('click',()=>{if(!('ontouchstart' in window))window.playClick?.();applyTax(false);});
 
-  // Paren buttons with animation
+  // Paren / fn buttons (top row)
   const actionRow=wrap.querySelector('.calc-action-row');
-  attachPressEvents(actionRow, btn=>{if(btn.dataset.cv)pressParen(btn.dataset.cv);});
+  function execActionBtn(btn){
+    if(btn.dataset.cv){window.playClick?.();pressParen(btn.dataset.cv);}
+    else if(btn.dataset.fn==='pct'){window.playClick?.();applyPct();}
+    else if(btn.dataset.fn==='int'){window.playClick?.();applyInt();}
+  }
+  attachPressEvents(actionRow, btn=>execActionBtn(btn));
   actionRow.addEventListener('click',e=>{
     if('ontouchstart' in window)return;
-    const btn=e.target.closest('[data-cv]');if(!btn)return;
-    pressAnimate(btn);pressParen(btn.dataset.cv);
+    const btn=e.target.closest('[data-cv],[data-fn]');if(!btn)return;
+    pressAnimate(btn);execActionBtn(btn);
   });
+
+  // bottom row (to USD / to JPY / 税込 / 税抜)
+  const bottomRow=wrap.querySelector('.calc-bottom-row');
+  if(bottomRow){
+    bottomRow.querySelectorAll('[data-fx]').forEach(btn=>{
+      btn.addEventListener('touchstart',()=>{btn.classList.add('pressed');window.playClick?.();},{passive:true});
+      btn.addEventListener('touchend',()=>{btn.classList.remove('pressed');},{passive:true});
+      btn.addEventListener('touchcancel',()=>btn.classList.remove('pressed'),{passive:true});
+      btn.addEventListener('click',()=>{
+        if(!('ontouchstart' in window))window.playClick?.();
+        applyFX(btn.dataset.fx==='jpy2usd');
+      });
+    });
+  }
 
   function pressMulti(s){if(justEvaled){expr=s;result='';justEvaled=false;}else expr+=s;const r=safeCalc(expr);if(r!=null)result=r;upd();}
 
@@ -5008,8 +5026,8 @@ function _buildCalcInDrawer(){
     pressAnimate(btn);execBtn(btn.dataset.cv);
   });
 
-  // 入力補助ボタン（00 / 000 / 万 / 億）
-  const utilRow=wrap.querySelector('.calc-util-row');
+  // 入力補助ボタン（百 / 千 / 万 / 億）
+  const utilRow=wrap.querySelector('.calc-util-flat-row');
   if(utilRow){
     function execUtil(v){
       // 数値が未入力 or 0 のときは無視
