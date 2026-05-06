@@ -1081,8 +1081,8 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
           <input id="global-srch" type="search" placeholder="検索…" autocomplete="off">
           <button id="srch-clear" title="クリア">✕</button>
         </div>
-        <button class="pc-nav-step" data-a="nav-prev" title="前のビュー">‹</button>
-        <button class="pc-nav-step" data-a="nav-next" title="次のビュー">›</button>
+        <button class="pc-nav-step" data-a="nav-prev" title="前のビュー (Ctrl+↑)">↑</button>
+        <button class="pc-nav-step" data-a="nav-next" title="次のビュー (Ctrl+↓)">↓</button>
         <button class="icon-btn calc-topbar-btn" data-a="calc-toggle" title="電卓"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1"/><circle cx="8.5" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="17.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="17.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="17.5" r="1" fill="currentColor" stroke="none"/></svg></button>
         <button class="ai-topbar-btn" data-a="ai-open" title="AI">✦</button>
         <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:6px 10px;gap:4px;background:#3b82f6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
@@ -2563,8 +2563,7 @@ function renderContent(){
   const titles={inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'Search',completed:'Completed',notes:'Notes',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||''};
-  const isSearchPC=S.view==='search'&&window.innerWidth>768;
-  document.getElementById('viewTitle').textContent=isSearchPC?'':titles[S.view]||'';
+  document.getElementById('viewTitle').textContent=titles[S.view]||'';
   // global-srch の値をS.searchと同期
   const gs=document.getElementById('global-srch');
   if(gs&&gs.value!==S.search)gs.value=S.search;
@@ -5553,6 +5552,10 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&S.drawerOpen){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
   if(e.key==='n'&&!e.target.matches('input,textarea,select')){e.preventDefault();document.getElementById('qainput')?.focus()}
   if(e.key==='f'&&(e.ctrlKey||e.metaKey)&&window.innerWidth>768){e.preventDefault();const gs=document.getElementById('global-srch');if(gs){gs.focus();gs.select();}}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='ArrowUp'||e.key==='ArrowDown')){
+    e.preventDefault();
+    document.querySelector('.pc-nav-step[data-a="nav-'+(e.key==='ArrowUp'?'prev':'next')+'"]')?.click();
+  }
 });
 
 // ===== BACKUP =====
