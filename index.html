@@ -311,6 +311,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-util-btn:active,.calc-util-btn.pressed{transform:translateY(0px);box-shadow:0 1px 0 0 #222,0 2px 5px rgba(0,0,0,.65),inset 0 2px 6px rgba(0,0,0,.65),inset 0 1px 0 rgba(0,0,0,.45);background:linear-gradient(180deg,#303030 0%,#2a2a2a 50%,#242424 100%);border-top-color:rgba(255,255,255,.06)}
 .calc-util-btn.copied{background:#132b1a;color:#4ade80;border-color:rgba(74,222,128,.35)}
 .calc-util-btn.cleared{background:#2a1616;color:#f87171;border-color:rgba(248,113,113,.3)}
+.calc-util-btn-fx{background:linear-gradient(180deg,#1a3040 0%,#142534 30%,#0e1c28 70%,#0a1620 100%)!important;color:#60c8f0!important;border-top-color:rgba(80,180,230,.28)!important;border-left-color:rgba(80,180,230,.12)!important;font-size:14px!important;font-weight:700!important;letter-spacing:.3px}
+.calc-util-btn-fx:active,.calc-util-btn-fx.pressed{background:linear-gradient(180deg,#0c1e2e 0%,#0a1824 50%,#081420 100%)!important;border-top-color:rgba(80,180,230,.06)!important}
+.calc-fx-row{margin-top:0}
 /* History in drawer */
 .calc-drawer .calc-hist{border-color:rgba(255,255,255,.08);background:#0d0d0d}
 .calc-drawer .calc-hist-item{border-color:rgba(255,255,255,.06)}
@@ -4675,11 +4678,15 @@ function _buildCalcInDrawer(){
           +'<button class="calc-btn cfn" data-cv=".">.</button>'
           +'<button class="calc-btn ceq" data-cv="=">=</button>'
         +'</div>'
-        +'<div class="calc-util-row" style="margin-top:8px">'
+        +'<div class="calc-util-row">'
           +'<button class="calc-util-btn" data-cv="00">百</button>'
           +'<button class="calc-util-btn" data-cv="000">千</button>'
           +'<button class="calc-util-btn" data-cv="万">万</button>'
           +'<button class="calc-util-btn" data-cv="億">億</button>'
+        +'</div>'
+        +'<div class="calc-util-row calc-fx-row">'
+          +'<button class="calc-util-btn calc-util-btn-fx" data-fx="jpy2usd">¥ → $</button>'
+          +'<button class="calc-util-btn calc-util-btn-fx" data-fx="usd2jpy">$ → ¥</button>'
         +'</div>'
       +'</div>';
 
@@ -4937,6 +4944,34 @@ function _buildCalcInDrawer(){
     const r=Math.round((inclusive?num*(1+rate):num/(1+rate))*100)/100;
     result=String(r);expr='';justEvaled=true;upd();
   }
+
+  // 通貨変換ボタン
+  function applyFX(toUSD){
+    const num=parseFloat(result||'0');if(isNaN(num)||num===0)return;
+    const rate=getSetting('fxRate',160);
+    const r=toUSD
+      ? Math.round(num/rate*100)/100  // ¥→$
+      : Math.round(num*rate);          // $→¥
+    result=String(r);expr='';justEvaled=true;upd();
+  }
+  const fxRow=wrap.querySelector('.calc-fx-row');
+  if(fxRow){
+    fxRow.querySelectorAll('.calc-util-btn-fx').forEach(btn=>{
+      btn.addEventListener('touchstart',()=>btn.classList.add('pressed'),{passive:true});
+      btn.addEventListener('touchend',()=>{btn.classList.remove('pressed');},{passive:true});
+      btn.addEventListener('touchcancel',()=>btn.classList.remove('pressed'),{passive:true});
+      btn.addEventListener('touchstart',()=>{window.playClick?.();},{passive:true});
+      btn.addEventListener('click',()=>{
+        if(!('ontouchstart' in window))window.playClick?.();
+        applyFX(btn.dataset.fx==='jpy2usd');
+      });
+      btn.addEventListener('touchend',e=>{
+        e.preventDefault();
+        applyFX(btn.dataset.fx==='jpy2usd');
+      },{passive:false});
+    });
+  }
+
   const taxIn=wrap.querySelector('.calc-tax-in');
   const taxOut=wrap.querySelector('.calc-tax-out');
   [taxIn,taxOut].forEach(btn=>{
@@ -5570,6 +5605,10 @@ function openSettingsModal(){
       +'<div><div class="settings-label">🧾 消費税率</div><div class="settings-sub">電卓の税込/税抜計算に使用</div></div>'
       +'<div style="display:flex;align-items:center;gap:4px"><input type="number" id="s-tax-rate" value="'+getSetting('taxRate',10)+'" min="0" max="99" step="1" style="width:52px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);text-align:center;font-family:var(--font)"><span style="font-size:13px;color:var(--text2)">%</span></div>'
     +'</div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">💱 為替レート</div><div class="settings-sub">電卓の ¥⇄$ 変換に使用（初期値 $1=160円）</div></div>'
+      +'<div style="display:flex;align-items:center;gap:4px"><span style="font-size:12px;color:var(--text3);white-space:nowrap">$1 =</span><input type="number" id="s-fx-rate" value="'+getSetting('fxRate',160)+'" min="1" max="99999" step="0.01" style="width:64px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);text-align:center;font-family:var(--font)"><span style="font-size:13px;color:var(--text2)">円</span></div>'
+    +'</div>'
     +'<div class="modal-foot"><button class="btn btn-ghost" id="s-nav-edit">🗂 メニュー編集</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
@@ -5628,6 +5667,10 @@ function openSettingsModal(){
   document.getElementById('s-tax-rate')?.addEventListener('change',e=>{
     const v=parseFloat(e.target.value);
     setSetting('taxRate',isNaN(v)?10:Math.max(0,Math.min(99,v)));
+  });
+  document.getElementById('s-fx-rate')?.addEventListener('change',e=>{
+    const v=parseFloat(e.target.value);
+    setSetting('fxRate',isNaN(v)?160:Math.max(1,Math.min(99999,v)));
   });
   addFastHandler('s-nav-edit',()=>{ov.remove();openNavEdit();});
   addFastHandler('s-backup',()=>{ov.remove();openBackupModal()});
