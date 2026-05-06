@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Taskra">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preload" as="image" href="icon-192.png">
 <title>Taskra</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -152,7 +153,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .flabel{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:4px;display:block}
 .finput{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s;-webkit-appearance:none}
 .finput:focus{border-color:var(--accent)}
-.ftextarea{min-height:72px;resize:none;line-height:1.5}
+.ftextarea{min-height:94px;resize:none;line-height:1.5}
 .textarea-wrap{position:relative;display:block}
 .textarea-wrap .ftextarea{width:100%}
 .resize-handle{position:absolute;bottom:0;right:0;width:20px;height:20px;cursor:ns-resize;display:flex;align-items:flex-end;justify-content:flex-end;padding:3px;color:var(--text3);touch-action:none;user-select:none;-webkit-user-select:none}
@@ -1547,7 +1548,7 @@ async function loadAll(){
 }
 async function saveNote(n){showSaveStatus('saving');try{window._lastSelfSave = Date.now();n.updatedAt=now();await dbPut('notes',n);const i=S.notes.findIndex(x=>x.id===n.id);i>=0?S.notes[i]=n:S.notes.push(n);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id)}
-function mkNote(o={}){return{id:uid(),title:'',body:'',createdAt:now(),updatedAt:now(),...o}}
+function mkNote(o={}){return{id:uid(),title:'',body:'',tagIds:[],createdAt:now(),updatedAt:now(),...o}}
 async function saveTask(t){showSaveStatus('saving');try{window._lastSelfSave = Date.now(); t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function delTask(id){await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id)}
 async function saveProject(p){showSaveStatus('saving');try{p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
@@ -2905,7 +2906,9 @@ function setupSectionDrag(){
 function renderNoteListOnly(){
   const q=S.noteSearch.toLowerCase();
   const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
-  const notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
+  let notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q));
+  if(S.filterTagIds&&S.filterTagIds.length)notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  notes.sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
   let h='';
   if(!notes.length){
     h='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
@@ -2978,7 +2981,7 @@ function renderList(){
 function renderTaskFilters(){
   const tf=document.getElementById('task-filters');
   if(!tf)return;
-  const showToggle=!['completed','search','review','notes'].includes(S.view);
+  const showToggle=!['completed','review'].includes(S.view);
   if(!showToggle){tf.style.display='none';tf.innerHTML='';return;}
   tf.style.display='flex';
   if(S.selectMode){
@@ -3000,10 +3003,12 @@ function renderTaskFilters(){
   const ICON_FILTER='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
   const ICON_SORT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 6h13M8 12h9M8 18h5"/><polyline points="3 6 3 3 6 3"/><polyline points="3 18 3 21 6 21"/></svg>';
   const isForecast=S.view==='forecast';
+  const isNotes=S.view==='notes';
+  const isSearch=S.view==='search';
   tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
     +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
-    +(!isForecast?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
-    +(!isForecast?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
+    +(!isForecast&&!isNotes&&!isSearch?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
+    +(!isForecast&&!isNotes&&!isSearch?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
 }
 
 function _closeTfPopups(){document.querySelectorAll('.tf-popup,.tf-backdrop').forEach(p=>p.remove());}
@@ -3028,13 +3033,14 @@ function openFilterPopup(btn){
   _closeTfPopups();
   const pop=document.createElement('div');pop.className='tf-popup filter-pop';
   const tags=S.tags;
+  const _isNotesOrSearch=S.view==='notes'||S.view==='search';
   pop.innerHTML=
-    '<div class="tf-popup-item" data-a="fpop-toggle" data-key="hideNotStarted">'
+    (!_isNotesOrSearch?'<div class="tf-popup-item" data-a="fpop-toggle" data-key="hideNotStarted">'
       +'<span>現在（開始前を除外）</span><span class="tf-popup-check'+(S.hideNotStarted?' on':'')+'">✓</span>'
     +'</div>'
     +'<div class="tf-popup-item" data-a="fpop-toggle" data-key="showCompleted">'
       +'<span>完了を表示</span><span class="tf-popup-check'+(S.showCompleted?' on':'')+'">✓</span>'
-    +'</div>'
+    +'</div>':'')
     +(tags.length
       ?'<div class="tf-popup-sep"></div><div class="tf-popup-label">タグで絞り込み</div>'
         +'<div class="tf-popup-item" data-a="fpop-tag" data-id="">'
@@ -3183,9 +3189,11 @@ function renderReview(){
 // ===== NOTES =====
 function renderNoteRow(n){
   const sel=S.noteId===n.id&&S.noteOpen;
+  const tagChips=(n.tagIds&&n.tagIds.length)?n.tagIds.slice(0,3).map(tid=>{const t=S.tags.find(x=>x.id===tid);return t?'<span class="mc" style="background:'+t.color+'1a;color:'+t.color+'">#'+esc(t.name)+'</span>':''}).join(''):'';
   return '<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
     +'<div class="tbody">'
       +'<div class="ttitle" data-note-title-edit="'+n.id+'">'+esc(n.title||'無題')+'</div>'
+      +(tagChips?'<div class="tmeta">'+tagChips+'</div>':'')
       +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+'</div>'
     +'</div>'
     +'<button class="trow-edit-btn" data-a="note-sel-edit" data-id="'+n.id+'" title="編集" style="display:none;width:32px;height:32px;align-items:center;justify-content:center;border-radius:6px;color:var(--text3);flex-shrink:0;background:none;border:none;cursor:pointer">'
@@ -3199,7 +3207,9 @@ function renderNoteRow(n){
 function renderNoteList(){
   const q=S.noteSearch.toLowerCase();
   const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
-  const notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
+  let notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q));
+  if(S.filterTagIds&&S.filterTagIds.length)notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  notes.sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
   let h='<div class="tlist">';
   h+='<div style="padding:10px 0 6px;display:flex;gap:6px;align-items:center">'
     +'<input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px;flex:1" autocomplete="off">'
@@ -3254,6 +3264,9 @@ function renderNoteDrawer(){
         +'<div id="nt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:180px;word-break:break-word"></div>'
         +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
       +'</div>'
+      +(S.tags.length?'<div><div class="dt-label">タグ</div><div class="tag-wrap">'
+        +S.tags.map(t=>'<span class="topt'+(note.tagIds&&note.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-note="'+note.id+'" data-tag="'+t.id+'" style="'+(note.tagIds&&note.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
+        +'</div></div>':'')
     +'</div>'
     +'<div class="drawer-foot drawer-foot-desktop">'
       +'<button class="btn btn-ghost" data-a="note-nav-prev" title="前のノート">↑ 前へ</button>'
@@ -3296,7 +3309,10 @@ function renderNoteDrawer(){
   function ntEnterPreview(){renderNtPreview();bodyEl.style.display='none';ntPreviewArea.style.display='block';if(ntPreviewBtn)ntPreviewBtn.textContent='編集';ntPrevMode=true;}
   function ntExitPreview(){bodyEl.style.display='';ntPreviewArea.style.display='none';if(ntPreviewBtn)ntPreviewBtn.textContent='プレビュー';ntPrevMode=false;}
   if(ntPreviewBtn){ntPreviewBtn.addEventListener('click',()=>{ntPrevMode?ntExitPreview():ntEnterPreview();});}
-  // デフォルトは編集モード
+  // デフォルトはプレビューモード
+  ntEnterPreview();
+  // 長押しで編集モードへ
+  if(ntPreviewArea){(function(){let _t=null,_mv=false,_x=0,_y=0;ntPreviewArea.addEventListener('touchstart',e=>{_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;ntExitPreview();},600);},{passive:true});ntPreviewArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};ntPreviewArea.addEventListener('touchend',end,{passive:true});ntPreviewArea.addEventListener('touchcancel',end,{passive:true});})();}
   let nt;
   function schedSave(){
     clearTimeout(nt);
@@ -3353,8 +3369,10 @@ function renderSearch(){
 function renderSearchResults(q){
   if(!q)return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
   const ql=q.toLowerCase();
-  const tasks=S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql)));
-  const notes=S.notes.filter(n=>(n.title+n.body).toLowerCase().includes(ql));
+  let tasks=S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql)));
+  if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(t=>S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)));
+  let notes=S.notes.filter(n=>(n.title+n.body).toLowerCase().includes(ql));
+  if(S.filterTagIds&&S.filterTagIds.length)notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
   if(!tasks.length&&!notes.length)return renderEmpty();
   let h='';
   if(tasks.length)h+='<div class="nav-label">タスク</div><div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
@@ -3429,7 +3447,7 @@ function renderDrawer(){
         +'<button class="note-stamp-btn" id="dt-preview-btn">プレビュー</button>'
       +'</div>'
       +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
-      +'<div id="dt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:120px;word-break:break-word"></div>'
+      +'<div id="dt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:156px;word-break:break-word"></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
         +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button><span id="dt-start-wd" style="font-size:12px;color:var(--text3);margin-left:auto">'+wdStr(task.startAt)+'</span></div></div>'
@@ -3570,7 +3588,10 @@ function renderDrawer(){
   function dtEnterPreview(){renderDtPreview();dtNotesEl.style.display='none';dtPreviewArea.style.display='block';if(dtPreviewBtn)dtPreviewBtn.textContent='編集';dtPrevMode=true;}
   function dtExitPreview(){dtNotesEl.style.display='';dtPreviewArea.style.display='none';if(dtPreviewBtn)dtPreviewBtn.textContent='プレビュー';dtPrevMode=false;}
   if(dtPreviewBtn){dtPreviewBtn.addEventListener('click',()=>{dtPrevMode?dtExitPreview():dtEnterPreview();});}
-  // デフォルトは編集モード (dt-link-btnはフォーカス追跡付きで上部に登録済み)
+  // デフォルトはプレビューモード
+  dtEnterPreview();
+  // 長押しで編集モードへ
+  if(dtPreviewArea){(function(){let _t=null,_mv=false,_x=0,_y=0;dtPreviewArea.addEventListener('touchstart',e=>{_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;dtExitPreview();},600);},{passive:true});dtPreviewArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};dtPreviewArea.addEventListener('touchend',end,{passive:true});dtPreviewArea.addEventListener('touchcancel',end,{passive:true});})();}
   ['dt-title','dt-notes'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
@@ -4183,18 +4204,33 @@ else if(a==='sel-edit'){
     }
   }
   else if(a==='tog-tag'){
-    const task=S.tasks.find(t=>t.id===el.dataset.task);
     const tid=el.dataset.tag;
-    if(task){
-      if(!task.tagIds)task.tagIds=[];
-      const i=task.tagIds.indexOf(tid);
-      i>=0?task.tagIds.splice(i,1):task.tagIds.push(tid);
-      playSE('toggle');
-      const drBody=document.querySelector('#drawer .drawer-body');
-      const scrollY=drBody?drBody.scrollTop:0;
-      await saveTask(task);renderDrawer();
-      const drBody2=document.querySelector('#drawer .drawer-body');
-      if(drBody2)drBody2.scrollTop=scrollY;
+    if(el.dataset.note){
+      const note=S.notes.find(n=>n.id===el.dataset.note);
+      if(note){
+        if(!note.tagIds)note.tagIds=[];
+        const i=note.tagIds.indexOf(tid);
+        i>=0?note.tagIds.splice(i,1):note.tagIds.push(tid);
+        playSE('toggle');
+        const drBody=document.querySelector('#drawer .drawer-body');
+        const scrollY=drBody?drBody.scrollTop:0;
+        await saveNote(note);renderNoteDrawer();
+        const drBody2=document.querySelector('#drawer .drawer-body');
+        if(drBody2)drBody2.scrollTop=scrollY;
+      }
+    } else {
+      const task=S.tasks.find(t=>t.id===el.dataset.task);
+      if(task){
+        if(!task.tagIds)task.tagIds=[];
+        const i=task.tagIds.indexOf(tid);
+        i>=0?task.tagIds.splice(i,1):task.tagIds.push(tid);
+        playSE('toggle');
+        const drBody=document.querySelector('#drawer .drawer-body');
+        const scrollY=drBody?drBody.scrollTop:0;
+        await saveTask(task);renderDrawer();
+        const drBody2=document.querySelector('#drawer .drawer-body');
+        if(drBody2)drBody2.scrollTop=scrollY;
+      }
     }
   }
   else if(a==='tog-flag'){
@@ -5282,6 +5318,8 @@ function reattachModalEvents(modal, type, onClose){
       const dtExitPv=()=>{notesEl.style.display='';dtPvArea.style.display='none';dtPvBtn.textContent='プレビュー';dtPvMode=false;};
       dtPvBtn.addEventListener('click',()=>{dtPvMode?dtExitPv():dtEnterPv();});
       makePreviewResizable(dtPvArea);
+      dtEnterPv();
+      (function(){let _t=null,_mv=false,_x=0,_y=0;dtPvArea.addEventListener('touchstart',e=>{_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;dtExitPv();},600);},{passive:true});dtPvArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};dtPvArea.addEventListener('touchend',end,{passive:true});dtPvArea.addEventListener('touchcancel',end,{passive:true});})();
     }
     // copy url btn
     const copyUrlBtn=modal.querySelector('#copy-url-btn');
@@ -5310,6 +5348,8 @@ function reattachModalEvents(modal, type, onClose){
       const ntExitPv=()=>{bodyEl.style.display='';ntPvArea.style.display='none';ntPvBtn.textContent='プレビュー';ntPvMode=false;};
       ntPvBtn.addEventListener('click',()=>{ntPvMode?ntExitPv():ntEnterPv();});
       makePreviewResizable(ntPvArea);
+      ntEnterPv();
+      (function(){let _t=null,_mv=false,_x=0,_y=0;ntPvArea.addEventListener('touchstart',e=>{_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;ntExitPv();},600);},{passive:true});ntPvArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};ntPvArea.addEventListener('touchend',end,{passive:true});ntPvArea.addEventListener('touchcancel',end,{passive:true});})();
     }
     let _c=false,nt2;
     const save=()=>{clearTimeout(nt2);nt2=setTimeout(async()=>{note.title=titleEl?.value||'';note.body=bodyEl?.value||'';await saveNote(note);const h=modal.querySelector('.drawer-head div div:last-child');if(h)h.textContent=note.title||'無題';},600);};
