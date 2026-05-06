@@ -4109,9 +4109,14 @@ else if(a==='sel-edit'){
     },'削除',true);
   }
   else if(a==='note-copy-title'){
+    e.stopPropagation();
+    if(_touchMoved)return;
+    const _now=Date.now();if(_now-(el._lastCopyAt||0)<600)return;el._lastCopyAt=_now;
     const note=S.notes.find(n=>n.id===el.dataset.id);
     const title=(note&&note.title)||'';
-    navigator.clipboard?.writeText(title).then(()=>toast('タイトルをコピーしました 📋')).catch(()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();toast('タイトルをコピーしました 📋');});
+    const _fb=()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(title).catch(_fb);}else{_fb();}
+    playSE('toggle');toast('タイトルをコピーしました 📋');
   }
   else if(a==='note-copy-url'){
     const id=el.dataset.id;
@@ -4555,6 +4560,8 @@ else if(a==='sel-edit'){
   else if(a==='note-tog-sort'){S.noteSortUpdated=S.noteSortUpdated===false?true:false;renderContent()}
   else if(a==='copy-title'){
     e.stopPropagation();
+    if(_touchMoved)return;
+    const _now=Date.now();if(_now-(el._lastCopyAt||0)<600)return;el._lastCopyAt=_now;
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     const title=(task&&task.title)||'';
     if(!title)return;
