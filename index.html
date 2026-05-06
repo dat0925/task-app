@@ -4695,8 +4695,8 @@ function _buildCalcInDrawer(){
       +'</div>'
       +'<div class="calc-pad-wrap">'
         +'<div class="calc-bottom-row">'
-          +'<button class="calc-paren-btn" data-fx="jpy2usd" style="font-size:12px">toドル</button>'
           +'<button class="calc-paren-btn" data-fx="usd2jpy" style="font-size:12px">to円</button>'
+          +'<button class="calc-paren-btn" data-fx="jpy2usd" style="font-size:12px">toドル</button>'
           +'<button class="calc-paren-btn calc-tax-in" style="font-size:12px">税込</button>'
           +'<button class="calc-paren-btn calc-tax-out" style="font-size:12px">税抜</button>'
         +'</div>'
@@ -4997,7 +4997,9 @@ function _buildCalcInDrawer(){
     const r=toUSD
       ? Math.round(num/rate*100)/100  // ¥→$
       : Math.round(num*rate);          // $→¥
-    result=String(r);expr='';justEvaled=true;upd();
+    const label=toUSD?'toドル':'to円';
+    calcHistory.push({expr:fmtComma(String(num))+' '+label,result:String(r)});
+    result=String(r);expr='';justEvaled=true;renderHist();upd();
   }
   // % / INT ボタン
   function applyPct(){
