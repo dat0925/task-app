@@ -3931,6 +3931,12 @@ document.addEventListener('click',async e=>{
     else if(item.type==='proj'){S.view='project';S.projId=item.id;}
     else if(item.type==='tag'){S.view='tag';S.tagId=item.id;}
     render();
+    // サイドバーのアクティブ項目が見えるようにスクロール
+    requestAnimationFrame(()=>{
+      const sidenav=document.getElementById('sidenav');
+      const active=sidenav?.querySelector('.nav-item.on');
+      if(active)active.scrollIntoView({block:'nearest',behavior:'smooth'});
+    });
   }
   
   else if(a==='dark'){S.dark=!S.dark;localStorage.setItem('dark',S.dark?'1':'0');render()}
