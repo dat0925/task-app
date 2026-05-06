@@ -4803,17 +4803,15 @@ function _buildCalcInDrawer(){
   function renderHist(){
     if(!calcHistory.length){histEl.style.display='none';return;}
     histEl.style.display='flex';
-    histEl.innerHTML=calcHistory.slice(-10).reverse().map((h,i)=>{
-      const copyText=fmtExpr(h.expr)+'='+fmtComma(h.result);
-      const realIdx=calcHistory.length-1-i;
-      return '<div class="calc-hist-item" data-hi="'+realIdx+'">'
-        +'<span class="calc-hist-expr-zone" data-copy-hi="'+realIdx+'" data-copy-text="'+esc(copyText)+'" title="タップで式をコピー">'
+    histEl.innerHTML=calcHistory.slice(-10).reverse().map((h,i)=>
+      '<div class="calc-hist-item" data-hi="'+(calcHistory.length-1-i)+'">'
+        +'<span class="calc-hist-expr-zone" data-copy-hi="'+(calcHistory.length-1-i)+'" title="タップで式をコピー">'
           +'<span class="calc-hist-expr">'+esc(fmtExpr(h.expr))+'</span>'
           +'<span class="calc-hist-sep">=</span>'
         +'</span>'
-        +'<span class="calc-hist-result" data-insert-hi="'+realIdx+'" data-insert-val="'+esc(h.result)+'" title="タップで電卓に入力">'+esc(fmtComma(h.result))+'</span>'
-      +'</div>';
-    }).join('');
+        +'<span class="calc-hist-result" data-insert-hi="'+(calcHistory.length-1-i)+'" title="タップで電卓に入力">'+esc(fmtComma(h.result))+'</span>'
+      +'</div>'
+    ).join('');
 
     // 式ゾーン: タップ → 式+結果をコピー
     histEl.querySelectorAll('.calc-hist-expr-zone').forEach(zone=>{
@@ -4832,24 +4830,23 @@ function _buildCalcInDrawer(){
         if(_moved)return;
         const elapsed=Date.now()-_startTime;
         if(elapsed<400)return; // 長押し未満
-        e.preventDefault();
-        const copyText=zone.dataset.copyText;
-        if(!copyText)return;
+        const h=calcHistory[idx];
+        if(!h)return;
         window.playClick?.();
-        doCopy(copyText,()=>{
+        doCopy(fmtExpr(h.expr)+'='+fmtComma(h.result),()=>{
           zone.closest('.calc-hist-item').classList.add('flash');
           setTimeout(()=>zone.closest('.calc-hist-item')?.classList.remove('flash'),400);
           toast('長押しで式をコピーしました 📋');
         });
-      },{passive:false});
+      },{passive:true});
       zone.addEventListener('touchcancel',()=>{_moved=true;},{passive:true});
       // PC用: クリックでコピー
       zone.addEventListener('click',e=>{
         e.stopPropagation();
         if('ontouchstart' in window)return;
-        const copyText=zone.dataset.copyText;
-        if(!copyText)return;
-        doCopy(copyText,()=>{
+        const h=calcHistory[idx];
+        if(!h)return;
+        doCopy(fmtExpr(h.expr)+'='+fmtComma(h.result),()=>{
           zone.closest('.calc-hist-item').classList.add('flash');
           setTimeout(()=>zone.closest('.calc-hist-item')?.classList.remove('flash'),400);
           toast('式をコピーしました 📋');
@@ -4995,13 +4992,9 @@ function _buildCalcInDrawer(){
     const r=toUSD
       ? Math.round(num/rate*100)/100  // ¥→$
       : Math.round(num*rate);          // $→¥
-    const rate2=getSetting('fxRate',160);
-    // exprはfmtComma不使用（fmtExprに任せる）
-    const fxExpr=toUSD
-      ? String(num)+'/'+String(rate2)
-      : String(num)+'*'+String(rate2);
-    calcHistory.push({expr:fxExpr,result:String(r)});
-    result=String(r);expr='';justEvaled=true;saveState();renderHist();upd();
+    const label=toUSD?'toドル':'to円';
+    calcHistory.push({expr:fmtComma(String(num))+' '+label,result:String(r)});
+    result=String(r);expr='';justEvaled=true;renderHist();upd();
   }
   // % / INT ボタン
   function applyPct(){
