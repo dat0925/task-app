@@ -4993,9 +4993,10 @@ function _buildCalcInDrawer(){
       ? Math.round(num/rate*100)/100  // ¥→$
       : Math.round(num*rate);          // $→¥
     const rate2=getSetting('fxRate',160);
+    // exprはfmtComma不使用（fmtExprに任せる）
     const fxExpr=toUSD
-      ? fmtComma(String(num))+'÷'+fmtComma(String(rate2))
-      : fmtComma(String(num))+'×'+fmtComma(String(rate2));
+      ? String(num)+'/'+String(rate2)
+      : String(num)+'*'+String(rate2);
     calcHistory.push({expr:fxExpr,result:String(r)});
     result=String(r);expr='';justEvaled=true;renderHist();upd();
   }
