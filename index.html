@@ -161,7 +161,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .note-stamp-bar{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-top:5px}
 .note-stamp-bar::-webkit-scrollbar{display:none}
 .note-stamp-btn{display:inline-flex;align-items:center;gap:3px;padding:5px 7px;border-radius:6px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);cursor:pointer;border:1px solid var(--border);transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);white-space:nowrap}
-.date-adj-btn{font-size:10px;padding:2px 0;border-radius:4px;background:var(--bg2);border:1px solid var(--border);color:var(--text2);cursor:pointer;flex:1;text-align:center;touch-action:manipulation;transition:background .15s,color .15s}
+.date-adj-btn{font-size:10px;padding:6px 0;border-radius:4px;background:var(--bg2);border:1px solid var(--border);color:var(--text2);cursor:pointer;flex:1;text-align:center;touch-action:manipulation;transition:background .15s,color .15s}
 .date-adj-btn:hover{background:var(--bg3);color:var(--text)}
 .date-clr-btn{font-size:10px;padding:1px 5px;border-radius:4px;background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;flex-shrink:0;line-height:1.4;touch-action:manipulation;transition:background .15s,color .15s}
 .date-clr-btn:hover{background:var(--bg2);color:var(--text)}
@@ -3269,6 +3269,7 @@ function renderNoteDrawer(){
       +'<div style="display:flex;gap:4px;margin-left:8px;align-items:center;flex-shrink:0">'
         +'<button class="note-stamp-btn" data-a="calc-open" data-target="nt-body">電卓</button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="note-dup" data-id="'+note.id+'" title="複製"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/><rect x="11" y="11" width="11" height="11" rx="2"/></svg></button>'
+        +'<button class="icon-btn hdr-btn-desktop" data-a="note-copy-title" data-id="'+note.id+'" title="タイトルをコピー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="note-copy-url" data-id="'+note.id+'" title="URLコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
         +'<button class="del-btn hdr-btn-desktop" data-a="note-del" data-id="'+note.id+'" title="削除">削除</button>'
         +(window.innerWidth>768?'<button class="icon-btn" data-a="note-expand" data-id="'+note.id+'" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
@@ -3304,6 +3305,7 @@ function renderNoteDrawer(){
     +'<div class="mob-action-bar">'
       +'<button class="mob-btn mob-btn-del" data-a="note-del" data-id="'+note.id+'">削除</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-dup" data-id="'+note.id+'">複製</button>'
+      +'<button class="mob-btn mob-btn-ghost" data-a="note-copy-title" data-id="'+note.id+'" title="タイトルをコピー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-copy-url" data-id="'+note.id+'">🔗 リンクコピー</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-nav-prev" style="font-size:16px">↑</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-nav-next" style="font-size:16px">↓</button>'
@@ -3457,6 +3459,7 @@ function renderDrawer(){
         +'</div>'
         +'<button class="note-stamp-btn" data-a="calc-open" data-target="dt-notes">電卓</button>'
         +(window.innerWidth>768?'<button class="icon-btn" data-a="drawer-expand" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
+        +'<button class="icon-btn hdr-btn-desktop" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>'
         +'<button class="icon-btn hdr-btn-desktop" id="copy-url-btn" title="URLをコピー" style="font-size:14px">🔗</button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="dup" data-id="'+task.id+'" title="複製">'+ICONS.copy+'</button>'
         +'<button class="del-btn hdr-btn-desktop" data-a="del-confirm-hdr" data-id="'+task.id+'" title="削除">削除</button>'
@@ -3543,6 +3546,7 @@ function renderDrawer(){
         ?'<button class="mob-btn mob-btn-complete" data-a="complete-confirm" data-id="'+task.id+'">完了</button>'
         :'<button class="mob-btn mob-btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 戻す</button>')
       +'<button class="mob-btn mob-btn-ghost" data-a="dup" data-id="'+task.id+'">複製</button>'
+      +'<button class="mob-btn mob-btn-ghost" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>'
       +'<button class="mob-btn mob-btn-ghost" id="copy-url-btn-mob" style="font-size:14px">🔗</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="task-nav-prev" style="font-size:16px">↑</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="task-nav-next" style="font-size:16px">↓</button>'
@@ -4103,6 +4107,11 @@ else if(a==='sel-edit'){
     openConfirmModal('メモを削除','このメモを削除しますか？',async()=>{
       await delNote(id);playSE('delete');S.noteOpen=false;S.noteId=null;renderContent();
     },'削除',true);
+  }
+  else if(a==='note-copy-title'){
+    const note=S.notes.find(n=>n.id===el.dataset.id);
+    const title=(note&&note.title)||'';
+    navigator.clipboard?.writeText(title).then(()=>toast('タイトルをコピーしました 📋')).catch(()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();toast('タイトルをコピーしました 📋');});
   }
   else if(a==='note-copy-url'){
     const id=el.dataset.id;
