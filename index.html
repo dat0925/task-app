@@ -5290,40 +5290,41 @@ renderContent=function(){
   }
 };
 
-// ===== SWIPE TO OPEN SIDEBAR (disabled) =====
+// ===== SWIPE TO OPEN/CLOSE SIDEBAR =====
 (function(){
-  return; // 誤操作が多いため無効化
   let startX=0,startY=0,tracking=false;
-  const EDGE=30; // 左端30px以内からスワイプ開始
-  const MIN_DIST=60; // 最低60px右に動かす
-  const MAX_Y=40; // 縦ズレ許容
+  const EDGE=30;      // 左端からこのpx以内でスワイプ開始 → 開く
+  const MIN_DIST=60;  // 最低スワイプ距離(px)
+  const ANGLE=0.6;    // 水平判定: |dy|/|dx| < ANGLE なら水平スワイプとみなす
 
   document.addEventListener('touchstart',e=>{
     if(window.innerWidth>768)return;
     const t=e.touches[0];
-    // 開く: 左端から右スワイプ
     if(t.clientX<=EDGE&&!S.sidebarOpen){
+      // 左端から右スワイプ → 開く候補
       startX=t.clientX;startY=t.clientY;tracking='open';
-    }
-    // 閉じる: サイドバー内から左スワイプ
-    else if(S.sidebarOpen&&t.clientX<=280){
+    } else if(S.sidebarOpen&&t.clientX<=280){
+      // サイドバー内から左スワイプ → 閉じる候補
       startX=t.clientX;startY=t.clientY;tracking='close';
     }
   },{passive:true});
 
-  document.addEventListener('touchmove',e=>{
+  // touchend で判定することで垂直スクロールとの誤作動を防止
+  document.addEventListener('touchend',e=>{
     if(!tracking)return;
-    const t=e.touches[0];
-    const dx=t.clientX-startX;
-    const dy=Math.abs(t.clientY-startY);
-    if(tracking==='open'&&dx>MIN_DIST&&dy<MAX_Y){
-      S.sidebarOpen=true;S._sidebarJustOpened=Date.now();render();tracking=false;
-    } else if(tracking==='close'&&dx<-MIN_DIST&&dy<MAX_Y){
-      S.sidebarOpen=false;render();tracking=false;
+    const dx=e.changedTouches[0].clientX-startX;
+    const dy=e.changedTouches[0].clientY-startY;
+    // 縦成分が横成分より大きい場合は無視
+    if(Math.abs(dy)>Math.abs(dx)*ANGLE){tracking=false;return;}
+    if(tracking==='open'&&dx>=MIN_DIST){
+      S.sidebarOpen=true;S._sidebarJustOpened=Date.now();render();
+    } else if(tracking==='close'&&dx<=-MIN_DIST){
+      S.sidebarOpen=false;render();
     }
+    tracking=false;
   },{passive:true});
 
-  document.addEventListener('touchend',()=>{tracking=false;},{passive:true});
+  document.addEventListener('touchcancel',()=>{tracking=false;},{passive:true});
 })();
 
 // ===== SEARCH CLEAR BUTTON =====
