@@ -4830,6 +4830,7 @@ function _buildCalcInDrawer(){
         if(_moved)return;
         const elapsed=Date.now()-_startTime;
         if(elapsed<400)return; // 長押し未満
+        e.preventDefault(); // Clipboard APIのためジェスチャートラストを維持
         const h=calcHistory[idx];
         if(!h)return;
         window.playClick?.();
@@ -4838,7 +4839,7 @@ function _buildCalcInDrawer(){
           setTimeout(()=>zone.closest('.calc-hist-item')?.classList.remove('flash'),400);
           toast('長押しで式をコピーしました 📋');
         });
-      },{passive:true});
+      },{passive:false});
       zone.addEventListener('touchcancel',()=>{_moved=true;},{passive:true});
       // PC用: クリックでコピー
       zone.addEventListener('click',e=>{
