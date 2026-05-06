@@ -2475,11 +2475,13 @@ function getNavOrder(){
 }
 // ===== PREV/NEXT ナビゲーション =====
 function getNavSequence(){
+  // サイドバーと同じ順序で生成
   const sys=['inbox','today','upcoming','forecast','flagged','review','search','notes'];
   const views=sys.map(v=>({type:'view',v}));
-  const projs=S.projects.filter(p=>p.status==='active').sort((a,b)=>(a.order||0)-(b.order||0)).map(p=>({type:'proj',id:p.id,name:p.name}));
-  const tags=[...S.tags].sort((a,b)=>(a.order||0)-(b.order||0)).map(t=>({type:'tag',id:t.id,name:t.name}));
-  return [...views,...projs,...tags];
+  const projs=getSortedProjects('active').map(p=>({type:'proj',id:p.id,name:p.name}));
+  const noneTag={type:'tag',id:'__none__',name:'タグなし'};
+  const tags=getSortedTags().map(t=>({type:'tag',id:t.id,name:t.name}));
+  return [...views,...projs,noneTag,...tags];
 }
 function getCurrentNavIdx(seq){
   if(S.view==='project')return seq.findIndex(x=>x.type==='proj'&&x.id===S.projId);
