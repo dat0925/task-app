@@ -3567,7 +3567,10 @@ function renderDrawer(){
   })();
 
   // copy URL button (desktop + mobile)
+  let _lastCopyUrlAt=0;
   async function copyTaskUrl(){
+    if(_touchMoved)return;
+    const _now=Date.now();if(_now-_lastCopyUrlAt<600)return;_lastCopyUrlAt=_now;
     try{await navigator.clipboard.writeText(taskUrl);toast('URLをコピーしました 🔗');}
     catch(e){const inp=document.createElement('input');inp.value=taskUrl;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();toast('URLをコピーしました 🔗');}
   }
