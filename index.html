@@ -771,6 +771,17 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   .trow:hover .trow-expand-btn{opacity:1}
   .trow-expand-btn:hover{background:var(--bg2);color:var(--text)}
 }
+/* Copy title button */
+.trow-copy-btn{display:none}
+@media(min-width:769px){
+  .trow-copy-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;color:var(--text3);border-radius:5px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity .12s}
+  .trow:hover .trow-copy-btn{opacity:1}
+  .trow-copy-btn:hover{background:var(--bg2);color:var(--text)}
+}
+@media(max-width:768px){
+  .trow-copy-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;color:var(--text3);border-radius:6px;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation}
+  .trow-copy-btn:active{background:var(--bg2);color:var(--accent)}
+}
 /* Expand modal overlay */
 .expand-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;animation:tin .15s ease}
 .expand-modal{background:var(--surface);border-radius:14px;width:min(90vw,860px);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 60px rgba(0,0,0,.25);position:relative}
@@ -3122,7 +3133,10 @@ function renderRow(task){
       +'<div class="tmeta">'+(meta||'')+updStr+'</div>'
     +'</div>'
     +(S.selectMode?'':
-      '<button class="trow-expand-btn" data-a="task-expand" data-id="'+task.id+'" title="大きく表示">'
+      '<button class="trow-copy-btn" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー">'
+        +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+      +'</button>'
+      +'<button class="trow-expand-btn" data-a="task-expand" data-id="'+task.id+'" title="大きく表示">'
         +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
       +'</button>'
       +'<button class="trow-edit-btn" data-a="sel-edit" data-id="'+task.id+'" title="詳細">'
@@ -4530,6 +4544,15 @@ else if(a==='sel-edit'){
   else if(a==='bulk-edit'){await handleBulkEdit(el.dataset.field);}
   else if(a==='bulk-cancel'){S.selectMode=false;S.selectedIds=[];renderContent();}
   else if(a==='note-tog-sort'){S.noteSortUpdated=S.noteSortUpdated===false?true:false;renderContent()}
+  else if(a==='copy-title'){
+    e.stopPropagation();
+    const task=S.tasks.find(t=>t.id===el.dataset.id);
+    const title=(task&&task.title)||'';
+    if(!title)return;
+    const _fb=()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(title).catch(_fb);}else{_fb();}
+    playSE('toggle');toast('タイトルをコピーしました 📋');
+  }
   else if(a==='task-expand'){
     e.stopPropagation();
     const id=el.dataset.id;
