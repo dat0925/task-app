@@ -81,6 +81,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .ml{margin-left:auto}
 .icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;color:var(--text2);transition:background .15s}
 .icon-btn:hover{background:var(--bg2);color:var(--text)}
+.pc-nav-step{display:none;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:15px;font-weight:500;cursor:pointer;flex-shrink:0;transition:background .12s,color .12s,border-color .12s;user-select:none;line-height:1}
+.pc-nav-step:hover{background:var(--bg3);color:var(--text);border-color:var(--text3)}
+.pc-nav-step:active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
 .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-primary:hover{background:var(--accent2)}
@@ -685,6 +688,16 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .bot-nav{display:none}
   .sidebar:not(.open){width:0;min-width:0}
   .sov{display:none !important}
+  /* PCでは専用フッターにナビゲーションを表示 */
+  .drawer-foot-desktop{display:flex !important}
+  .pc-nav-step{display:flex}
+  .mob-action-bar [data-a="complete-confirm"],
+  .mob-action-bar [data-a="uncomplete"],
+  .mob-action-bar [data-a="task-nav-prev"],
+  .mob-action-bar [data-a="task-nav-next"],
+  .mob-action-bar [data-a="note-nav-prev"],
+  .mob-action-bar [data-a="note-nav-next"],
+  .mob-action-bar .mob-btn-close{display:none !important}
 }
 
 .proj-item .proj-actions{display:none;align-items:center;gap:1px;flex-shrink:0}
@@ -1073,6 +1086,8 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
           <input id="global-srch" type="search" placeholder="検索…" autocomplete="off">
           <button id="srch-clear" title="クリア">✕</button>
         </div>
+        <button class="pc-nav-step" data-a="nav-prev" title="前のビュー">‹</button>
+        <button class="pc-nav-step" data-a="nav-next" title="次のビュー">›</button>
         <button class="icon-btn calc-topbar-btn" data-a="calc-toggle" title="電卓"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="7" y="5" width="10" height="4" rx="1"/><circle cx="8.5" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="13.5" r="1" fill="currentColor" stroke="none"/><circle cx="8.5" cy="17.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="17.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="17.5" r="1" fill="currentColor" stroke="none"/></svg></button>
         <button class="ai-topbar-btn" data-a="ai-open" title="AI">✦</button>
         <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:6px 10px;gap:4px;background:#3b82f6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
