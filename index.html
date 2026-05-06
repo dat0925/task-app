@@ -415,6 +415,37 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 }
 .bnav-step:last-child{border-left:1px solid var(--border)}
 .bnav-step:active{color:var(--accent);background:var(--accent-bg)}
+.bnav-prev{
+  width:42px;
+  background:linear-gradient(180deg,#6aaee8 0%,#3578c8 55%,#1e5aab 100%);
+  color:#eef6ff;
+  border-right:none!important;
+  border-left:none!important;
+  border-radius:0;
+  margin:6px 0;
+  font-weight:700;font-size:22px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.2),0 3px 8px rgba(30,90,171,.4),0 1px 2px rgba(0,0,0,.18);
+  border:1px solid rgba(15,50,110,.5);
+  text-shadow:0 1px 2px rgba(0,0,0,.25);
+  user-select:none;-webkit-user-select:none;
+}
+.bnav-prev:active{
+  background:linear-gradient(180deg,#3578c8 0%,#1e5aab 100%);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.3),0 1px 2px rgba(30,90,171,.25);
+  transform:translateY(1px);
+  color:#d0e8ff;
+}
+html.dark .bnav-prev{
+  background:linear-gradient(180deg,#4a8fd4 0%,#2866b8 55%,#1a4d96 100%);
+  color:#d8edff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.35),0 3px 8px rgba(0,20,60,.55),0 1px 2px rgba(0,0,0,.3);
+  border-color:rgba(255,255,255,.1);
+  text-shadow:0 1px 3px rgba(0,0,0,.45);
+}
+html.dark .bnav-prev:active{
+  background:linear-gradient(180deg,#2866b8 0%,#1a4d96 100%);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.45);
+}
 .bnav-next{
   width:42px;
   background:linear-gradient(180deg,#6aaee8 0%,#3578c8 55%,#1e5aab 100%);
@@ -2473,11 +2504,15 @@ function getNavOrder(){
 }
 // ===== PREV/NEXT ナビゲーション =====
 function getNavSequence(){
-  // Nextボタン用: 8つのシステムビューのみ循環
   const sys=['inbox','today','upcoming','forecast','flagged','review','search','notes'];
-  return sys.map(v=>({type:'view',v}));
+  const views=sys.map(v=>({type:'view',v}));
+  const projs=S.projects.filter(p=>p.status==='active').sort((a,b)=>(a.order||0)-(b.order||0)).map(p=>({type:'proj',id:p.id,name:p.name}));
+  const tags=[...S.tags].sort((a,b)=>(a.order||0)-(b.order||0)).map(t=>({type:'tag',id:t.id,name:t.name}));
+  return [...views,...projs,...tags];
 }
 function getCurrentNavIdx(seq){
+  if(S.view==='project')return seq.findIndex(x=>x.type==='proj'&&x.id===S.projId);
+  if(S.view==='tag')return seq.findIndex(x=>x.type==='tag'&&x.id===S.tagId);
   return seq.findIndex(x=>x.type==='view'&&x.v===S.view);
 }
 
@@ -2495,7 +2530,7 @@ function renderBotNav(){
   }).join('');
   document.getElementById('botnav').innerHTML=isMobile
     ?'<div class="bot-nav-inner">'+inner+'</div>'
-      +'<button class="bnav-step bnav-next" data-a="nav-next" aria-label="次へ">›</button>'
+      +'<button class="bnav-step bnav-prev" data-a="nav-prev" aria-label="前へ">‹</button>'+'<button class="bnav-step bnav-next" data-a="nav-next" aria-label="次へ">›</button>'
     :'<div class="bot-nav-inner">'+inner+'</div>';
 }
 function openNavEdit(){
