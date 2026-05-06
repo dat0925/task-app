@@ -1,5 +1,5 @@
 // Taskra - Service Worker v6
-const CACHE_NAME = 'taskra-v28';
+const CACHE_NAME = 'taskra-v29';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -26,7 +26,27 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (url.origin === location.origin && url.pathname.startsWith('/')) {
+  if (url.origin !== location.origin) return;
+
+  // ナビゲーションリクエスト（ページ遷移）は常に index.html を返す
+  // ハッシュ (#task/xxx) はブラウザ側で処理されるため SW では無視してよい
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.match('/index.html').then(cached => {
+        return fetch('/index.html').then(response => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put('/index.html', clone));
+          }
+          return response;
+        }).catch(() => cached);
+      })
+    );
+    return;
+  }
+
+  // その他のリクエスト（JS/CSS/画像など）はキャッシュ優先
+  if (url.pathname.startsWith('/')) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         return fetch(event.request).then((response) => {
@@ -35,7 +55,7 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
           }
           return response;
-        }).catch(() => cached || caches.match('/index.html'));
+        }).catch(() => cached);
       })
     );
   }
