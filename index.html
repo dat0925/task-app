@@ -4694,6 +4694,12 @@ function _buildCalcInDrawer(){
         +'</div>'
       +'</div>'
       +'<div class="calc-pad-wrap">'
+        +'<div class="calc-bottom-row">'
+          +'<button class="calc-paren-btn" data-fx="jpy2usd" style="font-size:12px">toドル</button>'
+          +'<button class="calc-paren-btn" data-fx="usd2jpy" style="font-size:12px">to円</button>'
+          +'<button class="calc-paren-btn calc-tax-in" style="font-size:12px">税込</button>'
+          +'<button class="calc-paren-btn calc-tax-out" style="font-size:12px">税抜</button>'
+        +'</div>'
         +'<div class="calc-action-row">'
           +'<button class="calc-paren-btn" data-cv="(">(</button>'
           +'<button class="calc-paren-btn" data-cv=")">)</button>'
@@ -4720,12 +4726,6 @@ function _buildCalcInDrawer(){
           +'<button class="calc-btn" data-cv="0" style="grid-column:span 2">0</button>'
           +'<button class="calc-btn cfn" data-cv=".">.</button>'
           +'<button class="calc-btn ceq" data-cv="=">=</button>'
-        +'</div>'
-        +'<div class="calc-bottom-row">'
-          +'<button class="calc-paren-btn" data-fx="jpy2usd" style="font-size:12px">toドル</button>'
-          +'<button class="calc-paren-btn" data-fx="usd2jpy" style="font-size:12px">to円</button>'
-          +'<button class="calc-paren-btn calc-tax-in" style="font-size:12px">税込</button>'
-          +'<button class="calc-paren-btn calc-tax-out" style="font-size:12px">税抜</button>'
         +'</div>'
         +'<div class="calc-util-flat-row">'
           +'<button class="calc-paren-btn" data-cv="00">百</button>'
@@ -5035,17 +5035,26 @@ function _buildCalcInDrawer(){
     pressAnimate(btn);execActionBtn(btn);
   });
 
-  // bottom row (to USD / to JPY / 税込 / 税抜)
+  // bottom row (toドル / to円 / 税込 / 税抜) — touchstartで即実行、clickはPC専用
   const bottomRow=wrap.querySelector('.calc-bottom-row');
   if(bottomRow){
-    bottomRow.querySelectorAll('[data-fx]').forEach(btn=>{
-      btn.addEventListener('touchstart',()=>{btn.classList.add('pressed');window.playClick?.();},{passive:true});
-      btn.addEventListener('touchend',()=>{btn.classList.remove('pressed');},{passive:true});
-      btn.addEventListener('touchcancel',()=>btn.classList.remove('pressed'),{passive:true});
-      btn.addEventListener('click',()=>{
-        if(!('ontouchstart' in window))window.playClick?.();
-        applyFX(btn.dataset.fx==='jpy2usd');
-      });
+    bottomRow.addEventListener('touchstart',e=>{
+      const btn=e.target.closest('[data-fx]');if(!btn)return;
+      btn.classList.add('pressed');
+      window.playClick?.();
+      applyFX(btn.dataset.fx==='jpy2usd');
+    },{passive:true});
+    bottomRow.addEventListener('touchend',e=>{
+      const btn=e.target.closest('[data-fx]');if(btn)btn.classList.remove('pressed');
+    },{passive:true});
+    bottomRow.addEventListener('touchcancel',e=>{
+      const btn=e.target.closest('[data-fx]');if(btn)btn.classList.remove('pressed');
+    },{passive:true});
+    bottomRow.addEventListener('click',e=>{
+      if('ontouchstart' in window)return; // スマホはtouchstartで処理済み
+      const btn=e.target.closest('[data-fx]');if(!btn)return;
+      pressAnimate(btn);window.playClick?.();
+      applyFX(btn.dataset.fx==='jpy2usd');
     });
   }
 
