@@ -6395,6 +6395,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
 // ===== INIT =====
 async function init(){
   try{
+    renderBotNav(); // ボトムナビを即時描画（データロード前）
     // Supabaseの準備を最大5秒待つ
     await new Promise(res=>{
       if(window._sbReady)return res();
