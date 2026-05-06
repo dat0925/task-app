@@ -1,9 +1,9 @@
 // Taskra - Service Worker v6
-const CACHE_NAME = 'taskra-v29';
+const CACHE_NAME = 'taskra-v30';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
+  '/task-app/',
+  '/task-app/index.html',
+  '/task-app/manifest.json',
 ];
 
 self.addEventListener('install', (event) => {
@@ -28,15 +28,14 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
 
-  // ナビゲーションリクエスト（ページ遷移）は常に index.html を返す
-  // ハッシュ (#task/xxx) はブラウザ側で処理されるため SW では無視してよい
+  // ナビゲーションリクエストは index.html を返す（ハッシュはブラウザ側で処理）
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.match('/index.html').then(cached => {
-        return fetch('/index.html').then(response => {
+      caches.match('/task-app/index.html').then(cached => {
+        return fetch('/task-app/index.html').then(response => {
           if (response && response.status === 200) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put('/index.html', clone));
+            caches.open(CACHE_NAME).then(cache => cache.put('/task-app/index.html', clone));
           }
           return response;
         }).catch(() => cached);
@@ -45,18 +44,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // その他のリクエスト（JS/CSS/画像など）はキャッシュ優先
-  if (url.pathname.startsWith('/')) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        return fetch(event.request).then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          }
-          return response;
-        }).catch(() => cached);
-      })
-    );
-  }
+  // その他（JS/CSS/画像など）はキャッシュ優先
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return fetch(event.request).then((response) => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => cached);
+    })
+  );
 });
