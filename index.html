@@ -1678,13 +1678,19 @@ const ICONS={
 
 // ===== TAG ORDER (localStorage) =====
 function getTagOrder(){try{return JSON.parse(localStorage.getItem('tag_order')||'null')}catch(e){return null}}
-function saveTagOrder(tags){localStorage.setItem('tag_order',JSON.stringify(tags.map(t=>t.id)))}
+async function saveTagOrder(tags){
+  localStorage.setItem('tag_order',JSON.stringify(tags.map(t=>t.id)));
+  tags.forEach((t,i)=>{
+    const tag=S.tags.find(x=>x.id===t.id);
+    if(tag){tag.order=i;dbPut('tags',tag).catch(e=>console.error('saveTagOrder',e));}
+  });
+}
 function getSortedTags(){
   const order=getTagOrder();
-  if(!order)return[...S.tags];
+  if(!order)return[...S.tags].sort((a,b)=>(a.order||0)-(b.order||0));
   return[...S.tags].sort((a,b)=>{
     const ai=order.indexOf(a.id),bi=order.indexOf(b.id);
-    if(ai===-1&&bi===-1)return 0;if(ai===-1)return 1;if(bi===-1)return -1;return ai-bi;
+    if(ai===-1&&bi===-1)return(a.order||0)-(b.order||0);if(ai===-1)return 1;if(bi===-1)return -1;return ai-bi;
   });
 }
 function startTagRename(span){
@@ -1843,16 +1849,22 @@ function attachTagDragListeners(){
   });
 }
 
-// ===== PROJECT ORDER (localStorage) =====
+// ===== PROJECT ORDER (localStorage + Supabase) =====
 function getProjectOrder(){try{return JSON.parse(localStorage.getItem('proj_order')||'null')}catch(e){return null}}
-function saveProjectOrder(projs){localStorage.setItem('proj_order',JSON.stringify(projs.map(p=>p.id)))}
+async function saveProjectOrder(projs){
+  localStorage.setItem('proj_order',JSON.stringify(projs.map(p=>p.id)));
+  projs.forEach((p,i)=>{
+    const proj=S.projects.find(x=>x.id===p.id);
+    if(proj){proj.order=i;dbPut('projects',proj).catch(e=>console.error('saveProjectOrder',e));}
+  });
+}
 function getSortedProjects(status){
   const projs=S.projects.filter(p=>status?p.status===status:true);
   const order=getProjectOrder();
-  if(!order)return projs;
+  if(!order)return[...projs].sort((a,b)=>(a.order||0)-(b.order||0));
   return[...projs].sort((a,b)=>{
     const ai=order.indexOf(a.id),bi=order.indexOf(b.id);
-    if(ai===-1&&bi===-1)return 0;
+    if(ai===-1&&bi===-1)return(a.order||0)-(b.order||0);
     if(ai===-1)return 1;
     if(bi===-1)return -1;
     return ai-bi;
@@ -2370,7 +2382,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 function renderSidebar(){
   const c=counts();
-  const navItems=[
+  const ALL_SYS=[
     {v:'inbox',label:'Inbox',icon:ICONS.inbox,cnt:c.inbox},
     {v:'today',label:'Today',icon:ICONS.today,cnt:c.today},
     {v:'upcoming',label:'Upcoming',icon:ICONS.upcoming},
@@ -2379,6 +2391,12 @@ function renderSidebar(){
     {v:'review',label:'Review',icon:ICONS.review},
     {v:'search',label:'Search',icon:ICONS.search},
     {v:'notes',label:'Note',icon:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
+  ];
+  const SYS_VIEWS=ALL_SYS.map(x=>x.v);
+  const bnavOrder=getNavOrder().filter(v=>SYS_VIEWS.includes(v));
+  const navItems=[
+    ...bnavOrder.map(v=>ALL_SYS.find(x=>x.v===v)).filter(Boolean),
+    ...ALL_SYS.filter(x=>!bnavOrder.includes(x.v)),
   ];
   let h='';
   navItems.forEach(n=>{
@@ -2475,9 +2493,10 @@ function getNavOrder(){
 }
 // ===== PREV/NEXT ナビゲーション =====
 function getNavSequence(){
-  // サイドバーと同じ順序で生成
-  const sys=['inbox','today','upcoming','forecast','flagged','review','search','notes'];
-  const views=sys.map(v=>({type:'view',v}));
+  const SYS_VIEWS=['inbox','today','upcoming','forecast','flagged','review','search','notes'];
+  const bnavOrder=getNavOrder().filter(v=>SYS_VIEWS.includes(v));
+  const orderedSys=[...bnavOrder,...SYS_VIEWS.filter(v=>!bnavOrder.includes(v))];
+  const views=orderedSys.map(v=>({type:'view',v}));
   const projs=getSortedProjects('active').map(p=>({type:'proj',id:p.id,name:p.name}));
   const noneTag={type:'tag',id:'__none__',name:'タグなし'};
   const tags=getSortedTags().map(t=>({type:'tag',id:t.id,name:t.name}));
