@@ -5012,6 +5012,8 @@ function _buildCalcInDrawer(){
   const utilRow=wrap.querySelector('.calc-util-row');
   if(utilRow){
     function execUtil(v){
+      // 数値が未入力 or 0 のときは無視
+      if(!expr||parseFloat(result||'0')===0)return;
       if(v==='00')pressMulti('00');
       else if(v==='000')pressMulti('000');
       else if(v==='万')pressMulti('0000');
