@@ -3063,6 +3063,14 @@ function renderTaskFilters(){
   const tf=document.getElementById('task-filters');
   if(!tf)return;
   const showToggle=!['completed','review'].includes(S.view);
+  // フィルタ描画後にtopbar高さ再同期（モバイル）
+  requestAnimationFrame(()=>{
+    if(window.innerWidth<=768){
+      const tb=document.querySelector('.topbar');
+      const main=document.querySelector('.main');
+      if(tb&&main){const h=tb.offsetHeight;if(h>0)main.style.paddingTop=h+'px';}
+    }
+  });
   if(!showToggle){tf.style.display='none';tf.innerHTML='';return;}
   tf.style.display='flex';
   if(S.selectMode){
@@ -4051,6 +4059,15 @@ function render(){
   localStorage.setItem('focus_view_state',JSON.stringify({view:S.view,projId:S.projId||null,tagId:S.tagId||null}));
   if(S.dark)document.documentElement.setAttribute('data-dark','');
   else document.documentElement.removeAttribute('data-dark');
+  // モバイル: topbarの実際の高さをmainのpadding-topに反映
+  if(window.innerWidth<=768){
+    const tb=document.getElementById('topbar')||document.querySelector('.topbar');
+    const main=document.querySelector('.main');
+    if(tb&&main){
+      const h=tb.offsetHeight;
+      if(h>0)main.style.paddingTop=h+'px';
+    }
+  }
   // sidebar open/close
   const sb=document.getElementById('sidebar');
   const sov=document.getElementById('sov');
