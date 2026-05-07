@@ -1485,6 +1485,13 @@ function wdStr(d){
   if(!d)return'';
   return['日','月','火','水','木','金','土'][new Date(d+'T00:00:00').getDay()]+'曜';
 }
+function wdColor(d){
+  if(!d)return'var(--text3)';
+  const day=new Date(d+'T00:00:00').getDay();
+  if(day===0)return'#e05555';
+  if(day===6)return'#4a90d9';
+  return'var(--text3)';
+}
 function fmtDate(d){
   if(!d)return'';
   const t=today(),dd=new Date(d+'T00:00:00'),td=new Date(t+'T00:00:00');
@@ -3540,8 +3547,8 @@ function renderDrawer(){
       +'<div id="dt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:156px;word-break:break-word"></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
-        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 18px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button><span id="dt-start-wd" style="font-size:11px;color:var(--text3);text-align:center">'+wdStr(task.startAt).replace('曜','')+'</span></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 18px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button><span></span></div></div>'
-        +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 18px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button><span id="dt-due-wd" style="font-size:11px;color:var(--text3);text-align:center">'+wdStr(task.dueAt).replace('曜','')+'</span></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 18px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="-1">-1月</button><span></span></div></div>'
+        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 18px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button><span id="dt-start-wd" style="font-size:13px;font-weight:700;color:'+wdColor(task.startAt)+';text-align:center">'+wdStr(task.startAt).replace('曜','')+'</span></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 18px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button><span></span></div></div>'
+        +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 18px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button><span id="dt-due-wd" style="font-size:13px;font-weight:700;color:'+wdColor(task.dueAt)+';text-align:center">'+wdStr(task.dueAt).replace('曜','')+'</span></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 18px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="-1">-1月</button><span></span></div></div>'
       +'</div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
@@ -3712,7 +3719,7 @@ function renderDrawer(){
       autosave(true);
       if(id==='dt-due'||id==='dt-start'){
         const wd=document.getElementById('dt-'+( id==='dt-due'?'due':'start')+'-wd');
-        if(wd)wd.textContent=wdStr(el.value);
+        if(wd){wd.textContent=wdStr(el.value).replace('曜','');wd.style.color=wdColor(el.value);}
       }
     });
   });
@@ -4279,7 +4286,7 @@ else if(a==='sel-edit'){
     }
     const newVal=base.toISOString().slice(0,10);
     input.value=newVal;
-    document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>s.textContent=wdStr(newVal).replace('曜',''));
+    document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>{s.textContent=wdStr(newVal).replace('曜','');s.style.color=wdColor(newVal);});
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
       if(field==='start')task.startAt=newVal;
