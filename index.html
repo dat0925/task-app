@@ -3160,11 +3160,11 @@ function renderRow(task){
   let meta='';
   if(task.startAt&&task.startAt!==task.dueAt){
     const cls=isToday(task.startAt)?'td':isSoon(task.startAt)?'sn':'';
-    meta+='<span class="mc'+( cls?' '+cls:'')+'">▶ '+fmtDate(task.startAt)+'</span>';
+    meta+='<span class="mc'+( cls?' '+cls:'')+'">🚀 '+fmtDate(task.startAt)+'</span>';
   }
   if(task.dueAt){
     const cls=isOv(task.dueAt)?'ov':isToday(task.dueAt)?'td':isSoon(task.dueAt)?'sn':'';
-    meta+='<span class="mc'+( cls?' '+cls:'')+'">📅 '+fmtDate(task.dueAt)+'</span>';
+    meta+='<span class="mc'+( cls?' '+cls:'')+'">⏰ '+fmtDate(task.dueAt)+'</span>';
   }
   if(task.projectId&&S.view!=='project'){
     const p=S.projects.find(x=>x.id===task.projectId);
@@ -3182,7 +3182,7 @@ function renderRow(task){
     const dc=subs.filter(s=>s.status==='completed').length;
     meta+='<button class="mc sub-toggle-btn" data-a="tog-subs" data-id="'+task.id+'" title="サブタスクを展開"><span class="sub-chev'+(subsOpen?' open':'')+'">▶</span>'+dc+'/'+subs.length+'</button>';
   }
-  const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">'+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
+  const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">✏️ '+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
 
   let html='<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
     +(S.view==='project'&&!S.selectMode?'<span class="task-drag-handle" title="ドラッグで並び替え">⠿</span>':'')
