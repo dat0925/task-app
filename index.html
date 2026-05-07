@@ -1153,6 +1153,26 @@ const SCROLL_THRESHOLD = 8; // px
 // ===== LONG PRESS ON TASK/NOTE ROWS =====
 let _lpTimer=null,_lpRow=null;
 function _cancelLp(){if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}_lpRow=null;}
+
+// 長押しリピート: 指定ボタンをtouchstart長押しで1秒ごとにfnを繰り返し呼ぶ
+function attachLongPressRepeat(btn, fn, delay=600, interval=1000){
+  if(!btn)return;
+  let _timer=null, _iv=null;
+  const _start=(e)=>{
+    e.preventDefault();
+    _timer=setTimeout(()=>{
+      fn();
+      _iv=setInterval(fn, interval);
+    }, delay);
+  };
+  const _stop=()=>{
+    clearTimeout(_timer);_timer=null;
+    clearInterval(_iv);_iv=null;
+  };
+  btn.addEventListener('touchstart', _start, {passive:false});
+  btn.addEventListener('touchend',   _stop,  {passive:true});
+  btn.addEventListener('touchcancel',_stop,  {passive:true});
+}
 document.addEventListener('touchstart',e=>{
   // ignore taps on interactive elements inside row
   if(e.target.closest('button,input,select,a,label'))return;
@@ -3322,6 +3342,21 @@ function renderNoteDrawer(){
     dr.querySelectorAll('[data-a="note-nav-prev"]').forEach(b=>{if(ci<=0){b.disabled=true;b.style.opacity='0.35';}});
     dr.querySelectorAll('[data-a="note-nav-next"]').forEach(b=>{if(ci>=vn.length-1){b.disabled=true;b.style.opacity='0.35';}});
   })();
+
+  // モバイルナビボタン長押しリピート（1秒ごとに移動）
+  (()=>{
+    const doNoteNav=(dir)=>{
+      const q=(S.noteSearch||'').toLowerCase();
+      const sortKey=S.noteSort||'updatedAt';
+      const vn=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q)).sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
+      const idx=vn.findIndex(n=>n.id===S.noteId);
+      const next=dir==='prev'?vn[idx-1]:vn[idx+1];
+      if(next){S.noteId=next.id;renderNoteDrawer();renderContent();}
+    };
+    attachLongPressRepeat(dr.querySelector('[data-a="note-nav-prev"]'), ()=>doNoteNav('prev'));
+    attachLongPressRepeat(dr.querySelector('[data-a="note-nav-next"]'), ()=>doNoteNav('next'));
+  })();
+
   const titleEl=document.getElementById('nt-title');
   const bodyEl=document.getElementById('nt-body');
   makeResizable(bodyEl);
@@ -3576,6 +3611,18 @@ function renderDrawer(){
   }
   document.getElementById('copy-url-btn')?.addEventListener('click',copyTaskUrl);
   document.getElementById('copy-url-btn-mob')?.addEventListener('click',copyTaskUrl);
+
+  // モバイルナビボタン長押しリピート（1秒ごとに移動）
+  (()=>{
+    const doNav=(dir)=>{
+      const vt=getTasks().filter(t=>!t.parentTaskId);
+      const idx=vt.findIndex(t=>t.id===S.taskId);
+      const next=dir==='prev'?vt[idx-1]:vt[idx+1];
+      if(next){S.taskId=next.id;renderDrawer();renderContent();}
+    };
+    attachLongPressRepeat(dr.querySelector('[data-a="task-nav-prev"]'), ()=>doNav('prev'));
+    attachLongPressRepeat(dr.querySelector('[data-a="task-nav-next"]'), ()=>doNav('next'));
+  })();
 
   // attach drawer input events
   const setInd=(s)=>{const el=document.getElementById('autosave-ind');if(!el)return;el.className='autosave-ind '+s;el.textContent=s==='saving'?'保存中…':s==='saved'?'保存済み ✓':'自動保存 ✓'};
