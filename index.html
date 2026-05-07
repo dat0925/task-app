@@ -1609,6 +1609,7 @@ function getTasks(){
   if(S.filterTagIds&&S.filterTagIds.length&&S.view!=='tag')tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   if(S.sort==='startAt') return tasks.sort((a,b)=>{if(!a.startAt&&!b.startAt)return 0;if(!a.startAt)return 1;if(!b.startAt)return -1;return a.startAt.localeCompare(b.startAt);});
+  if(S.sort==='priority') return tasks.sort((a,b)=>(a.priority||4)-(b.priority||4));
   return tasks.sort((a,b)=>(a.order||0)-(b.order||0));
 }
 function counts(){
@@ -3104,7 +3105,7 @@ function openSortPopup(btn){
   if(document.querySelector('.tf-popup.sort-pop')){_closeTfPopups();return;}
   _closeTfPopups();
   const pop=document.createElement('div');pop.className='tf-popup sort-pop';
-  const opts=[['order','デフォルト'],['startAt','開始日'],['updated','更新日']];
+  const opts=[['order','デフォルト'],['priority','優先度'],['startAt','開始日'],['updated','更新日']];
   pop.innerHTML=opts.map(([v,l])=>'<div class="tf-popup-item" data-a="spop-sort" data-val="'+v+'">'
     +'<span>'+l+'</span><span class="tf-popup-check'+(S.sort===v?' on':'')+'">✓</span>'
   +'</div>').join('');
