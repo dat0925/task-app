@@ -365,8 +365,13 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .act-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;background:var(--bg2);color:var(--text2);transition:background .15s}
 .act-btn:hover{background:var(--bg3);color:var(--text)}
 .act-btn.red:hover{background:rgba(239,68,68,.1);color:var(--p1)}
-.sub-item{display:flex;align-items:center;gap:7px;padding:5px 7px;background:var(--bg2);border-radius:6px;margin-bottom:4px}
-.sub-item span{flex:1;font-size:13px}
+.sub-item{display:flex;align-items:center;gap:7px;padding:5px 7px;background:var(--bg2);border-radius:6px;margin-bottom:4px;transition:opacity .15s,box-shadow .15s}
+.sub-item span{flex:1;font-size:13px;cursor:text}
+.sub-item input.sub-edit{flex:1;font-size:13px;background:transparent;border:none;border-bottom:1px solid var(--accent);outline:none;padding:0;color:var(--text);font-family:inherit}
+.sub-drag-handle{cursor:grab;color:var(--text3);font-size:15px;padding:0 2px;touch-action:none;user-select:none;-webkit-user-select:none;flex-shrink:0;line-height:1}
+.sub-drag-handle:active{cursor:grabbing}
+.sub-item.drag-over{box-shadow:0 -2px 0 var(--accent);opacity:.7}
+.sub-item.dragging{opacity:.35}
 .divider{height:1px;background:var(--border);margin:12px 0}
 
 /* Forecast */
@@ -3498,6 +3503,95 @@ function updateSubsOnly(){
   ).join('');
   return true;
 }
+
+// ===== SUBTASK DRAG & DROP SORT =====
+function initSubDrag(container){
+  let dragSrc=null;
+  // Mouse drag
+  container.querySelectorAll('.sub-drag-handle').forEach(handle=>{
+    const item=handle.closest('.sub-item');
+    item.setAttribute('draggable','true');
+    item.addEventListener('dragstart',e=>{
+      dragSrc=item;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+    });
+    item.addEventListener('dragend',()=>{
+      item.classList.remove('dragging');
+      container.querySelectorAll('.sub-item').forEach(i=>i.classList.remove('drag-over'));
+      dragSrc=null;
+    });
+  });
+  container.addEventListener('dragover',e=>{
+    e.preventDefault();
+    const target=e.target.closest('.sub-item');
+    if(!target||target===dragSrc)return;
+    container.querySelectorAll('.sub-item').forEach(i=>i.classList.remove('drag-over'));
+    target.classList.add('drag-over');
+  });
+  container.addEventListener('drop',async e=>{
+    e.preventDefault();
+    const target=e.target.closest('.sub-item');
+    if(!target||target===dragSrc||!dragSrc)return;
+    const items=[...container.querySelectorAll('.sub-item')];
+    const srcIdx=items.indexOf(dragSrc);
+    const tgtIdx=items.indexOf(target);
+    if(srcIdx<tgtIdx)target.after(dragSrc);else target.before(dragSrc);
+    container.querySelectorAll('.sub-item').forEach(i=>i.classList.remove('drag-over'));
+    await _saveSubOrder(container);
+  });
+
+  // Touch drag
+  let touchDragSrc=null,touchClone=null,touchOffX=0,touchOffY=0;
+  container.querySelectorAll('.sub-drag-handle').forEach(handle=>{
+    handle.addEventListener('touchstart',e=>{
+      const item=handle.closest('.sub-item');
+      touchDragSrc=item;
+      const r=item.getBoundingClientRect();
+      const t=e.touches[0];
+      touchOffX=t.clientX-r.left;touchOffY=t.clientY-r.top;
+      touchClone=item.cloneNode(true);
+      touchClone.style.cssText='position:fixed;z-index:9999;width:'+r.width+'px;opacity:.8;pointer-events:none;left:'+(t.clientX-touchOffX)+'px;top:'+(t.clientY-touchOffY)+'px;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+      document.body.appendChild(touchClone);
+      item.classList.add('dragging');
+    },{passive:true});
+  });
+  document.addEventListener('touchmove',e=>{
+    if(!touchDragSrc)return;
+    const t=e.touches[0];
+    if(touchClone){touchClone.style.left=(t.clientX-touchOffX)+'px';touchClone.style.top=(t.clientY-touchOffY)+'px';}
+    container.querySelectorAll('.sub-item').forEach(i=>i.classList.remove('drag-over'));
+    const el=document.elementFromPoint(t.clientX,t.clientY);
+    const over=el&&el.closest('.sub-item');
+    if(over&&over!==touchDragSrc)over.classList.add('drag-over');
+  },{passive:true});
+  document.addEventListener('touchend',async e=>{
+    if(!touchDragSrc)return;
+    if(touchClone){touchClone.remove();touchClone=null;}
+    const t=e.changedTouches[0];
+    const el=document.elementFromPoint(t.clientX,t.clientY);
+    const target=el&&el.closest('.sub-item');
+    touchDragSrc.classList.remove('dragging');
+    container.querySelectorAll('.sub-item').forEach(i=>i.classList.remove('drag-over'));
+    if(target&&target!==touchDragSrc){
+      const items=[...container.querySelectorAll('.sub-item')];
+      const srcIdx=items.indexOf(touchDragSrc);
+      const tgtIdx=items.indexOf(target);
+      if(srcIdx<tgtIdx)target.after(touchDragSrc);else target.before(touchDragSrc);
+      await _saveSubOrder(container);
+    }
+    touchDragSrc=null;
+  },{passive:true});
+}
+async function _saveSubOrder(container){
+  const items=[...container.querySelectorAll('.sub-item[data-id]')];
+  for(let i=0;i<items.length;i++){
+    const id=items[i].dataset.id;
+    const task=S.tasks.find(t=>t.id===id);
+    if(task){task.order=i*100;task.updatedAt=now();await saveTask(task);}
+  }
+}
+
 function renderDrawer(){
   const dr=document.getElementById('drawer');
   if(!S.drawerOpen||!S.taskId||S.view==='notes'){
@@ -3585,7 +3679,7 @@ function renderDrawer(){
         +'</select>'
       +'</div>'
       +'<div class="fg"><label class="flabel">サブタスク</label>'
-        +'<div id="subs">'+subs.map(s=>'<div class="sub-item"><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
+        +'<div id="subs">'+subs.sort((a,b)=>a.order-b.order).map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span class="sub-title" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
         +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…" style="margin-top:6px">'
       +'</div>'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
@@ -3726,22 +3820,56 @@ function renderDrawer(){
   const si=document.getElementById('sub-inp');
   if(si)si.addEventListener('keydown',async e=>{
     if(e.key==='Enter'&&si.value.trim()){
-      const s=mkTask({title:si.value.trim(),parentTaskId:S.taskId,status:'active'});
+      const s=mkTask({title:si.value.trim(),parentTaskId:S.taskId,status:'active',order:Date.now()});
       const drBody=document.getElementById('drawer-body');
       const scrollY=drBody?drBody.scrollTop:0;
       await saveTask(s);si.value='';
       // renderDrawer()を呼ばずサブタスクリストだけ差し替えてスクロール位置を維持
       const subsEl=document.getElementById('subs');
       if(subsEl){
-        const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId);
+        const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId).sort((a,b)=>a.order-b.order);
         subsEl.innerHTML=allSubs.map(sub=>
-          '<div class="sub-item"><button class="chk'+(sub.status==="completed"?' done':'')+' " data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+sub.title+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+          '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
         ).join('');
+        initSubDrag(subsEl);
       }
       si.value='';
       si.focus();
     }
   });
+
+  // サブタスク: インライン編集
+  const subsEl2=document.getElementById('subs');
+  if(subsEl2){
+    subsEl2.addEventListener('click',e=>{
+      const span=e.target.closest('.sub-title');
+      if(!span)return;
+      const id=span.dataset.id;
+      const task=S.tasks.find(t=>t.id===id);
+      if(!task)return;
+      const inp=document.createElement('input');
+      inp.className='sub-edit';
+      inp.value=task.title;
+      span.replaceWith(inp);
+      inp.focus();
+      inp.select();
+      const commit=async()=>{
+        const newTitle=inp.value.trim()||task.title;
+        task.title=newTitle;
+        task.updatedAt=now();
+        await saveTask(task);
+        const newSpan=document.createElement('span');
+        newSpan.className='sub-title';
+        newSpan.dataset.id=id;
+        newSpan.style.cssText=task.status==='completed'?'text-decoration:line-through;color:var(--text3)':'';
+        newSpan.textContent=newTitle;
+        inp.replaceWith(newSpan);
+      };
+      inp.addEventListener('blur',commit);
+      inp.addEventListener('keydown',e2=>{if(e2.key==='Enter'){e2.preventDefault();inp.blur();}if(e2.key==='Escape'){inp.value=task.title;inp.blur();}});
+    });
+    initSubDrag(subsEl2);
+  }
   // renderDrawer内でスクロール位置を復元
   if(_scrollY>0){
     setTimeout(()=>{
