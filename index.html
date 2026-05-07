@@ -2971,7 +2971,8 @@ function renderList(){
   if(S.view==='project'){
     const projSecs=S.sections.filter(s=>s.projectId===S.projId).sort((a,b)=>a.order-b.order);
     if(!tasks.length&&!projSecs.length)return renderEmpty();
-    const unsectioned=tasks.filter(t=>!t.sectionId);
+    const projSecIds=new Set(projSecs.map(s=>s.id));
+    const unsectioned=tasks.filter(t=>!t.sectionId||!projSecIds.has(t.sectionId));
     let h='<div class="tlist">';
     if(projSecs.length){
       h+='<div class="sec-actions-row">'
