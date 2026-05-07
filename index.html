@@ -164,7 +164,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .note-stamp-btn{display:inline-flex;align-items:center;gap:3px;padding:5px 7px;border-radius:6px;font-size:11px;font-weight:500;background:var(--bg2);color:var(--text2);cursor:pointer;border:1px solid var(--border);transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);white-space:nowrap}
 .date-adj-btn{font-size:10px;padding:6px 0;border-radius:4px;background:var(--bg2);border:1px solid var(--border);color:var(--text2);cursor:pointer;flex:1;text-align:center;touch-action:manipulation;transition:background .15s,color .15s}
 .date-adj-btn:hover{background:var(--bg3);color:var(--text)}
-.date-clr-btn{font-size:10px;padding:1px 5px;border-radius:4px;background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;flex-shrink:0;line-height:1.4;touch-action:manipulation;transition:background .15s,color .15s}
+.date-adj-minus{color:var(--text3);opacity:0.8}
+.date-adj-minus:hover{opacity:1;color:var(--text)}
+.date-clr-btn{font-size:13px;padding:2px 7px;border-radius:4px;background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;flex-shrink:0;line-height:1.4;touch-action:manipulation;transition:background .15s,color .15s}
 .date-clr-btn:hover{background:var(--bg2);color:var(--text)}
 .note-stamp-btn:hover{background:var(--bg3);color:var(--text)}
 /* Calculator (inline) */
@@ -424,13 +426,13 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .bnav-step:last-child{border-left:1px solid var(--border)}
 .bnav-step:active{color:var(--accent);background:var(--accent-bg)}
 .bnav-prev,.bnav-next{
-  width:38px;
+  width:50px;
   background:var(--surface);
   color:var(--text2);
   border:none;
   border-left:1px solid var(--border);
   margin:0;
-  font-size:18px;font-weight:500;
+  font-size:23px;font-weight:500;
   user-select:none;-webkit-user-select:none;
   transition:background .12s,color .12s;
 }
@@ -1185,7 +1187,16 @@ document.addEventListener('touchstart',e=>{
     const id=_lpRow?.dataset.id;
     const a=_lpRow?.dataset.a;
     if(!id)return;
-    if(a==='sel'){S.taskId=id;S.drawerOpen=true;playSE('open');renderContent();renderSidebar();renderDrawer();}
+    if(a==='sel'){
+      // 長押し → タイトルコピー
+      const task=S.tasks.find(t=>t.id===id);
+      const title=(task&&task.title)||'';
+      if(title){
+        const _fb=()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();};
+        if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(title).catch(_fb);}else{_fb();}
+        playSE('toggle');toast('タイトルをコピーしました 📋');
+      }
+    }
     else if(a==='note-sel'){S.noteId=id;S.noteOpen=true;renderContent();}
     _lpRow=null;
   },600);
@@ -1193,6 +1204,21 @@ document.addEventListener('touchstart',e=>{
 document.addEventListener('touchmove',()=>{_cancelLp();},{passive:true});
 document.addEventListener('touchend',_cancelLp,{passive:true});
 document.addEventListener('touchcancel',_cancelLp,{passive:true});
+
+// PC: ダブルクリックでタスクタイトルコピー
+document.addEventListener('dblclick',e=>{
+  if(e.target.closest('button,input,select,a,label'))return;
+  const row=e.target.closest('.trow[data-a="sel"][data-id]');
+  if(!row)return;
+  e.preventDefault();
+  const id=row.dataset.id;
+  const task=S.tasks.find(t=>t.id===id);
+  const title=(task&&task.title)||'';
+  if(!title)return;
+  const _fb=()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(title).catch(_fb);}else{_fb();}
+  playSE('toggle');toast('タイトルをコピーしました 📋');
+});
 
 document.addEventListener('touchstart', e => {
   _touchStartY = e.touches[0].clientY;
@@ -3156,10 +3182,7 @@ function renderRow(task){
       +'<div class="tmeta">'+(meta||'')+updStr+'</div>'
     +'</div>'
     +(S.selectMode?'':
-      '<button class="trow-copy-btn" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー">'
-        +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
-      +'</button>'
-      +'<button class="trow-expand-btn" data-a="task-expand" data-id="'+task.id+'" title="大きく表示">'
+      '<button class="trow-expand-btn" data-a="task-expand" data-id="'+task.id+'" title="大きく表示">'
         +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
       +'</button>'
       +'<button class="trow-edit-btn" data-a="sel-edit" data-id="'+task.id+'" title="詳細">'
@@ -3519,8 +3542,8 @@ function renderDrawer(){
       +'<div id="dt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:156px;word-break:break-word"></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
-        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button><span id="dt-start-wd" style="font-size:12px;color:var(--text3);margin-left:auto">'+wdStr(task.startAt)+'</span></div></div>'
-        +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button><span id="dt-due-wd" style="font-size:12px;color:var(--text3);margin-left:auto">'+wdStr(task.dueAt)+'</span></div></div>'
+        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button><span id="dt-start-wd" style="font-size:12px;color:var(--text3);margin-left:auto">'+wdStr(task.startAt)+'</span></div><div style="display:flex;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn date-adj-minus" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn date-adj-minus" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn date-adj-minus" data-a="date-adj" data-field="start" data-months="-1">-1月</button></div></div>'
+        +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:flex;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button><span id="dt-due-wd" style="font-size:12px;color:var(--text3);margin-left:auto">'+wdStr(task.dueAt)+'</span></div><div style="display:flex;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn date-adj-minus" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn date-adj-minus" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn date-adj-minus" data-a="date-adj" data-field="due" data-months="-1">-1月</button></div></div>'
       +'</div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
