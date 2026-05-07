@@ -6661,6 +6661,30 @@ async function init(){
       botnav.addEventListener('touchend',endLp,{passive:true});
       botnav.addEventListener('touchcancel',endLp,{passive:true});
     })();
+
+    // ===== BNAV 左右ボタン 長押しリピート =====
+    (()=>{
+      const doNavStep=(dir)=>{
+        const seq=getNavSequence();
+        if(!seq.length)return;
+        const cur=getCurrentNavIdx(seq);
+        const len=seq.length;
+        let ni;
+        if(dir==='prev') ni=cur<=0?len-1:cur-1;
+        else ni=cur>=len-1?0:cur+1;
+        const item=seq[ni];
+        if(!item)return;
+        S.taskId=null;S.drawerOpen=false;
+        if(item.type==='view'){S.view=item.v;}
+        else if(item.type==='proj'){S.view='project';S.projId=item.id;}
+        else if(item.type==='tag'){S.view='tag';S.tagId=item.id;}
+        playSE('toggle');render();
+      };
+      const prevBtn=botnav.querySelector('.bnav-prev');
+      const nextBtn=botnav.querySelector('.bnav-next');
+      attachLongPressRepeat(prevBtn, ()=>doNavStep('prev'));
+      attachLongPressRepeat(nextBtn, ()=>doNavStep('next'));
+    })();
   }catch(err){
     console.error(err);
     document.getElementById('layout').innerHTML=
