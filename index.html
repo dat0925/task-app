@@ -3066,7 +3066,7 @@ function renderList(){
 function renderTaskFilters(){
   const tf=document.getElementById('task-filters');
   if(!tf)return;
-  const showToggle=!['completed','review','nextview'].includes(S.view);
+  const showToggle=!['completed','review'].includes(S.view);
   // フィルタ描画後にtopbar高さ再同期（モバイル）
   requestAnimationFrame(()=>{
     if(window.innerWidth<=768){
@@ -3098,13 +3098,14 @@ function renderTaskFilters(){
   const isForecast=S.view==='forecast';
   const isNotes=S.view==='notes';
   const isSearch=S.view==='search';
+  const isNextView=S.view==='nextview';
   const showStatusBtns=!isForecast&&!isNotes&&!isSearch;
   tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
     +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
-    +(!isForecast&&!isNotes&&!isSearch?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
-    +(!isForecast&&!isNotes&&!isSearch?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
+    +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
+    +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
 }
 
 function _closeTfPopups(){document.querySelectorAll('.tf-popup,.tf-backdrop').forEach(p=>p.remove());}
@@ -3481,7 +3482,12 @@ function renderNextView(){
   const rows=[];
   for(const proj of projs){
     const tasks=S.tasks
-      .filter(t=>t.projectId===proj.id&&t.status!=='completed'&&!t.parentTaskId)
+      .filter(t=>{
+        if(t.projectId!==proj.id||t.parentTaskId)return false;
+        if(!S.showCompleted&&t.status==='completed')return false;
+        if(S.hideNotStarted&&t.startAt&&t.startAt>today())return false;
+        return true;
+      })
       .sort((a,b)=>(a.order||0)-(b.order||0));
     if(tasks.length===0)continue;
     rows.push({proj,task:tasks[0]});
