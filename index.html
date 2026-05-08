@@ -2456,7 +2456,7 @@ function renderSidebar(){
     {v:'forecast',label:'Forecast',icon:ICONS.forecast},
     {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged},
     {v:'review',label:'Review',icon:ICONS.review},
-    {v:'nextview',label:'NextView',icon:ICONS.nextview},
+    {v:'nextview',label:'Next',icon:ICONS.nextview},
     {v:'search',label:'Search',icon:ICONS.search},
     {v:'notes',label:'Note',icon:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
   ];
@@ -2546,7 +2546,7 @@ const ALL_NAV_ITEMS=[
   {v:'forecast',label:'Forecast',icon:()=>ICONS.forecast},
   {v:'flagged',label:'Flagged',icon:()=>ICONS.flag},
   {v:'review',label:'Review',icon:()=>ICONS.review},
-  {v:'nextview',label:'NextView',icon:()=>ICONS.nextview},
+  {v:'nextview',label:'Next',icon:()=>ICONS.nextview},
   {v:'search',label:'Search',icon:()=>ICONS.search},
   {v:'notes',label:'Note',icon:()=>ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
   {v:'ai',label:'AI',icon:()=>'<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.09 6.41L20.5 10l-6.41 2.09L12 18.5l-2.09-6.41L3.5 10l6.41-2.09z"/><circle cx="19" cy="4" r="1.5"/><circle cx="5" cy="19" r="1"/></svg>',special:'ai'},
@@ -3486,6 +3486,7 @@ function renderNextView(){
         if(t.projectId!==proj.id||t.parentTaskId)return false;
         if(!S.showCompleted&&t.status==='completed')return false;
         if(S.hideNotStarted&&t.startAt&&t.startAt>today())return false;
+        if(S.filterTagIds&&S.filterTagIds.length&&!S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)))return false;
         return true;
       })
       .sort((a,b)=>(a.order||0)-(b.order||0));
