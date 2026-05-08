@@ -5727,6 +5727,48 @@ function reattachModalEvents(modal, type, onClose){
     const save=()=>{clearTimeout(nt2);nt2=setTimeout(async()=>{note.title=titleEl?.value||'';note.body=bodyEl?.value||'';await saveNote(note);const h=modal.querySelector('.drawer-head div div:last-child');if(h)h.textContent=note.title||'無題';},600);};
     titleEl?.addEventListener('compositionstart',()=>{_c=true});titleEl?.addEventListener('compositionend',()=>{_c=false;save()});titleEl?.addEventListener('input',()=>{if(!_c)save()});
     bodyEl?.addEventListener('compositionstart',()=>{_c=true});bodyEl?.addEventListener('compositionend',()=>{_c=false;save()});bodyEl?.addEventListener('input',()=>{if(!_c)save()});
+
+    // スタンプボタン（日時・Link等）をモーダル内で再接続
+    const days=['日','月','火','水','木','金','土'];
+    const pad=n=>String(n).padStart(2,'0');
+    modal.querySelectorAll('.note-stamp-btn').forEach(btn=>{
+      btn.addEventListener('click',e=>{
+        e.stopPropagation();
+        const ns=btn.dataset.ns||btn.dataset.type;
+        if(!ns||!bodyEl)return;
+        // プレビュー中なら編集モードへ
+        if(bodyEl.style.display==='none'&&ntPvBtn){ntPvBtn.click();}
+        const d=new Date();
+        const dateBase=d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate());
+        const timeBase=pad(d.getHours())+':'+pad(d.getMinutes());
+        const map={date:dateBase,time:timeBase,datetime:dateBase+' '+timeBase,datetimeweek:dateBase+'（'+days[d.getDay()]+'） '+timeBase+' ',sep:'—————————————'};
+        if(ns==='link'){
+          const url=prompt('URL:');
+          if(!url)return;
+          const label=prompt('テキスト（空欄でURLをそのまま使用）:')||url;
+          const ins='['+label+']('+url+')';
+          const start=bodyEl.selectionStart??bodyEl.value.length;
+          const end=bodyEl.selectionEnd??start;
+          bodyEl.value=bodyEl.value.slice(0,start)+ins+bodyEl.value.slice(end);
+          bodyEl.selectionStart=bodyEl.selectionEnd=start+ins.length;
+          bodyEl.focus();save();return;
+        }
+        const ins=map[ns]||'';
+        if(!ins)return;
+        const start=bodyEl.selectionStart??bodyEl.value.length;
+        const end=bodyEl.selectionEnd??start;
+        if(bodyEl._stampFocused||start!==end||start!==bodyEl.value.length){
+          bodyEl.value=bodyEl.value.slice(0,start)+ins+bodyEl.value.slice(end);
+          bodyEl.selectionStart=bodyEl.selectionEnd=start+ins.length;
+        } else {
+          bodyEl.value=ins+'\n'+bodyEl.value;
+          bodyEl.selectionStart=bodyEl.selectionEnd=ins.length+1;
+        }
+        bodyEl.focus();save();
+      });
+    });
+    bodyEl?.addEventListener('focus',()=>{if(bodyEl)bodyEl._stampFocused=true;});
+    bodyEl?.addEventListener('blur',()=>{if(bodyEl)bodyEl._stampFocused=false;});
   }
 }
 
