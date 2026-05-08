@@ -6897,13 +6897,17 @@ function setupSB(){
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_'))continue;r[TO[k]||k]=v;}return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
     window.dbAll=async s=>{const{data,error}=await SB.from(s).select('*');if(error){console.error('SB.dbAll',s,error);return[]}return(data||[]).map(frDB)};
+    let _lastErrMsg='',_lastErrTs=0;
     window.dbPut=async(s,i)=>{
       const row=toDB(i);
       const{error}=await SB.from(s).upsert(row,{onConflict:'id'});
       if(error){
         console.error('SB.dbPut error',s,error);
-        const msg=error.message||JSON.stringify(error);
-        if(typeof toast==='function')toast('⚠ 同期エラー('+s+'): '+msg.slice(0,60));
+        const msg='⚠ 同期エラー('+s+'): '+(error.message||JSON.stringify(error)).slice(0,60);
+        const now2=Date.now();
+        if(typeof toast==='function'&&(msg!==_lastErrMsg||now2-_lastErrTs>5000)){
+          toast(msg);_lastErrMsg=msg;_lastErrTs=now2;
+        }
       }
     };
     window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}};
