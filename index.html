@@ -3452,7 +3452,7 @@ function renderNoteDrawer(){
       const days=['日','月','火','水','木','金','土'];
       const dateBase=d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate());
       const timeBase=pad(d.getHours())+':'+pad(d.getMinutes());
-      const map={date:dateBase,time:timeBase,datetime:dateBase+' '+timeBase,datetimeweek:dateBase+'（'+days[d.getDay()]+'） '+timeBase,sep:'—————————————'};
+      const map={date:dateBase,time:timeBase,datetime:dateBase+' '+timeBase,datetimeweek:dateBase+'（'+days[d.getDay()]+'） '+timeBase+' ',sep:'—————————————'};
       const ins=map[btn.dataset.ns]||'';
       if(!bodyEl._stampFocused){
         bodyEl.value=ins+'\n'+bodyEl.value;
@@ -4711,7 +4711,7 @@ else if(a==='sel-edit'){
     const days2=['日','月','火','水','木','金','土'];
     const dateStr=now2.getFullYear()+'/'+(pad(now2.getMonth()+1))+'/'+pad(now2.getDate());
     const timeStr=pad(now2.getHours())+':'+pad(now2.getMinutes());
-    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr,sep:'\n---\n'};
+    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+' ',sep:'\n---\n'};
     const ins=map[el.dataset.type]||'';
     if(!ta._stampFocused){
       ta.value=ins+'\n'+ta.value;
