@@ -3094,8 +3094,11 @@ function renderTaskFilters(){
   const isForecast=S.view==='forecast';
   const isNotes=S.view==='notes';
   const isSearch=S.view==='search';
+  const showStatusBtns=!isForecast&&!isNotes&&!isSearch;
   tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
     +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
+    +(showStatusBtns?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
+    +(showStatusBtns?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
     +(!isForecast&&!isNotes&&!isSearch?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
     +(!isForecast&&!isNotes&&!isSearch?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
 }
@@ -4737,6 +4740,12 @@ else if(a==='sel-edit'){
   else if(a==='clear-filters'){S.hideNotStarted=false;S.showCompleted=false;S.filterTagIds=[];renderTaskFilters();renderContent();}
   else if(a==='bulk-sel-all'){S.selectedIds=getTasks().filter(t=>!t.parentTaskId).map(t=>t.id);renderTaskFilters();renderContent();}
   else if(a==='bulk-desel-all'){S.selectedIds=[];renderTaskFilters();renderContent();}
+  else if(a==='quick-filter'){
+    const key=el.dataset.key;
+    if(key==='hideNotStarted')S.hideNotStarted=!S.hideNotStarted;
+    else if(key==='showCompleted')S.showCompleted=!S.showCompleted;
+    renderTaskFilters();renderContent();
+  }
   else if(a==='fpop-toggle'){
     const key=el.dataset.key;
     if(key==='hideNotStarted')S.hideNotStarted=!S.hideNotStarted;
