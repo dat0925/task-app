@@ -4139,6 +4139,9 @@ async function submitQA(){
     }
   }
   const status=S.view==='project'?'active':'inbox';
+  const _t=today();
+  if(!p.dueAt)p.dueAt=_t;
+  if(!p.startAt)p.startAt=_t;
   const task=mkTask({...p,status,projectId:p.projectId||(S.view==='project'?S.projId:null)});
   await saveTask(task);
   inp.value='';
