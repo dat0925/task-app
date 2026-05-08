@@ -3105,6 +3105,7 @@ function renderTaskFilters(){
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
+    +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="toggle-completed-btn'+(S.sort==='priority'?' active':'')+'" data-a="quick-sort-priority" title="優先度順に並び替え">優先</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
 }
 
@@ -4808,6 +4809,10 @@ else if(a==='sel-edit'){
     const key=el.dataset.key;
     if(key==='hideNotStarted')S.hideNotStarted=!S.hideNotStarted;
     else if(key==='showCompleted')S.showCompleted=!S.showCompleted;
+    renderTaskFilters();renderContent();
+  }
+  else if(a==='quick-sort-priority'){
+    S.sort=S.sort==='priority'?'order':'priority';
     renderTaskFilters();renderContent();
   }
   else if(a==='fpop-toggle'){
