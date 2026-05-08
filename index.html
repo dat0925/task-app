@@ -3021,7 +3021,7 @@ function renderList(){
     if(projSecs.length){
       const uc=S.secCollapsed['__null__'];
       h+='<div class="sec-head'+(uc?' sec-collapsed':'')+'" data-drop-sec="null" data-sec-id="__null__">'
-        +'<span class="sec-chevron">▼</span>'
+        +'<span class="sec-chevron" data-a="sec-toggle" data-sec-id="__null__" style="cursor:pointer">▼</span>'
         +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="__null__" style="color:var(--text3);cursor:pointer">セクションなし</span>'
         +(unsectioned.length?'<span class="badge">'+unsectioned.length+'</span>':'')
         +'</div>';
@@ -3038,7 +3038,7 @@ function renderList(){
       h+='<div class="sec-drop-zone" data-drop-sec="null" style="margin-top:0"></div>';
       h+='<div class="sec-head'+(collapsed?' sec-collapsed':'')+'" data-drop-sec="'+sec.id+'" data-sec-id="'+sec.id+'">'
         +'<span class="sec-drag-handle" data-drag-sec="'+sec.id+'" title="ドラッグでセクションを並び替え">⠿</span>'
-        +'<span class="sec-chevron">▼</span>'
+        +'<span class="sec-chevron" data-a="sec-toggle" data-sec-id="'+sec.id+'" style="cursor:pointer">▼</span>'
         +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="'+sec.id+'" style="cursor:pointer">'+esc(sec.name)+'</span>'
         +(secTasks.length?'<span class="badge" style="margin-right:2px">'+secTasks.length+'</span>':'')
         +'<button class="sec-act-btn" data-a="sec-rename" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="名前変更">'
