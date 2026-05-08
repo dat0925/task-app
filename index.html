@@ -2392,6 +2392,12 @@ const VIEW_HELP={
     desc:'完了済みタスクのアーカイブです。過去の作業履歴を確認したり、完了タスクを元に戻したりできます。',
     conds:['ステータスが「完了」のタスクのみ表示']
   },
+  nextview:{
+    name:'Up Next',
+    colorBg:'var(--accent-bg)',colorFg:'var(--accent)',
+    desc:'各プロジェクトの「次にやるべきタスク」を1件ずつ抽出して一覧表示します。全プロジェクトの進捗を俯瞰しながら、今どこに着手すべきかを把握できます。',
+    conds:['アクティブなプロジェクトごとに先頭の未完了タスクを1件表示','プロジェクト名をタップするとそのプロジェクトへ移動','「現在」フィルタで開始済みのタスクのみ表示可能']
+  },
 };
 function openViewHelp(triggerEl){
   const info=VIEW_HELP[S.view];
@@ -2650,7 +2656,7 @@ function openNavEdit(){
 // ===== RENDER CONTENT =====
 function renderContent(){
   const el=document.getElementById('content');
-  const titles={inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'Search',completed:'Completed',notes:'Notes',
+  const titles={inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'Search',completed:'Completed',notes:'Notes',nextview:'Up Next',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||''};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
