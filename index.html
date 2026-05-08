@@ -6877,12 +6877,10 @@ function setupSB(){
     const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order'};
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_'))continue;r[TO[k]||k]=v;}return r};
-    // notes用: tag_idsカラムが存在しないためtagIdsを除外
-    const toDBnotes=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_')||k==='tagIds')continue;r[TO[k]||k]=v;}return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
     window.dbAll=async s=>{const{data,error}=await SB.from(s).select('*');if(error){console.error('SB.dbAll',s,error);return[]}return(data||[]).map(frDB)};
     window.dbPut=async(s,i)=>{
-      const row=s==='notes'?toDBnotes(i):toDB(i);
+      const row=toDB(i);
       const{error}=await SB.from(s).upsert(row,{onConflict:'id'});
       if(error){
         console.error('SB.dbPut error',s,error);
