@@ -2393,7 +2393,7 @@ const VIEW_HELP={
     conds:['ステータスが「完了」のタスクのみ表示']
   },
   nextview:{
-    name:'Up Next',
+    name:'Next',
     colorBg:'var(--accent-bg)',colorFg:'var(--accent)',
     desc:'各プロジェクトの「次にやるべきタスク」を1件ずつ抽出して一覧表示します。全プロジェクトの進捗を俯瞰しながら、今どこに着手すべきかを把握できます。',
     conds:['アクティブなプロジェクトごとに先頭の未完了タスクを1件表示','プロジェクト名をタップするとそのプロジェクトへ移動','「現在」フィルタで開始済みのタスクのみ表示可能']
@@ -2463,7 +2463,7 @@ function renderSidebar(){
     {v:'forecast',label:'Forecast',icon:ICONS.forecast},
     {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged},
     {v:'review',label:'Review',icon:ICONS.review},
-    {v:'nextview',label:'Up Next',icon:ICONS.nextview},
+    {v:'nextview',label:'Next',icon:ICONS.nextview},
     {v:'search',label:'Search',icon:ICONS.search},
     {v:'notes',label:'Note',icon:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
   ];
@@ -2553,7 +2553,7 @@ const ALL_NAV_ITEMS=[
   {v:'forecast',label:'Forecast',icon:()=>ICONS.forecast},
   {v:'flagged',label:'Flagged',icon:()=>ICONS.flag},
   {v:'review',label:'Review',icon:()=>ICONS.review},
-  {v:'nextview',label:'Up Next',icon:()=>ICONS.nextview},
+  {v:'nextview',label:'Next',icon:()=>ICONS.nextview},
   {v:'search',label:'Search',icon:()=>ICONS.search},
   {v:'notes',label:'Note',icon:()=>ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
   {v:'ai',label:'AI',icon:()=>'<svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.09 6.41L20.5 10l-6.41 2.09L12 18.5l-2.09-6.41L3.5 10l6.41-2.09z"/><circle cx="19" cy="4" r="1.5"/><circle cx="5" cy="19" r="1"/></svg>',special:'ai'},
@@ -2657,7 +2657,7 @@ function openNavEdit(){
 // ===== RENDER CONTENT =====
 function renderContent(){
   const el=document.getElementById('content');
-  const titles={inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'Search',completed:'Completed',notes:'Notes',nextview:'Up Next',
+  const titles={inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'Search',completed:'Completed',notes:'Notes',nextview:'Next',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||''};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
