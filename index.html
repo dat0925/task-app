@@ -3767,7 +3767,7 @@ function renderDrawer(){
         +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1;min-width:0"><span id="dt-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.startAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button></div></div>'
         +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1;min-width:0"><span id="dt-due-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.dueAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.dueAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="-1">-1月</button></div></div>'
       +'</div>'
-      +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:flex;gap:3px;align-items:center"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="6">+6h</button><button class="date-adj-btn" data-a="start-time-zero-min">分00</button><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button></div></div>'
+      +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:flex;gap:3px;align-items:center"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button><button class="date-adj-btn" data-a="start-time-adj-min" data-mins="10">+10m</button><button class="date-adj-btn" data-a="start-time-zero-min">分00</button><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button></div></div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
           +[1,2,3,4].map(p=>'<button class="pbtn'+(task.priority===p?' on':'')+'" data-a="pri" data-p="'+p+'" data-id="'+task.id+'">'+pLabels[p]+'</button>').join('')
@@ -4036,7 +4036,7 @@ async function handleBulkEdit(field){
           +'<input type="time" id="bulk-stime-inp" class="finput" style="font-size:14px;min-height:34px;flex:1;min-width:0">'
           +'<button class="date-adj-btn" id="bulk-stime-h1">+1h</button>'
           +'<button class="date-adj-btn" id="bulk-stime-h3">+3h</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-h6">+6h</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-m10">+10m</button>'
           +'<button class="date-adj-btn" id="bulk-stime-m00">分00</button>'
           +'<button class="date-clr-btn" id="bulk-stime-clr" title="クリア">✕</button>'
         +'</div>'
@@ -4107,7 +4107,15 @@ async function handleBulkEdit(field){
     }
     ov.querySelector('#bulk-stime-h1').onclick=()=>adjBulkTime(1);
     ov.querySelector('#bulk-stime-h3').onclick=()=>adjBulkTime(3);
-    ov.querySelector('#bulk-stime-h6').onclick=()=>adjBulkTime(6);
+    ov.querySelector('#bulk-stime-m10').onclick=()=>{
+      const cur=stimeInp.value;
+      let hh=0,mm=0;
+      if(cur){const[a,b]=cur.split(':');hh=parseInt(a);mm=parseInt(b);}
+      else{const n=new Date();hh=n.getHours();mm=n.getMinutes();}
+      mm+=10;if(mm>=60){hh=(hh+1)%24;mm-=60;}
+      stimeInp.value=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+      stimeCleared=false;
+    };
     ov.querySelector('#bulk-stime-m00').onclick=()=>{
       if(stimeInp.value){const[h]=stimeInp.value.split(':');stimeInp.value=h+':00';}
       else{const n=new Date();stimeInp.value=String(n.getHours()).padStart(2,'0')+':00';}
@@ -4615,6 +4623,23 @@ else if(a==='sel-edit'){
     const sti=document.getElementById('dt-start-time');if(sti)sti.value='';
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){task.startTime=null;await saveTask(task);}
+  }
+  else if(a==='start-time-adj-min'){
+    const mins=parseInt(el.dataset.mins||'10');
+    const sti=document.getElementById('dt-start-time');
+    if(!sti)return;
+    let base;
+    if(sti.value){
+      const[h,m]=sti.value.split(':').map(Number);
+      base=new Date();base.setHours(h,m,0,0);
+    }else{
+      base=new Date();
+    }
+    base.setMinutes(base.getMinutes()+mins);
+    const newVal=String(base.getHours()).padStart(2,'0')+':'+String(base.getMinutes()).padStart(2,'0');
+    sti.value=newVal;
+    const task=S.tasks.find(t=>t.id===S.taskId);
+    if(task){task.startTime=newVal;await saveTask(task);}
   }
   else if(a==='start-time-adj'){
     const hours=parseInt(el.dataset.hours||'0');
