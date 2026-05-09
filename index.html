@@ -2684,7 +2684,7 @@ function openNavEdit(){
     const newOrder=[...list.querySelectorAll('.nav-edit-item')].map(x=>x.dataset.v);
     if(!newOrder.includes('_edit'))newOrder.push('_edit');
     localStorage.setItem('bnav_order',JSON.stringify(newOrder));
-    ov.remove();renderBotNav();
+    ov.remove();renderBotNav();renderSidebar();
   };
 }
 
