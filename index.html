@@ -3522,6 +3522,8 @@ function renderNextView(){
   const projs=getSortedProjects('active');
   const rows=[];
   for(const proj of projs){
+    const projSecs=S.sections.filter(s=>s.projectId===proj.id).sort((a,b)=>(a.order||0)-(b.order||0));
+    const secOrder=Object.fromEntries(projSecs.map((s,i)=>[s.id,i+1]));
     const tasks=S.tasks
       .filter(t=>{
         if(t.projectId!==proj.id||t.parentTaskId)return false;
@@ -3530,7 +3532,12 @@ function renderNextView(){
         if(S.filterTagIds&&S.filterTagIds.length&&!S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)))return false;
         return true;
       })
-      .sort((a,b)=>(a.order||0)-(b.order||0));
+      .sort((a,b)=>{
+        const sa=a.sectionId?secOrder[a.sectionId]||999:0;
+        const sb=b.sectionId?secOrder[b.sectionId]||999:0;
+        if(sa!==sb)return sa-sb;
+        return (a.order||0)-(b.order||0);
+      });
     if(tasks.length===0)continue;
     rows.push({proj,task:tasks[0]});
   }
