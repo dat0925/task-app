@@ -3161,7 +3161,7 @@ function renderTaskFilters(){
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="toggle-completed-btn'+(S.sort==='priority'?' active':'')+'" data-a="quick-sort-priority" title="優先度順に並び替え">優先</button>':'')
-    +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
+    +(!isForecast&&!isNotes&&!isSearch?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
 }
 
 function _closeTfPopups(){document.querySelectorAll('.tf-popup,.tf-backdrop').forEach(p=>p.remove());}
