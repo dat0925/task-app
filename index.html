@@ -3740,7 +3740,7 @@ function renderDrawer(){
       +'</div>'
     +'</div>'
     +'<div class="drawer-body">'
-      +'<div class="fg"><label class="flabel">タイトル</label><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名"></div>'
+      +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
       +'<div class="note-stamp-bar" style="margin-bottom:6px">'
         +'<button class="note-stamp-btn" data-a="stamp" data-type="datetimeweek">📅 日時</button>'
@@ -4987,7 +4987,8 @@ else if(a==='sel-edit'){
     if(_touchMoved)return;
     const _now=Date.now();if(_now-(el._lastCopyAt||0)<600)return;el._lastCopyAt=_now;
     const task=S.tasks.find(t=>t.id===el.dataset.id);
-    const title=(task&&task.title)||'';
+    const titleInp=document.getElementById('dt-title');
+    const title=(titleInp&&titleInp.value)||(task&&task.title)||'';
     if(!title)return;
     const _fb=()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();};
     if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(title).catch(_fb);}else{_fb();}
