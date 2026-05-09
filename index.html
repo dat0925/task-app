@@ -2601,6 +2601,19 @@ function getNavOrder(){
   }catch(e){}
   return['inbox','today','forecast','_sidebar','search','ai','_edit'];
 }
+async function loadNavOrder(){
+  try{
+    if(!window.sbGetSetting)return;
+    const val=await window.sbGetSetting('bnav_order');
+    if(val){
+      const parsed=JSON.parse(val);
+      if(Array.isArray(parsed)&&parsed.length){
+        localStorage.setItem('bnav_order',JSON.stringify(parsed));
+        renderBotNav();renderSidebar();
+      }
+    }
+  }catch(e){console.error('loadNavOrder',e);}
+}
 // ===== PREV/NEXT ナビゲーション =====
 function getNavSequence(){
   const SYS_VIEWS=['inbox','today','upcoming','forecast','flagged','review','nextview','search','notes'];
@@ -2684,6 +2697,7 @@ function openNavEdit(){
     const newOrder=[...list.querySelectorAll('.nav-edit-item')].map(x=>x.dataset.v);
     if(!newOrder.includes('_edit'))newOrder.push('_edit');
     localStorage.setItem('bnav_order',JSON.stringify(newOrder));
+    if(window.sbSetSetting)window.sbSetSetting('bnav_order',JSON.stringify(newOrder));
     ov.remove();renderBotNav();renderSidebar();
   };
 }
@@ -7052,6 +7066,7 @@ async function init(){
     await openDB();
     await seed();
     await loadAll();
+    await loadNavOrder();
     // 保存済みビューの有効性を検証（削除済みプロジェクト/タグへの参照を除去）
     if(S.view==='project'&&!S.projects.find(p=>p.id===S.projId)){S.view='inbox';S.projId=null;}
     if(S.view==='tag'&&S.tagId!=='__none__'&&!S.tags.find(t=>t.id===S.tagId)){S.view='inbox';S.tagId=null;}
@@ -7178,6 +7193,15 @@ function setupSB(){
     window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}};
     window._sbReady=true;
     window._lastSelfSave=0;
+
+    // app_settings: key-value同期
+    window.sbGetSetting=async(key)=>{
+      const{data}=await SB.from('app_settings').select('value').eq('key',key).single();
+      return data?data.value:null;
+    };
+    window.sbSetSetting=async(key,value)=>{
+      await SB.from('app_settings').upsert({key,value,updated_at:new Date().toISOString()},{onConflict:'key'});
+    };
 
     
     // Realtimeサブスクリプション: 他デバイスの変更を自動反映
