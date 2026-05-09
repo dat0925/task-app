@@ -4669,7 +4669,7 @@ else if(a==='sel-edit'){
       task.priority=parseInt(el.dataset.p);
       await saveTask(task);
       S.taskId=tid;S.drawerOpen=true;
-      renderDrawer();renderContent();
+      renderDrawer();
     }
   }
   else if(a==='tog-tag'){
