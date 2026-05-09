@@ -3563,6 +3563,7 @@ function renderNextView(){
   for(const{proj,task} of rows){
     const done=task.status==='completed';
     const notStarted=!done&&isNotStartedTask(task);
+    const isSel=S.selectedIds.includes(task.id);
     let meta='';
     if(task.startAt&&task.startAt!==task.dueAt){
       const cls=isToday(task.startAt)?'td':isSoon(task.startAt)?'sn':'';
@@ -3582,7 +3583,7 @@ function renderNextView(){
       });
     }
     const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">✏️ '+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
-    h+='<div class="trow'+(done?' done':'')+(S.taskId===task.id?' sel':'')+(notStarted?' not-started':'')+'" data-a="sel" data-id="'+task.id+'">'
+    h+='<div class="trow'+(done?' done':'')+(isSel?' sel':'')+(S.taskId===task.id&&!isSel?' active':'')+(notStarted?' not-started':'')+'" data-a="sel" data-id="'+task.id+'">'
       +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'">'+(done?'✓':'')+'</button>'
       +'<div class="tbody">'
         +'<div class="ttitle"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
@@ -4969,7 +4970,22 @@ else if(a==='sel-edit'){
   else if(a==='tog-filter-btn'){openFilterPopup(el);}
   else if(a==='tog-sort-btn'){openSortPopup(el);}
   else if(a==='clear-filters'){S.hideNotStarted=false;S.showCompleted=false;S.filterTagIds=[];renderTaskFilters();renderContent();}
-  else if(a==='bulk-sel-all'){S.selectedIds=getTasks().filter(t=>!t.parentTaskId).map(t=>t.id);renderTaskFilters();renderContent();}
+  else if(a==='bulk-sel-all'){
+    if(S.view==='nextview'){
+      const projs=getSortedProjects('active');
+      const ids=[];
+      for(const proj of projs){
+        const projSecs=S.sections.filter(s=>s.projectId===proj.id).sort((a,b)=>(a.order||0)-(b.order||0));
+        const secOrder=Object.fromEntries(projSecs.map((s,i)=>[s.id,i+1]));
+        const tasks=S.tasks.filter(t=>t.projectId===proj.id&&!t.parentTaskId&&(!S.showCompleted&&t.status!=='completed')&&(!S.hideNotStarted||!isNotStartedTask(t))).sort((a,b)=>{const sa=a.sectionId?secOrder[a.sectionId]||999:0;const sb=b.sectionId?secOrder[b.sectionId]||999:0;if(sa!==sb)return sa-sb;return(a.order||0)-(b.order||0);});
+        if(tasks.length)ids.push(tasks[0].id);
+      }
+      S.selectedIds=ids;
+    }else{
+      S.selectedIds=getTasks().filter(t=>!t.parentTaskId).map(t=>t.id);
+    }
+    renderTaskFilters();renderContent();
+  }
   else if(a==='bulk-desel-all'){S.selectedIds=[];renderTaskFilters();renderContent();}
   else if(a==='quick-filter'){
     const key=el.dataset.key;
