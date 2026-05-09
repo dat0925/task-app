@@ -3893,11 +3893,12 @@ function renderDrawer(){
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
 
       const activeId=document.activeElement?.id;
+      const activeInDrawer=document.activeElement?.closest('#drawer,.expand-modal');
       await saveTask(t2);
       setInd('saved');
 
       const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-sec','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
-      if(t2.status!==prevStatus||!drawerInputIds.includes(activeId)){
+      if(t2.status!==prevStatus||(!drawerInputIds.includes(activeId)&&!activeInDrawer)){
         renderSidebar();renderContent();
       }
     },400);
