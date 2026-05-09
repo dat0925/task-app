@@ -1538,6 +1538,8 @@ function fmtDate(d){
 function isOv(d){return d&&d<today()}
 function isToday(d){return d===today()}
 function isSoon(d){if(!d)return false;const diff=Math.round((new Date(d+'T00:00:00')-new Date(today()+'T00:00:00'))/86400000);return diff>0&&diff<=3}
+function nowHHMM(){const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
+function isNotStartedTask(task){if(task.status==="completed")return false;const t=today();if(!task.startAt)return false;if(task.startAt>t)return true;if(task.startAt===t&&task.startTime&&task.startTime>nowHHMM())return true;return false;}
 
 function parseQA(input){
   let title=input;
@@ -1668,7 +1670,7 @@ function getTasks(){
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
-  if(S.hideNotStarted){const t2=today();tasks=tasks.filter(x=>!x.startAt||x.startAt<=t2||x.status==='completed')}
+  if(S.hideNotStarted){tasks=tasks.filter(x=>!isNotStartedTask(x))}
   if(S.filterTagIds&&S.filterTagIds.length&&S.view!=='tag')tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   if(S.sort==='startAt') return tasks.sort((a,b)=>{if(!a.startAt&&!b.startAt)return 0;if(!a.startAt)return 1;if(!b.startAt)return -1;return a.startAt.localeCompare(b.startAt);});
@@ -1679,7 +1681,7 @@ function counts(){
   const t=today();
   return{
     inbox:S.tasks.filter(x=>x.status==='inbox').length,
-    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!x.startAt||x.startAt<=t)).length,
+    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
     flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged).length,
   };
 }
@@ -3204,14 +3206,15 @@ function openSortPopup(btn){
 function renderRow(task){
   const subs=S.tasks.filter(t=>t.parentTaskId===task.id);
   const done=task.status==='completed';
-  const notStarted=!done&&task.startAt&&task.startAt>today();
+  const notStarted=!done&&isNotStartedTask(task);
   const pclass=task.priority<4?'p'+task.priority:'';
   const isSel=S.selectedIds.includes(task.id);
   const subsOpen=subs.length>0&&!!S.openSubs[task.id];
   let meta='';
   if(task.startAt&&task.startAt!==task.dueAt){
     const cls=isToday(task.startAt)?'td':isSoon(task.startAt)?'sn':'';
-    meta+='<span class="mc'+( cls?' '+cls:'')+'">🚀 '+fmtDate(task.startAt)+'</span>';
+    const timeLabel=(task.startTime&&isToday(task.startAt))?' '+task.startTime:'';
+    meta+='<span class="mc'+( cls?' '+cls:'')+'">🚀 '+fmtDate(task.startAt)+timeLabel+'</span>';
   }
   if(task.dueAt){
     const cls=isOv(task.dueAt)?'ov':isToday(task.dueAt)?'td':isSoon(task.dueAt)?'sn':'';
@@ -3275,7 +3278,7 @@ function renderForecast(){
   const days=Array.from({length:14},(_,i)=>{const d=new Date(today()+'T00:00:00');d.setDate(d.getDate()+i);return d.toISOString().slice(0,10)});
   let tasks=S.tasks.filter(t=>t.status!=='archived');
   if(!S.showCompleted)tasks=tasks.filter(t=>t.status!=='completed');
-  if(S.hideNotStarted){const t2=today();tasks=tasks.filter(x=>!x.startAt||x.startAt<=t2||x.status==='completed');}
+  if(S.hideNotStarted){tasks=tasks.filter(x=>!isNotStartedTask(x));}
   if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
   let h='<div class="fc-grid">';
   days.forEach(day=>{
@@ -3523,7 +3526,7 @@ function renderNextView(){
       .filter(t=>{
         if(t.projectId!==proj.id||t.parentTaskId)return false;
         if(!S.showCompleted&&t.status==='completed')return false;
-        if(S.hideNotStarted&&t.startAt&&t.startAt>today())return false;
+        if(S.hideNotStarted&&isNotStartedTask(t))return false;
         if(S.filterTagIds&&S.filterTagIds.length&&!S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)))return false;
         return true;
       })
@@ -3536,11 +3539,12 @@ function renderNextView(){
   let h='<div class="tlist">';
   for(const{proj,task} of rows){
     const done=task.status==='completed';
-    const notStarted=!done&&task.startAt&&task.startAt>today();
+    const notStarted=!done&&isNotStartedTask(task);
     let meta='';
     if(task.startAt&&task.startAt!==task.dueAt){
       const cls=isToday(task.startAt)?'td':isSoon(task.startAt)?'sn':'';
-      meta+='<span class="mc'+(cls?' '+cls:'')+'">🚀 '+fmtDate(task.startAt)+'</span>';
+      const timeLabel2=(task.startTime&&isToday(task.startAt))?' '+task.startTime:'';
+      meta+='<span class="mc'+(cls?' '+cls:'')+'">🚀 '+fmtDate(task.startAt)+timeLabel2+'</span>';
     }
     if(task.dueAt){
       const cls=isOv(task.dueAt)?'ov':isToday(task.dueAt)?'td':isSoon(task.dueAt)?'sn':'';
@@ -3751,7 +3755,7 @@ function renderDrawer(){
       +'<div id="dt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:156px;word-break:break-word"></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
-        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button><span id="dt-start-wd" style="font-size:14px;font-weight:800;color:'+wdColor(task.startAt)+';text-align:center;white-space:nowrap;overflow:hidden">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button><span></span></div></div>'
+        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button><span id="dt-start-wd" style="font-size:14px;font-weight:800;color:'+wdColor(task.startAt)+';text-align:center;white-space:nowrap;overflow:hidden">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button><span></span></div><div style="display:flex;gap:4px;align-items:center;margin-top:5px"><label style="font-size:11px;color:var(--text3);white-space:nowrap">開始時間</label><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="flex:1;font-size:12px"><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button></div></div>'
         +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1"><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button><span id="dt-due-wd" style="font-size:14px;font-weight:800;color:'+wdColor(task.dueAt)+';text-align:center;white-space:nowrap;overflow:hidden">('+(wdStr(task.dueAt).replace('曜','')||'　')+')</span></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="-1">-1月</button><span></span></div></div>'
       +'</div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
@@ -3872,6 +3876,7 @@ function renderDrawer(){
       t2.notes=document.getElementById('dt-notes')?.value||'';
       t2.dueAt=document.getElementById('dt-due')?.value||null;
       t2.startAt=document.getElementById('dt-start')?.value||null;
+      t2.startTime=document.getElementById('dt-start-time')?.value||null;
       t2.projectId=document.getElementById('dt-proj')?.value||null;
       t2.sectionId=document.getElementById('dt-sec')?.value||null;
       t2.repeatRule=document.getElementById('dt-repeat')?.value||null;
@@ -3920,7 +3925,7 @@ function renderDrawer(){
     el.addEventListener('input',()=>{autosave();});
   });
   // 日付・セレクトはcomposition不要
-  ['dt-due','dt-start','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
+  ['dt-due','dt-start','dt-start-time','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('change',()=>{
       autosave(true);
@@ -4556,10 +4561,15 @@ else if(a==='sel-edit'){
     document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>s.textContent='');
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
-      if(field==='start')task.startAt=null;
+      if(field==='start'){task.startAt=null;task.startTime=null;const sti=document.getElementById('dt-start-time');if(sti)sti.value='';}
       else task.dueAt=null;
       await saveTask(task);
     }
+  }
+  else if(a==='start-time-clear'){
+    const sti=document.getElementById('dt-start-time');if(sti)sti.value='';
+    const task=S.tasks.find(t=>t.id===S.taskId);
+    if(task){task.startTime=null;await saveTask(task);}
   }
   else if(a==='clear-task-notes'){
     openConfirmModal('メモをクリア','メモの内容をすべて削除しますか？',()=>{
@@ -5680,6 +5690,7 @@ function reattachModalEvents(modal, type, onClose){
         if(notesEl)t.notes=notesEl.value;
         if(dueEl)t.dueAt=dueEl.value||null;
         if(startEl)t.startAt=startEl.value||null;
+        const startTimeEl2=modal.querySelector('#dt-start-time');if(startTimeEl2)t.startTime=startTimeEl2.value||null;
         if(projEl)t.projectId=projEl.value||null;
         if(secEl)t.sectionId=secEl.value||null;
         if(repeatEl)t.repeatRule=repeatEl.value||null;
@@ -5692,7 +5703,7 @@ function reattachModalEvents(modal, type, onClose){
       el.addEventListener('compositionend',()=>{_c=false;save(true);});
       el.addEventListener('input',()=>save());
     });
-    ['dt-due','dt-start','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
+    ['dt-due','dt-start','dt-start-time','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
       const el=modal.querySelector('#'+id);
       if(el)el.addEventListener('change',()=>{
         save(true);
