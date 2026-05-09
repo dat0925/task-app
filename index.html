@@ -4033,6 +4033,17 @@ async function handleBulkEdit(field){
           +'<span id="bulk-due-wd" style="font-size:12px;color:var(--text3);margin-left:auto"></span>'
         +'</div>'
       +'</div>'
+      // 開始時間
+      +'<div class="fg"><label class="flabel">開始時間</label>'
+        +'<div style="display:flex;gap:3px;align-items:center">'
+          +'<input type="time" id="bulk-stime-inp" class="finput" style="font-size:14px;min-height:34px;flex:1;min-width:0">'
+          +'<button class="date-adj-btn" id="bulk-stime-h1">+1h</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-h3">+3h</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-h6">+6h</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-m00">分00</button>'
+          +'<button class="date-clr-btn" id="bulk-stime-clr" title="クリア">✕</button>'
+        +'</div>'
+      +'</div>'
       +'<div style="display:flex;gap:8px;margin-top:4px">'
         +'<button class="btn btn-primary" id="bulk-dates-ok">設定する</button>'
         +'<button class="btn btn-ghost" id="bulk-dates-cancel">キャンセル</button>'
@@ -4042,9 +4053,10 @@ async function handleBulkEdit(field){
     ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
 
     // 状態変数・DOM参照
-    let startCleared=false,dueCleared=false;
+    let startCleared=false,dueCleared=false,stimeCleared=false;
     const startInp=ov.querySelector('#bulk-start-inp');
     const dueInp=ov.querySelector('#bulk-due-inp');
+    const stimeInp=ov.querySelector('#bulk-stime-inp');
     const startWd=ov.querySelector('#bulk-start-wd');
     const dueWd=ov.querySelector('#bulk-due-wd');
     startInp.addEventListener('change',()=>{startWd.textContent=wdStr(startInp.value);startCleared=false;});
@@ -4073,19 +4085,41 @@ async function handleBulkEdit(field){
     ov.querySelector('#bulk-dadj-d7').onclick=()=>adjBulkDate(dueInp,dueWd,7,0);
     ov.querySelector('#bulk-dadj-m1').onclick=()=>adjBulkDate(dueInp,dueWd,0,1);
 
+    // 開始時間調整ヘルパー
+    function adjBulkTime(h){
+      const cur=stimeInp.value;
+      let hh=0,mm=0;
+      if(cur){const[a,b]=cur.split(':');hh=parseInt(a);mm=parseInt(b);}
+      else{const n=new Date();hh=n.getHours();mm=n.getMinutes();}
+      hh=(hh+h+24)%24;
+      stimeInp.value=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+      stimeCleared=false;
+    }
+    ov.querySelector('#bulk-stime-h1').onclick=()=>adjBulkTime(1);
+    ov.querySelector('#bulk-stime-h3').onclick=()=>adjBulkTime(3);
+    ov.querySelector('#bulk-stime-h6').onclick=()=>adjBulkTime(6);
+    ov.querySelector('#bulk-stime-m00').onclick=()=>{
+      if(stimeInp.value){const[h]=stimeInp.value.split(':');stimeInp.value=h+':00';}
+      else{const n=new Date();stimeInp.value=String(n.getHours()).padStart(2,'0')+':00';}
+      stimeCleared=false;
+    };
+
     // クリアボタン：フィールドを空にして「クリア確定」フラグを立てる
     ov.querySelector('#bulk-start-clr').onclick=()=>{startInp.value='';startWd.textContent='';startCleared=true;};
     ov.querySelector('#bulk-due-clr').onclick=()=>{dueInp.value='';dueWd.textContent='';dueCleared=true;};
+    ov.querySelector('#bulk-stime-clr').onclick=()=>{stimeInp.value='';stimeCleared=true;};
 
     ov.querySelector('#bulk-dates-cancel').onclick=()=>ov.remove();
     ov.querySelector('#bulk-dates-ok').onclick=async()=>{
-      const sv=startInp.value,dv=dueInp.value;
+      const sv=startInp.value,dv=dueInp.value,stv=stimeInp.value;
       ov.remove();
       for(const t of tasks){
         if(sv)t.startAt=sv;
         else if(startCleared)t.startAt=null;
         if(dv)t.dueAt=dv;
         else if(dueCleared)t.dueAt=null;
+        if(stv)t.startTime=stv;
+        else if(stimeCleared)t.startTime=null;
         await saveTask(t);
       }
       toast(tasks.length+'件を更新しました');render();
