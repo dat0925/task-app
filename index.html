@@ -7117,24 +7117,29 @@ async function init(){
     renderInstant();
     applySettings();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
-    // ===== BNAV-NEXT LONG-PRESS → SIDEBAR =====
+    // ===== BNAV 左右ボタン 長押し → 特殊アクション =====
     (()=>{
       const botnav=document.getElementById('botnav');
       if(!botnav)return;
-      let _lpt=null,_lpmoved=false,_lpsx=0,_lpsy=0;
+      let _lpt=null,_lpmoved=false,_lpsx=0,_lpsy=0,_lptarget=null;
       const lockSel=()=>{document.documentElement.style.webkitUserSelect='none';document.documentElement.style.userSelect='none';};
       const unlockSel=()=>{document.documentElement.style.webkitUserSelect='';document.documentElement.style.userSelect='';};
       const _preventCtx=e=>{if(_lpt!=null)e.preventDefault();};
       document.addEventListener('contextmenu',_preventCtx,{passive:false});
       document.addEventListener('selectstart',e=>{if(_lpt!=null)e.preventDefault();},{passive:false});
       botnav.addEventListener('touchstart',e=>{
-        if(!e.target.closest('.bnav-next,.bnav'))return;
+        const isPrev=e.target.closest('.bnav-prev');
+        const isNext=e.target.closest('.bnav-next');
+        if(!isPrev&&!isNext)return;
+        _lptarget=isPrev?'prev':'next';
         _lpmoved=false;_lpsx=e.touches[0].clientX;_lpsy=e.touches[0].clientY;
         lockSel();
         _lpt=setTimeout(()=>{
           if(_lpmoved){unlockSel();return;}
           _lpt=null;unlockSel();
-          playSE('toggle');S.sidebarOpen=true;render();
+          playSE('toggle');
+          if(_lptarget==='prev'){S.sidebarOpen=true;render();}
+          else{openNavEdit();}
         },500);
       },{passive:true});
       botnav.addEventListener('touchmove',e=>{
