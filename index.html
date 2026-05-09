@@ -366,7 +366,9 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .act-btn:hover{background:var(--bg3);color:var(--text)}
 .act-btn.red:hover{background:rgba(239,68,68,.1);color:var(--p1)}
 .sub-item{display:flex;align-items:center;gap:7px;padding:5px 7px;background:var(--bg2);border-radius:6px;margin-bottom:4px;transition:opacity .15s,box-shadow .15s}
-.sub-item span{flex:1;font-size:13px;cursor:text}
+.sub-item span{font-size:13px;cursor:text}
+.sub-item .sub-title{flex:1}
+.sub-item .sub-drag-handle{cursor:grab;flex-shrink:0}
 .sub-item input.sub-edit{flex:1;font-size:13px;background:transparent;border:none;border-bottom:1px solid var(--accent);outline:none;padding:0;color:var(--text);font-family:inherit}
 .sub-drag-handle{cursor:grab;color:var(--text3);font-size:15px;padding:0 2px;touch-action:none;user-select:none;-webkit-user-select:none;flex-shrink:0;line-height:1}
 .sub-drag-handle:active{cursor:grabbing}
