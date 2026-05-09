@@ -1190,16 +1190,39 @@ document.addEventListener('touchstart',e=>{
     const a=_lpRow?.dataset.a;
     if(!id)return;
     if(a==='sel'){
-      // 長押し → タイトルコピー
-      const task=S.tasks.find(t=>t.id===id);
-      const title=(task&&task.title)||'';
-      if(title){
-        const _fb=()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();};
-        if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(title).catch(_fb);}else{_fb();}
-        playSE('toggle');toast('タイトルをコピーしました 📋');
+      // 長押し → タイトルをインライン編集
+      const titleEl=_lpRow?.querySelector('[data-title-edit]');
+      if(titleEl){playSE('toggle');startTaskInlineEdit(titleEl);}
+    }
+    else if(a==='note-sel'){
+      // 長押し → NOTEタイトルをインライン編集
+      const titleEl=_lpRow?.querySelector('[data-note-title-edit]');
+      if(titleEl){
+        playSE('toggle');
+        // note用インライン編集をトリガー（dblclickと同じロジック）
+        const noteId=titleEl.dataset.noteTitleEdit;
+        const note=S.notes.find(n=>n.id===noteId);
+        if(note&&!titleEl.querySelector('input')){
+          const inp=document.createElement('input');
+          inp.value=note.title||'';
+          inp.className='note-title-edit-inp';
+          titleEl.innerHTML='';titleEl.appendChild(inp);
+          inp.focus();inp.select();
+          let committed=false;
+          async function commit(){
+            if(committed)return;committed=true;
+            const val=inp.value.trim();
+            if(val!==note.title){note.title=val||'無題';note.updatedAt=now();await saveNote(note);}
+            renderNoteListOnly();
+            if(S.noteId===noteId&&S.noteOpen){const hdr=document.querySelector('.drawer-head div div:last-child');if(hdr)hdr.textContent=note.title||'無題';const ti=document.getElementById('nt-title');if(ti)ti.value=note.title||'';}
+          }
+          inp.addEventListener('blur',commit);
+          inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();inp.blur();}if(ev.key==='Escape'){committed=true;renderNoteListOnly();}});
+          inp.addEventListener('click',ev=>ev.stopPropagation());
+          inp.addEventListener('touchstart',ev=>ev.stopPropagation(),{passive:true});
+        }
       }
     }
-    else if(a==='note-sel'){S.noteId=id;S.noteOpen=true;renderContent();}
     _lpRow=null;
   },600);
 },{passive:true});
