@@ -5249,31 +5249,29 @@ function _buildCalcInDrawer(){
     // 式ゾーン: タップ → 式+結果をコピー
     histEl.querySelectorAll('.calc-hist-expr-zone').forEach(zone=>{
       const idx=parseInt(zone.dataset.copyHi);
-      // 長押し判定: touchendで経過時間チェック（iOSはtouchend直接呼び出しが必要）
-      let _moved=false,_startTime=0,_sx=0,_sy=0;
+      // 長押し判定: setTimeoutベース（touchendに依存しないのでiOS Safariでも確実）
+      let _lpT=null,_moved=false,_sx=0,_sy=0,_fired=false;
+      const _cancel=()=>{if(_lpT){clearTimeout(_lpT);_lpT=null;}};
       zone.addEventListener('touchstart',e=>{
-        _moved=false;_startTime=Date.now();
+        _moved=false;_fired=false;
         _sx=e.touches[0].clientX;_sy=e.touches[0].clientY;
-        e.preventDefault(); // ブラウザの長押し選択メニューを抑制
-      },{passive:false});
-      zone.addEventListener('touchmove',e=>{
-        if(Math.abs(e.touches[0].clientX-_sx)>8||Math.abs(e.touches[0].clientY-_sy)>8)_moved=true;
+        _lpT=setTimeout(()=>{
+          _lpT=null;if(_moved)return;
+          _fired=true;
+          const h=calcHistory[idx];if(!h)return;
+          window.playClick?.();
+          doCopy(fmtExpr(h.expr)+'='+fmtComma(h.result),()=>{
+            zone.closest('.calc-hist-item').classList.add('flash');
+            setTimeout(()=>zone.closest('.calc-hist-item')?.classList.remove('flash'),400);
+            toast('長押しで式をコピーしました 📋');
+          });
+        },500);
       },{passive:true});
-      zone.addEventListener('touchend',e=>{
-        if(_moved)return;
-        const elapsed=Date.now()-_startTime;
-        if(elapsed<400)return; // 長押し未満
-        e.preventDefault(); // Clipboard APIのためジェスチャートラストを維持
-        const h=calcHistory[idx];
-        if(!h)return;
-        window.playClick?.();
-        doCopy(fmtExpr(h.expr)+'='+fmtComma(h.result),()=>{
-          zone.closest('.calc-hist-item').classList.add('flash');
-          setTimeout(()=>zone.closest('.calc-hist-item')?.classList.remove('flash'),400);
-          toast('長押しで式をコピーしました 📋');
-        });
-      },{passive:false});
-      zone.addEventListener('touchcancel',()=>{_moved=true;},{passive:true});
+      zone.addEventListener('touchmove',e=>{
+        if(Math.abs(e.touches[0].clientX-_sx)>8||Math.abs(e.touches[0].clientY-_sy)>8){_moved=true;_cancel();}
+      },{passive:true});
+      zone.addEventListener('touchend',()=>{_cancel();},{passive:true});
+      zone.addEventListener('touchcancel',()=>{_moved=true;_cancel();},{passive:true});
       // PC用: クリックでコピー
       zone.addEventListener('click',e=>{
         e.stopPropagation();
@@ -5291,39 +5289,40 @@ function _buildCalcInDrawer(){
     // 結果バッジ: タップ → 電卓に入力 / 長押し → 数値をコピー
     histEl.querySelectorAll('.calc-hist-result').forEach(badge=>{
       const idx=parseInt(badge.dataset.insertHi);
-      // モバイル: touchendで経過時間チェック（iOSはジェスチャー直接呼び出しが必要）
-      let _bMoved=false,_bTime=0,_bSx=0,_bSy=0;
+      // モバイル: setTimeoutベース長押し判定（iOS Safariでも確実に動作）
+      let _bLpT=null,_bMoved=false,_bSx=0,_bSy=0,_bFired=false;
+      const _bCancel=()=>{if(_bLpT){clearTimeout(_bLpT);_bLpT=null;}};
       badge.addEventListener('touchstart',e=>{
-        e.stopPropagation();e.preventDefault();
-        _bMoved=false;_bTime=Date.now();
+        e.stopPropagation();
+        _bMoved=false;_bFired=false;
         _bSx=e.touches[0].clientX;_bSy=e.touches[0].clientY;
-      },{passive:false});
-      badge.addEventListener('touchmove',e=>{
-        if(Math.abs(e.touches[0].clientX-_bSx)>8||Math.abs(e.touches[0].clientY-_bSy)>8)_bMoved=true;
-      },{passive:true});
-      badge.addEventListener('touchend',e=>{
-        e.stopPropagation();e.preventDefault();
-        if(_bMoved)return;
-        const elapsed=Date.now()-_bTime;
-        const h=calcHistory[idx];
-        if(!h)return;
-        if(elapsed>=500){
-          // 長押し: コピー（touchend直接呼び出しでiOS Safariも動作）
+        _bLpT=setTimeout(()=>{
+          _bLpT=null;if(_bMoved)return;
+          _bFired=true;
+          const h=calcHistory[idx];if(!h)return;
           window.playClick?.();
           doCopy(fmtComma(h.result),()=>{
             badge.closest('.calc-hist-item').classList.add('flash');
             setTimeout(()=>badge.closest('.calc-hist-item')?.classList.remove('flash'),500);
             toast('結果をコピーしました 📋');
           });
-        } else {
-          // タップ: 電卓に入力
-          window.playClickEq?.();
-          pressNum(h.result);
-          badge.closest('.calc-hist-item').classList.add('flash');
-          setTimeout(()=>badge.closest('.calc-hist-item')?.classList.remove('flash'),250);
-        }
+        },500);
+      },{passive:true});
+      badge.addEventListener('touchmove',e=>{
+        if(Math.abs(e.touches[0].clientX-_bSx)>8||Math.abs(e.touches[0].clientY-_bSy)>8){_bMoved=true;_bCancel();}
+      },{passive:true});
+      badge.addEventListener('touchend',e=>{
+        e.stopPropagation();
+        _bCancel();
+        if(_bMoved||_bFired)return;
+        // タップ: 電卓に入力
+        const h=calcHistory[idx];if(!h)return;
+        window.playClickEq?.();
+        pressNum(h.result);
+        badge.closest('.calc-hist-item').classList.add('flash');
+        setTimeout(()=>badge.closest('.calc-hist-item')?.classList.remove('flash'),250);
       },{passive:false});
-      badge.addEventListener('touchcancel',()=>{_bMoved=true;},{passive:true});
+      badge.addEventListener('touchcancel',()=>{_bMoved=true;_bCancel();},{passive:true});
       // PC: マウス長押しでコピー（setTimeoutはPCでは正常動作）
       let lpTimer=null;
       const lpStart=()=>{
