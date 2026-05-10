@@ -996,9 +996,34 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   background:var(--accent);flex-shrink:0;margin-top:5px;
 }
 .vhelp-ov{position:fixed;inset:0;z-index:299}
+/* Login screen */
+.login-screen{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);overflow:hidden}
+.login-card{display:flex;flex-direction:column;align-items:center;position:relative;z-index:1;animation:lockIn .5s cubic-bezier(.34,1.56,.64,1) both}
+.google-btn{display:flex;align-items:center;gap:10px;padding:13px 24px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:15px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-top:28px;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+.google-btn:hover{background:var(--bg2);border-color:var(--accent);box-shadow:0 4px 16px rgba(232,93,58,.15)}
+.google-btn:active{opacity:.8}
+.login-loading{font-size:13px;color:var(--text3);margin-top:16px;display:none;align-items:center;gap:6px}
+.login-loading-spinner{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+.login-sub{font-size:12px;color:var(--text3);margin-top:14px;text-align:center;max-width:260px;line-height:1.6}
 </style>
 </head>
 <body>
+
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen" style="display:none">
+  <div class="lock-bg"></div>
+  <div class="login-card">
+    <div class="lock-logo"><img src="icon-192.png" alt="Taskra"></div>
+    <div class="lock-title">Taskra</div>
+    <div class="lock-sub">サインインして始めましょう</div>
+    <button class="google-btn" id="google-signin-btn">
+      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 002.38-5.88c0-.57-.05-.66-.15-1.18z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 01-7.18-2.54H1.83v2.07A8 8 0 008.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 010-3.04V5.41H1.83a8 8 0 000 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 001.83 5.4L4.5 7.49a4.77 4.77 0 014.48-3.31z"/></svg>
+      Googleでサインイン
+    </button>
+    <div class="login-loading" id="login-loading"><div class="login-loading-spinner"></div>サインイン処理中...</div>
+    <div class="login-sub">初回サインイン後、既存のローカルデータを引き継ぐことができます</div>
+  </div>
+</div>
 
 <!-- Lock Screen -->
 <div class="lock-screen" id="lockScreen">
@@ -6354,6 +6379,14 @@ function openSettingsModal(){
       +'<div><div class="settings-label">💱 為替レート</div><div class="settings-sub">電卓の ¥⇄$ 変換に使用（初期値 $1=160円）</div></div>'
       +'<div style="display:flex;align-items:center;gap:4px"><span style="font-size:12px;color:var(--text3);white-space:nowrap">$1 =</span><input type="number" id="s-fx-rate" value="'+getSetting('fxRate',160)+'" min="1" max="99999" step="0.01" style="width:64px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);text-align:center;font-family:var(--font)"><span style="font-size:13px;color:var(--text2)">円</span></div>'
     +'</div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">👤 アカウント</div><div class="settings-sub" id="s-user-email" style="word-break:break-all">'+(window._currentUser?.email||'未サインイン')+'</div></div>'
+      +'<button class="btn btn-ghost" id="s-logout" style="font-size:12px;flex-shrink:0;color:var(--p1)"'+(window._currentUser?'':' disabled')+'>'+(window._currentUser?'ログアウト':'未接続')+'</button>'
+    +'</div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">📥 データインポート</div><div class="settings-sub">ローカルのデータをクラウドに移行</div></div>'
+      +'<button class="btn btn-ghost" id="s-import" style="font-size:12px;flex-shrink:0"'+(window._currentUser?'':' disabled')+'>インポート</button>'
+    +'</div>'
     +'<div class="modal-foot"><button class="btn btn-ghost" id="s-nav-edit">🗂 メニュー編集</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
@@ -6419,6 +6452,27 @@ function openSettingsModal(){
   });
   addFastHandler('s-nav-edit',()=>{ov.remove();openNavEdit();});
   addFastHandler('s-backup',()=>{ov.remove();openBackupModal()});
+  addFastHandler('s-logout',async()=>{
+    if(!window._currentUser)return;
+    if(!confirm('ログアウトしますか？'))return;
+    await window._SB.auth.signOut();
+    ov.remove();
+    toast('ログアウトしました');
+  });
+  addFastHandler('s-import',async()=>{
+    if(!window._currentUser){toast('先にサインインしてください');return;}
+    if(!confirm('ローカルのIndexedDBデータをSupabaseにインポートします。\n既存のクラウドデータと統合されます。実行しますか？'))return;
+    ov.remove();
+    toast('インポート中...');
+    try{
+      const count=await window.importFromIndexedDB();
+      await loadAll();render();
+      toast('✅ '+count+'件のデータをインポートしました');
+    }catch(err){
+      console.error('Import error',err);
+      toast('⚠ インポートに失敗しました: '+(err.message||'').slice(0,50));
+    }
+  });
 }
 
 // ===== CONFIRM MODAL =====
@@ -7189,18 +7243,30 @@ init();
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 (function(){
-function setupSB(){
+async function setupSB(){
   try{
     const SB=window.supabase.createClient('https://sfhtvtcmgueystyuhzvd.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw');
     window._SB=SB;
+
+    // カラム名マッピング（JS camelCase ↔ DB snake_case）
     const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order'};
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_'))continue;r[TO[k]||k]=v;}return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
-    window.dbAll=async s=>{const{data,error}=await SB.from(s).select('*');if(error){console.error('SB.dbAll',s,error);return[]}return(data||[]).map(frDB)};
+    // ===== DB操作: user_idでフィルタ =====
     let _lastErrMsg='',_lastErrTs=0;
+    window.dbAll=async s=>{
+      const uid=window._currentUser?.id;
+      if(!uid)return[];
+      const{data,error}=await SB.from(s).select('*').eq('user_id',uid);
+      if(error){console.error('SB.dbAll',s,error);return[]}
+      return(data||[]).map(frDB);
+    };
     window.dbPut=async(s,i)=>{
+      const uid=window._currentUser?.id;
+      if(!uid)return;
       const row=toDB(i);
+      row.user_id=uid;
       const{error}=await SB.from(s).upsert(row,{onConflict:'id'});
       if(error){
         console.error('SB.dbPut error',s,error);
@@ -7211,8 +7277,10 @@ function setupSB(){
         }
       }
     };
-    window.dbDel=async(s,id)=>{const{error}=await SB.from(s).delete().eq('id',id);if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}};
-    window._sbReady=true;
+    window.dbDel=async(s,id)=>{
+      const{error}=await SB.from(s).delete().eq('id',id);
+      if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}
+    };
     window._lastSelfSave=0;
 
     // app_settings: key-value同期
@@ -7224,42 +7292,118 @@ function setupSB(){
       await SB.from('app_settings').upsert({key,value,updated_at:new Date().toISOString()},{onConflict:'key'});
     };
 
-    
-    // Realtimeサブスクリプション: 他デバイスの変更を自動反映
-const _syncNow=()=>{
-  if(Date.now()-window._lastSelfSave<5000)return; // 500→5000ms
-  // 入力中は絶対に同期しない
-  const ae=document.activeElement;
-  if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
+    // ===== 認証状態の管理 =====
+    const loginScreen=document.getElementById('loginScreen');
+    const showLogin=()=>{if(loginScreen)loginScreen.style.display='';};
+    const hideLogin=()=>{if(loginScreen)loginScreen.style.display='none';};
 
-    
-  if(typeof loadAll==='function'&&typeof render==='function'){
-    loadAll().then(()=>render()).catch(()=>{});
-  }
-};
+    // Googleサインインボタン
+    const signinBtn=document.getElementById('google-signin-btn');
+    const loadingEl=document.getElementById('login-loading');
+    if(signinBtn){
+      signinBtn.addEventListener('click',async()=>{
+        signinBtn.disabled=true;
+        if(loadingEl)loadingEl.style.display='flex';
+        await SB.auth.signInWithOAuth({
+          provider:'google',
+          options:{redirectTo:location.origin+location.pathname}
+        });
+      });
+    }
 
-  
+    // 認証状態変化の監視
+    SB.auth.onAuthStateChange((event,session)=>{
+      window._currentUser=session?.user||null;
+      if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
+        if(window._currentUser){
+          hideLogin();
+          if(!window._sbReady){
+            window._sbReady=true;
+          } else {
+            // 既にinit済みならデータを再ロード
+            if(typeof loadAll==='function'&&typeof render==='function'){
+              loadAll().then(()=>render()).catch(()=>{});
+            }
+          }
+        } else {
+          showLogin();
+          window._sbReady=true;
+        }
+      } else if(event==='SIGNED_OUT'){
+        window._currentUser=null;
+        showLogin();
+      }
+    });
+
+    // 初回セッション確認
+    const{data:{session}}=await SB.auth.getSession();
+    window._currentUser=session?.user||null;
+    if(window._currentUser){
+      hideLogin();
+    } else {
+      showLogin();
+    }
+    window._sbReady=true;
+
+    // ===== Realtimeサブスクリプション =====
+    const _syncNow=()=>{
+      if(!window._currentUser)return;
+      if(Date.now()-window._lastSelfSave<5000)return;
+      const ae=document.activeElement;
+      if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
+      if(typeof loadAll==='function'&&typeof render==='function'){
+        loadAll().then(()=>render()).catch(()=>{});
+      }
+    };
     SB.channel('focus-realtime')
       .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},_syncNow)
       .on('postgres_changes',{event:'*',schema:'public',table:'projects'},_syncNow)
       .on('postgres_changes',{event:'*',schema:'public',table:'tags'},_syncNow)
-      .subscribe(status=>{
-        console.log('Realtime status:',status);
-      });
-    // フォールバック: 画面がフォアグラウンドに戻ったとき同期
+      .subscribe(status=>{console.log('Realtime status:',status);});
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible'){
+        const ae=document.activeElement;
+        if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
+        _syncNow();
+      }
+    });
+    setInterval(_syncNow,30000);
 
-document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'){
-    const ae=document.activeElement;
-    if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
-    _syncNow();
-  }
-});
-    // フォールバック: 30秒ごとにバックグラウンド同期
-    setInterval(_syncNow, 30000);
-  }catch(e){console.error('Supabase init failed',e)}
+    // ===== IndexedDBからSupabaseへのインポート =====
+    window.importFromIndexedDB=async()=>{
+      const uid=window._currentUser?.id;
+      if(!uid){toast('先にサインインしてください');return;}
+      const stores=['tasks','projects','sections','tags'];
+      return new Promise((resolve,reject)=>{
+        const req=indexedDB.open('focus-db');
+        req.onerror=()=>reject(new Error('IndexedDBを開けませんでした'));
+        req.onsuccess=async e=>{
+          const db=e.target.result;
+          let total=0,done=0;
+          for(const s of stores){
+            if(!db.objectStoreNames.contains(s))continue;
+            const items=await new Promise(r=>{
+              const tx=db.transaction(s,'readonly');
+              const req2=tx.objectStore(s).getAll();
+              req2.onsuccess=()=>r(req2.result);
+              req2.onerror=()=>r([]);
+            });
+            total+=items.length;
+            for(const item of items){
+              const row=toDB(item);
+              row.user_id=uid;
+              await SB.from(s).upsert(row,{onConflict:'id'});
+              done++;
+            }
+          }
+          db.close();
+          resolve(done);
+        };
+      });
+    };
+
+  }catch(e){console.error('Supabase init failed',e);window._sbReady=true;}
 }
-// supabase.jsの直後に実行される
 setupSB();
 })();
 </script>
