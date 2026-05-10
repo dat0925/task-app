@@ -7346,6 +7346,7 @@ async function setupSB(){
       .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},_syncNow)
       .on('postgres_changes',{event:'*',schema:'public',table:'projects'},_syncNow)
       .on('postgres_changes',{event:'*',schema:'public',table:'tags'},_syncNow)
+      .on('postgres_changes',{event:'*',schema:'public',table:'notes'},_syncNow)
       .subscribe(status=>{console.log('Realtime status:',status);});
     document.addEventListener('visibilitychange',()=>{
       if(document.visibilityState==='visible'){
@@ -7360,7 +7361,7 @@ async function setupSB(){
     window.importFromIndexedDB=async()=>{
       const uid=window._currentUser?.id;
       if(!uid){toast('先にサインインしてください');return 0;}
-      const stores=['tasks','projects','sections','tags'];
+      const stores=['tasks','projects','sections','tags','notes'];
       let done=0;
 
       // 1. localStorage（f_tasks, f_projects…）から読み込み
