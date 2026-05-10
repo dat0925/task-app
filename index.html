@@ -7372,14 +7372,30 @@ async function setupSB(){
     // ===== IndexedDBからSupabaseへのインポート =====
     window.importFromIndexedDB=async()=>{
       const uid=window._currentUser?.id;
-      if(!uid){toast('先にサインインしてください');return;}
+      if(!uid){toast('先にサインインしてください');return 0;}
       const stores=['tasks','projects','sections','tags'];
-      return new Promise((resolve,reject)=>{
+      let done=0;
+
+      // 1. localStorage（f_tasks, f_projects…）から読み込み
+      for(const s of stores){
+        let items=[];
+        try{items=JSON.parse(localStorage.getItem('f_'+s)||'[]')}catch(e){}
+        console.log('localStorage '+s+':',items.length,'件');
+        for(const item of items){
+          const row=toDB(item);
+          row.user_id=uid;
+          const{error}=await SB.from(s).upsert(row,{onConflict:'id'});
+          if(error){console.error('ls import error',s,error);}
+          else done++;
+        }
+      }
+
+      // 2. IndexedDB（focus-db）から読み込み
+      await new Promise(resolve=>{
         const req=indexedDB.open('focus-db');
-        req.onerror=()=>reject(new Error('IndexedDBを開けませんでした'));
+        req.onerror=()=>{console.warn('IndexedDB open failed');resolve();};
         req.onsuccess=async e=>{
           const db=e.target.result;
-          let total=0,done=0;
           for(const s of stores){
             if(!db.objectStoreNames.contains(s))continue;
             const items=await new Promise(r=>{
@@ -7388,18 +7404,28 @@ async function setupSB(){
               req2.onsuccess=()=>r(req2.result);
               req2.onerror=()=>r([]);
             });
-            total+=items.length;
+            console.log('IndexedDB '+s+':',items.length,'件');
             for(const item of items){
               const row=toDB(item);
               row.user_id=uid;
-              await SB.from(s).upsert(row,{onConflict:'id'});
-              done++;
+              const{error}=await SB.from(s).upsert(row,{onConflict:'id'});
+              if(error){console.error('idb import error',s,error);}
+              else done++;
             }
           }
           db.close();
-          resolve(done);
+          resolve();
         };
-      });
+      }).catch(()=>{});
+
+      // 3. Supabaseに既にある未割当データ（user_id=null）をこのユーザーに帰属
+      for(const s of stores){
+        const{error}=await SB.from(s).update({user_id:uid}).is('user_id',null);
+        if(error){console.log('claim null user_id error',s,error.message);}
+        else console.log('claimed null rows in',s);
+      }
+
+      return done;
     };
 
   }catch(e){console.error('Supabase init failed',e);window._sbReady=true;}
