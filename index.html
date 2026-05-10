@@ -7311,39 +7311,26 @@ async function setupSB(){
       });
     }
 
-    // 認証状態変化の監視
+    // 初回セッション確認（getSession()を正とする。onAuthStateChangeのINITIAL_SESSIONは使わない）
+    const{data:{session}}=await SB.auth.getSession();
+    window._currentUser=session?.user||null;
+    if(window._currentUser){hideLogin();}else{showLogin();}
+    window._sbReady=true;
+
+    // 認証状態変化の監視（初回以降の変化のみ対応）
     SB.auth.onAuthStateChange((event,session)=>{
+      if(event==='INITIAL_SESSION')return; // 初回はgetSession()で処理済み
       window._currentUser=session?.user||null;
-      if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){
-        if(window._currentUser){
-          hideLogin();
-          if(!window._sbReady){
-            window._sbReady=true;
-          } else {
-            // 既にinit済みならデータを再ロード
-            if(typeof loadAll==='function'&&typeof render==='function'){
-              loadAll().then(()=>render()).catch(()=>{});
-            }
-          }
-        } else {
-          showLogin();
-          window._sbReady=true;
+      if(event==='SIGNED_IN'){
+        hideLogin();
+        if(typeof loadAll==='function'&&typeof render==='function'){
+          loadAll().then(()=>render()).catch(()=>{});
         }
       } else if(event==='SIGNED_OUT'){
         window._currentUser=null;
         showLogin();
       }
     });
-
-    // 初回セッション確認
-    const{data:{session}}=await SB.auth.getSession();
-    window._currentUser=session?.user||null;
-    if(window._currentUser){
-      hideLogin();
-    } else {
-      showLogin();
-    }
-    window._sbReady=true;
 
     // ===== Realtimeサブスクリプション =====
     const _syncNow=()=>{
