@@ -1708,8 +1708,8 @@ function counts(){
   const t=today();
   return{
     inbox:S.tasks.filter(x=>x.status==='inbox'&&!x.parentTaskId).length,
-    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
-    flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged).length,
+    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&!x.parentTaskId&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
+    flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged&&!x.parentTaskId).length,
   };
 }
 
