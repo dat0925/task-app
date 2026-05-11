@@ -207,8 +207,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-hist-result:hover{background:#333;border-color:#555}
 .calc-hist-result:active{background:#383838}
 /* Calc-Note Panel */
-.calc-note-panel{position:absolute;bottom:0;left:0;right:0;background:#1a1a1a;border-top:1px solid rgba(255,255,255,.12);z-index:10;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;max-height:72%;box-shadow:0 -8px 32px rgba(0,0,0,.5);overflow:hidden}
-.calc-note-panel.open{transform:translateY(0)}
+.calc-note-panel{position:absolute;bottom:0;left:0;right:0;background:#1a1a1a;border-top:1px solid rgba(255,255,255,.12);z-index:10;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .28s;display:flex;flex-direction:column;max-height:72%;box-shadow:0 -8px 32px rgba(0,0,0,.5);overflow:hidden;pointer-events:none;opacity:0}
+.calc-note-panel.open{transform:translateY(0);pointer-events:auto;opacity:1}
 .calc-note-panel-head{display:flex;align-items:center;padding:10px 12px 8px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;gap:8px}
 .calc-note-panel-title{font-size:13px;font-weight:600;color:#e0e0e0;flex:1}
 .calc-note-panel-close{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#888;font-size:16px;cursor:pointer;transition:background .15s;flex-shrink:0;border:none;background:none}
@@ -1189,7 +1189,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
       <button class="calc-drawer-close" id="calc-drawer-close-btn">✕</button>
     </div>
   </div>
-  <div class="calc-drawer-body" id="calc-drawer-body" style="position:relative;overflow:hidden"></div>
+  <div class="calc-drawer-body" id="calc-drawer-body"></div>
   <!-- Calc-Note inline panel -->
   <div class="calc-note-panel" id="calc-note-panel">
     <div class="calc-note-panel-head">
@@ -5744,16 +5744,19 @@ function _buildCalcInDrawer(){
     // 📝 Noteボタン: タップ/クリックでCalcNoteパネルに式を送る
     histEl.querySelectorAll('.calc-hist-note-btn').forEach(btn=>{
       const idx=parseInt(btn.dataset.noteHi);
-      const handler=e=>{
-        e.stopPropagation();
+      const handler=()=>{
         const h=calcHistory[idx];if(!h)return;
         window.playClick?.();
         openCalcNotePanel({expr:fmtExpr(h.expr),result:fmtComma(h.result)});
         btn.closest('.calc-hist-item').classList.add('flash');
         setTimeout(()=>btn.closest('.calc-hist-item')?.classList.remove('flash'),400);
       };
-      btn.addEventListener('click',handler);
-      btn.addEventListener('touchend',e=>{e.preventDefault();handler(e);},{passive:false});
+      btn.addEventListener('click',e=>{e.stopPropagation();handler();});
+      btn.addEventListener('touchstart',e=>{e.stopPropagation();},{passive:true});
+      btn.addEventListener('touchend',e=>{
+        e.stopPropagation();
+        if('ontouchstart' in window)handler();
+      },{passive:true});
     });
   }
   renderHist();
