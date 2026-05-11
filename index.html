@@ -4660,19 +4660,19 @@ else if(a==='open-task'){
     document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>s.textContent='');
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
-      if(field==='start'){task.startAt=null;task.startTime=null;const sti=document.getElementById('dt-start-time');if(sti)sti.value='';}
+      if(field==='start'){task.startAt=null;task.startTime=null;const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';}
       else task.dueAt=null;
       await saveTask(task);
     }
   }
   else if(a==='start-time-clear'){
-    const sti=document.getElementById('dt-start-time');if(sti)sti.value='';
+    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){task.startTime=null;await saveTask(task);}
   }
   else if(a==='start-time-adj-min'){
     const mins=parseInt(el.dataset.mins||'10');
-    const sti=document.getElementById('dt-start-time');
+    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
     if(!sti)return;
     let base;
     if(sti.value){
@@ -4689,7 +4689,7 @@ else if(a==='open-task'){
   }
   else if(a==='start-time-adj'){
     const hours=parseInt(el.dataset.hours||'0');
-    const sti=document.getElementById('dt-start-time');
+    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
     if(!sti)return;
     // 空欄なら現在時刻を基準にする
     let base;
@@ -4706,7 +4706,7 @@ else if(a==='open-task'){
     if(task){task.startTime=newVal;await saveTask(task);}
   }
   else if(a==='start-time-zero-min'){
-    const sti=document.getElementById('dt-start-time');
+    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
     if(!sti)return;
     // 空欄なら現在時刻の時を使う
     let h;
@@ -4744,6 +4744,8 @@ else if(a==='open-task'){
       await saveTask(task);
       S.taskId=tid;S.drawerOpen=true;
       renderDrawer();
+      const _em=document.querySelector('.expand-modal');
+      if(_em){_em.querySelectorAll('.pbtn').forEach(b=>{b.classList.toggle('on',parseInt(b.dataset.p)===task.priority);});}
     }
   }
   else if(a==='tog-tag'){
@@ -4773,6 +4775,15 @@ else if(a==='open-task'){
         await saveTask(task);renderDrawer();
         const drBody2=document.querySelector('#drawer .drawer-body');
         if(drBody2)drBody2.scrollTop=scrollY;
+        const _em=document.querySelector('.expand-modal');
+        if(_em){_em.querySelectorAll('[data-a="tog-tag"][data-task]').forEach(b=>{
+          const isOn=task.tagIds.includes(b.dataset.tag);
+          const _t=S.tags.find(x=>x.id===b.dataset.tag);
+          b.classList.toggle('on',isOn);
+          b.style.borderColor=isOn&&_t?_t.color:'';
+          b.style.background=isOn&&_t?_t.color+'1a':'';
+          b.style.color=isOn&&_t?_t.color:'';
+        });}
       }
     }
   }
