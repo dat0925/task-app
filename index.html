@@ -1707,7 +1707,7 @@ function getTasks(){
 function counts(){
   const t=today();
   return{
-    inbox:S.tasks.filter(x=>x.status==='inbox').length,
+    inbox:S.tasks.filter(x=>x.status==='inbox'&&!x.parentTaskId).length,
     today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
     flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged).length,
   };
@@ -3789,6 +3789,7 @@ function renderDrawer(){
       +'</div>'
     +'</div>'
     +'<div class="drawer-body">'
+      +(task.parentTaskId?(()=>{const parent=S.tasks.find(t=>t.id===task.parentTaskId);return'<div class="fg" style="background:var(--bg2);border-radius:8px;padding:8px 12px;margin-bottom:4px'+(parent?';cursor:pointer':'')+'"'+(parent?' data-a="open-task" data-id="'+task.parentTaskId+'"':'')+'>''<span style="font-size:11px;font-weight:600;color:var(--text3)">↑ 親タスク</span><div style="font-size:14px;color:var(--accent);margin-top:2px">'+(parent?esc(parent.title):'（削除済み）')+'</div></div>';})():'')
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
       +'<div class="note-stamp-bar" style="margin-bottom:6px">'
@@ -3989,7 +3990,7 @@ function renderDrawer(){
   const si=document.getElementById('sub-inp');
   if(si)si.addEventListener('keydown',async e=>{
     if(e.key==='Enter'&&si.value.trim()){
-      const s=mkTask({title:si.value.trim(),parentTaskId:S.taskId,status:'active',order:Date.now()});
+      const _pt=S.tasks.find(t=>t.id===S.taskId);const s=mkTask({title:si.value.trim(),parentTaskId:S.taskId,status:'active',order:Date.now(),projectId:_pt?.projectId||null,tagIds:_pt?.tagIds||[]});
       const drBody=document.getElementById('drawer-body');
       const scrollY=drBody?drBody.scrollTop:0;
       await saveTask(s);si.value='';
@@ -5875,7 +5876,7 @@ function reattachModalEvents(modal, type, onClose){
     const subInp=modal.querySelector('#sub-inp');
     if(subInp)subInp.addEventListener('keydown',async e=>{
       if(e.key==='Enter'&&subInp.value.trim()){
-        const s=mkTask({title:subInp.value.trim(),parentTaskId:S.taskId,status:'active'});
+        const _pt2=S.tasks.find(t=>t.id===S.taskId);const s=mkTask({title:subInp.value.trim(),parentTaskId:S.taskId,status:'active',projectId:_pt2?.projectId||null,tagIds:_pt2?.tagIds||[]});
         await saveTask(s);subInp.value='';
         // re-render subs
         const subsEl=modal.querySelector('#subs');
