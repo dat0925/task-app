@@ -3662,7 +3662,7 @@ function updateSubsOnly(){
   if(!subsEl||!S.taskId)return false;
   const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId);
   subsEl.innerHTML=allSubs.map(sub=>
-    '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+    '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="open-task" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3);flex-shrink:0" title="詳細を開く"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
   ).join('');
   return true;
 }
@@ -3999,7 +3999,7 @@ function renderDrawer(){
       if(subsEl){
         const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId).sort((a,b)=>a.order-b.order);
         subsEl.innerHTML=allSubs.map(sub=>
-          '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+          '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="open-task" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3);flex-shrink:0" title="詳細を開く"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
         ).join('');
         initSubDrag(subsEl);
       }
@@ -4451,6 +4451,11 @@ else if(a==='sel-edit'){
   if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
   else{S.taskId=id;S.drawerOpen=true;playSE('open');}
   renderContent();renderSidebar();renderDrawer();
+}
+else if(a==='open-task'){
+  e.stopPropagation();
+  const id=el.dataset.id;
+  if(id){S.taskId=id;S.drawerOpen=true;playSE('open');renderContent();renderSidebar();renderDrawer();}
 }
 
   
