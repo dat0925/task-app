@@ -6195,9 +6195,14 @@ document.addEventListener('keydown',e=>{
     e.preventDefault();
     document.querySelector('.pc-nav-step[data-a="nav-'+(e.key==='ArrowUp'?'prev':'next')+'"]')?.click();
   }
-  if((e.key==='ArrowUp'||e.key==='ArrowDown')&&!e.ctrlKey&&!e.metaKey&&S.drawerOpen&&window.innerWidth>768&&!e.target.matches('input,textarea,select')){
+  if((e.key==='ArrowUp'||e.key==='ArrowDown')&&!e.ctrlKey&&!e.metaKey&&window.innerWidth>768&&!e.target.matches('input,textarea,select')){
     e.preventDefault();
-    document.querySelector('[data-a="task-nav-'+(e.key==='ArrowUp'?'prev':'next')+'"]')?.click();
+    const vt=getTasks().filter(t=>!t.parentTaskId);
+    if(!vt.length) return;
+    const dir=e.key==='ArrowUp'?'prev':'next';
+    const ci=vt.findIndex(t=>t.id===S.taskId);
+    const next=ci===-1?(dir==='next'?vt[0]:vt[vt.length-1]):(dir==='prev'?vt[ci-1]:vt[ci+1]);
+    if(next){S.taskId=next.id;S.drawerOpen=true;renderDrawer();renderContent();}
   }
 });
 
