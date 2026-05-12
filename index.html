@@ -7196,7 +7196,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
   if(!screen)return;
   // ロック無効 or セッション認証済み or 直近認証済み or ローカル開発環境ならスキップ
   const UNLOCK_TS_KEY='focus_unlocked_ts';
-  const lockEnabled=localStorage.getItem(LOCK_ENABLED_KEY)!=='false';
+  const lockEnabled=localStorage.getItem(LOCK_ENABLED_KEY)==='true';
   const isLocalhost=['localhost','127.0.0.1',''].includes(location.hostname);
   const recentUnlock=Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_KEY)||'0')<3600000; // 1時間以内
   if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'||recentUnlock||isLocalhost){screen.style.display='none';return}
@@ -7274,7 +7274,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
   }
 
   faceBtn.addEventListener('click',()=>tryBiometric());
-  checkBiometric();
+  // checkBiometric(); // 顔認証は現在無効
 
   // PIN
   let entered='';
