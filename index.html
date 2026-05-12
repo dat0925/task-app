@@ -7109,25 +7109,43 @@ document.getElementById('ai-input').addEventListener('input',function(){
     if(!k)return;
     k.classList.add('pressed');
     window.playClick?.();
-    // 深いストロークに合わせて押し込み保持を長めに
     setTimeout(()=>k.classList.remove('pressed'),160);
     handleKey(k);
   }
+  // touchstart: ボタン特定はelementFromPointで確実に（子span経由でも取れる）
+  let _pinSx=0,_pinSy=0,_pinActiveKey=null;
   screen.addEventListener('touchstart',e=>{
-    e.preventDefault();
-    const k=e.target.closest('[data-k]');
-    pressKey(k);
-  },{passive:false});
+    const t=e.touches[0];
+    _pinSx=t.clientX;_pinSy=t.clientY;
+    // elementFromPointでタッチ座標のボタンを特定
+    const el=document.elementFromPoint(t.clientX,t.clientY);
+    const k=el?.closest('[data-k]');
+    _pinActiveKey=k||null;
+    if(k)k.classList.add('pressed');
+  },{passive:true});
+  screen.addEventListener('touchend',e=>{
+    const t=e.changedTouches[0];
+    // 全ボタンのpressedを解除
+    screen.querySelectorAll('.lock-key.pressed').forEach(b=>b.classList.remove('pressed'));
+    // 移動量チェック（スクロール誤爆防止）
+    if(Math.abs(t.clientX-_pinSx)>12||Math.abs(t.clientY-_pinSy)>12)return;
+    // touchend地点のボタンを確認（指がずれてもOK）
+    const el=document.elementFromPoint(t.clientX,t.clientY);
+    const k=el?.closest('[data-k]')||_pinActiveKey;
+    if(!k)return;
+    window.playClick?.();
+    k._lastTouch=Date.now();
+    handleKey(k);
+  },{passive:true});
+  screen.addEventListener('touchcancel',()=>{
+    screen.querySelectorAll('.lock-key.pressed').forEach(b=>b.classList.remove('pressed'));
+    _pinActiveKey=null;
+  },{passive:true});
   screen.addEventListener('click',e=>{
     const k=e.target.closest('[data-k]');
     if(!k)return;
-    // avoid double-fire on touch devices
-    if(k._lastTouch&&Date.now()-k._lastTouch<300)return;
+    if(k._lastTouch&&Date.now()-k._lastTouch<400)return;
     pressKey(k);
-  });
-  screen.addEventListener('touchend',e=>{
-    const k=e.target.closest('[data-k]');
-    if(k)k._lastTouch=Date.now();
   });
   // PC keyboard number key support
   document.addEventListener('keydown',e=>{
