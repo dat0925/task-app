@@ -1029,6 +1029,15 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .upgrade-price{font-size:28px;font-weight:800;color:var(--accent);letter-spacing:-1px;margin-bottom:4px}
 .upgrade-price span{font-size:14px;font-weight:500;color:var(--text2)}
 .upgrade-price-note{font-size:11px;color:var(--text3);margin-bottom:16px}
+/* ===== ADMIN TABLE ===== */
+.admin-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+.admin-table th{text-align:left;padding:6px 8px;font-size:11px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
+.admin-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.admin-table tr:last-child td{border-bottom:none}
+.admin-table tr:hover td{background:var(--bg2)}
+.admin-plan-sel{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;color:var(--text);cursor:pointer}
+.admin-del-btn{opacity:.5;transition:opacity .15s}
+.admin-del-btn:hover{opacity:1;color:var(--p1)!important}
 </style>
 </head>
 <body>
@@ -1411,21 +1420,37 @@ let S={
 };
 
 // ===== PLAN SYSTEM =====
-const PLAN_LIMITS={free:{tasks:30,projects:3},standard:{tasks:Infinity,projects:Infinity}};
-function getUserPlan(){
-  // localStorage override for testing: localStorage.setItem('_plan','standard')
+// プラン定義: 将来のプラン追加はここにキーを足すだけ
+const PLAN_DEFS={
+  free:    {label:'フリー',     taskLimit:30,       projectLimit:3,        ai:false, repeat:false},
+  standard:{label:'スタンダード',taskLimit:Infinity, projectLimit:Infinity, ai:true,  repeat:true},
+};
+const ADMIN_EMAILS=['masamune.endo@gmail.com','mstd0520@gmail.com'];
+
+window._userPlan='free'; // Supabase読み込み前のデフォルト
+
+async function loadUserPlan(){
   const ov=localStorage.getItem('_plan');
-  if(ov==='standard')return'standard';
-  const meta=window._currentUser?.user_metadata;
-  return meta?.plan||'free';
+  if(ov&&PLAN_DEFS[ov]){window._userPlan=ov;return;}
+  if(!window._currentUser||!window._SB){window._userPlan='free';return;}
+  try{
+    const{data}=await window._SB.from('user_plans').select('plan').eq('email',window._currentUser.email).maybeSingle();
+    window._userPlan=(data?.plan&&PLAN_DEFS[data.plan])?data.plan:'free';
+  }catch(e){window._userPlan='free';}
 }
-function isPlanFree(){return getUserPlan()!=='standard';}
+
+function getUserPlan(){return window._userPlan||'free';}
+function getPlanDef(key){return PLAN_DEFS[key||getUserPlan()]||PLAN_DEFS.free;}
+function isPlanFree(){return!getPlanDef().ai;}
 function getActiveTaskCount(){return S.tasks.filter(t=>t.status!=='archived'&&t.status!=='completed').length;}
 function getActiveProjectCount(){return S.projects.filter(p=>p.status!=='archived').length;}
+function isAdmin(){return ADMIN_EMAILS.includes(window._currentUser?.email);}
+
 function showUpgradeModal(feature){
+  const pd=getPlanDef();
   const cfg={
-    tasks:{title:'タスクの上限に達しました',desc:'フリープランでは最大30件まで管理できます。<br>スタンダードプランにアップグレードするとタスク数無制限でご利用いただけます。'},
-    projects:{title:'プロジェクトの上限に達しました',desc:'フリープランでは最大3件まで作成できます。<br>スタンダードプランにアップグレードするとプロジェクト数無制限でご利用いただけます。'},
+    tasks:{title:'タスクの上限に達しました',desc:'現在のプランでは最大'+pd.taskLimit+'件まで管理できます。<br>スタンダードプランにアップグレードするとタスク数無制限でご利用いただけます。'},
+    projects:{title:'プロジェクトの上限に達しました',desc:'現在のプランでは最大'+pd.projectLimit+'件まで作成できます。<br>スタンダードプランにアップグレードするとプロジェクト数無制限でご利用いただけます。'},
     repeat:{title:'繰り返しタスク',desc:'<strong>繰り返しタスク</strong>はスタンダードプランでご利用いただける機能です。'},
     ai:{title:'AIアシスタント',desc:'<strong>AIアシスタント</strong>はスタンダードプランでご利用いただける機能です。'},
   };
@@ -1451,6 +1476,85 @@ function showUpgradeModal(feature){
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
   document.getElementById('upg-cancel').onclick=()=>ov.remove();
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+// ===== プラン管理画面（管理者のみ）=====
+async function openPlanAdmin(){
+  if(!isAdmin()){toast('管理者のみアクセスできます');return;}
+  const SB=window._SB;
+  let rows=[];
+  try{const{data}=await SB.from('user_plans').select('*').order('email');rows=data||[];}catch(e){rows=[];}
+
+  const planOptions=Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'">'+PLAN_DEFS[k].label+'</option>').join('');
+
+  function buildTable(list){
+    if(!list.length)return'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">登録なし</div>';
+    return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>プラン</th><th>メモ</th><th></th></tr></thead><tbody>'
+      +list.map(r=>'<tr data-id="'+esc(r.id)+'">'
+        +'<td style="font-size:13px">'+esc(r.email)+'</td>'
+        +'<td><select class="admin-plan-sel" data-id="'+esc(r.id)+'">'+Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(r.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('')+'</select></td>'
+        +'<td><input class="admin-note-inp" data-id="'+esc(r.id)+'" value="'+esc(r.note||'')+'" placeholder="メモ" style="width:100%;background:none;border:none;outline:none;font-size:12px;color:var(--text2)"></td>'
+        +'<td><button class="admin-del-btn icon-btn" data-id="'+esc(r.id)+'" title="削除" style="color:var(--text3)">✕</button></td>'
+      +'</tr>').join('')
+    +'</tbody></table>';
+  }
+
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal" style="max-width:600px;width:95vw">'
+    +'<div class="modal-title" style="display:flex;align-items:center;gap:8px">🔑 プラン管理<span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:auto">管理者専用</span></div>'
+    +'<div id="admin-table-wrap">'+buildTable(rows)+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+      +'<input id="admin-new-email" class="finput" placeholder="追加するメールアドレス" style="flex:1;min-width:200px">'
+      +'<select id="admin-new-plan" class="finput fselect" style="width:140px">'+planOptions+'</select>'
+      +'<button class="btn btn-primary" id="admin-add-btn">追加</button>'
+    +'</div>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" id="admin-close">閉じる</button></div>'
+  +'</div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+
+  async function refresh(){
+    try{const{data}=await SB.from('user_plans').select('*').order('email');rows=data||[];}catch(e){}
+    document.getElementById('admin-table-wrap').innerHTML=buildTable(rows);
+    bindTableEvents();
+  }
+
+  function bindTableEvents(){
+    document.querySelectorAll('.admin-plan-sel').forEach(sel=>{
+      sel.onchange=async()=>{
+        await SB.from('user_plans').update({plan:sel.value,updated_at:new Date().toISOString()}).eq('id',sel.dataset.id);
+        toast('プランを更新しました');
+        if(sel.value!==getUserPlan()&&window._currentUser){
+          const row=rows.find(r=>r.id===sel.dataset.id);
+          if(row?.email===window._currentUser.email){window._userPlan=sel.value;renderSidebar();}
+        }
+      };
+    });
+    document.querySelectorAll('.admin-note-inp').forEach(inp=>{
+      let _t;inp.oninput=()=>{clearTimeout(_t);_t=setTimeout(async()=>{
+        await SB.from('user_plans').update({note:inp.value,updated_at:new Date().toISOString()}).eq('id',inp.dataset.id);
+      },600);};
+    });
+    document.querySelectorAll('.admin-del-btn').forEach(btn=>{
+      btn.onclick=async()=>{
+        if(!confirm('削除しますか？'))return;
+        await SB.from('user_plans').delete().eq('id',btn.dataset.id);
+        await refresh();
+      };
+    });
+  }
+  bindTableEvents();
+
+  document.getElementById('admin-add-btn').onclick=async()=>{
+    const email=document.getElementById('admin-new-email').value.trim().toLowerCase();
+    const plan=document.getElementById('admin-new-plan').value;
+    if(!email||!email.includes('@')){toast('有効なメールアドレスを入力してください');return;}
+    const{error}=await SB.from('user_plans').upsert({email,plan,updated_at:new Date().toISOString()},{onConflict:'email'});
+    if(error){toast('エラー: '+error.message);return;}
+    document.getElementById('admin-new-email').value='';
+    await refresh();toast(email+' を '+PLAN_DEFS[plan].label+' で登録しました');
+  };
+  document.getElementById('admin-close').onclick=()=>ov.remove();
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
 }
 
@@ -2669,18 +2773,23 @@ function renderSidebar(){
   });
   h+='<div class="tag-drop-line" data-tdrop-after="last" style="height:2px;background:var(--accent);border-radius:2px;margin:0 4px;pointer-events:none;display:none"></div>';
   // ===== PLAN BANNER =====
-  const _plan=getUserPlan();
+  const _plan=getUserPlan();const _pd=getPlanDef();
   if(_plan==='free'){
-    const _tc=getActiveTaskCount();const _pct=Math.min(100,Math.round(_tc/PLAN_LIMITS.free.tasks*100));
+    const _tc=getActiveTaskCount();const _pct=Math.min(100,Math.round(_tc/_pd.taskLimit*100));
     h+='<div class="plan-banner" data-a="upgrade-banner">'
       +'<div class="plan-banner-title">フリープラン</div>'
-      +'<div class="plan-banner-sub">タスク '+_tc+' / '+PLAN_LIMITS.free.tasks+' 件 · プロジェクト '+getActiveProjectCount()+' / '+PLAN_LIMITS.free.projects+' 件</div>'
+      +'<div class="plan-banner-sub">タスク '+_tc+' / '+_pd.taskLimit+' 件 · プロジェクト '+getActiveProjectCount()+' / '+_pd.projectLimit+' 件</div>'
       +'<div class="plan-banner-progress"><div class="plan-banner-progress-bar" style="width:'+_pct+'%"></div></div>'
       +'<div class="plan-banner-cta">スタンダードにアップグレード →</div>'
       +'</div>';
   }else{
     h+='<div class="plan-banner plan-banner-std">'
-      +'<div class="plan-banner-title">✦ スタンダードプラン</div>'
+      +'<div class="plan-banner-title">✦ '+_pd.label+'プラン</div>'
+      +'</div>';
+  }
+  if(isAdmin()){
+    h+='<div class="nav-item" data-a="open-plan-admin" style="font-size:12px;color:var(--text3);margin:0 6px 4px">'
+      +'<span style="font-size:14px">🔑</span><span>プラン管理</span>'
       +'</div>';
   }
   document.getElementById('sidenav').innerHTML=h;
@@ -4421,7 +4530,7 @@ function setupQA(){
 async function submitQA(){
   const inp=document.getElementById('qainput');
   if(!inp||!inp.value.trim())return;
-  if(isPlanFree()&&getActiveTaskCount()>=PLAN_LIMITS.free.tasks){showUpgradeModal('tasks');return;}
+  if(isPlanFree()&&getActiveTaskCount()>=getPlanDef().taskLimit){showUpgradeModal('tasks');return;}
   const p=parseQA(inp.value);
   if(!p.title){toast('タイトルを入力してください');return}
   // 未登録タグを自動作成
@@ -4995,6 +5104,7 @@ else if(a==='sel-edit'){
   else if(a==='newproj'){openModal('project')}
   else if(a==='newtag'){openModal('tag')}
   else if(a==='upgrade-banner'){showUpgradeModal('tasks')}
+  else if(a==='open-plan-admin'){openPlanAdmin()}
   else if(a==='sec-collapse-all'){
     const secs=S.sections.filter(s=>s.projectId===S.projId);
     secs.forEach(s=>{S.secCollapsed[s.id]=true;});
@@ -6625,7 +6735,7 @@ function openConfirmModal(title,message,onOk,okLabel='削除',danger=true){
 
 // ===== MODAL =====
 function openModal(type){
-  if((type==='project'||type==='proj')&&isPlanFree()&&getActiveProjectCount()>=PLAN_LIMITS.free.projects){showUpgradeModal('projects');return;}
+  if((type==='project'||type==='proj')&&isPlanFree()&&getActiveProjectCount()>=getPlanDef().projectLimit){showUpgradeModal('projects');return;}
   const ov=document.createElement('div');ov.className='overlay';
   if(type==='project'||type==='proj'){
     ov.innerHTML='<div class="modal"><div class="modal-title">新規プロジェクト</div>'
@@ -6817,7 +6927,7 @@ async function aiExecuteActions(actions){
   for(const a of actions){
     try{
       if(a.type==='addTask'){
-        if(isPlanFree()&&getActiveTaskCount()>=PLAN_LIMITS.free.tasks){done.push({...a,label:a.title,error:'タスク上限（30件）に達しています。スタンダードプランにアップグレードしてください。'});continue;}
+        if(isPlanFree()&&getActiveTaskCount()>=getPlanDef().taskLimit){done.push({...a,label:a.title,error:'タスク上限（'+getPlanDef().taskLimit+'件）に達しています。スタンダードプランにアップグレードしてください。'});continue;}
         const tagIds=await resolveTagIds(a.tagNames);
         const t=mkTask({
           title:a.title||'新しいタスク',
@@ -7258,6 +7368,7 @@ async function init(){
       },50);
     });
     await openDB();
+    await loadUserPlan();
     await seed();
     await loadAll();
     await loadNavOrder();
