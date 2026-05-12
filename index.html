@@ -52,6 +52,16 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .logo img{width:100%;height:100%;object-fit:cover;border-radius:7px;display:block}
 .app-name{font-size:15px;font-weight:600}
 .sidebar-body{flex:1;overflow-y:auto;padding:4px 6px 16px;overscroll-behavior:contain}
+.sidebar-foot{padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg2)}
+.sidebar-account{display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:8px;cursor:default}
+.sidebar-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;background:var(--accent);overflow:hidden}
+.sidebar-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.sidebar-account-info{flex:1;min-width:0}
+.sidebar-account-email{font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}
+.sidebar-account-status{font-size:10px;color:var(--text3)}
+.sidebar-auth-btn{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--text3);cursor:pointer;flex-shrink:0;transition:background .15s,color .15s;touch-action:manipulation}
+.sidebar-auth-btn:hover{background:var(--bg3);color:var(--text)}
+.sidebar-auth-btn.logout{color:var(--p1);border-color:rgba(239,68,68,.3)}
 .nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:13.5px;color:var(--text2);transition:background .15s,color .15s;user-select:none}
 .nav-item:hover{background:var(--bg3);color:var(--text)}
 .nav-item.on{background:var(--surface);color:var(--text);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -142,7 +152,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 
 /* Drawer */
 .drawer{
-  width:460px;min-width:460px;
+  width:414px;min-width:414px;
   background:var(--surface);border-left:1px solid var(--border);
   display:flex;flex-direction:column;overflow:hidden;
 }
@@ -209,7 +219,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Calculator global drawer */
 .calc-drawer-ov{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.38);opacity:0;pointer-events:none;transition:opacity .28s}
 .calc-drawer-ov.open{opacity:1;pointer-events:auto}
-.calc-drawer{position:fixed;top:0;right:0;height:100%;width:374px;z-index:801;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden;box-shadow:-4px 0 24px rgba(0,0,0,.1);touch-action:none}
+.calc-drawer{position:fixed;top:0;right:0;height:100%;width:337px;z-index:801;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden;box-shadow:-4px 0 24px rgba(0,0,0,.1);touch-action:none}
 .calc-drawer.open{transform:translateX(0)}
 @media(max-width:768px){.calc-drawer{width:82.5vw}}
 .calc-drawer-head{display:flex;align-items:center;padding:13px 14px 11px;border-bottom:1px solid var(--border);flex-shrink:0;gap:8px}
@@ -1130,6 +1140,17 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
       </button>
     </div>
     <div class="sidebar-body" id="sidenav"></div>
+    <div class="sidebar-foot" id="sidebar-foot">
+      <div class="sidebar-account" id="sidebar-account-wrap">
+        <div class="sidebar-avatar" id="sidebar-avatar">?</div>
+        <div class="sidebar-account-info">
+          <div class="sidebar-account-email" id="sidebar-account-email">未サインイン</div>
+          <div class="sidebar-account-status" id="sidebar-account-status"></div>
+        </div>
+        <button class="sidebar-auth-btn logout" id="sidebar-logout-btn" style="display:none">ログアウト</button>
+        <button class="sidebar-auth-btn" id="sidebar-login-btn" style="display:none">ログイン</button>
+      </div>
+    </div>
   </div>
 
   <!-- MAIN -->
@@ -1853,7 +1874,7 @@ async function deleteProject(id){
 async function saveSec(s){await dbPut('sections',s);const i=S.sections.findIndex(x=>x.id===s.id);i>=0?S.sections[i]=s:S.sections.push(s)}
 async function delSec(id){await dbDel('sections',id);S.sections=S.sections.filter(s=>s.id!==id)}
 
-function mkTask(o={}){const _t=today();return{id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_t,startAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o}}
+function mkTask(o={}){const _t=today();const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();return{id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_d3,startAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o}}
 function mkProject(o={}){return{id:uid(),name:'新プロジェクト',type:'list',color:'#3b82f6',status:'active',reviewEveryDays:7,nextReviewAt:null,createdAt:now(),updatedAt:now(),...o}}
 function mkTag(o={}){return{id:uid(),name:'新タグ',color:'#7c3aed',status:'active',...o}}
 
@@ -2793,6 +2814,38 @@ function renderSidebar(){
       +'</div>';
   }
   document.getElementById('sidenav').innerHTML=h;
+  // サイドバーフッター アカウント情報を更新
+  (function(){
+    const user=window._currentUser;
+    const avatarEl=document.getElementById('sidebar-avatar');
+    const emailEl=document.getElementById('sidebar-account-email');
+    const statusEl=document.getElementById('sidebar-account-status');
+    const logoutBtn=document.getElementById('sidebar-logout-btn');
+    const loginBtn=document.getElementById('sidebar-login-btn');
+    if(!avatarEl)return;
+    if(user){
+      const email=user.email||'';
+      const meta=user.user_metadata||{};
+      const avatarUrl=meta.avatar_url||meta.picture||'';
+      const name=meta.full_name||meta.name||'';
+      const initials=(name?name[0]:(email?email[0]:'?')).toUpperCase();
+      if(avatarUrl){
+        avatarEl.innerHTML='<img src="'+avatarUrl+'" alt="avatar" onerror="this.parentNode.textContent=\''+initials+'\'"/>';
+      } else {
+        avatarEl.textContent=initials;
+      }
+      if(emailEl)emailEl.textContent=email;
+      if(statusEl)statusEl.textContent='ログイン中';
+      if(logoutBtn){logoutBtn.style.display='';logoutBtn.onclick=async function(){if(!confirm('ログアウトしますか？'))return;await window._SB.auth.signOut();renderSidebar();};}
+      if(loginBtn)loginBtn.style.display='none';
+    } else {
+      avatarEl.textContent='?';
+      if(emailEl)emailEl.textContent='未サインイン';
+      if(statusEl)statusEl.textContent='';
+      if(logoutBtn)logoutBtn.style.display='none';
+      if(loginBtn){loginBtn.style.display='';loginBtn.onclick=function(){document.getElementById('login-overlay')?.classList.add('open');};}
+    }
+  })();
 }
 
 // ===== RENDER BOTTOM NAV =====
@@ -3307,15 +3360,15 @@ function renderList(){
       const secTasks=tasks.filter(t=>t.sectionId===sec.id).sort((a,b)=>(a.order||0)-(b.order||0));
       const collapsed=S.secCollapsed[sec.id];
       h+='<div class="sec-drop-zone" data-drop-sec="null" style="margin-top:0"></div>';
-      h+='<div class="sec-head'+(collapsed?' sec-collapsed':'')+'" data-drop-sec="'+sec.id+'" data-sec-id="'+sec.id+'">'
-        +'<span class="sec-drag-handle" data-drag-sec="'+sec.id+'" title="ドラッグでセクションを並び替え">⠿</span>'
-        +'<span class="sec-chevron" data-a="sec-toggle" data-sec-id="'+sec.id+'" style="cursor:pointer">▼</span>'
-        +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="'+sec.id+'" style="cursor:pointer">'+esc(sec.name)+'</span>'
+      h+='<div class="sec-head'+(collapsed?' sec-collapsed':'')+'" data-drop-sec="'+sec.id+'" data-sec-id="'+sec.id+'" data-a="sec-toggle" data-sec-toggle-id="'+sec.id+'" style="cursor:pointer">'
+        +'<span class="sec-drag-handle" data-drag-sec="'+sec.id+'" title="ドラッグでセクションを並び替え" style="cursor:grab" onclick="event.stopPropagation()">⠿</span>'
+        +'<span class="sec-chevron" data-a="sec-toggle" data-sec-id="'+sec.id+'">▼</span>'
+        +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="'+sec.id+'">'+esc(sec.name)+'</span>'
         +(secTasks.length?'<span class="badge" style="margin-right:2px">'+secTasks.length+'</span>':'')
-        +'<button class="sec-act-btn" data-a="sec-rename" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="名前変更">'
+        +'<button class="sec-act-btn" data-a="sec-rename" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="名前変更" onclick="event.stopPropagation()">'
           +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
           +' 名前変更</button>'
-        +'<button class="sec-act-btn del" data-a="sec-del" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="削除">'
+        +'<button class="sec-act-btn del" data-a="sec-del" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="削除" onclick="event.stopPropagation()">'
           +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'
           +' 削除</button>'
       +'</div>';
@@ -3611,7 +3664,6 @@ function renderNoteDrawer(){
       +'<div style="display:flex;gap:4px;margin-left:8px;align-items:center;flex-shrink:0">'
         +'<button class="note-stamp-btn" data-a="calc-open" data-target="nt-body">電卓</button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="note-dup" data-id="'+note.id+'" title="複製"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/><rect x="11" y="11" width="11" height="11" rx="2"/></svg></button>'
-        +'<button class="icon-btn hdr-btn-desktop" data-a="note-copy-title" data-id="'+note.id+'" title="タイトルをコピー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="note-copy-url" data-id="'+note.id+'" title="URLコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
         +'<button class="del-btn hdr-btn-desktop" data-a="note-del" data-id="'+note.id+'" title="削除">削除</button>'
         +(window.innerWidth>768?'<button class="icon-btn" data-a="note-expand" data-id="'+note.id+'" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
@@ -3619,7 +3671,7 @@ function renderNoteDrawer(){
       +'</div>'
     +'</div>'
     +'<div class="drawer-body" style="display:flex;flex-direction:column;gap:12px">'
-      +'<div><div class="dt-label">タイトル</div><input class="finput" id="nt-title" value="'+esc(note.title)+'" placeholder="タイトル"></div>'
+      +'<div><div class="dt-label">タイトル</div><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="nt-title" value="'+esc(note.title)+'" placeholder="タイトル" style="flex:1;min-width:0"><button class="date-clr-btn" data-a="note-copy-title" data-id="'+note.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div>'
         +'<div class="dt-label">メモ</div>'
         +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'
@@ -3993,7 +4045,7 @@ function renderDrawer(){
         +'<button class="note-stamp-btn" id="dt-link-btn">Link</button>'
         +'<button class="note-stamp-btn" id="dt-preview-btn">プレビュー</button>'
       +'</div>'
-      +'<textarea class="finput ftextarea" id="dt-notes" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
+      +'<textarea class="finput ftextarea" id="dt-notes" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
       +'<div id="dt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:156px;word-break:break-word"></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">'
@@ -4007,10 +4059,16 @@ function renderDrawer(){
         +'</div>'
       +'</div>'
       +'<div class="fg"><label class="flabel">プロジェクト</label>'
-        +'<select class="finput fselect" id="dt-proj">'
-          +'<option value="">なし</option>'
-          +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'"'+(task.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('')
-        +'</select>'
+        +'<div style="display:flex;gap:6px;align-items:center">'
+          +'<select class="finput fselect" id="dt-proj" style="flex:1;min-width:0">'
+            +'<option value="">なし</option>'
+            +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'"'+(task.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('')
+          +'</select>'
+          +(task.projectId?(()=>{
+            const _prj=S.projects.find(p=>p.id===task.projectId);
+            return _prj?'<button class="date-clr-btn" data-a="goto-proj" data-id="'+task.projectId+'" title="'+esc(_prj.name)+'へ移動" style="flex-shrink:0;display:flex;align-items:center;gap:3px;padding:4px 8px;color:var(--accent);border-color:var(--accent);font-size:11px;font-weight:600;white-space:nowrap"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>':'';
+          })():'')
+        +'</div>'
       +'</div>'
       +(task.projectId?(()=>{
         const projSecs=S.sections.filter(s=>s.projectId===task.projectId).sort((a,b)=>a.order-b.order);
@@ -4543,7 +4601,8 @@ async function submitQA(){
   }
   const status=S.view==='project'?'active':'inbox';
   const _t=today();
-  if(!p.dueAt)p.dueAt=_t;
+  const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();
+  if(!p.dueAt)p.dueAt=_d3;
   if(!p.startAt)p.startAt=_t;
   const task=mkTask({...p,status,projectId:p.projectId||(S.view==='project'?S.projId:null)});
   await saveTask(task);
@@ -5120,12 +5179,12 @@ else if(a==='sel-edit'){
     renderContent();
   }
   else if(a==='sec-toggle'){
-    const secId=el.dataset.secId;
+    const secId=el.dataset.secId||el.dataset.secToggleId;
     if(!secId)return;
     S.secCollapsed[secId]=!S.secCollapsed[secId];
     try{localStorage.setItem('secCollapsed',JSON.stringify(S.secCollapsed))}catch(_){}
     const body=document.getElementById('sec-body-'+secId);
-    const head=el.closest('.sec-head');
+    const head=el.classList.contains('sec-head')?el:el.closest('.sec-head');
     if(body)body.classList.toggle('sec-hidden',!!S.secCollapsed[secId]);
     if(head)head.classList.toggle('sec-collapsed',!!S.secCollapsed[secId]);
   }
