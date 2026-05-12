@@ -3607,7 +3607,8 @@ function renderNextView(){
       });
     }
     const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">✏️ '+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
-    h+='<div class="trow'+(done?' done':'')+(isSel?' sel':'')+(S.taskId===task.id&&!isSel?' active':'')+(notStarted?' not-started':'')+'" data-a="sel" data-id="'+task.id+'">'
+    const pclass=task.priority<4?'p'+task.priority:'';
+    h+='<div class="trow'+(done?' done':'')+(isSel?' sel':'')+(S.taskId===task.id&&!isSel?' active':'')+(notStarted?' not-started':'')+(pclass?' '+pclass:'')+'" data-a="sel" data-id="'+task.id+'">'
       +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'">'+(done?'✓':'')+'</button>'
       +'<div class="tbody">'
         +'<div class="ttitle"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
