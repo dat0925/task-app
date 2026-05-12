@@ -7076,8 +7076,10 @@ document.getElementById('ai-input').addEventListener('input',function(){
 (function(){
   let _ft=false;
   document.addEventListener('touchend',function(e){
+    // lockScreen内は完全にスキップ（PIN処理は独自のtouchendで処理）
+    if(e.target.closest('#lockScreen'))return;
     const el=e.target.closest('[data-a],[data-k],button');
-    if(!el||el.closest('#lockScreen'))return;
+    if(!el)return;
     e.preventDefault();
     if(_ft)return;
     _ft=true;
@@ -7346,10 +7348,11 @@ document.getElementById('ai-input').addEventListener('input',function(){
     screen.querySelectorAll('.lock-key.pressed').forEach(b=>b.classList.remove('pressed'));
     _pinActiveKey=null;
   },{passive:true});
+  // click: PC（マウス）専用。タッチデバイスはtouchendで処理済みのためスキップ
   screen.addEventListener('click',e=>{
+    if('ontouchstart' in window)return;
     const k=e.target.closest('[data-k]');
     if(!k)return;
-    if(k._lastTouch&&Date.now()-k._lastTouch<400)return;
     pressKey(k);
   });
   // PC keyboard number key support
