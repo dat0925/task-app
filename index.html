@@ -1090,8 +1090,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
     <div class="sidebar-head">
       <div class="logo"><img src="icon-192.png" alt="Taskra"></div>
       <span class="app-name">Taskra</span>
-      <a href="https://dat0925.github.io/gantt-app.html" target="_blank" class="icon-btn" style="margin-left:auto;text-decoration:none;font-size:12px;font-weight:700;color:var(--text2)" title="ガントチャート"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="10" width="8" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="16" width="6" height="4" rx="1" fill="currentColor" stroke="none"/><line x1="9" y1="6" x2="21" y2="6"/><line x1="13" y1="12" x2="21" y2="12"/><line x1="11" y1="18" x2="21" y2="18"/></svg></a>
-      <a href="https://www.notion.so/" target="_blank" class="icon-btn" style="text-decoration:none;color:var(--text2)" title="Notion"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="7" x2="17" y2="7"/><line x1="12" y1="11" x2="17" y2="11"/></svg></a>
+      <a href="https://taskra.jp" target="_blank" class="icon-btn" style="margin-left:auto;text-decoration:none;color:var(--text2)" title="Taskraサービスサイト"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></a>
       <button class="icon-btn" data-a="dark" title="ダーク">☾</button>
       <button class="icon-btn" data-a="settings" title="設定">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -3662,7 +3661,7 @@ function updateSubsOnly(){
   if(!subsEl||!S.taskId)return false;
   const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId);
   subsEl.innerHTML=allSubs.map(sub=>
-    '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+    '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="sel-edit" data-id="'+sub.id+'" title="詳細を開く" style="width:24px;height:24px;color:var(--text3)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
   ).join('');
   return true;
 }
@@ -3789,6 +3788,7 @@ function renderDrawer(){
       +'</div>'
     +'</div>'
     +'<div class="drawer-body">'
+      +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">'+esc(pt.title||'無題')+'</button></div>':''})():'')
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
       +'<div class="note-stamp-bar" style="margin-bottom:6px">'
@@ -3807,7 +3807,7 @@ function renderDrawer(){
         +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1;min-width:0"><span id="dt-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.startAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button></div></div>'
         +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1;min-width:0"><span id="dt-due-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.dueAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.dueAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="-1">-1月</button></div></div>'
       +'</div>'
-      +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px;margin-bottom:3px"><button class="date-adj-btn" data-a="start-time-set" data-hhmm="09:00">9:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="12:00">12:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="15:00">15:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="18:00">18:00</button></div><div style="display:flex;gap:3px;align-items:center"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button><button class="date-adj-btn" data-a="start-time-adj-min" data-mins="10">+10m</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button><button class="date-adj-btn" data-a="start-time-zero-min">分00</button></div></div>'
+      +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:flex;gap:3px;align-items:center;margin-bottom:3px"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button><button class="date-adj-btn" data-a="start-time-adj-min" data-mins="10">+10m</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button><button class="date-adj-btn" data-a="start-time-zero-min">分00</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px"><button class="date-adj-btn" data-a="start-time-set" data-hhmm="09:00">9:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="12:00">12:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="15:00">15:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="18:00">18:00</button></div></div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
           +[1,2,3,4].map(p=>'<button class="pbtn'+(task.priority===p?' on':'')+'" data-a="pri" data-p="'+p+'" data-id="'+task.id+'">'+pLabels[p]+'</button>').join('')
@@ -3843,7 +3843,7 @@ function renderDrawer(){
         +'</select>'
       +'</div>'
       +'<div class="fg"><label class="flabel">サブタスク</label>'
-        +'<div id="subs">'+subs.sort((a,b)=>a.order-b.order).map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span class="sub-title" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
+        +'<div id="subs">'+subs.sort((a,b)=>a.order-b.order).map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span class="sub-title" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="sel-edit" data-id="'+s.id+'" title="詳細を開く" style="width:24px;height:24px;color:var(--text3)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
         +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…" style="margin-top:6px">'
       +'</div>'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
@@ -3989,7 +3989,7 @@ function renderDrawer(){
   const si=document.getElementById('sub-inp');
   if(si)si.addEventListener('keydown',async e=>{
     if(e.key==='Enter'&&si.value.trim()){
-      const s=mkTask({title:si.value.trim(),parentTaskId:S.taskId,status:'active',order:Date.now()});
+      const _pt=S.tasks.find(t=>t.id===S.taskId);const s=mkTask({title:si.value.trim(),parentTaskId:S.taskId,status:'active',order:Date.now(),priority:_pt?.priority??4,projectId:_pt?.projectId??null,tagIds:_pt?.tagIds?[..._pt.tagIds]:[],startAt:_pt?.startAt??null,dueAt:_pt?.dueAt??null});
       const drBody=document.getElementById('drawer-body');
       const scrollY=drBody?drBody.scrollTop:0;
       await saveTask(s);si.value='';
@@ -4669,13 +4669,13 @@ else if(a==='sel-edit'){
     }
   }
   else if(a==='start-time-clear'){
-    const sti=document.getElementById('dt-start-time');if(sti)sti.value='';
+    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){task.startTime=null;await saveTask(task);}
   }
   else if(a==='start-time-adj-min'){
     const mins=parseInt(el.dataset.mins||'10');
-    const sti=document.getElementById('dt-start-time');
+    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
     if(!sti)return;
     let base;
     if(sti.value){
@@ -4692,7 +4692,7 @@ else if(a==='sel-edit'){
   }
   else if(a==='start-time-adj'){
     const hours=parseInt(el.dataset.hours||'0');
-    const sti=document.getElementById('dt-start-time');
+    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
     if(!sti)return;
     // 空欄なら現在時刻を基準にする
     let base;
@@ -4709,7 +4709,7 @@ else if(a==='sel-edit'){
     if(task){task.startTime=newVal;await saveTask(task);}
   }
   else if(a==='start-time-zero-min'){
-    const sti=document.getElementById('dt-start-time');
+    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
     if(!sti)return;
     // 空欄なら現在時刻の時を使う
     let h;
@@ -4755,6 +4755,7 @@ else if(a==='sel-edit'){
       await saveTask(task);
       S.taskId=tid;S.drawerOpen=true;
       renderDrawer();
+      syncExpandModal(el.closest('.expand-modal'));
     }
   }
   else if(a==='tog-tag'){
@@ -4779,11 +4780,12 @@ else if(a==='sel-edit'){
         const i=task.tagIds.indexOf(tid);
         i>=0?task.tagIds.splice(i,1):task.tagIds.push(tid);
         playSE('toggle');
-        const drBody=document.querySelector('#drawer .drawer-body');
+        const modal=el.closest('.expand-modal');
+        const drBody=modal?modal.querySelector('.drawer-body'):document.querySelector('#drawer .drawer-body');
         const scrollY=drBody?drBody.scrollTop:0;
         await saveTask(task);renderDrawer();
-        const drBody2=document.querySelector('#drawer .drawer-body');
-        if(drBody2)drBody2.scrollTop=scrollY;
+        syncExpandModal(modal);
+        if(!modal){const drBody2=document.querySelector('#drawer .drawer-body');if(drBody2)drBody2.scrollTop=scrollY;}
       }
     }
   }
@@ -5892,11 +5894,11 @@ function reattachModalEvents(modal, type, onClose){
     const subInp=modal.querySelector('#sub-inp');
     if(subInp)subInp.addEventListener('keydown',async e=>{
       if(e.key==='Enter'&&subInp.value.trim()){
-        const s=mkTask({title:subInp.value.trim(),parentTaskId:S.taskId,status:'active'});
+        const _pt2=S.tasks.find(t=>t.id===S.taskId);const s=mkTask({title:subInp.value.trim(),parentTaskId:S.taskId,status:'active',priority:_pt2?.priority??4,projectId:_pt2?.projectId??null,tagIds:_pt2?.tagIds?[..._pt2.tagIds]:[],startAt:_pt2?.startAt??null,dueAt:_pt2?.dueAt??null});
         await saveTask(s);subInp.value='';
         // re-render subs
         const subsEl=modal.querySelector('#subs');
-        if(subsEl){const subs=S.tasks.filter(t=>t.parentTaskId===S.taskId);subsEl.innerHTML=subs.map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span class="sub-title" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('');}
+        if(subsEl){const subs=S.tasks.filter(t=>t.parentTaskId===S.taskId);subsEl.innerHTML=subs.map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span class="sub-title" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="sel-edit" data-id="'+s.id+'" title="詳細を開く" style="width:24px;height:24px;color:var(--text3)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('');}
       }
     });
     makeResizable(modal.querySelector('#dt-notes'));
@@ -5999,6 +6001,18 @@ function reattachModalEvents(modal, type, onClose){
       showLinkPopover(mLinkBtn,'nt-body',!bodyEl?._stampFocused,modal);
     });
   }
+}
+
+// ===== EXPAND MODAL SYNC =====
+function syncExpandModal(modal){
+  if(!modal)return;
+  const dr=document.getElementById('drawer');if(!dr)return;
+  const scrollEl=modal.querySelector('.drawer-body');
+  const sy=scrollEl?scrollEl.scrollTop:0;
+  modal.innerHTML=dr.innerHTML;
+  reattachModalEvents(modal,'task',()=>{modal.closest('.expand-overlay')?.remove();renderContent();renderDrawer();});
+  const newScrollEl=modal.querySelector('.drawer-body');
+  if(newScrollEl)newScrollEl.scrollTop=sy;
 }
 
 // ===== NOTE TITLE INLINE EDIT =====
