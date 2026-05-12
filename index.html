@@ -7621,7 +7621,7 @@ async function setupSB(){
         if(loadingEl)loadingEl.style.display='flex';
         await SB.auth.signInWithOAuth({
           provider:'google',
-          options:{redirectTo:location.origin+location.pathname}
+          options:{redirectTo:location.origin+location.pathname,queryParams:{prompt:'select_account'}}
         });
       });
     }
