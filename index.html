@@ -6508,14 +6508,18 @@ async function saveBackup(label){
     sections:S.sections,
     tags:S.tags,
   };
-  const backup={id:uid(),label,created_at:now(),data:JSON.stringify(data)};
+  const uid2=window._currentUser?.id;
+  if(!uid2)throw new Error('ログインが必要です');
+  const backup={id:uid(),label,created_at:now(),data:JSON.stringify(data),user_id:uid2};
   const{error}=await window._SB.from('backups').insert(backup);
   if(error)throw error;
   return backup;
 }
 
 async function loadBackups(){
-  const{data,error}=await window._SB.from('backups').select('*').order('created_at',{ascending:false}).limit(20);
+  const uid2=window._currentUser?.id;
+  if(!uid2)return[];
+  const{data,error}=await window._SB.from('backups').select('*').eq('user_id',uid2).order('created_at',{ascending:false}).limit(20);
   if(error)throw error;
   return data||[];
 }
