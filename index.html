@@ -7656,11 +7656,8 @@ async function setupSB(){
         loadAll().then(()=>render()).catch(()=>{});
       }
     };
-    SB.channel('focus-realtime')
-      .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},_syncNow)
-      .on('postgres_changes',{event:'*',schema:'public',table:'projects'},_syncNow)
-      .on('postgres_changes',{event:'*',schema:'public',table:'tags'},_syncNow)
-      .subscribe(status=>{console.log('Realtime status:',status);});
+    // Realtimeサブスクリプションは無効化（Disk IO削減のため）
+    // 30秒ポーリング＋visibilitychangeで同期を維持
     document.addEventListener('visibilitychange',()=>{
       if(document.visibilityState==='visible'){
         const ae=document.activeElement;
