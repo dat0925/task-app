@@ -6578,11 +6578,11 @@ function openSettingsModal(){
   const seEnabled=getSetting('soundFx',true);
   ov.innerHTML='<div class="modal" style="max-width:360px">'
     +'<div class="modal-title" style="display:flex;align-items:center;justify-content:space-between">設定<button class="icon-btn" id="s-close" style="width:28px;height:28px;font-size:18px;border-radius:6px;flex-shrink:0">✕</button></div>'
-    +'<div class="settings-row">'
+    +'<div class="settings-row" style="display:none">'
       +'<div><div class="settings-label">🔒 パスワードロック</div><div class="settings-sub">起動時にPINを要求する</div></div>'
       +'<button class="tog'+(lockEnabled?' on':'')+'" id="s-lock-tog"></button>'
     +'</div>'
-    +'<div class="settings-row" id="s-pin-row" style="'+(lockEnabled?'':'display:none')+'">'
+    +'<div class="settings-row" id="s-pin-row" style="display:none">'
       +'<div><div class="settings-label">PINを変更</div><div class="settings-sub">4桁の数字</div></div>'
       +'<button class="btn btn-ghost" id="s-pin-edit" style="font-size:12px;flex-shrink:0">変更</button>'
     +'</div>'
