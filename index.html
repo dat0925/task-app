@@ -118,7 +118,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .tsec-head{display:flex;align-items:center;gap:6px;padding:10px 0 3px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);cursor:pointer}
 .trow{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:8px;background:var(--surface);border:1px solid transparent;cursor:pointer;margin-bottom:2px;transition:background .12s,border-color .12s;user-select:none;-webkit-user-select:none;touch-action:pan-y;-webkit-touch-callout:none}
 .trow:hover{background:var(--bg2);border-color:var(--border)}
-.trow.sel,.trow.sel:hover{background:var(--accent-bg);border-color:var(--accent)}
+.trow.sel{border-color:var(--accent)}
 .trow.done .ttitle{text-decoration:line-through;color:var(--text3)}
 .chk{width:24px;height:24px;min-width:24px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:2px;cursor:pointer;flex-shrink:0;background:none;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .chk:hover{border-color:var(--accent)}
@@ -206,32 +206,6 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-hist-result{font-family:monospace;font-size:13px;font-weight:700;color:#e0e0e0;flex-shrink:0;padding:2px 8px;background:#2a2a2a;border:1px solid #444;border-radius:6px;min-width:40px;text-align:right;cursor:pointer;transition:background .12s}
 .calc-hist-result:hover{background:#333;border-color:#555}
 .calc-hist-result:active{background:#383838}
-/* Calc-Note Panel */
-.calc-note-panel{position:absolute;bottom:0;left:0;right:0;background:#1a1a1a;border-top:1px solid rgba(255,255,255,.12);z-index:10;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .25s;display:flex;flex-direction:column;max-height:75%;box-shadow:0 -8px 32px rgba(0,0,0,.5);overflow:hidden;pointer-events:none;opacity:0}
-.calc-note-panel.open{transform:translateY(0);pointer-events:auto;opacity:1}
-.calc-note-panel-head{display:flex;align-items:center;padding:10px 12px 8px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;gap:8px}
-.calc-note-panel-title{font-size:13px;font-weight:600;color:#e0e0e0;flex:1}
-.calc-note-panel-close{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#888;font-size:16px;cursor:pointer;transition:background .15s;flex-shrink:0;border:none;background:none;touch-action:manipulation}
-.calc-note-panel-close:active{background:rgba(255,255,255,.08)}
-.calc-note-panel-body{flex:1;overflow-y:auto;padding:10px 12px 16px;display:flex;flex-direction:column;gap:8px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-.calc-note-expr-list{display:flex;flex-direction:column;gap:5px}
-.calc-note-expr-row{background:#222;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px 10px;font-family:monospace;font-size:12px;display:flex;align-items:center;gap:6px}
-.calc-note-expr-text{flex:1;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.calc-note-expr-eq{color:#555;flex-shrink:0}
-.calc-note-expr-result{color:#7ecf8e;font-weight:700;flex-shrink:0}
-.calc-note-expr-del{width:20px;height:20px;border-radius:4px;border:none;background:none;color:#555;cursor:pointer;font-size:15px;flex-shrink:0;line-height:1;padding:0;touch-action:manipulation;transition:color .12s}
-.calc-note-expr-del:active{color:#e05252}
-.calc-note-mode-row{display:flex;gap:6px;flex-shrink:0}
-.calc-note-mode-btn{flex:1;padding:6px 4px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:#222;color:#888;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;text-align:center;touch-action:manipulation}
-.calc-note-mode-btn.active{background:#1e3a28;border-color:rgba(126,207,142,.35);color:#7ecf8e}
-.calc-note-sel{width:100%;padding:7px 8px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:#222;color:#ccc;font-size:12px;outline:none}
-.calc-note-inp{width:100%;padding:7px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:#222;color:#e0e0e0;font-size:13px;outline:none;box-sizing:border-box;transition:border-color .15s}
-.calc-note-inp:focus{border-color:rgba(126,207,142,.45)}
-.calc-note-ta{width:100%;padding:7px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:#222;color:#e0e0e0;font-size:12.5px;line-height:1.6;outline:none;resize:none;box-sizing:border-box;min-height:68px;transition:border-color .15s;font-family:inherit}
-.calc-note-ta:focus{border-color:rgba(126,207,142,.45)}
-.calc-note-save-btn{width:100%;padding:11px;border-radius:8px;border:none;background:linear-gradient(180deg,#3a8a52 0%,#286e3c 100%);color:#fff;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.4);touch-action:manipulation}
-.calc-note-save-btn:active{opacity:.8}
-.calc-note-save-btn:disabled{opacity:.4;cursor:default}
 /* Calculator global drawer */
 .calc-drawer-ov{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.38);opacity:0;pointer-events:none;transition:opacity .28s}
 .calc-drawer-ov.open{opacity:1;pointer-events:auto}
@@ -484,6 +458,175 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   html.browser-mode .bot-nav{padding-bottom:0}
   html.browser-mode .qabar{bottom:var(--nav-h)}
   html.browser-mode .content{padding-bottom:calc(var(--nav-h))}
+}
+/* Lock screen */
+.lock-screen{
+  position:fixed;inset:0;z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--bg);
+  overflow:hidden;
+}
+.lock-bg{
+  position:absolute;inset:0;pointer-events:none;overflow:hidden;
+}
+.lock-bg::before{
+  content:'';position:absolute;
+  width:480px;height:480px;
+  background:radial-gradient(circle, rgba(59,130,246,.18) 0%, transparent 70%);
+  top:-80px;left:50%;transform:translateX(-50%);
+  border-radius:50%;
+}
+.lock-bg::after{
+  content:'';position:absolute;
+  width:320px;height:320px;
+  background:radial-gradient(circle, rgba(6,182,212,.13) 0%, transparent 70%);
+  bottom:60px;left:50%;transform:translateX(-50%);
+  border-radius:50%;
+}
+.lock-card{
+  display:flex;flex-direction:column;align-items:center;
+  gap:0;
+  position:relative;z-index:1;
+  animation:lockIn .5s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes lockIn{
+  from{opacity:0;transform:translateY(24px) scale(.96)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.lock-logo{
+  width:72px;height:72px;
+  border-radius:22px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 32px rgba(59,130,246,.35),0 2px 8px rgba(0,0,0,.15);
+  margin-bottom:20px;
+  overflow:hidden;
+}
+.lock-logo img{width:100%;height:100%;object-fit:cover;display:block;border-radius:22px}
+.lock-title{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:5px}
+.lock-sub{font-size:13px;color:var(--text3);margin-bottom:28px;font-weight:400}
+.lock-dots{display:flex;gap:14px;margin-bottom:8px}
+.lock-dot{
+  width:13px;height:13px;border-radius:50%;
+  border:2px solid var(--border);
+  background:transparent;
+  transition:all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.lock-dot.filled{
+  background:var(--accent);
+  border-color:var(--accent);
+  transform:scale(1.15);
+  box-shadow:0 0 8px rgba(232,93,58,.5);
+}
+.lock-err{
+  color:var(--p1);font-size:12px;font-weight:600;
+  min-height:18px;margin-top:6px;margin-bottom:14px;
+  letter-spacing:.2px;
+}
+.lock-pad{
+  display:grid;grid-template-columns:repeat(3,80px);
+  gap:12px;
+  /* ベースプレート：キーの土台となるグレーの板 */
+  background:#1a1a1a;
+  padding:16px;
+  border-radius:16px;
+  box-shadow:
+    0 2px 0 #0a0a0a,
+    0 4px 12px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+/* キーの「軸＋ステム」部分：押し込み量を表現するラッパー */
+.lock-key-wrap{
+  position:relative;
+  height:80px;
+}
+.lock-key{
+  width:80px;
+  height:80px;
+  border-radius:8px;
+  font-size:24px;font-weight:700;
+  cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:rgba(0,0,0,0);
+  position:relative;
+  border:none;outline:none;
+  /* キーキャップ上面：ライティングで立体感 */
+  background:
+    linear-gradient(175deg,
+      #525252 0%,
+      #3e3e3e 35%,
+      #2e2e2e 70%,
+      #252525 100%);
+  color:#cccccc;
+  /* 深いストローク：14px分の「壁」 */
+  box-shadow:
+    /* 底面（一番暗い）*/
+    0 14px 0 0 #0d0d0d,
+    /* 側面グラデーション（立体の壁） */
+    0 13px 0 0 #161616,
+    0 11px 0 0 #1c1c1c,
+    0 9px  0 0 #222222,
+    0 7px  0 0 #282828,
+    /* ドロップシャドウ */
+    0 16px 8px rgba(0,0,0,.7),
+    /* キャップ上面のエッジハイライト */
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 1px 0 0 rgba(255,255,255,.08),
+    inset -1px 0 0 rgba(0,0,0,.5),
+    inset 0 -2px 0 rgba(0,0,0,.5);
+  transform:translateY(0);
+  transition:transform .07s cubic-bezier(.25,.1,.25,1),
+             box-shadow .07s cubic-bezier(.25,.1,.25,1);
+  border-top:1px solid rgba(255,255,255,.2);
+  border-left:1px solid rgba(255,255,255,.08);
+  border-right:1px solid rgba(0,0,0,.6);
+  border-bottom:1px solid rgba(0,0,0,.7);
+  letter-spacing:-.5px;
+  /* テクスチャ感：微細なグレイン */
+  image-rendering:crisp-edges;
+}
+/* 完全に押し込んだ状態：14px沈んで壁が消える */
+.lock-key.pressed{
+  transform:translateY(13px);
+  box-shadow:
+    0 1px 0 0 #0d0d0d,
+    0 3px 4px rgba(0,0,0,.6),
+    inset 0 2px 3px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(0,0,0,.3),
+    inset 1px 0 0 rgba(0,0,0,.3),
+    inset -1px 0 0 rgba(0,0,0,.3);
+  background:
+    linear-gradient(175deg,
+      #3a3a3a 0%,
+      #2e2e2e 40%,
+      #262626 100%);
+  border-top-color:rgba(255,255,255,.06);
+}
+.lock-key-sub{
+  font-size:7px;font-weight:800;letter-spacing:2px;
+  color:#666;line-height:1;
+  text-transform:uppercase;
+}
+.lock-key.del-key{
+  font-size:18px;
+  color:#999;
+  letter-spacing:0;
+}
+.lock-face-btn{
+  margin-top:20px;
+  display:none;
+  flex-direction:column;align-items:center;gap:5px;
+  background:none;border:none;cursor:pointer;
+  color:var(--text3);font-size:12px;font-weight:500;
+  padding:8px 16px;border-radius:10px;
+  transition:color .15s,background .15s;
+}
+.lock-face-btn:hover{color:var(--text);background:var(--bg2)}
+.lock-face-icon{font-size:26px;line-height:1}
+.lock-biometric-hint{
+  font-size:11px;color:var(--text3);margin-top:4px;
+  min-height:16px;text-align:center;
 }
 /* Autosave indicator */
 .autosave-ind{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;transition:opacity .3s}
@@ -882,7 +1025,41 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   </div>
 </div>
 
-
+<!-- Lock Screen -->
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-bg"></div>
+  <div class="lock-card">
+    <div class="lock-logo"><img src="icon-192.png" alt="Taskra"></div>
+    <div class="lock-title">Taskra</div>
+    <div class="lock-sub">PINを入力してください</div>
+    <div class="lock-dots" id="lockDots">
+      <div class="lock-dot" id="ld0"></div>
+      <div class="lock-dot" id="ld1"></div>
+      <div class="lock-dot" id="ld2"></div>
+      <div class="lock-dot" id="ld3"></div>
+    </div>
+    <div class="lock-err" id="lockErr"></div>
+    <div class="lock-pad">
+      <button class="lock-key" data-k="1"><span>1</span><span class="lock-key-sub"></span></button>
+      <button class="lock-key" data-k="2"><span>2</span><span class="lock-key-sub">ABC</span></button>
+      <button class="lock-key" data-k="3"><span>3</span><span class="lock-key-sub">DEF</span></button>
+      <button class="lock-key" data-k="4"><span>4</span><span class="lock-key-sub">GHI</span></button>
+      <button class="lock-key" data-k="5"><span>5</span><span class="lock-key-sub">JKL</span></button>
+      <button class="lock-key" data-k="6"><span>6</span><span class="lock-key-sub">MNO</span></button>
+      <button class="lock-key" data-k="7"><span>7</span><span class="lock-key-sub">PQRS</span></button>
+      <button class="lock-key" data-k="8"><span>8</span><span class="lock-key-sub">TUV</span></button>
+      <button class="lock-key" data-k="9"><span>9</span><span class="lock-key-sub">WXYZ</span></button>
+      <button class="lock-key del-key" data-k="del">⌫</button>
+      <button class="lock-key" data-k="0"><span>0</span><span class="lock-key-sub">+</span></button>
+      <button class="lock-key del-key" data-k="clr" title="クリア"><span style="font-size:13px;font-weight:700;letter-spacing:0">CLR</span></button>
+    </div>
+    <button class="lock-face-btn" id="face-id-btn" style="display:none" title="顔認証">
+      <span class="lock-face-icon">🔓</span>
+      <span>顔認証でロック解除</span>
+    </button>
+    <div class="lock-biometric-hint" id="biometric-hint"></div>
+  </div>
+</div>
 <div class="sov" id="sov"></div>
 <div class="toast-wrap" id="toasts"></div>
 
@@ -913,7 +1090,8 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
     <div class="sidebar-head">
       <div class="logo"><img src="icon-192.png" alt="Taskra"></div>
       <span class="app-name">Taskra</span>
-      <a href="https://taskra.jp" target="_blank" class="icon-btn" style="margin-left:auto;text-decoration:none;color:var(--text2)" title="Taskra サービスサイト"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></a>
+      <a href="https://dat0925.github.io/gantt-app.html" target="_blank" class="icon-btn" style="margin-left:auto;text-decoration:none;font-size:12px;font-weight:700;color:var(--text2)" title="ガントチャート"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="10" width="8" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="16" width="6" height="4" rx="1" fill="currentColor" stroke="none"/><line x1="9" y1="6" x2="21" y2="6"/><line x1="13" y1="12" x2="21" y2="12"/><line x1="11" y1="18" x2="21" y2="18"/></svg></a>
+      <a href="https://www.notion.so/" target="_blank" class="icon-btn" style="text-decoration:none;color:var(--text2)" title="Notion"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="7" x2="17" y2="7"/><line x1="12" y1="11" x2="17" y2="11"/></svg></a>
       <button class="icon-btn" data-a="dark" title="ダーク">☾</button>
       <button class="icon-btn" data-a="settings" title="設定">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -988,28 +1166,6 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
     </div>
   </div>
   <div class="calc-drawer-body" id="calc-drawer-body"></div>
-  <!-- Calc-Note Panel -->
-  <div class="calc-note-panel" id="calc-note-panel">
-    <div class="calc-note-panel-head">
-      <span class="calc-note-panel-title">📝 Noteに記録</span>
-      <button class="calc-note-panel-close" id="calc-note-panel-close">✕</button>
-    </div>
-    <div class="calc-note-panel-body">
-      <div class="calc-note-expr-list" id="calc-note-expr-list"></div>
-      <div class="calc-note-mode-row">
-        <button class="calc-note-mode-btn active" id="calc-note-mode-new">＋ 新規Note</button>
-        <button class="calc-note-mode-btn" id="calc-note-mode-append">既存Noteに追記</button>
-      </div>
-      <div id="calc-note-new-area">
-        <input class="calc-note-inp" id="calc-note-title-inp" placeholder="タイトル（省略時は日時）" style="margin-bottom:6px">
-        <textarea class="calc-note-ta" id="calc-note-ta" placeholder="メモ（省略可）" rows="3"></textarea>
-      </div>
-      <div id="calc-note-append-area" style="display:none">
-        <select class="calc-note-sel" id="calc-note-sel"></select>
-      </div>
-      <button class="calc-note-save-btn" id="calc-note-save-btn">Noteに保存</button>
-    </div>
-  </div>
 </div>
 
 <!-- Mobile bottom nav -->
@@ -1551,9 +1707,9 @@ function getTasks(){
 function counts(){
   const t=today();
   return{
-    inbox:S.tasks.filter(x=>x.status==='inbox'&&!x.parentTaskId).length,
-    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&!x.parentTaskId&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
-    flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged&&!x.parentTaskId).length,
+    inbox:S.tasks.filter(x=>x.status==='inbox').length,
+    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
+    flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged).length,
   };
 }
 
@@ -3506,7 +3662,7 @@ function updateSubsOnly(){
   if(!subsEl||!S.taskId)return false;
   const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId);
   subsEl.innerHTML=allSubs.map(sub=>
-    '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="open-task" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3);flex-shrink:0" title="詳細を開く"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+    '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
   ).join('');
   return true;
 }
@@ -3633,7 +3789,6 @@ function renderDrawer(){
       +'</div>'
     +'</div>'
     +'<div class="drawer-body">'
-      +(task.parentTaskId?(()=>{const parent=S.tasks.find(t=>t.id===task.parentTaskId);return'<div class="fg" style="background:var(--bg2);border-radius:8px;padding:8px 12px;margin-bottom:4px'+(parent?';cursor:pointer':'')+'"'+(parent?' data-a="open-task" data-id="'+task.parentTaskId+'"':'')+'><span style="font-size:11px;font-weight:600;color:var(--text3)">↑ 親タスク</span><div style="font-size:14px;color:var(--accent);margin-top:2px">'+(parent?esc(parent.title):'（削除済み）')+'</div></div>';})():'')
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
       +'<div class="note-stamp-bar" style="margin-bottom:6px">'
@@ -3652,7 +3807,7 @@ function renderDrawer(){
         +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="flex:1;min-width:0"><span id="dt-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.startAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button></div></div>'
         +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="flex:1;min-width:0"><span id="dt-due-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.dueAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.dueAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="-1">-1月</button></div></div>'
       +'</div>'
-      +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px;margin-bottom:3px"><button class="date-adj-btn" data-a="start-time-set" data-hhmm="09:00">9:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="12:00">12:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="15:00">15:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="18:00">18:00</button></div><div style="display:flex;gap:3px;align-items:center"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button><button class="date-adj-btn" data-a="start-time-adj-min" data-mins="10">+10m</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button><button class="date-adj-btn" data-a="start-time-zero-min">分00</button></div></div>'
+      +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:flex;gap:3px;align-items:center"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button><button class="date-adj-btn" data-a="start-time-adj-min" data-mins="10">+10m</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button><button class="date-adj-btn" data-a="start-time-zero-min">分00</button></div></div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
           +[1,2,3,4].map(p=>'<button class="pbtn'+(task.priority===p?' on':'')+'" data-a="pri" data-p="'+p+'" data-id="'+task.id+'">'+pLabels[p]+'</button>').join('')
@@ -3834,7 +3989,7 @@ function renderDrawer(){
   const si=document.getElementById('sub-inp');
   if(si)si.addEventListener('keydown',async e=>{
     if(e.key==='Enter'&&si.value.trim()){
-      const _pt=S.tasks.find(t=>t.id===S.taskId);const s=mkTask({title:si.value.trim(),parentTaskId:S.taskId,status:'active',order:Date.now(),projectId:_pt?.projectId||null,tagIds:_pt?.tagIds||[]});
+      const s=mkTask({title:si.value.trim(),parentTaskId:S.taskId,status:'active',order:Date.now()});
       const drBody=document.getElementById('drawer-body');
       const scrollY=drBody?drBody.scrollTop:0;
       await saveTask(s);si.value='';
@@ -3843,7 +3998,7 @@ function renderDrawer(){
       if(subsEl){
         const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId).sort((a,b)=>a.order-b.order);
         subsEl.innerHTML=allSubs.map(sub=>
-          '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="open-task" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3);flex-shrink:0" title="詳細を開く"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+          '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
         ).join('');
         initSubDrag(subsEl);
       }
@@ -3917,12 +4072,6 @@ async function handleBulkEdit(field){
       +'</div>'
       // 開始時間
       +'<div class="fg"><label class="flabel">開始時間</label>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px;margin-bottom:3px">'
-          +'<button class="date-adj-btn" id="bulk-stime-900">9:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-1200">12:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-1500">15:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-1800">18:00</button>'
-        +'</div>'
         +'<div style="display:flex;gap:3px;align-items:center">'
           +'<input type="time" id="bulk-stime-inp" class="finput" style="font-size:14px;min-height:34px;flex:1;min-width:0">'
           +'<button class="date-clr-btn" id="bulk-stime-clr" title="クリア">✕</button>'
@@ -4017,9 +4166,6 @@ async function handleBulkEdit(field){
     ov.querySelector('#bulk-start-clr').onclick=()=>{startInp.value='';startWd.textContent='';startCleared=true;};
     ov.querySelector('#bulk-due-clr').onclick=()=>{dueInp.value='';dueWd.textContent='';dueCleared=true;};
     ov.querySelector('#bulk-stime-clr').onclick=()=>{stimeInp.value='';stimeCleared=true;};
-    [['#bulk-stime-900','09:00'],['#bulk-stime-1200','12:00'],['#bulk-stime-1500','15:00'],['#bulk-stime-1800','18:00']].forEach(([id,val])=>{
-      ov.querySelector(id).onclick=()=>{stimeInp.value=val;stimeCleared=false;};
-    });
 
     ov.querySelector('#bulk-dates-cancel').onclick=()=>ov.remove();
     ov.querySelector('#bulk-dates-ok').onclick=async()=>{
@@ -4305,11 +4451,6 @@ else if(a==='sel-edit'){
   else{S.taskId=id;S.drawerOpen=true;playSE('open');}
   renderContent();renderSidebar();renderDrawer();
 }
-else if(a==='open-task'){
-  e.stopPropagation();
-  const id=el.dataset.id;
-  if(id){S.taskId=id;S.drawerOpen=true;playSE('open');renderContent();renderSidebar();renderDrawer();}
-}
 
   
   else if(a==='chk'){
@@ -4513,19 +4654,19 @@ else if(a==='open-task'){
     document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>s.textContent='');
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
-      if(field==='start'){task.startAt=null;task.startTime=null;const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';}
+      if(field==='start'){task.startAt=null;task.startTime=null;const sti=document.getElementById('dt-start-time');if(sti)sti.value='';}
       else task.dueAt=null;
       await saveTask(task);
     }
   }
   else if(a==='start-time-clear'){
-    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';
+    const sti=document.getElementById('dt-start-time');if(sti)sti.value='';
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){task.startTime=null;await saveTask(task);}
   }
   else if(a==='start-time-adj-min'){
     const mins=parseInt(el.dataset.mins||'10');
-    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
+    const sti=document.getElementById('dt-start-time');
     if(!sti)return;
     let base;
     if(sti.value){
@@ -4542,7 +4683,7 @@ else if(a==='open-task'){
   }
   else if(a==='start-time-adj'){
     const hours=parseInt(el.dataset.hours||'0');
-    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
+    const sti=document.getElementById('dt-start-time');
     if(!sti)return;
     // 空欄なら現在時刻を基準にする
     let base;
@@ -4559,7 +4700,7 @@ else if(a==='open-task'){
     if(task){task.startTime=newVal;await saveTask(task);}
   }
   else if(a==='start-time-zero-min'){
-    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
+    const sti=document.getElementById('dt-start-time');
     if(!sti)return;
     // 空欄なら現在時刻の時を使う
     let h;
@@ -4572,14 +4713,6 @@ else if(a==='open-task'){
     sti.value=newVal;
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){task.startTime=newVal;await saveTask(task);}
-  }
-  else if(a==='start-time-set'){
-    const hhmm=el.dataset.hhmm;if(!hhmm)return;
-    const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
-    if(!sti)return;
-    sti.value=hhmm;
-    const task=S.tasks.find(t=>t.id===S.taskId);
-    if(task){task.startTime=hhmm;await saveTask(task);}
   }
   else if(a==='clear-task-notes'){
     openConfirmModal('メモをクリア','メモの内容をすべて削除しますか？',()=>{
@@ -4605,8 +4738,6 @@ else if(a==='open-task'){
       await saveTask(task);
       S.taskId=tid;S.drawerOpen=true;
       renderDrawer();
-      const _em=document.querySelector('.expand-modal');
-      if(_em){_em.querySelectorAll('.pbtn').forEach(b=>{b.classList.toggle('on',parseInt(b.dataset.p)===task.priority);});}
     }
   }
   else if(a==='tog-tag'){
@@ -4636,15 +4767,6 @@ else if(a==='open-task'){
         await saveTask(task);renderDrawer();
         const drBody2=document.querySelector('#drawer .drawer-body');
         if(drBody2)drBody2.scrollTop=scrollY;
-        const _em=document.querySelector('.expand-modal');
-        if(_em){_em.querySelectorAll('[data-a="tog-tag"][data-task]').forEach(b=>{
-          const isOn=task.tagIds.includes(b.dataset.tag);
-          const _t=S.tags.find(x=>x.id===b.dataset.tag);
-          b.classList.toggle('on',isOn);
-          b.style.borderColor=isOn&&_t?_t.color:'';
-          b.style.background=isOn&&_t?_t.color+'1a':'';
-          b.style.color=isOn&&_t?_t.color:'';
-        });}
       }
     }
   }
@@ -5005,116 +5127,6 @@ function _syncExpandWithCalc(){
   }
 }
 
-// ===== Calc-Note Panel =====
-(function(){
-  const panel=document.getElementById('calc-note-panel');
-  if(!panel)return;
-  const exprList=document.getElementById('calc-note-expr-list');
-  const modeNew=document.getElementById('calc-note-mode-new');
-  const modeAppend=document.getElementById('calc-note-mode-append');
-  const newArea=document.getElementById('calc-note-new-area');
-  const appendArea=document.getElementById('calc-note-append-area');
-  const titleInp=document.getElementById('calc-note-title-inp');
-  const ta=document.getElementById('calc-note-ta');
-  const sel=document.getElementById('calc-note-sel');
-  const saveBtn=document.getElementById('calc-note-save-btn');
-  const closeBtn=document.getElementById('calc-note-panel-close');
-
-  let _items=[]; // [{expr,result}]
-  let _mode='new';
-
-  function renderExprs(){
-    if(!exprList)return;
-    exprList.innerHTML=_items.map((it,i)=>
-      '<div class="calc-note-expr-row">'
-        +'<span class="calc-note-expr-text">'+it.expr+'</span>'
-        +'<span class="calc-note-expr-eq">=</span>'
-        +'<span class="calc-note-expr-result">'+it.result+'</span>'
-        +'<button class="calc-note-expr-del" data-i="'+i+'">×</button>'
-      +'</div>'
-    ).join('');
-    exprList.querySelectorAll('.calc-note-expr-del').forEach(b=>{
-      b.addEventListener('click',()=>{
-        _items.splice(parseInt(b.dataset.i),1);
-        if(!_items.length){closePanel();return;}
-        renderExprs();
-      });
-    });
-  }
-
-  function populateSel(){
-    if(!sel)return;
-    const notes=[...S.notes].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,40);
-    sel.innerHTML='<option value="">― Noteを選択 ―</option>'
-      +notes.map(n=>'<option value="'+n.id+'">'+(n.title||'無題').slice(0,28)+'</option>').join('');
-  }
-
-  function closePanel(){
-    panel.classList.remove('open');
-    setTimeout(()=>{
-      _items=[];
-      if(exprList)exprList.innerHTML='';
-      if(titleInp)titleInp.value='';
-      if(ta)ta.value='';
-    },300);
-  }
-  window.closeCalcNotePanel=closePanel;
-
-  window.openCalcNotePanel=function(item){
-    _items.push(item);
-    renderExprs();
-    populateSel();
-    panel.classList.add('open');
-  };
-
-  closeBtn&&closeBtn.addEventListener('click',closePanel);
-
-  modeNew&&modeNew.addEventListener('click',()=>{
-    _mode='new';
-    modeNew.classList.add('active');modeAppend.classList.remove('active');
-    newArea.style.display='';appendArea.style.display='none';
-  });
-  modeAppend&&modeAppend.addEventListener('click',()=>{
-    _mode='append';
-    modeAppend.classList.add('active');modeNew.classList.remove('active');
-    newArea.style.display='none';appendArea.style.display='';
-    populateSel();
-  });
-
-  saveBtn&&saveBtn.addEventListener('click',async()=>{
-    if(!_items.length)return;
-    const lines=_items.map(it=>it.expr+' = '+it.result).join('\n');
-    saveBtn.disabled=true;
-    try{
-      if(_mode==='new'){
-        const dt=new Date().toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-        const title=(titleInp&&titleInp.value.trim())||('計算メモ '+dt);
-        const memo=ta&&ta.value.trim();
-        const body=memo?lines+'\n\n'+memo:lines;
-        const n=mkNote({title,body});
-        await saveNote(n);
-        const nid=n.id;
-        closePanel();
-        toast('Noteに保存しました ✅ <span style="text-decoration:underline;cursor:pointer" onclick="closeCalcDrawer();S.view='notes';S.noteId=''+nid+'';S.noteOpen=true;render()">開く</span>');
-      } else {
-        const id=sel&&sel.value;
-        if(!id){toast('Noteを選択してください');saveBtn.disabled=false;return;}
-        const note=S.notes.find(n=>n.id===id);
-        if(!note){toast('Noteが見つかりません');saveBtn.disabled=false;return;}
-        note.body=(note.body?(note.body+'\n\n'):'')+lines;
-        await saveNote(note);
-        const nid=note.id;
-        closePanel();
-        toast('Noteに追記しました ✅ <span style="text-decoration:underline;cursor:pointer" onclick="closeCalcDrawer();S.view='notes';S.noteId=''+nid+'';S.noteOpen=true;render()">開く</span>');
-      }
-    }catch(e){
-      toast('保存に失敗しました');
-    }finally{
-      saveBtn.disabled=false;
-    }
-  });
-})();
-
 function openCalcDrawer(){
   const ov=document.getElementById('calc-drawer-ov');
   const dr=document.getElementById('calc-drawer-global');
@@ -5134,7 +5146,6 @@ function closeCalcDrawer(){
   const dr=document.getElementById('calc-drawer-global');
   if(ov)ov.classList.remove('open');
   if(dr)dr.classList.remove('open');
-  window.closeCalcNotePanel?.();
   _syncExpandWithCalc();
 }
 
@@ -5424,7 +5435,6 @@ function _buildCalcInDrawer(){
           +'<span class="calc-hist-sep">=</span>'
         +'</span>'
         +'<span class="calc-hist-result" data-insert-hi="'+(calcHistory.length-1-i)+'" title="タップで電卓に入力">'+esc(fmtComma(h.result))+'</span>'
-        +'<button class="calc-note-hist-btn" data-note-hi="'+(calcHistory.length-1-i)+'" title="Noteに記録" style="flex-shrink:0;width:26px;height:26px;border:1px solid rgba(126,207,142,.25);background:rgba(126,207,142,.08);border-radius:6px;color:#7ecf8e;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation">📝</button>'
       +'</div>'
     ).join('');
 
@@ -5538,34 +5548,6 @@ function _buildCalcInDrawer(){
       badge.addEventListener('mousedown',e=>{e.stopPropagation();lpStart();});
       badge.addEventListener('mouseup',e=>{e.stopPropagation();lpEnd(true);});
       badge.addEventListener('mouseleave',lpCancel);
-    });
-
-    // 📝ボタン: タップでCalc-Noteパネルに式を送る（passive:true、preventDefault不使用）
-    histEl.querySelectorAll('.calc-note-hist-btn').forEach(btn=>{
-      const idx=parseInt(btn.dataset.noteHi);
-      let _sx=0,_sy=0;
-      btn.addEventListener('touchstart',e=>{
-        e.stopPropagation();
-        _sx=e.touches[0].clientX;_sy=e.touches[0].clientY;
-      },{passive:true});
-      btn.addEventListener('touchend',e=>{
-        e.stopPropagation();
-        if(Math.abs(e.changedTouches[0].clientX-_sx)>10||Math.abs(e.changedTouches[0].clientY-_sy)>10)return;
-        const h=calcHistory[idx];if(!h)return;
-        window.playClick?.();
-        window.openCalcNotePanel({expr:fmtExpr(h.expr),result:fmtComma(h.result)});
-        btn.closest('.calc-hist-item').classList.add('flash');
-        setTimeout(()=>btn.closest('.calc-hist-item')?.classList.remove('flash'),400);
-      },{passive:true});
-      btn.addEventListener('click',e=>{
-        e.stopPropagation();
-        if('ontouchstart' in window)return;
-        const h=calcHistory[idx];if(!h)return;
-        window.playClick?.();
-        window.openCalcNotePanel({expr:fmtExpr(h.expr),result:fmtComma(h.result)});
-        btn.closest('.calc-hist-item').classList.add('flash');
-        setTimeout(()=>btn.closest('.calc-hist-item')?.classList.remove('flash'),400);
-      });
     });
   }
   renderHist();
@@ -5893,7 +5875,7 @@ function reattachModalEvents(modal, type, onClose){
     const subInp=modal.querySelector('#sub-inp');
     if(subInp)subInp.addEventListener('keydown',async e=>{
       if(e.key==='Enter'&&subInp.value.trim()){
-        const _pt2=S.tasks.find(t=>t.id===S.taskId);const s=mkTask({title:subInp.value.trim(),parentTaskId:S.taskId,status:'active',projectId:_pt2?.projectId||null,tagIds:_pt2?.tagIds||[]});
+        const s=mkTask({title:subInp.value.trim(),parentTaskId:S.taskId,status:'active'});
         await saveTask(s);subInp.value='';
         // re-render subs
         const subsEl=modal.querySelector('#subs');
@@ -6207,15 +6189,6 @@ document.addEventListener('keydown',e=>{
     e.preventDefault();
     document.querySelector('.pc-nav-step[data-a="nav-'+(e.key==='ArrowUp'?'prev':'next')+'"]')?.click();
   }
-  if((e.key==='ArrowUp'||e.key==='ArrowDown')&&!e.ctrlKey&&!e.metaKey&&window.innerWidth>768&&!e.target.matches('input,textarea,select')){
-    e.preventDefault();
-    const vt=getTasks().filter(t=>!t.parentTaskId);
-    if(!vt.length) return;
-    const dir=e.key==='ArrowUp'?'prev':'next';
-    const ci=vt.findIndex(t=>t.id===S.taskId);
-    const next=ci===-1?(dir==='next'?vt[0]:vt[vt.length-1]):(dir==='prev'?vt[ci-1]:vt[ci+1]);
-    if(next){S.taskId=next.id;S.drawerOpen=true;renderDrawer();renderContent();}
-  }
 });
 
 // ===== BACKUP =====
@@ -6371,9 +6344,18 @@ function openSettingsModal(){
   const ov=document.createElement('div');ov.className='overlay';
   const aiEnabled=getSetting('aiChat',true);
   const apiKey=AI.key;
+  const lockEnabled=localStorage.getItem('focus_lock_enabled')!=='false';
   const seEnabled=getSetting('soundFx',true);
   ov.innerHTML='<div class="modal" style="max-width:360px">'
     +'<div class="modal-title" style="display:flex;align-items:center;justify-content:space-between">設定<button class="icon-btn" id="s-close" style="width:28px;height:28px;font-size:18px;border-radius:6px;flex-shrink:0">✕</button></div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">🔒 パスワードロック</div><div class="settings-sub">起動時にPINを要求する</div></div>'
+      +'<button class="tog'+(lockEnabled?' on':'')+'" id="s-lock-tog"></button>'
+    +'</div>'
+    +'<div class="settings-row" id="s-pin-row" style="'+(lockEnabled?'':'display:none')+'">'
+      +'<div><div class="settings-label">PINを変更</div><div class="settings-sub">4桁の数字</div></div>'
+      +'<button class="btn btn-ghost" id="s-pin-edit" style="font-size:12px;flex-shrink:0">変更</button>'
+    +'</div>'
     +'<div class="settings-row">'
       +'<div><div class="settings-label">AIチャット</div><div class="settings-sub">従量課金APIを使用します</div></div>'
       +'<button class="tog'+(aiEnabled?' on':'')+'" id="s-ai-tog"></button>'
@@ -6419,6 +6401,27 @@ function openSettingsModal(){
   }
   const tog=document.getElementById('s-ai-tog');
   const keyRow=document.getElementById('s-key-row');
+  const lockRow=document.getElementById('s-pin-row');
+  addFastHandler('s-lock-tog',()=>{
+    const now=localStorage.getItem('focus_lock_enabled')!=='false';
+    const next=!now;
+    localStorage.setItem('focus_lock_enabled',String(next));
+    document.getElementById('s-lock-tog').classList.toggle('on',next);
+    lockRow.style.display=next?'':'none';
+  });
+  addFastHandler('s-pin-edit',()=>{
+    const cur=localStorage.getItem('focus_pin')||'7086';
+    const v1=prompt('現在のPINを入力:');
+    if(v1===null)return;
+    if(v1!==cur){alert('現在のPINが違います');return}
+    const v2=prompt('新しいPIN（4桁の数字）:');
+    if(v2===null)return;
+    if(!/^\d{4}$/.test(v2)){alert('4桁の数字を入力してください');return}
+    const v3=prompt('新しいPINを再入力:');
+    if(v3!==v2){alert('PINが一致しません');return}
+    localStorage.setItem('focus_pin',v2);
+    alert('PINを変更しました');
+  });
   addFastHandler('s-ai-tog',()=>{
     const now=!getSetting('aiChat',true);
     setSetting('aiChat',now);
@@ -6844,7 +6847,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
   let _ft=false;
   document.addEventListener('touchend',function(e){
     const el=e.target.closest('[data-a],[data-k],button');
-    if(!el)return;
+    if(!el||el.closest('#lockScreen'))return;
     e.preventDefault();
     if(_ft)return;
     _ft=true;
@@ -6948,6 +6951,175 @@ document.getElementById('ai-input').addEventListener('input',function(){
   };
 })();
 
+// ===== LOCK SCREEN =====
+(function(){
+  const DEFAULT_PIN='7086';
+  const SESS_KEY='focus_unlocked';
+  const CRED_KEY='focus_webauthn_cred';
+  const PIN_KEY='focus_pin';
+  const LOCK_ENABLED_KEY='focus_lock_enabled';
+  const screen=document.getElementById('lockScreen');
+  if(!screen)return;
+  // ロック無効 or セッション認証済み or 直近認証済み or ローカル開発環境ならスキップ
+  const UNLOCK_TS_KEY='focus_unlocked_ts';
+  const lockEnabled=localStorage.getItem(LOCK_ENABLED_KEY)!=='false';
+  const isLocalhost=['localhost','127.0.0.1',''].includes(location.hostname);
+  const recentUnlock=Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_KEY)||'0')<3600000; // 1時間以内
+  if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'||recentUnlock||isLocalhost){screen.style.display='none';return}
+  function getPin(){return localStorage.getItem(PIN_KEY)||DEFAULT_PIN;}
+
+  function unlock(){
+    sessionStorage.setItem(SESS_KEY,'1');
+    localStorage.setItem(UNLOCK_TS_KEY,String(Date.now())); // タイムスタンプ保存
+    screen.style.transition='opacity .3s';
+    screen.style.opacity='0';
+    setTimeout(()=>screen.style.display='none',300);
+  }
+
+  // WebAuthn
+  const faceBtn=document.getElementById('face-id-btn');
+  const hint=document.getElementById('biometric-hint');
+  const supported=window.PublicKeyCredential&&typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable==='function';
+
+  async function checkBiometric(){
+    if(!supported)return;
+    const available=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if(!available)return;
+    faceBtn.style.display='flex';
+    const cred=localStorage.getItem(CRED_KEY);
+    if(cred){
+      hint.textContent='顔認証ボタンでロック解除';
+    } else {
+      hint.textContent='初回: PINで認証後に顔認証を登録できます';
+    }
+  }
+
+  async function registerBiometric(){
+    try{
+      const challenge=crypto.getRandomValues(new Uint8Array(32));
+      const cred=await navigator.credentials.create({publicKey:{
+        challenge,
+        rp:{name:'Taskra',id:location.hostname},
+        user:{id:new TextEncoder().encode('taskra-user'),name:'user',displayName:'Taskra User'},
+        pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+        authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
+        timeout:60000
+      }});
+      localStorage.setItem(CRED_KEY,JSON.stringify({id:btoa(String.fromCharCode(...new Uint8Array(cred.rawId)))}));
+      hint.textContent='顔認証を登録しました！次回から使えます';
+      faceBtn.style.display='flex';
+    }catch(e){
+      hint.textContent='顔認証の登録に失敗しました';
+    }
+  }
+
+  async function tryBiometric(){
+    const stored=localStorage.getItem(CRED_KEY);
+    if(!stored)return;
+    try{
+      const {id}=JSON.parse(stored);
+      const credId=Uint8Array.from(atob(id),c=>c.charCodeAt(0));
+      const challenge=crypto.getRandomValues(new Uint8Array(32));
+      await navigator.credentials.get({publicKey:{
+        challenge,
+        allowCredentials:[{type:'public-key',id:credId}],
+        userVerification:'required',
+        timeout:60000
+      }});
+      unlock();
+    }catch(e){
+      // 資格情報が無効な場合はクリアして再登録を促す
+      if(e.name==='NotAllowedError'||e.name==='InvalidStateError'){
+        localStorage.removeItem(CRED_KEY);
+        hint.textContent='顔認証の再登録が必要です。PINで認証してください';
+        faceBtn.style.display='none';
+      } else {
+        hint.textContent='認証に失敗しました';
+      }
+    }
+  }
+
+  faceBtn.addEventListener('click',()=>tryBiometric());
+  checkBiometric();
+
+  // PIN
+  let entered='';
+  function updateDots(){
+    for(let i=0;i<4;i++){
+      const d=document.getElementById('ld'+i);
+      if(d)d.className='lock-dot'+(i<entered.length?' filled':'');
+    }
+  }
+  function shake(){
+    screen.style.animation='none';
+    requestAnimationFrame(()=>{screen.style.animation='lkshake .4s ease';});
+  }
+  document.head.insertAdjacentHTML('beforeend','<style>@keyframes lkshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}</style>');
+  function handleKey(k){
+    const v=k.dataset.k;
+    if(v==='clr'){entered=''}
+    else if(v==='del'){entered=entered.slice(0,-1)}
+    else if(entered.length<4){entered+=v}
+    updateDots();
+    document.getElementById('lockErr').textContent='';
+    if(entered.length===4){
+      if(entered===getPin()){
+        unlock();
+        if(supported&&!localStorage.getItem(CRED_KEY)&&!localStorage.getItem('focus_faceid_skip')){
+          setTimeout(()=>{
+            if(confirm('顔認証（Face ID / Touch ID）を登録しますか？次回からPIN不要になります。')){
+              registerBiometric();
+            } else {
+              localStorage.setItem('focus_faceid_skip','1');
+            }
+          },400);
+        }
+      } else {
+        document.getElementById('lockErr').textContent='PINが違います';
+        setTimeout(()=>{entered='';updateDots();document.getElementById('lockErr').textContent=''},800);
+      }
+    }
+  }
+  function pressKey(k){
+    if(!k)return;
+    k.classList.add('pressed');
+    window.playClick?.();
+    // 深いストロークに合わせて押し込み保持を長めに
+    setTimeout(()=>k.classList.remove('pressed'),160);
+    handleKey(k);
+  }
+  screen.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const k=e.target.closest('[data-k]');
+    pressKey(k);
+  },{passive:false});
+  screen.addEventListener('click',e=>{
+    const k=e.target.closest('[data-k]');
+    if(!k)return;
+    // avoid double-fire on touch devices
+    if(k._lastTouch&&Date.now()-k._lastTouch<300)return;
+    pressKey(k);
+  });
+  screen.addEventListener('touchend',e=>{
+    const k=e.target.closest('[data-k]');
+    if(k)k._lastTouch=Date.now();
+  });
+  // PC keyboard number key support
+  document.addEventListener('keydown',e=>{
+    const ls=document.getElementById('lockScreen');
+    if(!ls||ls.style.display==='none')return;
+    if(e.key>='0'&&e.key<='9'){
+      const k=screen.querySelector('[data-k="'+e.key+'"]');
+      if(k)pressKey(k);
+    } else if(e.key==='Backspace'){
+      const k=screen.querySelector('[data-k="del"]');
+      if(k)pressKey(k);
+    } else if(e.key==='Escape'){
+      const k=screen.querySelector('[data-k="clr"]');
+      if(k)pressKey(k);
+    }
+  });
+})();
 
 // ===== INIT =====
 async function init(){
@@ -7174,7 +7346,6 @@ async function setupSB(){
       .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},_syncNow)
       .on('postgres_changes',{event:'*',schema:'public',table:'projects'},_syncNow)
       .on('postgres_changes',{event:'*',schema:'public',table:'tags'},_syncNow)
-      .on('postgres_changes',{event:'*',schema:'public',table:'notes'},_syncNow)
       .subscribe(status=>{console.log('Realtime status:',status);});
     document.addEventListener('visibilitychange',()=>{
       if(document.visibilityState==='visible'){
@@ -7189,7 +7360,7 @@ async function setupSB(){
     window.importFromIndexedDB=async()=>{
       const uid=window._currentUser?.id;
       if(!uid){toast('先にサインインしてください');return 0;}
-      const stores=['tasks','projects','sections','tags','notes'];
+      const stores=['tasks','projects','sections','tags'];
       let done=0;
 
       // 1. localStorage（f_tasks, f_projects…）から読み込み
