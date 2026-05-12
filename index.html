@@ -4233,6 +4233,13 @@ function renderDrawer(){
       if(id==='dt-repeat'&&el.value&&isPlanFree()){
         el.value='';showUpgradeModal('repeat');return;
       }
+      // 開始日を直接変更した場合は開始時間をクリア
+      if(id==='dt-start'){
+        const stiEl=document.getElementById('dt-start-time');
+        if(stiEl){stiEl.value='';}
+        const task=S.tasks.find(t=>t.id===S.taskId);
+        if(task){task.startTime=null;}
+      }
       autosave(true);
       if(id==='dt-due'||id==='dt-start'){
         const wd=document.getElementById('dt-'+( id==='dt-due'?'due':'start')+'-wd');
@@ -4906,7 +4913,13 @@ else if(a==='sel-edit'){
     document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
-      if(field==='start')task.startAt=newVal;
+      if(field==='start'){
+        task.startAt=newVal;
+        // 開始日変更時は開始時間をクリア
+        task.startTime=null;
+        const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
+        if(sti)sti.value='';
+      }
       else task.dueAt=newVal;
       await saveTask(task);
     }
@@ -4919,7 +4932,7 @@ else if(a==='sel-edit'){
     document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>s.textContent='');
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
-      if(field==='start'){task.startAt=null;task.startTime=null;const sti=document.getElementById('dt-start-time');if(sti)sti.value='';}
+      if(field==='start'){task.startAt=null;task.startTime=null;const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';}
       else task.dueAt=null;
       await saveTask(task);
     }
@@ -6142,6 +6155,13 @@ function reattachModalEvents(modal, type, onClose){
     ['dt-due','dt-start','dt-start-time','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
       const el=modal.querySelector('#'+id);
       if(el)el.addEventListener('change',()=>{
+        // 開始日を直接変更した場合は開始時間をクリア
+        if(id==='dt-start'){
+          const stiEl=modal.querySelector('#dt-start-time');
+          if(stiEl){stiEl.value='';}
+          const task=S.tasks.find(t=>t.id===S.taskId);
+          if(task){task.startTime=null;}
+        }
         save(true);
         if(id==='dt-due'||id==='dt-start'){
           const wd=modal.querySelector('#dt-'+( id==='dt-due'?'due':'start')+'-wd');
