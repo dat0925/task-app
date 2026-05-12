@@ -7302,25 +7302,35 @@ document.getElementById('ai-input').addEventListener('input',function(){
     if(!k)return;
     k.classList.add('pressed');
     window.playClick?.();
-    // 深いストロークに合わせて押し込み保持を長めに
     setTimeout(()=>k.classList.remove('pressed'),160);
     handleKey(k);
   }
+  let _pinTouchSx=0,_pinTouchSy=0;
   screen.addEventListener('touchstart',e=>{
-    e.preventDefault();
     const k=e.target.closest('[data-k]');
-    pressKey(k);
-  },{passive:false});
+    if(k)k.classList.add('pressed');
+    _pinTouchSx=e.touches[0].clientX;
+    _pinTouchSy=e.touches[0].clientY;
+  },{passive:true});
+  screen.addEventListener('touchend',e=>{
+    const k=e.changedTouches[0]?document.elementFromPoint(e.changedTouches[0].clientX,e.changedTouches[0].clientY)?.closest('[data-k]'):null;
+    screen.querySelectorAll('[data-k]').forEach(b=>b.classList.remove('pressed'));
+    const dx=Math.abs((e.changedTouches[0]?.clientX||0)-_pinTouchSx);
+    const dy=Math.abs((e.changedTouches[0]?.clientY||0)-_pinTouchSy);
+    if(dx>10||dy>10)return;
+    if(!k)return;
+    window.playClick?.();
+    handleKey(k);
+    k._lastTouch=Date.now();
+  },{passive:true});
+  screen.addEventListener('touchcancel',e=>{
+    screen.querySelectorAll('[data-k]').forEach(b=>b.classList.remove('pressed'));
+  },{passive:true});
   screen.addEventListener('click',e=>{
     const k=e.target.closest('[data-k]');
     if(!k)return;
-    // avoid double-fire on touch devices
     if(k._lastTouch&&Date.now()-k._lastTouch<300)return;
     pressKey(k);
-  });
-  screen.addEventListener('touchend',e=>{
-    const k=e.target.closest('[data-k]');
-    if(k)k._lastTouch=Date.now();
   });
   // PC keyboard number key support
   document.addEventListener('keydown',e=>{
