@@ -1005,6 +1005,30 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .login-loading{font-size:13px;color:var(--text3);margin-top:16px;display:none;align-items:center;gap:6px}
 .login-loading-spinner{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 .login-sub{font-size:12px;color:var(--text3);margin-top:14px;text-align:center;max-width:260px;line-height:1.6}
+/* ===== PLAN BANNER ===== */
+.plan-banner{margin:8px 6px 4px;padding:10px 12px;border-radius:9px;background:linear-gradient(135deg,var(--accent-bg),#fff8f5);border:1px solid rgba(232,93,58,.2);cursor:pointer;transition:background .15s}
+[data-dark] .plan-banner{background:linear-gradient(135deg,var(--accent-bg),#1a1210);border-color:rgba(232,93,58,.3)}
+.plan-banner:hover{background:linear-gradient(135deg,#fde0d8,#fff3f0)}
+[data-dark] .plan-banner:hover{background:linear-gradient(135deg,#2e1a14,#1a1210)}
+.plan-banner-title{font-size:11.5px;font-weight:600;color:var(--accent);display:flex;align-items:center;gap:5px}
+.plan-banner-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.plan-banner-progress{height:3px;background:var(--bg3);border-radius:2px;margin-top:6px;overflow:hidden}
+.plan-banner-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+.plan-banner-cta{font-size:11px;font-weight:600;color:var(--accent);margin-top:5px}
+.plan-banner-std{background:linear-gradient(135deg,#eff6ff,#fff);border-color:rgba(59,130,246,.2);cursor:default}
+[data-dark] .plan-banner-std{background:linear-gradient(135deg,#0f172a,#111827);border-color:rgba(59,130,246,.3)}
+.plan-banner-std .plan-banner-title{color:#3b82f6}
+/* ===== UPGRADE MODAL ===== */
+.upgrade-modal{text-align:center;max-width:340px}
+.upgrade-badge{display:inline-block;background:linear-gradient(135deg,#3b82f6,#60a5fa);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px;margin-bottom:12px}
+.upgrade-title{font-size:18px;font-weight:700;margin-bottom:8px;letter-spacing:-.3px}
+.upgrade-desc{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:14px}
+.upgrade-features{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;text-align:left;background:var(--bg2);border-radius:9px;padding:12px}
+.upgrade-feat{font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px}
+.upgrade-feat::before{content:'✓';color:#16a34a;font-weight:700;flex-shrink:0}
+.upgrade-price{font-size:28px;font-weight:800;color:var(--accent);letter-spacing:-1px;margin-bottom:4px}
+.upgrade-price span{font-size:14px;font-weight:500;color:var(--text2)}
+.upgrade-price-note{font-size:11px;color:var(--text3);margin-bottom:16px}
 </style>
 </head>
 <body>
@@ -1385,6 +1409,50 @@ let S={
   selectMode:false,selectedIds:[],
   filterTagIds:[],
 };
+
+// ===== PLAN SYSTEM =====
+const PLAN_LIMITS={free:{tasks:30,projects:3},standard:{tasks:Infinity,projects:Infinity}};
+function getUserPlan(){
+  // localStorage override for testing: localStorage.setItem('_plan','standard')
+  const ov=localStorage.getItem('_plan');
+  if(ov==='standard')return'standard';
+  const meta=window._currentUser?.user_metadata;
+  return meta?.plan||'free';
+}
+function isPlanFree(){return getUserPlan()!=='standard';}
+function getActiveTaskCount(){return S.tasks.filter(t=>t.status!=='archived'&&t.status!=='completed').length;}
+function getActiveProjectCount(){return S.projects.filter(p=>p.status!=='archived').length;}
+function showUpgradeModal(feature){
+  const cfg={
+    tasks:{title:'タスクの上限に達しました',desc:'フリープランでは最大30件まで管理できます。<br>スタンダードプランにアップグレードするとタスク数無制限でご利用いただけます。'},
+    projects:{title:'プロジェクトの上限に達しました',desc:'フリープランでは最大3件まで作成できます。<br>スタンダードプランにアップグレードするとプロジェクト数無制限でご利用いただけます。'},
+    repeat:{title:'繰り返しタスク',desc:'<strong>繰り返しタスク</strong>はスタンダードプランでご利用いただける機能です。'},
+    ai:{title:'AIアシスタント',desc:'<strong>AIアシスタント</strong>はスタンダードプランでご利用いただける機能です。'},
+  };
+  const c=cfg[feature]||{title:feature,desc:'スタンダードプランでご利用いただける機能です。'};
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal upgrade-modal">'
+    +'<div class="upgrade-badge">✦ スタンダードプラン</div>'
+    +'<div class="upgrade-title">'+c.title+'</div>'
+    +'<div class="upgrade-desc">'+c.desc+'</div>'
+    +'<div class="upgrade-features">'
+      +'<div class="upgrade-feat">タスク管理（無制限）</div>'
+      +'<div class="upgrade-feat">プロジェクト（無制限）</div>'
+      +'<div class="upgrade-feat">繰り返しタスク</div>'
+      +'<div class="upgrade-feat">AIアシスタント</div>'
+      +'<div class="upgrade-feat">優先サポート</div>'
+    +'</div>'
+    +'<div class="upgrade-price">¥480<span>/月</span></div>'
+    +'<div class="upgrade-price-note">月額・いつでもキャンセル可</div>'
+    +'<div class="modal-foot">'
+      +'<button class="btn btn-ghost" id="upg-cancel">閉じる</button>'
+      +'<a href="https://taskra.jp/#pricing" target="_blank" class="btn btn-primary" style="text-decoration:none">プランを見る →</a>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+  document.getElementById('upg-cancel').onclick=()=>ov.remove();
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
 
 // ===== PWA vs ブラウザ検出 =====
 (function(){
@@ -2600,6 +2668,21 @@ function renderSidebar(){
     +'</div>';
   });
   h+='<div class="tag-drop-line" data-tdrop-after="last" style="height:2px;background:var(--accent);border-radius:2px;margin:0 4px;pointer-events:none;display:none"></div>';
+  // ===== PLAN BANNER =====
+  const _plan=getUserPlan();
+  if(_plan==='free'){
+    const _tc=getActiveTaskCount();const _pct=Math.min(100,Math.round(_tc/PLAN_LIMITS.free.tasks*100));
+    h+='<div class="plan-banner" data-a="upgrade-banner">'
+      +'<div class="plan-banner-title">フリープラン</div>'
+      +'<div class="plan-banner-sub">タスク '+_tc+' / '+PLAN_LIMITS.free.tasks+' 件 · プロジェクト '+getActiveProjectCount()+' / '+PLAN_LIMITS.free.projects+' 件</div>'
+      +'<div class="plan-banner-progress"><div class="plan-banner-progress-bar" style="width:'+_pct+'%"></div></div>'
+      +'<div class="plan-banner-cta">スタンダードにアップグレード →</div>'
+      +'</div>';
+  }else{
+    h+='<div class="plan-banner plan-banner-std">'
+      +'<div class="plan-banner-title">✦ スタンダードプラン</div>'
+      +'</div>';
+  }
   document.getElementById('sidenav').innerHTML=h;
 }
 
@@ -3980,6 +4063,9 @@ function renderDrawer(){
   ['dt-due','dt-start','dt-start-time','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('change',()=>{
+      if(id==='dt-repeat'&&el.value&&isPlanFree()){
+        el.value='';showUpgradeModal('repeat');return;
+      }
       autosave(true);
       if(id==='dt-due'||id==='dt-start'){
         const wd=document.getElementById('dt-'+( id==='dt-due'?'due':'start')+'-wd');
@@ -4335,6 +4421,7 @@ function setupQA(){
 async function submitQA(){
   const inp=document.getElementById('qainput');
   if(!inp||!inp.value.trim())return;
+  if(isPlanFree()&&getActiveTaskCount()>=PLAN_LIMITS.free.tasks){showUpgradeModal('tasks');return;}
   const p=parseQA(inp.value);
   if(!p.title){toast('タイトルを入力してください');return}
   // 未登録タグを自動作成
@@ -4907,6 +4994,7 @@ else if(a==='sel-edit'){
   }
   else if(a==='newproj'){openModal('project')}
   else if(a==='newtag'){openModal('tag')}
+  else if(a==='upgrade-banner'){showUpgradeModal('tasks')}
   else if(a==='sec-collapse-all'){
     const secs=S.sections.filter(s=>s.projectId===S.projId);
     secs.forEach(s=>{S.secCollapsed[s.id]=true;});
@@ -6537,6 +6625,7 @@ function openConfirmModal(title,message,onOk,okLabel='削除',danger=true){
 
 // ===== MODAL =====
 function openModal(type){
+  if((type==='project'||type==='proj')&&isPlanFree()&&getActiveProjectCount()>=PLAN_LIMITS.free.projects){showUpgradeModal('projects');return;}
   const ov=document.createElement('div');ov.className='overlay';
   if(type==='project'||type==='proj'){
     ov.innerHTML='<div class="modal"><div class="modal-title">新規プロジェクト</div>'
@@ -6655,7 +6744,9 @@ const AI={
 };
 
 function aiToggle(force){
-  AI.open=force!==undefined?force:!AI.open;
+  const opening=force!==undefined?force:!AI.open;
+  if(opening&&isPlanFree()){showUpgradeModal('ai');return;}
+  AI.open=opening;
   document.getElementById('ai-panel').classList.toggle('open',AI.open);
   document.getElementById('ai-btn').classList.toggle('open',AI.open);
   if(AI.open){
@@ -6726,6 +6817,7 @@ async function aiExecuteActions(actions){
   for(const a of actions){
     try{
       if(a.type==='addTask'){
+        if(isPlanFree()&&getActiveTaskCount()>=PLAN_LIMITS.free.tasks){done.push({...a,label:a.title,error:'タスク上限（30件）に達しています。スタンダードプランにアップグレードしてください。'});continue;}
         const tagIds=await resolveTagIds(a.tagNames);
         const t=mkTask({
           title:a.title||'新しいタスク',
