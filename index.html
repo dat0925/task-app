@@ -206,6 +206,32 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-hist-result{font-family:monospace;font-size:13px;font-weight:700;color:#e0e0e0;flex-shrink:0;padding:2px 8px;background:#2a2a2a;border:1px solid #444;border-radius:6px;min-width:40px;text-align:right;cursor:pointer;transition:background .12s}
 .calc-hist-result:hover{background:#333;border-color:#555}
 .calc-hist-result:active{background:#383838}
+/* Calc-Note Panel */
+.calc-note-panel{position:absolute;bottom:0;left:0;right:0;background:#1a1a1a;border-top:1px solid rgba(255,255,255,.12);z-index:10;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .25s;display:flex;flex-direction:column;max-height:75%;box-shadow:0 -8px 32px rgba(0,0,0,.5);overflow:hidden;pointer-events:none;opacity:0}
+.calc-note-panel.open{transform:translateY(0);pointer-events:auto;opacity:1}
+.calc-note-panel-head{display:flex;align-items:center;padding:10px 12px 8px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;gap:8px}
+.calc-note-panel-title{font-size:13px;font-weight:600;color:#e0e0e0;flex:1}
+.calc-note-panel-close{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#888;font-size:16px;cursor:pointer;transition:background .15s;flex-shrink:0;border:none;background:none;touch-action:manipulation}
+.calc-note-panel-close:active{background:rgba(255,255,255,.08)}
+.calc-note-panel-body{flex:1;overflow-y:auto;padding:10px 12px 16px;display:flex;flex-direction:column;gap:8px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.calc-note-expr-list{display:flex;flex-direction:column;gap:5px}
+.calc-note-expr-row{background:#222;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px 10px;font-family:monospace;font-size:12px;display:flex;align-items:center;gap:6px}
+.calc-note-expr-text{flex:1;color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calc-note-expr-eq{color:#555;flex-shrink:0}
+.calc-note-expr-result{color:#7ecf8e;font-weight:700;flex-shrink:0}
+.calc-note-expr-del{width:20px;height:20px;border-radius:4px;border:none;background:none;color:#555;cursor:pointer;font-size:15px;flex-shrink:0;line-height:1;padding:0;touch-action:manipulation;transition:color .12s}
+.calc-note-expr-del:active{color:#e05252}
+.calc-note-mode-row{display:flex;gap:6px;flex-shrink:0}
+.calc-note-mode-btn{flex:1;padding:6px 4px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:#222;color:#888;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;text-align:center;touch-action:manipulation}
+.calc-note-mode-btn.active{background:#1e3a28;border-color:rgba(126,207,142,.35);color:#7ecf8e}
+.calc-note-sel{width:100%;padding:7px 8px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:#222;color:#ccc;font-size:12px;outline:none}
+.calc-note-inp{width:100%;padding:7px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:#222;color:#e0e0e0;font-size:13px;outline:none;box-sizing:border-box;transition:border-color .15s}
+.calc-note-inp:focus{border-color:rgba(126,207,142,.45)}
+.calc-note-ta{width:100%;padding:7px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:#222;color:#e0e0e0;font-size:12.5px;line-height:1.6;outline:none;resize:none;box-sizing:border-box;min-height:68px;transition:border-color .15s;font-family:inherit}
+.calc-note-ta:focus{border-color:rgba(126,207,142,.45)}
+.calc-note-save-btn{width:100%;padding:11px;border-radius:8px;border:none;background:linear-gradient(180deg,#3a8a52 0%,#286e3c 100%);color:#fff;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.4);touch-action:manipulation}
+.calc-note-save-btn:active{opacity:.8}
+.calc-note-save-btn:disabled{opacity:.4;cursor:default}
 /* Calculator global drawer */
 .calc-drawer-ov{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.38);opacity:0;pointer-events:none;transition:opacity .28s}
 .calc-drawer-ov.open{opacity:1;pointer-events:auto}
@@ -1165,6 +1191,28 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
     </div>
   </div>
   <div class="calc-drawer-body" id="calc-drawer-body"></div>
+  <!-- Calc-Note Panel -->
+  <div class="calc-note-panel" id="calc-note-panel">
+    <div class="calc-note-panel-head">
+      <span class="calc-note-panel-title">📝 Noteに記録</span>
+      <button class="calc-note-panel-close" id="calc-note-panel-close">✕</button>
+    </div>
+    <div class="calc-note-panel-body">
+      <div class="calc-note-expr-list" id="calc-note-expr-list"></div>
+      <div class="calc-note-mode-row">
+        <button class="calc-note-mode-btn active" id="calc-note-mode-new">＋ 新規Note</button>
+        <button class="calc-note-mode-btn" id="calc-note-mode-append">既存Noteに追記</button>
+      </div>
+      <div id="calc-note-new-area">
+        <input class="calc-note-inp" id="calc-note-title-inp" placeholder="タイトル（省略時は日時）" style="margin-bottom:6px">
+        <textarea class="calc-note-ta" id="calc-note-ta" placeholder="メモ（省略可）" rows="3"></textarea>
+      </div>
+      <div id="calc-note-append-area" style="display:none">
+        <select class="calc-note-sel" id="calc-note-sel"></select>
+      </div>
+      <button class="calc-note-save-btn" id="calc-note-save-btn">Noteに保存</button>
+    </div>
+  </div>
 </div>
 
 <!-- Mobile bottom nav -->
@@ -5143,6 +5191,116 @@ function _syncExpandWithCalc(){
   }
 }
 
+// ===== Calc-Note Panel =====
+(function(){
+  const panel=document.getElementById('calc-note-panel');
+  if(!panel)return;
+  const exprList=document.getElementById('calc-note-expr-list');
+  const modeNew=document.getElementById('calc-note-mode-new');
+  const modeAppend=document.getElementById('calc-note-mode-append');
+  const newArea=document.getElementById('calc-note-new-area');
+  const appendArea=document.getElementById('calc-note-append-area');
+  const titleInp=document.getElementById('calc-note-title-inp');
+  const ta=document.getElementById('calc-note-ta');
+  const sel=document.getElementById('calc-note-sel');
+  const saveBtn=document.getElementById('calc-note-save-btn');
+  const closeBtn=document.getElementById('calc-note-panel-close');
+
+  let _items=[]; // [{expr,result}]
+  let _mode='new';
+
+  function renderExprs(){
+    if(!exprList)return;
+    exprList.innerHTML=_items.map((it,i)=>
+      '<div class="calc-note-expr-row">'
+        +'<span class="calc-note-expr-text">'+it.expr+'</span>'
+        +'<span class="calc-note-expr-eq">=</span>'
+        +'<span class="calc-note-expr-result">'+it.result+'</span>'
+        +'<button class="calc-note-expr-del" data-i="'+i+'">×</button>'
+      +'</div>'
+    ).join('');
+    exprList.querySelectorAll('.calc-note-expr-del').forEach(b=>{
+      b.addEventListener('click',()=>{
+        _items.splice(parseInt(b.dataset.i),1);
+        if(!_items.length){closePanel();return;}
+        renderExprs();
+      });
+    });
+  }
+
+  function populateSel(){
+    if(!sel)return;
+    const notes=[...S.notes].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,40);
+    sel.innerHTML='<option value="">― Noteを選択 ―</option>'
+      +notes.map(n=>'<option value="'+n.id+'">'+(n.title||'無題').slice(0,28)+'</option>').join('');
+  }
+
+  function closePanel(){
+    panel.classList.remove('open');
+    setTimeout(()=>{
+      _items=[];
+      if(exprList)exprList.innerHTML='';
+      if(titleInp)titleInp.value='';
+      if(ta)ta.value='';
+    },300);
+  }
+  window.closeCalcNotePanel=closePanel;
+
+  window.openCalcNotePanel=function(item){
+    _items.push(item);
+    renderExprs();
+    populateSel();
+    panel.classList.add('open');
+  };
+
+  closeBtn&&closeBtn.addEventListener('click',closePanel);
+
+  modeNew&&modeNew.addEventListener('click',()=>{
+    _mode='new';
+    modeNew.classList.add('active');modeAppend.classList.remove('active');
+    newArea.style.display='';appendArea.style.display='none';
+  });
+  modeAppend&&modeAppend.addEventListener('click',()=>{
+    _mode='append';
+    modeAppend.classList.add('active');modeNew.classList.remove('active');
+    newArea.style.display='none';appendArea.style.display='';
+    populateSel();
+  });
+
+  saveBtn&&saveBtn.addEventListener('click',async()=>{
+    if(!_items.length)return;
+    const lines=_items.map(it=>it.expr+' = '+it.result).join('\n');
+    saveBtn.disabled=true;
+    try{
+      if(_mode==='new'){
+        const dt=new Date().toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        const title=(titleInp&&titleInp.value.trim())||('計算メモ '+dt);
+        const memo=ta&&ta.value.trim();
+        const body=memo?lines+'\n\n'+memo:lines;
+        const n=mkNote({title,body});
+        await saveNote(n);
+        const nid=n.id;
+        closePanel();
+        toast('Noteに保存しました ✅ <span style="text-decoration:underline;cursor:pointer" onclick="closeCalcDrawer();S.view='notes';S.noteId=''+nid+'';S.noteOpen=true;render()">開く</span>');
+      } else {
+        const id=sel&&sel.value;
+        if(!id){toast('Noteを選択してください');saveBtn.disabled=false;return;}
+        const note=S.notes.find(n=>n.id===id);
+        if(!note){toast('Noteが見つかりません');saveBtn.disabled=false;return;}
+        note.body=(note.body?(note.body+'\n\n'):'')+lines;
+        await saveNote(note);
+        const nid=note.id;
+        closePanel();
+        toast('Noteに追記しました ✅ <span style="text-decoration:underline;cursor:pointer" onclick="closeCalcDrawer();S.view='notes';S.noteId=''+nid+'';S.noteOpen=true;render()">開く</span>');
+      }
+    }catch(e){
+      toast('保存に失敗しました');
+    }finally{
+      saveBtn.disabled=false;
+    }
+  });
+})();
+
 function openCalcDrawer(){
   const ov=document.getElementById('calc-drawer-ov');
   const dr=document.getElementById('calc-drawer-global');
@@ -5162,6 +5320,7 @@ function closeCalcDrawer(){
   const dr=document.getElementById('calc-drawer-global');
   if(ov)ov.classList.remove('open');
   if(dr)dr.classList.remove('open');
+  window.closeCalcNotePanel?.();
   _syncExpandWithCalc();
 }
 
@@ -5451,6 +5610,7 @@ function _buildCalcInDrawer(){
           +'<span class="calc-hist-sep">=</span>'
         +'</span>'
         +'<span class="calc-hist-result" data-insert-hi="'+(calcHistory.length-1-i)+'" title="タップで電卓に入力">'+esc(fmtComma(h.result))+'</span>'
+        +'<button class="calc-note-hist-btn" data-note-hi="'+(calcHistory.length-1-i)+'" title="Noteに記録" style="flex-shrink:0;width:26px;height:26px;border:1px solid rgba(126,207,142,.25);background:rgba(126,207,142,.08);border-radius:6px;color:#7ecf8e;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation">📝</button>'
       +'</div>'
     ).join('');
 
@@ -5564,6 +5724,34 @@ function _buildCalcInDrawer(){
       badge.addEventListener('mousedown',e=>{e.stopPropagation();lpStart();});
       badge.addEventListener('mouseup',e=>{e.stopPropagation();lpEnd(true);});
       badge.addEventListener('mouseleave',lpCancel);
+    });
+
+    // 📝ボタン: タップでCalc-Noteパネルに式を送る（passive:true、preventDefault不使用）
+    histEl.querySelectorAll('.calc-note-hist-btn').forEach(btn=>{
+      const idx=parseInt(btn.dataset.noteHi);
+      let _sx=0,_sy=0;
+      btn.addEventListener('touchstart',e=>{
+        e.stopPropagation();
+        _sx=e.touches[0].clientX;_sy=e.touches[0].clientY;
+      },{passive:true});
+      btn.addEventListener('touchend',e=>{
+        e.stopPropagation();
+        if(Math.abs(e.changedTouches[0].clientX-_sx)>10||Math.abs(e.changedTouches[0].clientY-_sy)>10)return;
+        const h=calcHistory[idx];if(!h)return;
+        window.playClick?.();
+        window.openCalcNotePanel({expr:fmtExpr(h.expr),result:fmtComma(h.result)});
+        btn.closest('.calc-hist-item').classList.add('flash');
+        setTimeout(()=>btn.closest('.calc-hist-item')?.classList.remove('flash'),400);
+      },{passive:true});
+      btn.addEventListener('click',e=>{
+        e.stopPropagation();
+        if('ontouchstart' in window)return;
+        const h=calcHistory[idx];if(!h)return;
+        window.playClick?.();
+        window.openCalcNotePanel({expr:fmtExpr(h.expr),result:fmtComma(h.result)});
+        btn.closest('.calc-hist-item').classList.add('flash');
+        setTimeout(()=>btn.closest('.calc-hist-item')?.classList.remove('flash'),400);
+      });
     });
   }
   renderHist();
