@@ -1459,7 +1459,13 @@ async function loadUserPlan(){
   if(!window._currentUser||!window._SB){window._userPlan='free';return;}
   try{
     const{data}=await window._SB.from('user_plans').select('plan').eq('email',window._currentUser.email).maybeSingle();
-    window._userPlan=(data?.plan&&PLAN_DEFS[data.plan])?data.plan:'free';
+    if(data){
+      window._userPlan=(data.plan&&PLAN_DEFS[data.plan])?data.plan:'free';
+    }else{
+      // 初回ログイン：freeプランで自動登録
+      await window._SB.from('user_plans').insert({email:window._currentUser.email,plan:'free',updated_at:new Date().toISOString()});
+      window._userPlan='free';
+    }
   }catch(e){window._userPlan='free';}
 }
 
