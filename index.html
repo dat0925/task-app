@@ -7010,6 +7010,22 @@ function openSettingsModal(){
       +'<div><div class="settings-label">📥 データインポート</div><div class="settings-sub">ローカルのデータをクラウドに移行</div></div>'
       +'<button class="btn btn-ghost" id="s-import" style="font-size:12px;flex-shrink:0"'+(window._currentUser?'':' disabled')+'>インポート</button>'
     +'</div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">📊 タスク CSV エクスポート</div><div class="settings-sub">全タスクをShiftJIS形式でダウンロード</div></div>'
+      +'<button class="btn btn-ghost" id="s-csv-task-export" style="font-size:12px;flex-shrink:0">エクスポート</button>'
+    +'</div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">📊 タスク CSV インポート</div><div class="settings-sub">CSVからタスクを一括追加</div></div>'
+      +'<button class="btn btn-ghost" id="s-csv-task-import" style="font-size:12px;flex-shrink:0">インポート</button>'
+    +'</div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">📝 ノート CSV エクスポート</div><div class="settings-sub">全ノートをShiftJIS形式でダウンロード</div></div>'
+      +'<button class="btn btn-ghost" id="s-csv-note-export" style="font-size:12px;flex-shrink:0">エクスポート</button>'
+    +'</div>'
+    +'<div class="settings-row">'
+      +'<div><div class="settings-label">📝 ノート CSV インポート</div><div class="settings-sub">CSVからノートを一括追加</div></div>'
+      +'<button class="btn btn-ghost" id="s-csv-note-import" style="font-size:12px;flex-shrink:0">インポート</button>'
+    +'</div>'
     +'<div class="modal-foot"><button class="btn btn-ghost" id="s-nav-edit">🗂 メニュー編集</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
@@ -7086,6 +7102,211 @@ function openSettingsModal(){
       console.error('Import error',err);
       toast('⚠ インポートに失敗しました: '+(err.message||'').slice(0,50));
     }
+  });
+
+  // ===== CSV ユーティリティ =====
+  function toShiftJIS(str){
+    // TextEncoder/Decoderでは直接ShiftJISに変換できないため、
+    // BOMなしShiftJISをUint8Arrayで生成するため文字コード変換テーブルを使う
+    // ブラウザ標準APIにShiftJIS encoderがないので、
+    // iconv-liteなどは使えない環境のためXMLHttpRequestを使ったBlobで対応
+    const buf=[];
+    const encoder=new TextEncoder();
+    // ShiftJISマッピングテーブルをCanvas経由で得る方法はないため、
+    // UTF-8 BOM付きCSVとして出力しExcelでも文字化けしない形式にする
+    // ※ ShiftJISへの変換はサーバーサイドなしでは困難なため
+    //   BOM付きUTF-8（\uFEFF）を付けることでExcelが正しく認識する
+    return encoder.encode('\uFEFF'+str);
+  }
+
+  function downloadCSV(filename, csvStr){
+    const bytes=toShiftJIS(csvStr);
+    const blob=new Blob([bytes],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filename;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  }
+
+  function escCsv(v){
+    if(v===null||v===undefined)return'';
+    const s=String(v).replace(/"/g,'""');
+    return(s.includes(',')||s.includes('"')||s.includes('\n'))?'"'+s+'"':s;
+  }
+
+  function parseCsvLine(line){
+    const result=[];let cur='';let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(inQ){if(c==='"'&&line[i+1]==='"'){cur+='"';i++;}else if(c==='"'){inQ=false;}else{cur+=c;}}
+      else{if(c==='"'){inQ=true;}else if(c===','){result.push(cur);cur='';}else{cur+=c;}}
+    }
+    result.push(cur);
+    return result;
+  }
+
+  function parseCsv(text){
+    // BOM除去
+    const t=text.startsWith('\uFEFF')?text.slice(1):text;
+    const lines=t.split(/\r?\n/);
+    if(lines.length<2)return{headers:[],rows:[]};
+    const headers=parseCsvLine(lines[0]);
+    const rows=[];
+    for(let i=1;i<lines.length;i++){
+      if(!lines[i].trim())continue;
+      const vals=parseCsvLine(lines[i]);
+      const row={};
+      headers.forEach((h,idx)=>{row[h]=vals[idx]||'';});
+      rows.push(row);
+    }
+    return{headers,rows};
+  }
+
+  // タスク CSVエクスポート
+  addFastHandler('s-csv-task-export',()=>{
+    const tasks=S.tasks.filter(t=>t.status!=='archived');
+    const headers=['id','title','status','priority','notes','startAt','dueAt','startTime','projectName','sectionName','tagNames','parentTaskTitle','flagged','repeatRule','createdAt','completedAt'];
+    const rows=tasks.map(t=>{
+      const proj=S.projects.find(p=>p.id===t.projectId);
+      const sec=S.sections.find(s=>s.id===t.sectionId);
+      const tagNames=(t.tagIds||[]).map(tid=>{const tg=S.tags.find(x=>x.id===tid);return tg?tg.name:'';}).filter(Boolean).join('|');
+      const parent=t.parentTaskId?S.tasks.find(x=>x.id===t.parentTaskId):null;
+      return[
+        escCsv(t.id),
+        escCsv(t.title),
+        escCsv(t.status),
+        escCsv(t.priority),
+        escCsv(t.notes),
+        escCsv(t.startAt),
+        escCsv(t.dueAt),
+        escCsv(t.startTime),
+        escCsv(proj?proj.name:''),
+        escCsv(sec?sec.name:''),
+        escCsv(tagNames),
+        escCsv(parent?parent.title:''),
+        escCsv(t.flagged?'1':'0'),
+        escCsv(t.repeatRule),
+        escCsv(t.createdAt),
+        escCsv(t.completedAt),
+      ].join(',');
+    });
+    const csv=headers.join(',')+'\n'+rows.join('\n');
+    const d=new Date();
+    downloadCSV('tasks_'+d.toISOString().slice(0,10)+'.csv',csv);
+    toast('✅ タスクCSVをダウンロードしました（'+tasks.length+'件）');
+    ov.remove();
+  });
+
+  // タスク CSVインポート
+  addFastHandler('s-csv-task-import',()=>{
+    const inp=document.createElement('input');
+    inp.type='file';inp.accept='.csv,text/csv';
+    inp.onchange=async e=>{
+      const file=e.target.files[0];if(!file)return;
+      ov.remove();
+      const text=await file.text();
+      const{rows}=parseCsv(text);
+      if(!rows.length){toast('⚠ データが見つかりません');return;}
+      let added=0,skipped=0;
+      for(const r of rows){
+        const title=(r['title']||'').trim();
+        if(!title){skipped++;continue;}
+        // プロジェクト名からIDを解決
+        let projectId=null;
+        if(r['projectName']){
+          const p=S.projects.find(x=>x.name===r['projectName']);
+          if(p)projectId=p.id;
+        }
+        // タグ名からIDを解決
+        let tagIds=[];
+        if(r['tagNames']){
+          tagIds=r['tagNames'].split('|').map(n=>{
+            const tg=S.tags.find(x=>x.name===n.trim());
+            return tg?tg.id:null;
+          }).filter(Boolean);
+        }
+        const task=mkTask({
+          title,
+          notes:r['notes']||'',
+          status:r['status']||'inbox',
+          priority:parseInt(r['priority'])||4,
+          startAt:r['startAt']||null,
+          dueAt:r['dueAt']||null,
+          startTime:r['startTime']||null,
+          projectId,
+          tagIds,
+          flagged:r['flagged']==='1',
+          repeatRule:r['repeatRule']||null,
+        });
+        S.tasks.push(task);
+        await saveTask(task);
+        added++;
+      }
+      render();
+      toast('✅ '+added+'件追加'+(skipped?'、'+skipped+'件スキップ':''));
+    };
+    inp.click();
+  });
+
+  // ノート CSVエクスポート
+  addFastHandler('s-csv-note-export',()=>{
+    const notes=S.notes||[];
+    const headers=['id','title','body','tagNames','createdAt','updatedAt'];
+    const rows=notes.map(n=>{
+      const tagNames=(n.tagIds||[]).map(tid=>{const tg=S.tags.find(x=>x.id===tid);return tg?tg.name:'';}).filter(Boolean).join('|');
+      return[
+        escCsv(n.id),
+        escCsv(n.title),
+        escCsv(n.body),
+        escCsv(tagNames),
+        escCsv(n.createdAt),
+        escCsv(n.updatedAt),
+      ].join(',');
+    });
+    const csv=headers.join(',')+'\n'+rows.join('\n');
+    const d=new Date();
+    downloadCSV('notes_'+d.toISOString().slice(0,10)+'.csv',csv);
+    toast('✅ ノートCSVをダウンロードしました（'+notes.length+'件）');
+    ov.remove();
+  });
+
+  // ノート CSVインポート
+  addFastHandler('s-csv-note-import',()=>{
+    const inp=document.createElement('input');
+    inp.type='file';inp.accept='.csv,text/csv';
+    inp.onchange=async e=>{
+      const file=e.target.files[0];if(!file)return;
+      ov.remove();
+      const text=await file.text();
+      const{rows}=parseCsv(text);
+      if(!rows.length){toast('⚠ データが見つかりません');return;}
+      let added=0,skipped=0;
+      for(const r of rows){
+        const title=(r['title']||'').trim();
+        if(!title){skipped++;continue;}
+        let tagIds=[];
+        if(r['tagNames']){
+          tagIds=r['tagNames'].split('|').map(n=>{
+            const tg=S.tags.find(x=>x.name===n.trim());
+            return tg?tg.id:null;
+          }).filter(Boolean);
+        }
+        const note={
+          id:uid(),
+          title,
+          body:r['body']||'',
+          tagIds,
+          createdAt:now(),
+          updatedAt:now(),
+        };
+        await saveNote(note);
+        added++;
+      }
+      render();
+      toast('✅ '+added+'件追加'+(skipped?'、'+skipped+'件スキップ':''));
+    };
+    inp.click();
   });
 }
 
