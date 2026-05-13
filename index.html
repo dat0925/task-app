@@ -7007,10 +7007,6 @@ function openSettingsModal(){
     +'</div>'
 
     +'<div class="settings-row">'
-      +'<div><div class="settings-label">📥 データインポート</div><div class="settings-sub">ローカルのデータをクラウドに移行</div></div>'
-      +'<button class="btn btn-ghost" id="s-import" style="font-size:12px;flex-shrink:0"'+(window._currentUser?'':' disabled')+'>インポート</button>'
-    +'</div>'
-    +'<div class="settings-row">'
       +'<div><div class="settings-label">📊 タスク CSV エクスポート</div><div class="settings-sub">全タスクをShiftJIS形式でダウンロード</div></div>'
       +'<button class="btn btn-ghost" id="s-csv-task-export" style="font-size:12px;flex-shrink:0">エクスポート</button>'
     +'</div>'
@@ -7089,21 +7085,6 @@ function openSettingsModal(){
     ov.remove();
     toast('ログアウトしました');
   });
-  addFastHandler('s-import',async()=>{
-    if(!window._currentUser){toast('先にサインインしてください');return;}
-    if(!confirm('ローカルのIndexedDBデータをSupabaseにインポートします。\n既存のクラウドデータと統合されます。実行しますか？'))return;
-    ov.remove();
-    toast('インポート中...');
-    try{
-      const count=await window.importFromIndexedDB();
-      await loadAll();render();
-      toast('✅ '+count+'件のデータをインポートしました');
-    }catch(err){
-      console.error('Import error',err);
-      toast('⚠ インポートに失敗しました: '+(err.message||'').slice(0,50));
-    }
-  });
-
   // ===== CSV ユーティリティ =====
   function toShiftJIS(str){
     // TextEncoder/Decoderでは直接ShiftJISに変換できないため、
