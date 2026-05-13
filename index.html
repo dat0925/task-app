@@ -4666,13 +4666,19 @@ async function handleBulkEdit(field){
 
     ov.querySelector('#bulk-dates-cancel').onclick=()=>ov.remove();
     ov.querySelector('#bulk-dates-ok').onclick=async()=>{
-      const sv=startInp.value,dv=dueInp.value,stv=stimeInp.value;
+      let sv=startInp.value,dv=dueInp.value,stv=stimeInp.value;
+      // 一括設定時の矛盾チェック
+      if(sv&&dv&&sv>dv)dv=sv;
+      if(sv&&dv&&dv<sv)sv=dv;
       ov.remove();
       for(const t of tasks){
         if(sv)t.startAt=sv;
         else if(startCleared)t.startAt=null;
         if(dv)t.dueAt=dv;
         else if(dueCleared)t.dueAt=null;
+        // 個別タスクの既存日付との矛盾も解消
+        if(sv&&t.dueAt&&t.dueAt<sv)t.dueAt=sv;
+        if(dv&&t.startAt&&t.startAt>dv)t.startAt=dv;
         if(stv)t.startTime=stv;
         else if(stimeCleared)t.startTime=null;
         await saveTask(t);
