@@ -4945,6 +4945,11 @@ else if(a==='sel-edit'){
       const snap=JSON.stringify(task);
       task.status='completed';task.completedAt=now();
       await saveTask(task);
+      // サブタスクも完了にする
+      if(!task.parentTaskId){
+        const subs=S.tasks.filter(t=>t.parentTaskId===task.id&&t.status!=='completed');
+        for(const sub of subs){sub.status='completed';sub.completedAt=now();await saveTask(sub);}
+      }
       playSE('complete');
       if(task.repeatRule&&task.dueAt){
         const next=nextRepeat(task);
@@ -4952,7 +4957,12 @@ else if(a==='sel-edit'){
         else toast('"'+task.title+'" 完了 ✓');
       } else {
         toast('"'+(task.title||'無題')+'" 完了 ✓',async()=>{
-          const r=JSON.parse(snap);await saveTask(r);render();
+          const r=JSON.parse(snap);
+          r.status=r.status||'inbox';await saveTask(r);
+          // 元に戻す時はサブタスクも戻す
+          const subs=S.tasks.filter(t=>t.parentTaskId===r.id&&t.status==='completed');
+          for(const sub of subs){sub.status='active';sub.completedAt=null;await saveTask(sub);}
+          render();
         });
       }
       if(task.parentTaskId){
