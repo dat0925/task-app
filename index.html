@@ -813,6 +813,17 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .expand-modal .drawer-foot{border-radius:0 0 14px 14px}
 /* Note title inline edit in list */
 .note-title-edit-inp{width:100%;font:inherit;font-size:13.5px;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:1px 6px;color:var(--text);outline:none;box-sizing:border-box}
+/* NOTE一覧スワイプ削除 */
+.note-swipe-wrap{position:relative;overflow:hidden;border-radius:8px;}
+.note-swipe-inner{transition:transform .2s cubic-bezier(.25,.1,.25,1);will-change:transform;background:var(--bg);}
+.note-swipe-inner.swiping{transition:none;}
+.note-swipe-del-bg{
+  position:absolute;top:0;right:0;bottom:0;width:80px;
+  background:#ef4444;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:13px;font-weight:600;gap:4px;border-radius:0 8px 8px 0;
+  pointer-events:none;
+}
+.note-swipe-del-bg.peek{width:80px;}
 /* AI button in topbar (PC + mobile) */
 .ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#a78bfa);color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation;transition:opacity .15s,transform .15s}
 .ai-topbar-btn:hover{opacity:.85;transform:scale(1.05)}
@@ -1300,33 +1311,9 @@ document.addEventListener('touchstart',e=>{
       if(titleEl){playSE('toggle');startTaskInlineEdit(titleEl);}
     }
     else if(a==='note-sel'){
-      // 長押し → NOTEタイトルをインライン編集
+      // 長押し → コンテキストメニュー
       const titleEl=_lpRow?.querySelector('[data-note-title-edit]');
-      if(titleEl){
-        playSE('toggle');
-        // note用インライン編集をトリガー（dblclickと同じロジック）
-        const noteId=titleEl.dataset.noteTitleEdit;
-        const note=S.notes.find(n=>n.id===noteId);
-        if(note&&!titleEl.querySelector('input')){
-          const inp=document.createElement('input');
-          inp.value=note.title||'';
-          inp.className='note-title-edit-inp';
-          titleEl.innerHTML='';titleEl.appendChild(inp);
-          inp.focus();inp.select();
-          let committed=false;
-          async function commit(){
-            if(committed)return;committed=true;
-            const val=inp.value.trim();
-            if(val!==note.title){note.title=val||'無題';note.updatedAt=now();await saveNote(note);}
-            renderNoteListOnly();
-            if(S.noteId===noteId&&S.noteOpen){const hdr=document.querySelector('.drawer-head div div:last-child');if(hdr)hdr.textContent=note.title||'無題';const ti=document.getElementById('nt-title');if(ti)ti.value=note.title||'';}
-          }
-          inp.addEventListener('blur',commit);
-          inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();inp.blur();}if(ev.key==='Escape'){committed=true;renderNoteListOnly();}});
-          inp.addEventListener('click',ev=>ev.stopPropagation());
-          inp.addEventListener('touchstart',ev=>ev.stopPropagation(),{passive:true});
-        }
-      }
+      if(titleEl){playSE('toggle');showNoteContextMenu(_lpRow,titleEl.dataset.noteTitleEdit);}
     }
     _lpRow=null;
   },600);
@@ -2474,6 +2461,160 @@ function attachProjRenameListeners(){
 }
 
 // ===== PROJ EDIT POPUP =====
+// NOTE一覧スワイプ削除
+function initNoteSwipe(container){
+  container.querySelectorAll('.note-swipe-wrap').forEach(wrap=>{
+    const inner=wrap.querySelector('.note-swipe-inner');
+    const noteId=wrap.dataset.noteSwipeId;
+    if(!inner||!noteId)return;
+    const THRESH=72;// 削除実行の閾値px
+    let sx=0,sy=0,dx=0,active=false,opened=false;
+
+    inner.addEventListener('touchstart',e=>{
+      if(e.touches.length>1)return;
+      sx=e.touches[0].clientX;sy=e.touches[0].clientY;
+      dx=0;active=true;
+      inner.classList.add('swiping');
+    },{passive:true});
+
+    inner.addEventListener('touchmove',e=>{
+      if(!active)return;
+      dx=e.touches[0].clientX-sx;
+      const dy=Math.abs(e.touches[0].clientY-sy);
+      if(dy>Math.abs(dx)*1.5){active=false;inner.classList.remove('swiping');inner.style.transform='';return;}
+      if(dx>0&&!opened){inner.style.transform='';return;}// 右スワイプは閉じるのみ
+      const tx=Math.max(-THRESH-20,Math.min(0,dx+(opened?-THRESH:0)));
+      inner.style.transform='translateX('+tx+'px)';
+    },{passive:true});
+
+    inner.addEventListener('touchend',async e=>{
+      if(!active){active=false;return;}
+      inner.classList.remove('swiping');
+      active=false;
+      const finalDx=dx+(opened?-THRESH:0);
+      if(dx>10&&opened){
+        // 右スワイプ → 閉じる
+        opened=false;
+        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+        inner.style.transform='';
+      } else if(finalDx<-THRESH){
+        // 閾値超え → 削除確認
+        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+        inner.style.transform='translateX(-'+THRESH+'px)';
+        opened=true;
+        // 削除ボタンがタップ可能に → 背景のdivをクリック可能にする
+        const bg=wrap.querySelector('.note-swipe-del-bg');
+        if(bg&&!bg._bound){
+          bg._bound=true;
+          bg.style.pointerEvents='auto';bg.style.cursor='pointer';
+          bg.addEventListener('click',()=>{
+            openConfirmModal('メモを削除','"'+(S.notes.find(n=>n.id===noteId)?.title||'無題')+'" を削除しますか？',async()=>{
+              await delNote(noteId);playSE('delete');
+              if(S.noteId===noteId){S.noteOpen=false;S.noteId=null;}
+              // アニメーションで消える
+              wrap.style.transition='height .2s,opacity .2s';
+              wrap.style.overflow='hidden';
+              wrap.style.height=wrap.offsetHeight+'px';
+              requestAnimationFrame(()=>{wrap.style.height='0';wrap.style.opacity='0';});
+              setTimeout(()=>renderContent(),250);
+            },'削除',true);
+          });
+        }
+      } else {
+        // 閾値未満 → 戻す
+        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+        inner.style.transform=opened?'translateX(-'+THRESH+'px)':'';
+      }
+    },{passive:true});
+
+    // 他のrowをスワイプしたら閉じる
+    container.addEventListener('touchstart',e=>{
+      if(opened&&!wrap.contains(e.target)){
+        opened=false;
+        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+        inner.style.transform='';
+      }
+    },{passive:true});
+  });
+}
+
+// NOTE一覧コンテキストメニュー
+function showNoteContextMenu(row,noteId){
+  document.querySelectorAll('.proj-edit-popup').forEach(el=>el.remove());
+  const note=S.notes.find(n=>n.id===noteId);if(!note)return;
+  const popup=document.createElement('div');popup.className='proj-edit-popup';
+
+  // タイトル変更
+  const renameBtn=document.createElement('button');
+  renameBtn.innerHTML='✏️ タイトル変更';
+  renameBtn.onclick=ev=>{
+    ev.stopPropagation();popup.remove();
+    const titleEl=row.querySelector('[data-note-title-edit]');if(!titleEl)return;
+    if(titleEl.querySelector('input'))return;
+    const inp=document.createElement('input');
+    inp.value=note.title||'';inp.className='note-title-edit-inp';
+    titleEl.innerHTML='';titleEl.appendChild(inp);
+    inp.focus();inp.select();
+    let committed=false;
+    async function commit(){
+      if(committed)return;committed=true;
+      const val=inp.value.trim();
+      if(val!==note.title){note.title=val||'無題';note.updatedAt=now();await saveNote(note);}
+      renderNoteListOnly();
+      if(S.noteId===noteId&&S.noteOpen){const hdr=document.querySelector('.drawer-head div div:last-child');if(hdr)hdr.textContent=note.title||'無題';const ti=document.getElementById('nt-title');if(ti)ti.value=note.title||'';}
+    }
+    inp.addEventListener('blur',commit);
+    inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();inp.blur();}if(ev.key==='Escape'){committed=true;renderNoteListOnly();}});
+    inp.addEventListener('click',ev=>ev.stopPropagation());
+    inp.addEventListener('touchstart',ev=>ev.stopPropagation(),{passive:true});
+  };
+  popup.appendChild(renameBtn);
+
+  // 複製
+  const dupBtn=document.createElement('button');
+  dupBtn.innerHTML='📋 複製';
+  dupBtn.onclick=ev=>{
+    ev.stopPropagation();popup.remove();
+    const d={...note,id:uid(),title:(note.title||'無題')+' (コピー)',createdAt:now(),updatedAt:now()};
+    saveNote(d).then(()=>{S.notes.unshift(d);S.noteId=d.id;S.noteOpen=true;renderContent();toast('"'+(d.title)+'" を複製しました');});
+  };
+  popup.appendChild(dupBtn);
+
+  // 区切り
+  const sep=document.createElement('div');
+  sep.style.cssText='height:1px;background:var(--border);margin:2px 0';
+  popup.appendChild(sep);
+
+  // 削除
+  const delBtn=document.createElement('button');
+  delBtn.className='red';delBtn.innerHTML='🗑 削除';
+  delBtn.onclick=ev=>{
+    ev.stopPropagation();popup.remove();
+    openConfirmModal('メモを削除','"'+(note.title||'無題')+'" を削除しますか？',async()=>{
+      await delNote(noteId);playSE('delete');
+      if(S.noteId===noteId){S.noteOpen=false;S.noteId=null;}
+      renderContent();
+    },'削除',true);
+  };
+  popup.appendChild(delBtn);
+
+  document.body.appendChild(popup);
+  // 位置: rowの右端付近
+  const r=row.getBoundingClientRect();
+  const pw=popup.offsetWidth||150;
+  const ph=popup.offsetHeight||120;
+  let top=r.bottom+4;
+  let left=Math.max(4,r.right-pw-4);
+  if(top+ph>window.innerHeight-12)top=r.top-ph-4;
+  if(top<4)top=4;
+  popup.style.top=top+'px';popup.style.left=left+'px';
+  setTimeout(()=>{
+    const close=ev=>{if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('click',close);document.removeEventListener('touchstart',close);}}
+    document.addEventListener('click',close);
+    document.addEventListener('touchstart',close,{passive:true});
+  },10);
+}
+
 function showProjEditPopup(btn, projId, projName){
   document.querySelectorAll('.proj-edit-popup').forEach(el=>el.remove());
   const popup=document.createElement('div');
@@ -3260,7 +3401,9 @@ function renderContent(){
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
   if(S.view==='search'){el.innerHTML=renderSearch();return}
-  if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();return}
+  if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();
+    const nc=document.getElementById('note-list-items');if(nc)initNoteSwipe(nc);
+    return}
   if(S.view==='nextview'){el.innerHTML=renderNextView();return}
   el.innerHTML=renderList();
   if(S.view==='project')setupSectionDrag();
@@ -3600,7 +3743,7 @@ function renderNoteListOnly(){
     notes.forEach(n=>{h+=renderNoteRow(n);});
   }
   const container=document.getElementById('note-list-items');
-  if(container)container.innerHTML=h;
+  if(container){container.innerHTML=h;initNoteSwipe(container);}
 }
 
 function renderList(){
@@ -3891,7 +4034,10 @@ function renderReview(){
 function renderNoteRow(n){
   const sel=S.noteId===n.id&&S.noteOpen;
   const tagChips=(n.tagIds&&n.tagIds.length)?n.tagIds.slice(0,3).map(tid=>{const t=S.tags.find(x=>x.id===tid);return t?'<span class="mc" style="background:'+t.color+'1a;color:'+t.color+'">#'+esc(t.name)+'</span>':''}).join(''):'';
-  return '<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
+  return '<div class="note-swipe-wrap" data-note-swipe-id="'+n.id+'">'
+    +'<div class="note-swipe-del-bg">🗑 削除</div>'
+    +'<div class="note-swipe-inner">'
+    +'<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
     +'<div class="tbody">'
       +'<div class="ttitle" data-note-title-edit="'+n.id+'">'+esc(n.title||'無題')+'</div>'
       +(tagChips?'<div class="tmeta">'+tagChips+'</div>':'')
@@ -3903,6 +4049,8 @@ function renderNoteRow(n){
     +'<button class="trow-expand-btn" data-a="note-expand" data-id="'+n.id+'" title="大きく表示">'
       +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
     +'</button>'
+  +'</div>'
+  +'</div>'// note-swipe-inner
   +'</div>';
 }
 function renderNoteList(){
