@@ -7541,7 +7541,8 @@ async function aiExecuteActions(actions){
   async function resolveTagIds(tagNames){
     if(!tagNames||!tagNames.length)return[];
     const ids=[];
-    for(const name of tagNames){
+    for(const name of (Array.isArray(tagNames)?tagNames:[tagNames])){
+      if(!name)continue;
       let tag=S.tags.find(t=>t.name===name);
       if(!tag){tag=mkTag({name,color:'#7c3aed'});await saveTag(tag);}
       if(!ids.includes(tag.id))ids.push(tag.id);
@@ -7565,14 +7566,26 @@ async function aiExecuteActions(actions){
         await saveTask(t);
         done.push({...a,label:a.title});
       } else if(a.type==='completeTask'){
-        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)&&x.status!=='completed'):null;
-        if(t){const snap=JSON.parse(JSON.stringify(t));t.status='completed';t.completedAt=now();await saveTask(t);done.push({...a,label:t.title})}
+        const _ct=a.taskId
+          ?[S.tasks.find(x=>x.id===a.taskId)].filter(Boolean)
+          :a.keyword?S.tasks.filter(x=>x.title&&x.title.includes(a.keyword)&&x.status!=='completed'):[];
+        for(const t of _ct){t.status='completed';t.completedAt=now();await saveTask(t);done.push({...a,label:t.title});}
       } else if(a.type==='deleteTask'){
         const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
         if(t){await delTask(t.id);done.push({...a,label:t.title})}
       } else if(a.type==='updateTask'){
-        const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
-        if(t){
+        // keywordまたはidで対象タスクを特定。複数マッチ・id直接指定にも対応
+        let targets=[];
+        if(a.taskId){
+          const t=S.tasks.find(x=>x.id===a.taskId);
+          if(t)targets=[t];
+        } else if(a.keyword){
+          // 完全一致を優先、なければ部分一致
+          const exact=S.tasks.filter(x=>x.title===a.keyword&&x.status!=='completed');
+          targets=exact.length?exact:S.tasks.filter(x=>x.title&&x.title.includes(a.keyword)&&x.status!=='completed');
+        }
+        for(const t of targets){
+          if(!t.tagIds)t.tagIds=[];// tagIds未初期化ガード
           if(a.dueAt!==undefined)t.dueAt=a.dueAt;
           if(a.priority!==undefined)t.priority=a.priority;
           if(a.flagged!==undefined)t.flagged=a.flagged;
@@ -7585,7 +7598,7 @@ async function aiExecuteActions(actions){
           // タグの追加・置換
           if(a.tagNames!==undefined){
             const newIds=await resolveTagIds(a.tagNames);
-            // appendMode: trueなら既存タグに追記、falseなら置換
+            // appendTags:trueなら既存タグに追記、falseなら置換
             if(a.appendTags){
               newIds.forEach(id=>{if(!t.tagIds.includes(id))t.tagIds.push(id);});
             } else {
@@ -7643,8 +7656,8 @@ ${JSON.stringify(context,null,2)}
     {"type":"completeTask","keyword":"タイトルの一部"}
     // タスク削除
     {"type":"deleteTask","keyword":"タイトルの一部"}
-    // タスク更新
-    {"type":"updateTask","keyword":"タイトルの一部","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル","projectId":"プロジェクト名 or null","tagNames":["タグ名"],"appendTags":true}
+    // タスク更新（keywordかtaskIdで対象を指定。複数タスクに同じ操作を行う場合は各タスクに個別のupdateTaskアクションを生成する）
+    {"type":"updateTask","taskId":"タスクID（推奨）","keyword":"タイトルの一部（taskId不明時）","dueAt":"YYYY-MM-DD","priority":1-4,"flagged":true,"newTitle":"新タイトル","projectId":"プロジェクト名 or null","tagNames":["タグ名"],"appendTags":true}
     // プロジェクト追加
     {"type":"addProject","name":"名前","color":"#hexcolor"}
   ]
