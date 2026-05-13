@@ -1532,6 +1532,19 @@ async function openPlanAdmin(){
 
   const planOptions=Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'">'+PLAN_DEFS[k].label+'</option>').join('');
 
+  // プラン管理タブの状態
+  const PLAN_PAGE_SIZE=20;
+  let planFilter={email:'',plan:''};
+  let planPage=0;
+
+  function getFilteredPlans(){
+    return planRows.filter(r=>{
+      if(planFilter.email&&!r.email.includes(planFilter.email))return false;
+      if(planFilter.plan&&r.plan!==planFilter.plan)return false;
+      return true;
+    });
+  }
+
   function buildPlanTable(list){
     if(!list.length)return'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">登録なし</div>';
     return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>プラン</th><th>メモ</th><th></th></tr></thead><tbody>'
@@ -1589,11 +1602,31 @@ async function openPlanAdmin(){
     const wrap=document.getElementById('admin-content-wrap');
     if(!wrap)return;
     if(activeTab==='plans'){
-      wrap.innerHTML=buildPlanTable(planRows)
-        +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
-        +'<input id="admin-new-email" class="finput" placeholder="追加するメールアドレス" style="flex:1;min-width:200px">'
-        +'<select id="admin-new-plan" class="finput fselect" style="width:140px">'+planOptions+'</select>'
-        +'<button class="btn btn-primary" id="admin-add-btn">追加</button>'
+      const filteredP=getFilteredPlans();
+      const totalPagesP=Math.ceil(filteredP.length/PLAN_PAGE_SIZE)||1;
+      if(planPage>=totalPagesP)planPage=totalPagesP-1;
+      const pagedP=filteredP.slice(planPage*PLAN_PAGE_SIZE,(planPage+1)*PLAN_PAGE_SIZE);
+      const planFilterOpts='<option value="">すべてのプラン</option>'
+        +Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(planFilter.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('');
+      wrap.innerHTML=''
+        +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
+          +'<input id="plan-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(planFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
+          +'<select id="plan-filter-plan" class="finput fselect" style="width:120px;font-size:12px;padding:5px 8px">'+planFilterOpts+'</select>'
+          +'<button class="btn btn-ghost" id="plan-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
+        +'</div>'
+        +buildPlanTable(pagedP)
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--text2)">'
+          +'<span>'+filteredP.length+'件中 '+(filteredP.length?planPage*PLAN_PAGE_SIZE+1:0)+'〜'+Math.min((planPage+1)*PLAN_PAGE_SIZE,filteredP.length)+'件</span>'
+          +'<div style="display:flex;gap:4px">'
+            +'<button class="btn btn-ghost plan-page-btn" data-page="'+(planPage-1)+'" style="font-size:12px;padding:4px 10px"'+(planPage===0?' disabled':'')+'>◀</button>'
+            +'<span style="padding:4px 8px;align-self:center">'+(planPage+1)+' / '+totalPagesP+'</span>'
+            +'<button class="btn btn-ghost plan-page-btn" data-page="'+(planPage+1)+'" style="font-size:12px;padding:4px 10px"'+(planPage>=totalPagesP-1?' disabled':'')+'>▶</button>'
+          +'</div>'
+        +'</div>'
+        +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px">'
+          +'<input id="admin-new-email" class="finput" placeholder="追加するメールアドレス" style="flex:1;min-width:200px">'
+          +'<select id="admin-new-plan" class="finput fselect" style="width:140px">'+planOptions+'</select>'
+          +'<button class="btn btn-primary" id="admin-add-btn">追加</button>'
         +'</div>';
       bindPlanEvents();
     }else{
@@ -1650,6 +1683,17 @@ async function openPlanAdmin(){
   }
 
   function bindPlanEvents(){
+    // フィルタ
+    const emailInp=document.getElementById('plan-filter-email');
+    const planSel=document.getElementById('plan-filter-plan');
+    const clearBtn=document.getElementById('plan-filter-clear');
+    if(emailInp){let _t;emailInp.oninput=()=>{clearTimeout(_t);_t=setTimeout(()=>{planFilter.email=emailInp.value.trim();planPage=0;renderModal();},300);};}
+    if(planSel){planSel.onchange=()=>{planFilter.plan=planSel.value;planPage=0;renderModal();};}
+    if(clearBtn){clearBtn.onclick=()=>{planFilter={email:'',plan:''};planPage=0;renderModal();};}
+    // ページネーション
+    document.querySelectorAll('.plan-page-btn').forEach(btn=>{
+      btn.onclick=()=>{if(btn.disabled)return;planPage=parseInt(btn.dataset.page);renderModal();};
+    });
     document.querySelectorAll('.admin-plan-sel').forEach(sel=>{
       sel.onchange=async()=>{
         const{error:uerr}=await SB.from('user_plans').update({plan:sel.value,updated_at:new Date().toISOString()}).eq('id',sel.dataset.id);
