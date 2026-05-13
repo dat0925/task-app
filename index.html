@@ -1433,7 +1433,7 @@ let S={
   hideNotStarted:false,
   sidebarOpen:window.innerWidth>768,
   notes:[],noteId:null,noteOpen:false,noteSearch:'',noteSortUpdated:true,
-  projsOpen:true,hiddenProjsOpen:false,
+  projsOpen:true,hiddenProjsOpen:false,tagsOpen:true,
   secCollapsed:JSON.parse(localStorage.getItem('secCollapsed')||'{}'),
   openSubs:{},
   selectMode:false,selectedIds:[],
@@ -2983,7 +2983,13 @@ function renderSidebar(){
     h+='<div class="proj-drop-line hidden-drop-line" data-hdrop-after="last"></div>';
     h+='</div></div>';
   }
-  h+='<div class="nav-label">タグ</div>';
+  const tagsOpen=S.tagsOpen!==false;
+  h+='<div class="nav-label-row'+(tagsOpen?'':' collapsed')+'" data-a="tags-toggle">'
+    +'<span class="nav-label">タグ</span>'
+    +'<span class="toggle-chevron">▼</span>'
+    +'</div>';
+  h+='<div class="proj-section-wrap'+(tagsOpen?'':' collapsed')+'" id="tags-section-wrap">';
+  h+='<div class="proj-section-inner">';
   h+='<div class="nav-item'+(S.view==='tag'&&S.tagId==='__none__'?' on':'')+'" data-a="tag" data-id="__none__">'
     +'<span style="color:var(--text3)">⬡</span>'
     +'<span>タグなし</span>'
@@ -3000,6 +3006,7 @@ function renderSidebar(){
     +'</div>';
   });
   h+='<div class="tag-drop-line" data-tdrop-after="last" style="height:2px;background:var(--accent);border-radius:2px;margin:0 4px;pointer-events:none;display:none"></div>';
+  h+='</div></div>';
   // ===== PLAN BANNER =====
   const _plan=getUserPlan();const _pd=getPlanDef();
   if(_plan==='free'){
@@ -4901,6 +4908,7 @@ document.addEventListener('click',async e=>{
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='proj-toggle'){S.projsOpen=!S.projsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='hidden-proj-toggle'){S.hiddenProjsOpen=!S.hiddenProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
+  else if(a==='tags-toggle'){S.tagsOpen=!S.tagsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='hidden-proj-edit'){e.stopPropagation();showHiddenProjEditPopup(el,el.dataset.id,el.dataset.name);}
   
   else if(a==='menu'){if(Date.now()-_drawerClosedAt<400)return;playSE('toggle');S.sidebarOpen=!S.sidebarOpen;render()}
