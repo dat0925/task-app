@@ -6211,7 +6211,7 @@ function _buildCalcInDrawer(){
       result=r;justEvaled=true;
       renderHist();
       const tnb=document.getElementById('calc-head-tonote-btn');
-      if(tnb)tnb.style.display='';
+      if(tnb){tnb.style.display='';updateToNoteLabel(tnb);}
       const thb=document.getElementById('calc-head-help-btn');
       if(thb)thb.style.display='';
     }
@@ -6316,6 +6316,19 @@ function _buildCalcInDrawer(){
     },10);
   });
 
+  // 転記先ノート名をボタンラベルに反映
+  function updateToNoteLabel(btn){
+    if(!btn)return;
+    let label='📝 ノートへ';
+    if(S.noteOpen&&S.noteId){
+      const n=S.notes.find(x=>x.id===S.noteId);
+      if(n)label='📝 → '+(n.title||'無題');
+    } else {
+      label='📝 → 新規作成';
+    }
+    btn.textContent=label;
+  }
+
   const toNoteBtn=document.getElementById('calc-head-tonote-btn');
   if(toNoteBtn)toNoteBtn.addEventListener('click',async()=>{
     if(!calcHistory.length)return;
@@ -6351,12 +6364,14 @@ function _buildCalcInDrawer(){
     if(bodyEl){bodyEl.value=targetNote.body;}
     renderNoteListOnly();
     playSE('add');
+    const noteName=targetNote.title||'無題';
+    toast('「'+noteName+'」に追記しました 📝');
     toNoteBtn.textContent='✓ 追記済！';
     toNoteBtn.style.background='var(--green-bg)';
     toNoteBtn.style.color='var(--green)';
     toNoteBtn.style.borderColor='rgba(22,163,74,.3)';
     setTimeout(()=>{
-      toNoteBtn.textContent='📝 ノートへ';
+      updateToNoteLabel(toNoteBtn);
       toNoteBtn.style.background='';
       toNoteBtn.style.color='';
       toNoteBtn.style.borderColor='';
