@@ -904,6 +904,12 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .sec-head.sec-collapsed .sec-chevron{transform:rotate(-90deg)}
 .sec-body{overflow:hidden;max-height:5000px;opacity:1;transition:max-height .32s ease,opacity .25s ease}
 .sec-body.sec-hidden{max-height:0!important;opacity:0}
+/* タスク詳細 サブタスクバッジ */
+.dt-sub-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 10px 5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:background .12s,border-color .12s;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+.dt-sub-badge:hover{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.dt-sub-badge:active{opacity:.7}
+.dt-sub-badge-chev{font-size:10px;color:var(--text3)}
+.dt-sub-badge-count{font-size:11px;color:var(--text3);font-weight:500}
 /* サブタスク アコーディオン */
 .sub-rows{overflow:hidden;max-height:0;opacity:0;transition:max-height .32s ease,opacity .22s ease}
 .sub-rows.open{max-height:5000px;opacity:1}
@@ -4265,6 +4271,7 @@ function renderDrawer(){
     +'<div class="drawer-body">'
       +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">'+esc(pt.title||'無題')+'</button><button class="date-clr-btn" data-a="set-parent" data-id="'+task.id+'" title="親タスクを変更" style="flex-shrink:0;font-size:10px;padding:2px 6px">変更</button><button class="date-clr-btn" data-a="detach-parent" data-id="'+task.id+'" title="独立したタスクにする" style="flex-shrink:0">✕</button></div>':''})():'')
       +((!task.parentTaskId)?'<div style="margin-bottom:12px"><button class="btn btn-ghost" data-a="set-parent" data-id="'+task.id+'" style="font-size:12px;height:30px;padding:0 10px">＋ サブタスクにする</button></div>':''  )
+      +(subs.length>0?(()=>{const dc=subs.filter(s=>s.status==='completed').length;return'<div style="margin-bottom:10px"><button class="dt-sub-badge" data-a="scroll-to-subs" title="サブタスクへ移動"><span class="dt-sub-badge-chev">▶</span><span>サブタスク</span><span class="dt-sub-badge-count">'+dc+'/'+subs.length+'</span></button></div>';})():'')
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
       +'<div class="note-stamp-bar" style="margin-bottom:6px">'
@@ -4967,6 +4974,21 @@ else if(a==='sel-edit'){
   if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
   else{S.taskId=id;S.drawerOpen=true;playSE('open');}
   renderContent();renderSidebar();renderDrawer();
+}
+else if(a==='scroll-to-subs'){
+  e.stopPropagation();
+  const dr=document.getElementById('drawer');
+  const drBody=dr&&dr.querySelector('.drawer-body');
+  const subsEl=drBody&&drBody.querySelector('#subs');
+  if(subsEl&&drBody){
+    const subsLabel=subsEl.closest('.fg');
+    const target=subsLabel||subsEl;
+    const offset=target.getBoundingClientRect().top-drBody.getBoundingClientRect().top+drBody.scrollTop-8;
+    drBody.scrollTo({top:offset,behavior:'smooth'});
+    subsEl.style.transition='background .3s';
+    subsEl.style.background='var(--accent-bg)';
+    setTimeout(()=>{subsEl.style.background='';},800);
+  }
 }
 
   
