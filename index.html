@@ -6278,7 +6278,10 @@ function _buildCalcInDrawer(){
     if(!calcHistory.length)return;
     const lines=calcHistory.map(h=>{
       const lbl=h.label?h.label+': ':'';
-      return lbl+fmtComma(h.result)+'円';
+      // 式が数字のみ（演算子なし）なら式を省略、演算式があれば括弧付きで付加
+      const hasExpr=h.expr&&/[+\-*\/]/.test(h.expr);
+      const exprPart=hasExpr?' ('+fmtExpr(h.expr)+')':'';
+      return lbl+fmtComma(h.result)+'円'+exprPart;
     });
     const total=calcHistory.reduce((s,h)=>s+(parseFloat(h.result)||0),0);
     lines.push('──────');
