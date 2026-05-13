@@ -944,9 +944,18 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   cursor:grab;color:var(--text3);font-size:14px;
   padding:0 3px 0 0;flex-shrink:0;line-height:1;
   opacity:0;transition:opacity .15s;user-select:none;align-self:center;
+  touch-action:none;-webkit-user-select:none;
 }
 .trow:hover .task-drag-handle{opacity:.45}
 .task-drag-handle:active{cursor:grabbing}
+/* モバイルではドラッグハンドルを常時表示 */
+@media (hover:none),(pointer:coarse){
+  .task-drag-handle{
+    opacity:.3;font-size:16px;padding:0 6px 0 2px;
+    min-width:28px;min-height:36px;display:flex;align-items:center;justify-content:center;
+  }
+  .task-drag-handle:active{opacity:1;color:var(--accent);}
+}
 /* Drop indicators */
 .trow.drop-before{box-shadow:inset 0 2px 0 var(--accent)}
 .trow.drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
@@ -1270,6 +1279,8 @@ function attachLongPressRepeat(btn, fn, delay=600, interval=1000){
 document.addEventListener('touchstart',e=>{
   // ignore taps on interactive elements inside row
   if(e.target.closest('button,input,select,a,label'))return;
+  // ドラッグハンドルタップは長押しタイトル編集を発火しない
+  if(e.target.closest('.task-drag-handle'))return;
   const row=e.target.closest('.trow[data-id]');
   if(!row)return;
   _lpRow=row;
@@ -3345,7 +3356,16 @@ function setupSectionDrag(){
     // ── PC: HTML5 Drag & Drop ──────────────────────────
     let dtype=null,dragId=null,dragSecId=null;
 
-    content.querySelectorAll('.trow[data-id]').forEach(r=>r.setAttribute('draggable','true'));
+    // PC: ハンドルにmousedownでdraggable付与、ハンドル外ではdraggable不要
+    content.querySelectorAll('.trow[data-id]').forEach(r=>{
+      const h=r.querySelector('.task-drag-handle[data-drag-task]');
+      if(h){
+        h.addEventListener('mousedown',()=>r.setAttribute('draggable','true'));
+        r.addEventListener('dragend',()=>r.removeAttribute('draggable'));
+      } else {
+        r.setAttribute('draggable','true');// fallback
+      }
+    });
     content.querySelectorAll('[data-drag-sec]').forEach(h=>h.setAttribute('draggable','true'));
 
     content.addEventListener('dragstart',e=>{
@@ -3446,12 +3466,26 @@ function setupSectionDrag(){
     document.addEventListener('touchend',()=>{if(ghost||dragging)cancelAll();},{signal:sig,passive:true});
     document.addEventListener('touchcancel',()=>cancelAll(),{signal:sig,passive:true});
 
-    // task rows
+    // task rows – ドラッグハンドル経由なら即ドラッグ開始、行直接タップは長押し維持（タイトル編集用）
     content.querySelectorAll('.trow[data-id]').forEach(row=>{
+      // ── ハンドルタップ → 即ドラッグ（長押し不要） ──
+      const handle=row.querySelector('.task-drag-handle[data-drag-task]');
+      if(handle){
+        handle.addEventListener('touchstart',e=>{
+          if(e.touches.length>1){cancelAll();return;}
+          e.preventDefault();e.stopPropagation();
+          const t=e.touches[0];startX=t.clientX;startY=t.clientY;
+          dragging=true;navigator.vibrate?.(30);
+          dragId=row.dataset.id;spawnGhost(row,'task');
+        },{signal:sig,passive:false});
+      }
       // passive:false にして touchmove 内での e.preventDefault() を有効化（iOS scroll乗っ取り防止）
       row.addEventListener('touchstart',e=>{
+        if(dragging)return;// ハンドルが既に開始している場合スキップ
+        if(e.target.closest('.task-drag-handle'))return;// ハンドルはハンドル側で処理
         if(e.touches.length>1){cancelAll();return;}
         const t=e.touches[0];startX=t.clientX;startY=t.clientY;
+        // 行タップは長押しのみドラッグ（タイトル編集との兼ね合い）
         lpTimer=setTimeout(()=>{
           dragging=true;navigator.vibrate?.(40);
           dragId=row.dataset.id;spawnGhost(row,'task');
@@ -3765,7 +3799,7 @@ function renderRow(task){
   const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">✏️ '+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
 
   let html='<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
-    +(S.view==='project'&&!S.selectMode?'<span class="task-drag-handle" title="ドラッグで並び替え">⠿</span>':'')
+    +(!S.selectMode?'<span class="task-drag-handle" data-drag-task="'+task.id+'" title="ドラッグで並び替え" ontouchstart="event.stopPropagation()">⠿</span>':'')
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'"'+(S.selectMode?' style="pointer-events:none"':'')+' >'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
       +(task.parentTaskId&&['today','flagged'].includes(S.view)?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="font-size:11px;color:var(--text3);margin-bottom:1px;display:flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>'+esc(pt.title||'無題')+'</div>':''})():'')
