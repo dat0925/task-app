@@ -2497,13 +2497,16 @@ function initNoteSwipe(container){
         opened=false;
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='';
+        const bg2=wrap.querySelector('.note-swipe-del-bg');
+        if(bg2)bg2.style.transform='translateX(100%)';
       } else if(finalDx<-THRESH){
-        // 閾値超え → 削除確認
+        // 閾値超え → 削除ボタン表示
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='translateX(-'+THRESH+'px)';
         opened=true;
-        // 削除ボタンがタップ可能に → 背景のdivをクリック可能にする
+        // del-bgをスライドイン
         const bg=wrap.querySelector('.note-swipe-del-bg');
+        if(bg){bg.style.transform='translateX(0)';}
         if(bg&&!bg._bound){
           bg._bound=true;
           bg.style.pointerEvents='auto';bg.style.cursor='pointer';
@@ -2533,6 +2536,8 @@ function initNoteSwipe(container){
         opened=false;
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='';
+        const bg3=wrap.querySelector('.note-swipe-del-bg');
+        if(bg3)bg3.style.transform='translateX(100%)';
       }
     },{passive:true});
   });
