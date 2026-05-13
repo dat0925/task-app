@@ -1443,9 +1443,12 @@ let S={
 // ===== PLAN SYSTEM =====
 // プラン定義: 将来のプラン追加はここにキーを足すだけ
 const PLAN_DEFS={
-  free:    {label:'フリー',     taskLimit:30,       projectLimit:3,        ai:false, repeat:false},
-  standard:{label:'スタンダード',taskLimit:Infinity, projectLimit:Infinity, ai:true,  repeat:true},
+  free:    {label:'フリー',     taskLimit:100,      projectLimit:3,        noteLimit:50,  aiLimit:20,  ai:false, repeat:false},
+  standard:{label:'スタンダード',taskLimit:Infinity, projectLimit:Infinity, noteLimit:300, aiLimit:100, ai:true,  repeat:true},
+  premium: {label:'プレミアム', taskLimit:Infinity, projectLimit:Infinity, noteLimit:Infinity, aiLimit:500, ai:true,  repeat:true},
 };
+// 文字数上限
+const CHAR_LIMITS={taskTitle:500,taskNotes:50000,noteTitle:500,noteBody:200000};
 const ADMIN_EMAILS=['masamune.endo@gmail.com','mstd0520@gmail.com'];
 
 window._userPlan='free'; // Supabase読み込み前のデフォルト
@@ -1463,8 +1466,10 @@ async function loadUserPlan(){
 function getUserPlan(){return window._userPlan||'free';}
 function getPlanDef(key){return PLAN_DEFS[key||getUserPlan()]||PLAN_DEFS.free;}
 function isPlanFree(){return!getPlanDef().ai;}
+function isPlanPremium(){return getUserPlan()==='premium';}
 function getActiveTaskCount(){return S.tasks.filter(t=>t.status!=='archived'&&t.status!=='completed').length;}
 function getActiveProjectCount(){return S.projects.filter(p=>p.status!=='archived').length;}
+function getNoteCount(){return(S.notes||[]).length;}
 function isAdmin(){return ADMIN_EMAILS.includes(window._currentUser?.email);}
 
 function showUpgradeModal(feature){
@@ -1472,6 +1477,8 @@ function showUpgradeModal(feature){
   const cfg={
     tasks:{title:'タスクの上限に達しました',desc:'現在のプランでは最大'+pd.taskLimit+'件まで管理できます。<br>スタンダードプランにアップグレードするとタスク数無制限でご利用いただけます。'},
     projects:{title:'プロジェクトの上限に達しました',desc:'現在のプランでは最大'+pd.projectLimit+'件まで作成できます。<br>スタンダードプランにアップグレードするとプロジェクト数無制限でご利用いただけます。'},
+    notes:{title:'ノートの上限に達しました',desc:'現在のプランでは最大'+pd.noteLimit+'件までノートを作成できます。<br>上位プランにアップグレードするとノート数を増やせます。'},
+    ai:{title:'AI利用回数の上限に達しました',desc:'今月のAI利用回数が上限（'+pd.aiLimit+'回）に達しました。<br>上位プランにアップグレードすると利用回数が増えます。'},
     repeat:{title:'繰り返しタスク',desc:'<strong>繰り返しタスク</strong>はスタンダードプランでご利用いただける機能です。'},
     ai:{title:'AIアシスタント',desc:'<strong>AIアシスタント</strong>はスタンダードプランでご利用いただける機能です。'},
   };
@@ -1856,10 +1863,21 @@ async function loadAll(){
     dbAll('tasks'),dbAll('projects'),dbAll('sections'),dbAll('tags'),dbAll('notes')
   ]);
 }
-async function saveNote(n){showSaveStatus('saving');try{window._lastSelfSave = Date.now();n.updatedAt=now();await dbPut('notes',n);const i=S.notes.findIndex(x=>x.id===n.id);i>=0?S.notes[i]=n:S.notes.push(n);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
+async function saveNote(n){
+  // 新規ノートの件数チェック
+  const isNew=!S.notes.find(x=>x.id===n.id);
+  if(isNew){const pd=getPlanDef();if(pd.noteLimit!==Infinity&&getNoteCount()>=pd.noteLimit){showUpgradeModal('notes');throw new Error('note_limit');}}
+  // 文字数チェック
+  if((n.title||'').length>CHAR_LIMITS.noteTitle){toast('ノートタイトルは'+CHAR_LIMITS.noteTitle+'文字以内で入力してください');throw new Error('char_limit');}
+  if((n.body||'').length>CHAR_LIMITS.noteBody){toast('ノート本文は'+CHAR_LIMITS.noteBody+'文字以内で入力してください');throw new Error('char_limit');}
+  showSaveStatus('saving');try{window._lastSelfSave = Date.now();n.updatedAt=now();await dbPut('notes',n);const i=S.notes.findIndex(x=>x.id===n.id);i>=0?S.notes[i]=n:S.notes.push(n);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id)}
 function mkNote(o={}){return{id:uid(),title:'',body:'',tagIds:[],createdAt:now(),updatedAt:now(),...o}}
-async function saveTask(t){showSaveStatus('saving');try{window._lastSelfSave = Date.now(); t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
+async function saveTask(t){
+  // 文字数チェック
+  if((t.title||'').length>CHAR_LIMITS.taskTitle){toast('タスクタイトルは'+CHAR_LIMITS.taskTitle+'文字以内で入力してください');throw new Error('char_limit');}
+  if((t.notes||'').length>CHAR_LIMITS.taskNotes){toast('タスクメモは'+CHAR_LIMITS.taskNotes+'文字以内で入力してください');throw new Error('char_limit');}
+  showSaveStatus('saving');try{window._lastSelfSave = Date.now(); t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function delTask(id){await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id)}
 async function saveProject(p){showSaveStatus('saving');try{p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function saveTag(t){await dbPut('tags',t);const i=S.tags.findIndex(x=>x.id===t.id);i>=0?S.tags[i]=t:S.tags.push(t)}
@@ -2799,7 +2817,7 @@ function renderSidebar(){
     const _tc=getActiveTaskCount();const _pct=Math.min(100,Math.round(_tc/_pd.taskLimit*100));
     h+='<div class="plan-banner" data-a="upgrade-banner">'
       +'<div class="plan-banner-title">フリープラン</div>'
-      +'<div class="plan-banner-sub">タスク '+_tc+' / '+_pd.taskLimit+' 件 · プロジェクト '+getActiveProjectCount()+' / '+_pd.projectLimit+' 件</div>'
+      +'<div class="plan-banner-sub">タスク '+_tc+' / '+(_pd.taskLimit===Infinity?'∞':_pd.taskLimit)+' 件 · ノート '+getNoteCount()+' / '+(_pd.noteLimit===Infinity?'∞':_pd.noteLimit)+' 件</div>'
       +'<div class="plan-banner-progress"><div class="plan-banner-progress-bar" style="width:'+_pct+'%"></div></div>'
       +'<div class="plan-banner-cta">スタンダードにアップグレード →</div>'
       +'</div>';
