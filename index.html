@@ -1550,7 +1550,8 @@ async function openPlanAdmin(){
   function bindTableEvents(){
     document.querySelectorAll('.admin-plan-sel').forEach(sel=>{
       sel.onchange=async()=>{
-        await SB.from('user_plans').update({plan:sel.value,updated_at:new Date().toISOString()}).eq('id',sel.dataset.id);
+        const{error:uerr}=await SB.from('user_plans').update({plan:sel.value,updated_at:new Date().toISOString()}).eq('id',sel.dataset.id);
+        if(uerr){toast('更新エラー: '+uerr.message);console.error('plan update error',uerr);return;}
         toast('プランを更新しました');
         if(sel.value!==getUserPlan()&&window._currentUser){
           const row=rows.find(r=>r.id===sel.dataset.id);
