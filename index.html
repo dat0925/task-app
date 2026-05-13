@@ -7656,6 +7656,7 @@ async function setupSB(){
       window._currentUser=session?.user||null;
       if(event==='SIGNED_IN'){
         hideLogin();
+        if(typeof loadUserPlan==='function')loadUserPlan().then(()=>{if(typeof renderSidebar==='function')renderSidebar();}).catch(()=>{});
         if(typeof loadAll==='function'&&typeof render==='function'){
           loadAll().then(()=>render()).catch(()=>{});
         }
