@@ -2133,8 +2133,8 @@ function counts(){
   const t=today();
   return{
     inbox:S.tasks.filter(x=>x.status==='inbox'&&!x.parentTaskId).length,
-    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&!x.parentTaskId&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
-    flagged:S.tasks.filter(x=>x.status!=='completed'&&!x.parentTaskId&&x.flagged).length,
+    today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
+    flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged).length,
   };
 }
 
@@ -3568,7 +3568,8 @@ function renderNoteListOnly(){
 }
 
 function renderList(){
-  const tasks=getTasks().filter(t=>!t.parentTaskId);
+  const showSubsInView=['today','flagged'].includes(S.view);
+  const tasks=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId);
   if(S.view==='project'){
     const projSecs=S.sections.filter(s=>s.projectId===S.projId).sort((a,b)=>a.order-b.order);
     if(!tasks.length&&!projSecs.length)return renderEmpty();
@@ -3767,6 +3768,7 @@ function renderRow(task){
     +(S.view==='project'&&!S.selectMode?'<span class="task-drag-handle" title="ドラッグで並び替え">⠿</span>':'')
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'"'+(S.selectMode?' style="pointer-events:none"':'')+' >'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
+      +(task.parentTaskId&&['today','flagged'].includes(S.view)?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="font-size:11px;color:var(--text3);margin-bottom:1px;display:flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>'+esc(pt.title||'無題')+'</div>':''})():'')
       +'<div class="ttitle'+(subs.length>0?' has-subs':'')+'" data-title-edit="'+task.id+'"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
       +'<div class="tmeta">'+(meta||'')+updStr+'</div>'
     +'</div>'
