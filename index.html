@@ -233,23 +233,24 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Calculator drawer: mechanical dark-key theme (matches PIN screen) */
 .calc-drawer-body{background:#f0f6ff;padding:0!important;display:flex;flex-direction:column;overflow:hidden}
 .calc-drawer .inline-calc{background:#f0f6ff;padding:0;gap:0;flex:1;display:flex;flex-direction:column;min-height:0}
-.calc-top-scroll{flex:0 0 160px;overflow:hidden;padding:8px 12px 12px;display:flex;flex-direction:column;gap:6px}
-.calc-mid-section{flex-shrink:0;padding:12px 12px 0;display:flex;flex-direction:column;gap:8px}
-.calc-drawer .calc-pad-wrap{flex-shrink:0;border-radius:0;margin:0;padding:10px}
-.calc-drawer .calc-display{background:#dbeafe;border:none;border-radius:10px;padding:14px 16px 20px;height:120px;box-shadow:inset 0 2px 8px rgba(37,99,235,.08),inset 0 0 0 1px rgba(59,130,246,.12);cursor:default;display:flex;flex-direction:column;justify-content:flex-end;gap:6px}
-.calc-drawer .calc-expr-inline{color:#1e40af;font-size:16px;height:1.4em;line-height:1.4em;background:none;border-radius:0;padding:0 4px;border:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
-.calc-drawer .calc-result{color:#1e3a8a;font-size:35px;text-shadow:0 1px 0 rgba(255,255,255,.8);position:relative;display:inline-block}
-.calc-drawer .calc-okuMan{color:#666;display:none}
-.calc-unit-label{position:absolute;font-size:9px;font-weight:600;color:rgba(255,255,255,.45);letter-spacing:.03em;top:-1px;pointer-events:none;line-height:1}
+/* 旧 calc-top-scroll は廃止 → 履歴は calc-hist-panel に */
+.calc-top-scroll{display:none}
+.calc-mid-section{flex-shrink:0;padding:10px 10px 0;display:flex;flex-direction:column;gap:0}
+.calc-drawer .calc-pad-wrap{flex-shrink:0;border-radius:0;margin:0;padding:8px 10px 10px}
+.calc-drawer .calc-display{background:#dbeafe;border:none;border-radius:12px;padding:12px 16px 14px;height:auto;min-height:96px;box-shadow:inset 0 2px 8px rgba(37,99,235,.08),inset 0 0 0 1px rgba(59,130,246,.12);cursor:default;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;margin-bottom:8px}
+.calc-drawer .calc-expr-inline{color:#3b82f6;font-size:12px;height:1.4em;line-height:1.4em;background:none;border-radius:0;padding:0 2px;border:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;opacity:.75;letter-spacing:.01em}
+.calc-drawer .calc-result{color:#1e3a8a;font-size:clamp(26px,6vw,40px);font-weight:700;letter-spacing:-.5px;text-shadow:0 1px 0 rgba(255,255,255,.8);position:relative;display:inline-block;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calc-drawer .calc-okuMan{color:#3b82f6;font-size:11px;font-weight:500;display:block;opacity:.75;margin-top:2px;text-align:right}
+.calc-unit-label{position:absolute;font-size:9px;font-weight:600;color:rgba(30,58,138,.5);letter-spacing:.03em;top:-1px;pointer-events:none;line-height:1}
 
 .calc-drawer .calc-result-wrap{cursor:pointer;display:flex;justify-content:flex-end}
 /* Dark pad base (same feel as .lock-pad) */
-.calc-pad-wrap{background:#bfdbfe;padding:12px;border-radius:16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 0 #93c5fd,0 4px 12px rgba(37,99,235,.15),inset 0 1px 0 rgba(255,255,255,.7)}
-.calc-drawer .calc-grid{gap:8px 6px}
-.calc-drawer .calc-action-row,.calc-drawer .calc-util-flat-row,.calc-drawer .calc-bottom-row{gap:6px;margin-bottom:0}
+.calc-pad-wrap{background:#bfdbfe;padding:8px;border-radius:16px;display:flex;flex-direction:column;gap:5px;box-shadow:0 2px 0 #93c5fd,0 4px 12px rgba(37,99,235,.15),inset 0 1px 0 rgba(255,255,255,.7)}
+.calc-drawer .calc-grid{gap:5px}
+.calc-drawer .calc-action-row,.calc-drawer .calc-util-flat-row,.calc-drawer .calc-bottom-row{gap:5px;margin-bottom:0}
 /* Mechanical number/fn keys */
 .calc-drawer .calc-btn,.calc-drawer .calc-paren-btn{
-  padding:0;height:52px;border-radius:5px 5px 2px 2px;font-size:22px;font-weight:700;
+  padding:0;height:58px;border-radius:6px 6px 3px 3px;font-size:24px;font-weight:700;
   background:linear-gradient(180deg,#ffffff 0%,#f8faff 30%,#eff4ff 70%,#e8f0fe 100%);
   color:#1e3a8a;
   border:none;
@@ -288,10 +289,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   border-top-color:rgba(255,255,255,.5);
 }
 /* Paren keys (shorter) */
-.calc-drawer .calc-paren-btn{height:31px;font-size:14px;font-weight:600}
+.calc-drawer .calc-paren-btn{height:36px;font-size:12.5px;font-weight:600;letter-spacing:.01em}
 .calc-drawer .calc-paren-btn.pressed{transform:translateY(4px)}
 /* 百千万億: 数字キーと同じ高さ */
-.calc-drawer .calc-util-flat-row .calc-paren-btn{height:52px;font-size:20px}
+.calc-drawer .calc-util-flat-row .calc-paren-btn{height:44px;font-size:17px;letter-spacing:.02em}
 .calc-drawer .calc-util-flat-row .calc-paren-btn.pressed{transform:translateY(0px)}
 /* Operator keys: amber */
 .calc-drawer .calc-btn.cop{
@@ -325,7 +326,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer .calc-btn.cfn{background:linear-gradient(180deg,#f0f4ff 0%,#e8eeff 30%,#dde5ff 70%,#d4daff 100%);color:#4f46e5;font-size:22px}
 /* Utility row (式クリア・式コピー) */
 .calc-util-row{display:flex;gap:6px}
-.calc-util-btn{flex:1;height:52px;border-radius:6px 6px 4px 4px;font-size:18px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(0,0,0,.5);border-bottom:none;background:linear-gradient(180deg,#ffffff 0%,#f8faff 30%,#eff4ff 70%,#e8f0fe 100%);color:#1e3a8a;box-shadow:0 1px 0 0 #dbeafe,0 2px 0 0 #bfdbfe,0 3px 0 0 #a5c8fe,0 4px 0 0 #93b8fd,0 5px 0 0 #7ea8fc,0 6px 0 0 #6b98fb,0 7px 0 0 #5888f8,0 8px 0 0 #4878f4,0 9px 0 0 #3a6ae8,0 10px 0 0 #2e5cd8,0 11px 0 0 #2450c8,0 12px 0 0 #1c44b8,0 13px 0 0 #1638a8,0 15px 12px rgba(37,99,235,.2),inset 0 1px 2px rgba(255,255,255,.9),inset 0 -1px 3px rgba(37,99,235,.1);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(-8px);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
+.calc-util-btn{flex:1;height:44px;border-radius:6px 6px 4px 4px;font-size:15px;font-weight:700;cursor:pointer;border:none;border-top:1px solid rgba(255,255,255,.22);border-left:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(0,0,0,.5);border-bottom:none;background:linear-gradient(180deg,#ffffff 0%,#f8faff 30%,#eff4ff 70%,#e8f0fe 100%);color:#1e3a8a;box-shadow:0 1px 0 0 #dbeafe,0 2px 0 0 #bfdbfe,0 3px 0 0 #a5c8fe,0 4px 0 0 #93b8fd,0 5px 0 0 #7ea8fc,0 6px 0 0 #6b98fb,0 7px 0 0 #5888f8,0 8px 0 0 #4878f4,0 9px 0 0 #3a6ae8,0 10px 0 0 #2e5cd8,0 11px 0 0 #2450c8,0 12px 0 0 #1c44b8,0 13px 0 0 #1638a8,0 15px 12px rgba(37,99,235,.2),inset 0 1px 2px rgba(255,255,255,.9),inset 0 -1px 3px rgba(37,99,235,.1);touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;gap:4px;transform:translateY(-8px);transition:transform .07s cubic-bezier(.25,.1,.25,1),box-shadow .07s cubic-bezier(.25,.1,.25,1)}
 .calc-util-btn:active,.calc-util-btn.pressed{transform:translateY(0px);box-shadow:0 1px 0 0 #bfdbfe,0 2px 5px rgba(37,99,235,.2),inset 0 2px 6px rgba(37,99,235,.15),inset 0 1px 0 rgba(255,255,255,.4);background:linear-gradient(180deg,#dbeafe 0%,#e8f0fe 50%,#eff4ff 100%);border-top-color:rgba(255,255,255,.5)}
 .calc-util-btn.copied{background:#132b1a;color:#4ade80;border-color:rgba(74,222,128,.35)}
 .calc-util-btn.cleared{background:#2a1616;color:#f87171;border-color:rgba(248,113,113,.3)}
@@ -5945,17 +5946,17 @@ function _buildCalcInDrawer(){
         +'</div>'
       +'</div>'
       +'<div class="calc-pad-wrap">'
-        +'<div class="calc-bottom-row">'
-          +'<button class="calc-paren-btn" data-fx="usd2jpy" style="font-size:12px">to円</button>'
-          +'<button class="calc-paren-btn" data-fx="jpy2usd" style="font-size:12px">toドル</button>'
-          +'<button class="calc-paren-btn calc-tax-in" style="font-size:12px">税込</button>'
-          +'<button class="calc-paren-btn calc-tax-out" style="font-size:12px">税抜</button>'
+        +'<div class="calc-bottom-row" style="gap:4px">'
+          +'<button class="calc-paren-btn" data-fx="usd2jpy">to円</button>'
+          +'<button class="calc-paren-btn" data-fx="jpy2usd">toドル</button>'
+          +'<button class="calc-paren-btn calc-tax-in">税込</button>'
+          +'<button class="calc-paren-btn calc-tax-out">税抜</button>'
         +'</div>'
-        +'<div class="calc-action-row">'
+        +'<div class="calc-action-row" style="gap:4px">'
           +'<button class="calc-paren-btn" data-cv="(">(</button>'
           +'<button class="calc-paren-btn" data-cv=")">)</button>'
-          +'<button class="calc-paren-btn" data-fn="pct" style="font-size:13px">%</button>'
-          +'<button class="calc-paren-btn" data-fn="int" style="font-size:13px">INT</button>'
+          +'<button class="calc-paren-btn" data-fn="pct">%</button>'
+          +'<button class="calc-paren-btn" data-fn="int">INT</button>'
         +'</div>'
         +'<div class="calc-grid">'
           +'<button class="calc-btn cac" data-cv="AC">AC</button>'
