@@ -1482,6 +1482,7 @@ function showUpgradeModal(feature){
   const pd=getPlanDef();
   const cfg={
     tasks:{title:'タスクの上限に達しました',desc:'現在のプランでは最大'+pd.taskLimit+'件まで管理できます。<br>スタンダードプランにアップグレードするとタスク数無制限でご利用いただけます。'},
+    banner:{title:'スタンダードプランにアップグレード',desc:'タスク・プロジェクト無制限、AIアシスタント、繰り返しタスクなど全機能が使えます。'},
     projects:{title:'プロジェクトの上限に達しました',desc:'現在のプランでは最大'+pd.projectLimit+'件まで作成できます。<br>スタンダードプランにアップグレードするとプロジェクト数無制限でご利用いただけます。'},
     notes:{title:'ノートの上限に達しました',desc:'現在のプランでは最大'+pd.noteLimit+'件までノートを作成できます。<br>上位プランにアップグレードするとノート数を増やせます。'},
     ai:{title:'AI利用回数の上限に達しました',desc:'今月のAI利用回数が上限（'+pd.aiLimit+'回）に達しました。<br>上位プランにアップグレードすると利用回数が増えます。'},
@@ -5202,7 +5203,7 @@ else if(a==='sel-edit'){
   }
   else if(a==='newproj'){openModal('project')}
   else if(a==='newtag'){openModal('tag')}
-  else if(a==='upgrade-banner'){showUpgradeModal('tasks')}
+  else if(a==='upgrade-banner'){showUpgradeModal('banner')}
   else if(a==='open-plan-admin'){openPlanAdmin()}
   else if(a==='sec-collapse-all'){
     const secs=S.sections.filter(s=>s.projectId===S.projId);
