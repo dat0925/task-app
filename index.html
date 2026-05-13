@@ -384,6 +384,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .sub-drag-handle:active{cursor:grabbing}
 .sub-item.drag-over{box-shadow:0 -2px 0 var(--accent);opacity:.7}
 .sub-item.dragging{opacity:.35}
+.sub-item .sub-title{flex:1;min-width:0;text-align:left;font-size:13px;background:transparent;border:none;cursor:pointer;color:var(--text);padding:0 2px;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:inherit;line-height:1.4}
+.sub-item .sub-title:hover{color:var(--accent)}
 .divider{height:1px;background:var(--border);margin:12px 0}
 
 /* Forecast */
@@ -4120,7 +4122,7 @@ function updateSubsOnly(){
   if(!subsEl||!S.taskId)return false;
   const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId);
   subsEl.innerHTML=allSubs.map(sub=>
-    '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="sel-edit" data-id="'+sub.id+'" title="詳細を開く" style="width:24px;height:24px;color:var(--text3)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+    '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</button><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
   ).join('');
   return true;
 }
@@ -4247,7 +4249,7 @@ function renderDrawer(){
       +'</div>'
     +'</div>'
     +'<div class="drawer-body">'
-      +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">'+esc(pt.title||'無題')+'</button><button class="date-clr-btn" data-a="set-parent" data-id="'+task.id+'" title="親タスクを変更" style="flex-shrink:0;font-size:10px;padding:2px 6px">変更</button><button class="date-clr-btn" data-a="detach-parent" data-id="'+task.id+'" title="独立したタスクにする" style="flex-shrink:0">✕</button></div>':''})():'')
+      +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">'+esc(pt.title||'無題')+'</button><button class="date-clr-btn" data-a="set-parent" data-id="'+task.id+'" title="親タスクを変更" style="flex-shrink:0;font-size:10px;padding:2px 6px">変更</button><button class="date-clr-btn" data-a="detach-parent" data-id="'+task.id+'" title="独立したタスクにする" style="flex-shrink:0">✕</button></div>':''})():'')
       +((!task.parentTaskId)?'<div style="margin-bottom:12px"><button class="btn btn-ghost" data-a="set-parent" data-id="'+task.id+'" style="font-size:12px;height:30px;padding:0 10px">＋ サブタスクにする</button></div>':''  )
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
@@ -4309,7 +4311,7 @@ function renderDrawer(){
         +'</select>'
       +'</div>'
       +'<div class="fg"><label class="flabel">サブタスク</label>'
-        +'<div id="subs">'+subs.sort((a,b)=>a.order-b.order).map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span class="sub-title" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="sel-edit" data-id="'+s.id+'" title="詳細を開く" style="width:24px;height:24px;color:var(--text3)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
+        +'<div id="subs">'+subs.sort((a,b)=>a.order-b.order).map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
         +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…" style="margin-top:6px">'
       +'</div>'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
@@ -4503,36 +4505,8 @@ function renderDrawer(){
     }
   });
 
-  // サブタスク: インライン編集
   const subsEl2=document.getElementById('subs');
   if(subsEl2){
-    subsEl2.addEventListener('click',e=>{
-      const span=e.target.closest('.sub-title');
-      if(!span)return;
-      const id=span.dataset.id;
-      const task=S.tasks.find(t=>t.id===id);
-      if(!task)return;
-      const inp=document.createElement('input');
-      inp.className='sub-edit';
-      inp.value=task.title;
-      span.replaceWith(inp);
-      inp.focus();
-      inp.select();
-      const commit=async()=>{
-        const newTitle=inp.value.trim()||task.title;
-        task.title=newTitle;
-        task.updatedAt=now();
-        await saveTask(task);
-        const newSpan=document.createElement('span');
-        newSpan.className='sub-title';
-        newSpan.dataset.id=id;
-        newSpan.style.cssText=task.status==='completed'?'text-decoration:line-through;color:var(--text3)':'';
-        newSpan.textContent=newTitle;
-        inp.replaceWith(newSpan);
-      };
-      inp.addEventListener('blur',commit);
-      inp.addEventListener('keydown',e2=>{if(e2.key==='Enter'){e2.preventDefault();inp.blur();}if(e2.key==='Escape'){inp.value=task.title;inp.blur();}});
-    });
     initSubDrag(subsEl2);
   }
   // renderDrawer内でスクロール位置を復元
