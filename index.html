@@ -7930,13 +7930,17 @@ async function setupSB(){
     };
     window._lastSelfSave=0;
 
-    // app_settings: key-value同期
+    // app_settings: key-value同期（user_idでユーザーごとに分離）
     window.sbGetSetting=async(key)=>{
-      const{data}=await SB.from('app_settings').select('value').eq('key',key).single();
+      const uid=window._currentUser?.id;
+      if(!uid)return null;
+      const{data}=await SB.from('app_settings').select('value').eq('user_id',uid).eq('key',key).maybeSingle();
       return data?data.value:null;
     };
     window.sbSetSetting=async(key,value)=>{
-      await SB.from('app_settings').upsert({key,value,updated_at:new Date().toISOString()},{onConflict:'key'});
+      const uid=window._currentUser?.id;
+      if(!uid)return;
+      await SB.from('app_settings').upsert({user_id:uid,key,value,updated_at:new Date().toISOString()},{onConflict:'user_id,key'});
     };
 
     // ===== 認証状態の管理 =====

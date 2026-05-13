@@ -116,12 +116,22 @@ create policy "backups: own data only (delete)"
 
 -- =====================================================
 -- app_settings
--- ※ app_settingsはuser_idカラムがない場合はkeyで管理している可能性あり
---   実際のスキーマに合わせて調整が必要
+-- user_idカラムがないため追加してユーザーごとに分離する
 -- =====================================================
+
+-- user_idカラムを追加
+alter table app_settings add column if not exists user_id text;
+
+-- 既存データは削除（user_id不明のため）
+delete from app_settings where user_id is null;
+
+-- (user_id, key) の複合ユニーク制約を追加（upsert用）
+alter table app_settings drop constraint if exists app_settings_pkey;
+alter table app_settings add constraint app_settings_user_key unique (user_id, key);
+
+-- RLS有効化
 alter table app_settings enable row level security;
 
--- app_settingsにuser_idカラムがある場合
 create policy "app_settings: own data only (select)"
   on app_settings for select
   using (user_id = auth.uid()::text);
