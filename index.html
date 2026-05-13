@@ -1544,17 +1544,33 @@ async function openPlanAdmin(){
     +'</tbody></table>';
   }
 
+  // AI利用状況タブの状態
+  const USAGE_PAGE_SIZE=20;
+  let usageFilter={email:'',month:'',plan:''};
+  let usagePage=0;
+
+  function getFilteredUsage(){
+    return usageRows.filter(r=>{
+      const plan=planRows.find(p=>p.email===r.email)?.plan||'free';
+      if(usageFilter.email&&!r.email.includes(usageFilter.email))return false;
+      if(usageFilter.month&&r.month!==usageFilter.month)return false;
+      if(usageFilter.plan&&plan!==usageFilter.plan)return false;
+      return true;
+    });
+  }
+
   function buildUsageTable(list){
     if(!list.length)return'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">利用履歴なし</div>';
-    // emailごとにプランを引いてlimitを表示
-    return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>月</th><th>利用回数</th><th>上限</th><th></th></tr></thead><tbody>'
+    return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>プラン</th><th>月</th><th>利用回数</th><th>上限</th><th></th></tr></thead><tbody>'
       +list.map(r=>{
         const plan=planRows.find(p=>p.email===r.email)?.plan||'free';
+        const planLabel=PLAN_DEFS[plan]?.label||'フリー';
         const limit=PLAN_DEFS[plan]?.aiLimit||20;
         const pct=Math.min(100,Math.round(r.count/limit*100));
         const color=pct>=100?'var(--p1)':pct>=80?'#f59e0b':'var(--green)';
         return'<tr>'
           +'<td style="font-size:12px">'+esc(r.email)+'</td>'
+          +'<td style="font-size:12px;color:var(--text2)">'+esc(planLabel)+'</td>'
           +'<td>'+esc(r.month)+'</td>'
           +'<td><span style="font-weight:600;color:'+color+'">'+r.count+'</span></td>'
           +'<td>'+limit+'</td>'
@@ -1562,6 +1578,11 @@ async function openPlanAdmin(){
         +'</tr>';
       }).join('')
     +'</tbody></table>';
+  }
+
+  function getMonthOptions(){
+    const months=[...new Set(usageRows.map(r=>r.month))].sort().reverse();
+    return'<option value="">すべての月</option>'+months.map(m=>'<option value="'+m+'"'+(usageFilter.month===m?' selected':'')+'>'+m+'</option>').join('');
   }
 
   function renderModal(){
@@ -1576,10 +1597,30 @@ async function openPlanAdmin(){
         +'</div>';
       bindPlanEvents();
     }else{
-      wrap.innerHTML=buildUsageTable(usageRows);
+      const filtered=getFilteredUsage();
+      const totalPages=Math.ceil(filtered.length/USAGE_PAGE_SIZE)||1;
+      if(usagePage>=totalPages)usagePage=totalPages-1;
+      const paged=filtered.slice(usagePage*USAGE_PAGE_SIZE,(usagePage+1)*USAGE_PAGE_SIZE);
+      const planFilterOptions='<option value="">すべてのプラン</option>'
+        +Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(usageFilter.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('');
+      wrap.innerHTML=''
+        +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
+          +'<input id="usage-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(usageFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
+          +'<select id="usage-filter-month" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+getMonthOptions()+'</select>'
+          +'<select id="usage-filter-plan" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+planFilterOptions+'</select>'
+          +'<button class="btn btn-ghost" id="usage-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
+        +'</div>'
+        +buildUsageTable(paged)
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--text2)">'
+          +'<span>'+filtered.length+'件中 '+(filtered.length?usagePage*USAGE_PAGE_SIZE+1:0)+'〜'+Math.min((usagePage+1)*USAGE_PAGE_SIZE,filtered.length)+'件</span>'
+          +'<div style="display:flex;gap:4px">'
+            +'<button class="btn btn-ghost usage-page-btn" data-page="'+(usagePage-1)+'" style="font-size:12px;padding:4px 10px"'+(usagePage===0?' disabled':'')+'>◀</button>'
+            +'<span style="padding:4px 8px;align-self:center">'+(usagePage+1)+' / '+totalPages+'</span>'
+            +'<button class="btn btn-ghost usage-page-btn" data-page="'+(usagePage+1)+'" style="font-size:12px;padding:4px 10px"'+(usagePage>=totalPages-1?' disabled':'')+'>▶</button>'
+          +'</div>'
+        +'</div>';
       bindUsageEvents();
     }
-    // タブのactive切り替え
     document.querySelectorAll('.admin-tab-btn').forEach(b=>{
       b.style.fontWeight=b.dataset.tab===activeTab?'700':'400';
       b.style.borderBottom=b.dataset.tab===activeTab?'2px solid var(--accent)':'2px solid transparent';
@@ -1651,6 +1692,21 @@ async function openPlanAdmin(){
         toast('リセットしました');
         await refresh();
       };
+    });
+    // フィルタ
+    const emailInp=document.getElementById('usage-filter-email');
+    const monthSel=document.getElementById('usage-filter-month');
+    const planSel=document.getElementById('usage-filter-plan');
+    const clearBtn=document.getElementById('usage-filter-clear');
+    if(emailInp){
+      let _t;emailInp.oninput=()=>{clearTimeout(_t);_t=setTimeout(()=>{usageFilter.email=emailInp.value.trim();usagePage=0;renderModal();},300);};
+    }
+    if(monthSel){monthSel.onchange=()=>{usageFilter.month=monthSel.value;usagePage=0;renderModal();};}
+    if(planSel){planSel.onchange=()=>{usageFilter.plan=planSel.value;usagePage=0;renderModal();};}
+    if(clearBtn){clearBtn.onclick=()=>{usageFilter={email:'',month:'',plan:''};usagePage=0;renderModal();};}
+    // ページネーション
+    document.querySelectorAll('.usage-page-btn').forEach(btn=>{
+      btn.onclick=()=>{if(btn.disabled)return;usagePage=parseInt(btn.dataset.page);renderModal();};
     });
   }
 
