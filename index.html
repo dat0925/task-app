@@ -6200,7 +6200,22 @@ function _buildCalcInDrawer(){
   function pressOp(op){justEvaled=false;if(expr&&'+-*/'.includes(expr.slice(-1)))expr=expr.slice(0,-1);expr+=op;upd();}
   function pressParen(p){justEvaled=false;expr+=p;const r=safeCalc(expr);if(r!=null)result=r;upd();}
   function pressDot(){const seg=(expr.match(/[0-9.]*$/)||[''])[0];if(seg.includes('.'))return;if(!expr||'+-*/('.includes(expr.slice(-1)))expr+='0';expr+='.';justEvaled=false;upd();}
-  function pressEq(){if(!expr)return;const r=safeCalc(expr);if(r!=null){calcHistory.push({expr,result:r});result=r;justEvaled=true;renderHist();}upd();}
+  function pressEq(){
+    if(!expr)return;
+    const r=safeCalc(expr);
+    if(r!=null){
+      const labelEl=document.getElementById('calc-label-inp');
+      const label=labelEl?labelEl.value.trim():'';
+      calcHistory.push({expr,result:r,label});
+      if(labelEl)labelEl.value='';
+      result=r;justEvaled=true;
+      renderHist();
+      const tnb=document.getElementById('calc-head-tonote-btn');
+      if(tnb){tnb.style.display='';console.log('ノートへ表示OK');}
+      else{console.warn('ノートへボタンが見つかりません');}
+    }
+    upd();
+  }
   function pressBS(){if(justEvaled){expr='';result='';justEvaled=false;upd();return;}expr=expr.slice(0,-1);const r=safeCalc(expr);if(r!=null)result=r;else if(!expr)result='';upd();}
   function pressAC(){expr='';result='';justEvaled=false;upd();}
   // ラベルクリアボタン
