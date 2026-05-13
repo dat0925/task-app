@@ -1498,6 +1498,18 @@ function showUpgradeModal(feature){
     ?['AIアシスタント（500回/月）','ノート無制限','全機能利用可能']
     :['タスク管理（無制限）','プロジェクト（無制限）','ノート300件','繰り返しタスク','AIアシスタント（100回/月）'];
   const _price=_isStd?'¥780':'¥480';
+  // Stripe Payment Links（テスト用。本番切り替え時はURLを差し替え）
+  const _PAYMENT_LINKS={
+    standard:'https://buy.stripe.com/test_8x27sK4UQbwb4aBdqPds400',
+    premium:'https://buy.stripe.com/test_cNifZg0EA6bRcH70E3ds401',
+  };
+  const _baseUrl=_isStd?_PAYMENT_LINKS.premium:_PAYMENT_LINKS.standard;
+  const _email=window._currentUser?.email||'';
+  const _uid=window._currentUser?.id||'';
+  const _qp=new URLSearchParams();
+  if(_email)_qp.set('prefilled_email',_email);
+  if(_uid)_qp.set('client_reference_id',_uid);
+  const _payUrl=_baseUrl+(_qp.toString()?'?'+_qp.toString():'');
   const ov=document.createElement('div');ov.className='overlay';
   ov.innerHTML='<div class="modal upgrade-modal">'
     +'<div class="upgrade-badge">'+_badge+'</div>'
@@ -1510,7 +1522,7 @@ function showUpgradeModal(feature){
     +'<div class="upgrade-price-note">月額・いつでもキャンセル可</div>'
     +'<div class="modal-foot">'
       +'<button class="btn btn-ghost" id="upg-cancel">閉じる</button>'
-      +'<a href="https://taskra.jp/#pricing" target="_blank" class="btn btn-primary" style="text-decoration:none">プランを見る →</a>'
+      +'<a href="'+_payUrl+'" target="_blank" class="btn btn-primary" style="text-decoration:none">アップグレード →</a>'
     +'</div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
