@@ -1685,6 +1685,8 @@ async function openPlanAdmin(){
   }
 
   const ov=document.createElement('div');ov.className='overlay';
+  // すでに管理者パネルが開いている場合は閉じてから開き直す
+  document.querySelectorAll('.overlay').forEach(el=>{if(el.querySelector('#admin-content-wrap'))el.remove();});
   ov.innerHTML='<div class="modal" style="max-width:640px;width:95vw">'
     +'<div class="modal-title" style="display:flex;align-items:center;gap:8px">🔑 管理者パネル<span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:auto">管理者専用</span></div>'
     +'<div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:12px">'
@@ -6974,6 +6976,8 @@ function applySettings(){
 }
 
 function openSettingsModal(){
+  // 二重開き防止
+  if(document.querySelector('.overlay #s-close'))return;
   const ov=document.createElement('div');ov.className='overlay';
   const aiEnabled=getSetting('aiChat',true);
   const lockEnabled=localStorage.getItem('focus_lock_enabled')!=='false';
