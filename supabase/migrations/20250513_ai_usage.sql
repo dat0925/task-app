@@ -18,3 +18,14 @@ alter table ai_usage enable row level security;
 create policy "Users can view own usage"
   on ai_usage for select
   using (email = auth.jwt() ->> 'email');
+
+-- 管理者がai_usageを読み書きできるようにするため、
+-- フロントからのアクセスはservice_roleではなくanonで行う場合のポリシー
+-- （管理者UIはanonキーで接続しているため）
+create policy "Admin can read all usage"
+  on ai_usage for select
+  using (true);
+
+create policy "Admin can update usage"
+  on ai_usage for update
+  using (true);

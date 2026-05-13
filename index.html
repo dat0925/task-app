@@ -1520,12 +1520,19 @@ function showUpgradeModal(feature){
 async function openPlanAdmin(){
   if(!isAdmin()){toast('管理者のみアクセスできます');return;}
   const SB=window._SB;
-  let rows=[];
-  try{const{data}=await SB.from('user_plans').select('*').order('email');rows=data||[];}catch(e){rows=[];}
+  let planRows=[];
+  let usageRows=[];
+  let activeTab='plans';
+
+  async function loadData(){
+    try{const{data}=await SB.from('user_plans').select('*').order('email');planRows=data||[];}catch(e){planRows=[];}
+    try{const{data}=await SB.from('ai_usage').select('*').order('month',{ascending:false});usageRows=data||[];}catch(e){usageRows=[];}
+  }
+  await loadData();
 
   const planOptions=Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'">'+PLAN_DEFS[k].label+'</option>').join('');
 
-  function buildTable(list){
+  function buildPlanTable(list){
     if(!list.length)return'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">登録なし</div>';
     return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>プラン</th><th>メモ</th><th></th></tr></thead><tbody>'
       +list.map(r=>'<tr data-id="'+esc(r.id)+'">'
@@ -1537,35 +1544,79 @@ async function openPlanAdmin(){
     +'</tbody></table>';
   }
 
+  function buildUsageTable(list){
+    if(!list.length)return'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">利用履歴なし</div>';
+    // emailごとにプランを引いてlimitを表示
+    return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>月</th><th>利用回数</th><th>上限</th><th></th></tr></thead><tbody>'
+      +list.map(r=>{
+        const plan=planRows.find(p=>p.email===r.email)?.plan||'free';
+        const limit=PLAN_DEFS[plan]?.aiLimit||20;
+        const pct=Math.min(100,Math.round(r.count/limit*100));
+        const color=pct>=100?'var(--p1)':pct>=80?'#f59e0b':'var(--green)';
+        return'<tr>'
+          +'<td style="font-size:12px">'+esc(r.email)+'</td>'
+          +'<td>'+esc(r.month)+'</td>'
+          +'<td><span style="font-weight:600;color:'+color+'">'+r.count+'</span></td>'
+          +'<td>'+limit+'</td>'
+          +'<td><button class="usage-reset-btn btn btn-ghost" data-id="'+r.id+'" data-email="'+esc(r.email)+'" data-month="'+esc(r.month)+'" style="font-size:11px;padding:2px 8px">リセット</button></td>'
+        +'</tr>';
+      }).join('')
+    +'</tbody></table>';
+  }
+
+  function renderModal(){
+    const wrap=document.getElementById('admin-content-wrap');
+    if(!wrap)return;
+    if(activeTab==='plans'){
+      wrap.innerHTML=buildPlanTable(planRows)
+        +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+        +'<input id="admin-new-email" class="finput" placeholder="追加するメールアドレス" style="flex:1;min-width:200px">'
+        +'<select id="admin-new-plan" class="finput fselect" style="width:140px">'+planOptions+'</select>'
+        +'<button class="btn btn-primary" id="admin-add-btn">追加</button>'
+        +'</div>';
+      bindPlanEvents();
+    }else{
+      wrap.innerHTML=buildUsageTable(usageRows);
+      bindUsageEvents();
+    }
+    // タブのactive切り替え
+    document.querySelectorAll('.admin-tab-btn').forEach(b=>{
+      b.style.fontWeight=b.dataset.tab===activeTab?'700':'400';
+      b.style.borderBottom=b.dataset.tab===activeTab?'2px solid var(--accent)':'2px solid transparent';
+    });
+  }
+
   const ov=document.createElement('div');ov.className='overlay';
-  ov.innerHTML='<div class="modal" style="max-width:600px;width:95vw">'
-    +'<div class="modal-title" style="display:flex;align-items:center;gap:8px">🔑 プラン管理<span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:auto">管理者専用</span></div>'
-    +'<div id="admin-table-wrap">'+buildTable(rows)+'</div>'
-    +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
-      +'<input id="admin-new-email" class="finput" placeholder="追加するメールアドレス" style="flex:1;min-width:200px">'
-      +'<select id="admin-new-plan" class="finput fselect" style="width:140px">'+planOptions+'</select>'
-      +'<button class="btn btn-primary" id="admin-add-btn">追加</button>'
+  ov.innerHTML='<div class="modal" style="max-width:640px;width:95vw">'
+    +'<div class="modal-title" style="display:flex;align-items:center;gap:8px">🔑 管理者パネル<span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:auto">管理者専用</span></div>'
+    +'<div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:12px">'
+      +'<button class="admin-tab-btn" data-tab="plans" style="background:none;border:none;border-bottom:2px solid var(--accent);padding:8px 16px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer">プラン管理</button>'
+      +'<button class="admin-tab-btn" data-tab="usage" style="background:none;border:none;border-bottom:2px solid transparent;padding:8px 16px;font-size:13px;font-weight:400;color:var(--text);cursor:pointer">AI利用状況</button>'
     +'</div>'
+    +'<div id="admin-content-wrap"></div>'
     +'<div class="modal-foot"><button class="btn btn-ghost" id="admin-close">閉じる</button></div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+  renderModal();
+
+  document.querySelectorAll('.admin-tab-btn').forEach(b=>{
+    b.onclick=()=>{activeTab=b.dataset.tab;renderModal();};
+  });
 
   async function refresh(){
-    try{const{data}=await SB.from('user_plans').select('*').order('email');rows=data||[];}catch(e){}
-    document.getElementById('admin-table-wrap').innerHTML=buildTable(rows);
-    bindTableEvents();
+    await loadData();
+    renderModal();
   }
 
-  function bindTableEvents(){
+  function bindPlanEvents(){
     document.querySelectorAll('.admin-plan-sel').forEach(sel=>{
       sel.onchange=async()=>{
         const{error:uerr}=await SB.from('user_plans').update({plan:sel.value,updated_at:new Date().toISOString()}).eq('id',sel.dataset.id);
-        if(uerr){toast('更新エラー: '+uerr.message);console.error('plan update error',uerr);return;}
+        if(uerr){toast('更新エラー: '+uerr.message);return;}
         toast('プランを更新しました');
-        if(sel.value!==getUserPlan()&&window._currentUser){
-          const row=rows.find(r=>r.id===sel.dataset.id);
-          if(row?.email===window._currentUser.email){window._userPlan=sel.value;renderSidebar();}
-        }
+        const row=planRows.find(r=>r.id===sel.dataset.id);
+        if(row?.email===window._currentUser?.email){window._userPlan=sel.value;renderSidebar();}
+        await refresh();
       };
     });
     document.querySelectorAll('.admin-note-inp').forEach(inp=>{
@@ -1580,18 +1631,29 @@ async function openPlanAdmin(){
         await refresh();
       };
     });
+    document.getElementById('admin-add-btn').onclick=async()=>{
+      const email=document.getElementById('admin-new-email').value.trim().toLowerCase();
+      const plan=document.getElementById('admin-new-plan').value;
+      if(!email||!email.includes('@')){toast('有効なメールアドレスを入力してください');return;}
+      const{error}=await SB.from('user_plans').upsert({email,plan,updated_at:new Date().toISOString()},{onConflict:'email'});
+      if(error){toast('エラー: '+error.message);return;}
+      document.getElementById('admin-new-email').value='';
+      await refresh();toast(email+' を '+PLAN_DEFS[plan].label+' で登録しました');
+    };
   }
-  bindTableEvents();
 
-  document.getElementById('admin-add-btn').onclick=async()=>{
-    const email=document.getElementById('admin-new-email').value.trim().toLowerCase();
-    const plan=document.getElementById('admin-new-plan').value;
-    if(!email||!email.includes('@')){toast('有効なメールアドレスを入力してください');return;}
-    const{error}=await SB.from('user_plans').upsert({email,plan,updated_at:new Date().toISOString()},{onConflict:'email'});
-    if(error){toast('エラー: '+error.message);return;}
-    document.getElementById('admin-new-email').value='';
-    await refresh();toast(email+' を '+PLAN_DEFS[plan].label+' で登録しました');
-  };
+  function bindUsageEvents(){
+    document.querySelectorAll('.usage-reset-btn').forEach(btn=>{
+      btn.onclick=async()=>{
+        if(!confirm(btn.dataset.email+' の '+btn.dataset.month+' の利用回数をリセットしますか？'))return;
+        const{error}=await SB.from('ai_usage').update({count:0,updated_at:new Date().toISOString()}).eq('id',btn.dataset.id);
+        if(error){toast('エラー: '+error.message);return;}
+        toast('リセットしました');
+        await refresh();
+      };
+    });
+  }
+
   document.getElementById('admin-close').onclick=()=>ov.remove();
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
 }
