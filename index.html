@@ -1306,9 +1306,9 @@ document.addEventListener('touchstart',e=>{
     const a=_lpRow?.dataset.a;
     if(!id)return;
     if(a==='sel'){
-      // 長押し → タイトルをインライン編集
-      const titleEl=_lpRow?.querySelector('[data-title-edit]');
-      if(titleEl){playSE('toggle');startTaskInlineEdit(titleEl);}
+      // 長押し → コンテキストメニュー
+      const id=_lpRow?.dataset.id;
+      if(id){playSE('toggle');showTaskContextMenu(_lpRow,id);}
     }
     else if(a==='note-sel'){
       // 長押し → コンテキストメニュー
@@ -2620,6 +2620,97 @@ function showNoteContextMenu(row,noteId){
   },10);
 }
 
+// タスク一覧コンテキストメニュー
+function showTaskContextMenu(row, taskId){
+  document.querySelectorAll('.proj-edit-popup').forEach(el=>el.remove());
+  const task=S.tasks.find(t=>t.id===taskId);if(!task)return;
+  const popup=document.createElement('div');popup.className='proj-edit-popup';
+
+  // タイトル変更
+  const renameBtn=document.createElement('button');
+  renameBtn.innerHTML='✏️ タイトル変更';
+  renameBtn.onclick=ev=>{
+    ev.stopPropagation();popup.remove();
+    const titleEl=row.querySelector('[data-title-edit]');if(!titleEl)return;
+    startTaskInlineEdit(titleEl);
+  };
+  popup.appendChild(renameBtn);
+
+  // 並び替え（ドラッグモード起動）
+  const sortBtn=document.createElement('button');
+  sortBtn.innerHTML='⠿ 並び替え';
+  sortBtn.onclick=ev=>{
+    ev.stopPropagation();popup.remove();
+    // ハンドルを強調してユーザーにドラッグを促す
+    const handle=row.querySelector('.task-drag-handle[data-drag-task]');
+    if(handle){
+      handle.style.opacity='1';
+      handle.style.color='var(--accent)';
+      handle.style.transform='scale(1.3)';
+      handle.style.transition='all .2s';
+      // 行をハイライト
+      row.style.background='var(--accent-bg)';
+      row.style.transition='background .2s';
+      // ガイドトースト
+      toast('⠿ をドラッグして並び替え');
+      // 3秒後にハイライトを戻す
+      setTimeout(()=>{
+        handle.style.opacity='';
+        handle.style.color='';
+        handle.style.transform='';
+        row.style.background='';
+      },3000);
+    }
+  };
+  popup.appendChild(sortBtn);
+
+  // 複製
+  const dupBtn=document.createElement('button');
+  dupBtn.innerHTML='📋 複製';
+  dupBtn.onclick=async ev=>{
+    ev.stopPropagation();popup.remove();
+    const d={...task,id:uid(),title:task.title+' (コピー)',createdAt:now(),updatedAt:now(),completedAt:null,order:Date.now()};
+    await saveTask(d);S.taskId=d.id;render();
+    toast('"'+(d.title)+'" を複製しました');
+  };
+  popup.appendChild(dupBtn);
+
+  // 区切り
+  const sep=document.createElement('div');
+  sep.style.cssText='height:1px;background:var(--border);margin:2px 0';
+  popup.appendChild(sep);
+
+  // 削除
+  const delBtn=document.createElement('button');
+  delBtn.className='red';delBtn.innerHTML='🗑 削除';
+  delBtn.onclick=async ev=>{
+    ev.stopPropagation();popup.remove();
+    const snap=JSON.stringify(task);
+    if(S.taskId===taskId){S.drawerOpen=false;S.taskId=null;}
+    await delTask(taskId);
+    toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render();});
+    render();
+  };
+  popup.appendChild(delBtn);
+
+  document.body.appendChild(popup);
+  const r=row.getBoundingClientRect();
+  const pw=popup.offsetWidth||160;
+  const ph=popup.offsetHeight||140;
+  let top=r.bottom+4;
+  let left=Math.max(4,r.right-pw-4);
+  if(top+ph>window.innerHeight-12)top=r.top-ph-4;
+  if(top<4)top=4;
+  popup.style.top=top+'px';popup.style.left=left+'px';
+  setTimeout(()=>{
+    const close=ev=>{
+      if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('click',close);document.removeEventListener('touchend',close);}
+    };
+    document.addEventListener('click',close);
+    document.addEventListener('touchend',close,{passive:true});
+  },300);
+}
+
 function showProjEditPopup(btn, projId, projName){
   document.querySelectorAll('.proj-edit-popup').forEach(el=>el.remove());
   const popup=document.createElement('div');
@@ -3635,11 +3726,8 @@ function setupSectionDrag(){
         if(e.target.closest('.task-drag-handle'))return;// ハンドルはハンドル側で処理
         if(e.touches.length>1){cancelAll();return;}
         const t=e.touches[0];startX=t.clientX;startY=t.clientY;
-        // 行タップは長押しのみドラッグ（タイトル編集との兼ね合い）
-        lpTimer=setTimeout(()=>{
-          dragging=true;navigator.vibrate?.(40);
-          dragId=row.dataset.id;spawnGhost(row,'task');
-        },LONG_MS);
+        // 行直接の長押しドラッグ無効（コンテキストメニュー経由に統一）
+        // ハンドルからの即ドラッグは上のhandle.addEventListener側で処理
       },{signal:sig,passive:false});
 
       row.addEventListener('touchmove',e=>{
