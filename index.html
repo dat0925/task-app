@@ -4447,6 +4447,25 @@ function renderDrawer(){
         const task=S.tasks.find(t=>t.id===S.taskId);
         if(task){task.startTime=null;}
       }
+      // 開始日・期限日の矛盾を自動修正
+      if(id==='dt-start'&&el.value){
+        const dueEl=document.getElementById('dt-due');
+        if(dueEl&&dueEl.value&&el.value>dueEl.value){
+          dueEl.value=el.value;
+          applyDateInputStyle(dueEl,el.value);
+          const wdD=document.getElementById('dt-due-wd');
+          if(wdD){wdD.textContent='('+(wdStr(el.value).replace('曜','')||'　')+')';wdD.style.color=wdColor(el.value);}
+        }
+      }
+      if(id==='dt-due'&&el.value){
+        const startEl=document.getElementById('dt-start');
+        if(startEl&&startEl.value&&el.value<startEl.value){
+          startEl.value=el.value;
+          applyDateInputStyle(startEl,el.value);
+          const wdS=document.getElementById('dt-start-wd');
+          if(wdS){wdS.textContent='('+(wdStr(el.value).replace('曜','')||'　')+')';wdS.style.color=wdColor(el.value);}
+        }
+      }
       autosave(true);
       if(id==='dt-due'||id==='dt-start'){
         const wd=document.getElementById('dt-'+( id==='dt-due'?'due':'start')+'-wd');
@@ -6380,6 +6399,23 @@ function reattachModalEvents(modal, type, onClose){
           if(stiEl){stiEl.value='';}
           const task=S.tasks.find(t=>t.id===S.taskId);
           if(task){task.startTime=null;}
+        }
+        // 開始日・期限日の矛盾を自動修正
+        if(id==='dt-start'&&el.value){
+          const dueEl2=modal.querySelector('#dt-due');
+          if(dueEl2&&dueEl2.value&&el.value>dueEl2.value){
+            dueEl2.value=el.value;
+            const wdD2=modal.querySelector('#dt-due-wd');
+            if(wdD2)wdD2.textContent=wdStr(el.value);
+          }
+        }
+        if(id==='dt-due'&&el.value){
+          const startEl2=modal.querySelector('#dt-start');
+          if(startEl2&&startEl2.value&&el.value<startEl2.value){
+            startEl2.value=el.value;
+            const wdS2=modal.querySelector('#dt-start-wd');
+            if(wdS2)wdS2.textContent=wdStr(el.value);
+          }
         }
         save(true);
         if(id==='dt-due'||id==='dt-start'){
