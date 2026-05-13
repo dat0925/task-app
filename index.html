@@ -1488,20 +1488,22 @@ function showUpgradeModal(feature){
     repeat:{title:'繰り返しタスク',desc:'<strong>繰り返しタスク</strong>はスタンダードプランでご利用いただける機能です。'},
     ai:{title:'AIアシスタント',desc:'<strong>AIアシスタント</strong>はスタンダードプランでご利用いただける機能です。'},
   };
-  const c=cfg[feature]||{title:feature,desc:'スタンダードプランでご利用いただける機能です。'};
+  const c=cfg[feature]||{title:feature,desc:'上位プランでご利用いただける機能です。'};
+  const _isStd=getUserPlan()==='standard';
+  const _badge=_isStd?'✦ プレミアムプラン':'✦ スタンダードプラン';
+  const _feats=_isStd
+    ?['AIアシスタント（500回/月）','ノート無制限','全機能利用可能']
+    :['タスク管理（無制限）','プロジェクト（無制限）','ノート300件','繰り返しタスク','AIアシスタント（100回/月）'];
+  const _price=_isStd?'¥780':'¥480';
   const ov=document.createElement('div');ov.className='overlay';
   ov.innerHTML='<div class="modal upgrade-modal">'
-    +'<div class="upgrade-badge">✦ スタンダードプラン</div>'
+    +'<div class="upgrade-badge">'+_badge+'</div>'
     +'<div class="upgrade-title">'+c.title+'</div>'
     +'<div class="upgrade-desc">'+c.desc+'</div>'
     +'<div class="upgrade-features">'
-      +'<div class="upgrade-feat">タスク管理（無制限）</div>'
-      +'<div class="upgrade-feat">プロジェクト（無制限）</div>'
-      +'<div class="upgrade-feat">繰り返しタスク</div>'
-      +'<div class="upgrade-feat">AIアシスタント</div>'
-      +'<div class="upgrade-feat">優先サポート</div>'
+      +_feats.map(f=>'<div class="upgrade-feat">'+f+'</div>').join('')
     +'</div>'
-    +'<div class="upgrade-price">¥480<span>/月</span></div>'
+    +'<div class="upgrade-price">'+_price+'<span>/月</span></div>'
     +'<div class="upgrade-price-note">月額・いつでもキャンセル可</div>'
     +'<div class="modal-foot">'
       +'<button class="btn btn-ghost" id="upg-cancel">閉じる</button>'
@@ -4620,7 +4622,7 @@ function setupQA(){
 async function submitQA(){
   const inp=document.getElementById('qainput');
   if(!inp||!inp.value.trim())return;
-  if(isPlanFree()&&getActiveTaskCount()>=getPlanDef().taskLimit){showUpgradeModal('tasks');return;}
+  if(window._sbReady&&isPlanFree()&&getActiveTaskCount()>=getPlanDef().taskLimit){showUpgradeModal('tasks');return;}
   const p=parseQA(inp.value);
   if(!p.title){toast('タイトルを入力してください');return}
   // 未登録タグを自動作成
