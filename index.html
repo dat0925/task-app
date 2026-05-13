@@ -3616,7 +3616,7 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="tags">タグ</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="project">PJ</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="repeat">繰返</button>'
-      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="flag">🚩</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="flag">🚩</button>'      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="parent">親設定</button>'      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="detach">独立化</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="complete" style="color:var(--green)">✓ 完了</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="delete" style="color:var(--p1)">🗑 削除</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-cancel" style="margin-left:auto;border-color:var(--p1);color:var(--p1)">✕ 終了</button>';
@@ -4240,7 +4240,8 @@ function renderDrawer(){
       +'</div>'
     +'</div>'
     +'<div class="drawer-body">'
-      +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">'+esc(pt.title||'無題')+'</button></div>':''})():'')
+      +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">'+esc(pt.title||'無題')+'</button><button class="date-clr-btn" data-a="set-parent" data-id="'+task.id+'" title="親タスクを変更" style="flex-shrink:0;font-size:10px;padding:2px 6px">変更</button><button class="date-clr-btn" data-a="detach-parent" data-id="'+task.id+'" title="独立したタスクにする" style="flex-shrink:0">✕</button></div>':''})():'')
+      +((!task.parentTaskId)?'<div style="margin-bottom:12px"><button class="btn btn-ghost" data-a="set-parent" data-id="'+task.id+'" style="font-size:12px;height:30px;padding:0 10px">＋ サブタスクにする</button></div>':''  )
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
       +'<div class="note-stamp-bar" style="margin-bottom:6px">'
@@ -4754,6 +4755,16 @@ async function handleBulkEdit(field){
       S.selectMode=false;S.selectedIds=[];
       toast(tasks.length+'件を完了にしました');render();
     },'完了にする',false);
+  } else if(field==='parent'){
+    openSetParentModal(tasks.map(t=>t.id),async(parentId)=>{
+      for(const t of tasks){t.parentTaskId=parentId;await saveTask(t);}
+      S.selectMode=false;S.selectedIds=[];
+      toast(tasks.length+'件を親タスクに追加しました');render();
+    });
+  } else if(field==='detach'){
+    for(const t of tasks){t.parentTaskId=null;await saveTask(t);}
+    S.selectMode=false;S.selectedIds=[];
+    toast(tasks.length+'件を独立したタスクにしました');render();
   } else if(field==='delete'){
     openConfirmModal(tasks.length+'件を削除',tasks.length+'件のタスクを削除しますか？この操作は取り消せません。',async()=>{
       for(const t of tasks)await delTask(t.id);
@@ -4762,6 +4773,11 @@ async function handleBulkEdit(field){
     });
   }
 }
+
+
+// ===== 親タスク選択モーダル =====
+function openSetParentModal(taskIds,onSelect){  // 選択対象自身とその子孫は除外
+  const excluded=new Set(Array.isArray(taskIds)?taskIds:[taskIds]);  const addDescendants=(id)=>{S.tasks.filter(t=>t.parentTaskId===id).forEach(t=>{excluded.add(t.id);addDescendants(t.id);});};  excluded.forEach(id=>addDescendants(id));  const candidates=S.tasks.filter(t=>!excluded.has(t.id)&&t.status!=='completed'&&t.status!=='archived');  let q='';  const render=()=>{    const filtered=q?candidates.filter(t=>(t.title||'').includes(q)):candidates;    listEl.innerHTML=filtered.slice(0,50).map(t=>      '<button class="act-btn" data-id="'+t.id+'" style="display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:13px;border-bottom:1px solid var(--border)">'+esc(t.title||'無題')+'</button>'    ).join('');    listEl.querySelectorAll('[data-id]').forEach(btn=>{      btn.onclick=()=>{ov.remove();onSelect(btn.dataset.id);};    });  };  const ov=document.createElement('div');ov.className='overlay';  ov.innerHTML='<div class="modal" style="max-width:380px">'    +'<div class="modal-title">親タスクを選択</div>'    +'<input id="parent-search" class="finput" placeholder="タスク名で検索…" autocomplete="off" style="margin-bottom:10px">'    +'<div id="parent-list" style="max-height:280px;overflow-y:auto"></div>'    +'<div class="modal-foot" style="margin-top:8px"><button class="btn btn-ghost" id="parent-cancel">キャンセル</button></div>'  +'</div>';  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));  const listEl=ov.querySelector('#parent-list');  ov.querySelector('#parent-search').addEventListener('input',e=>{q=e.target.value;render();});  ov.querySelector('#parent-cancel').onclick=()=>ov.remove();  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});  render();}
 
 // ===== RENDER APP =====
 function render(){
@@ -5001,6 +5017,20 @@ else if(a==='sel-edit'){
   
   else if(a==='view-help'){e.stopPropagation();openViewHelp(el);}
   else if(a==='close-vhelp'){closeViewHelp();}
+  else if(a==='set-parent'){
+    const tid=el.dataset.id||S.taskId;
+    openSetParentModal([tid],async(parentId)=>{
+      const t=S.tasks.find(x=>x.id===tid);if(!t)return;
+      t.parentTaskId=parentId;await saveTask(t);
+      renderDrawer();renderContent();
+    });
+  }
+  else if(a==='detach-parent'){
+    const tid=el.dataset.id||S.taskId;
+    const t=S.tasks.find(x=>x.id===tid);if(!t)return;
+    t.parentTaskId=null;await saveTask(t);
+    toast('独立したタスクにしました');renderDrawer();renderContent();
+  }
   else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent()}
   else if(a==='task-nav-prev'||a==='task-nav-next'){
     const visibleTasks=getTasks().filter(t=>!t.parentTaskId);
