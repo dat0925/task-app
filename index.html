@@ -1113,7 +1113,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
     <div class="ai-avatar">✦</div>
     <div>
       <div class="ai-title">Taskra AI</div>
-      <div class="ai-sub">タスクをAIで操作</div>
+      <div class="ai-sub" id="ai-usage-label">タスクをAIで操作</div>
     </div>
     <button class="icon-btn" id="ai-close" style="margin-left:auto;width:36px;height:36px;font-size:20px;display:flex;align-items:center;justify-content:center">✕</button>
   </div>
@@ -6684,9 +6684,9 @@ function applySettings(){
 function openSettingsModal(){
   const ov=document.createElement('div');ov.className='overlay';
   const aiEnabled=getSetting('aiChat',true);
-  const apiKey=AI.key;
   const lockEnabled=localStorage.getItem('focus_lock_enabled')!=='false';
   const seEnabled=getSetting('soundFx',true);
+  const planLabel=getPlanDef().label;
   ov.innerHTML='<div class="modal" style="max-width:360px">'
     +'<div class="modal-title" style="display:flex;align-items:center;justify-content:space-between">設定<button class="icon-btn" id="s-close" style="width:28px;height:28px;font-size:18px;border-radius:6px;flex-shrink:0">✕</button></div>'
     +'<div class="settings-row" style="display:none">'
@@ -6698,15 +6698,8 @@ function openSettingsModal(){
       +'<button class="btn btn-ghost" id="s-pin-edit" style="font-size:12px;flex-shrink:0">変更</button>'
     +'</div>'
     +'<div class="settings-row">'
-      +'<div><div class="settings-label">AIチャット</div><div class="settings-sub">従量課金APIを使用します</div></div>'
+      +'<div><div class="settings-label">AIチャット</div><div class="settings-sub">現在のプラン: '+planLabel+'（'+(AI.usageCount!==null?`今月 ${AI.usageCount}/${AI.usageLimit}回 使用`:'ご利用可能')+'）</div></div>'
       +'<button class="tog'+(aiEnabled?' on':'')+'" id="s-ai-tog"></button>'
-    +'</div>'
-    +'<div class="settings-row" id="s-key-row" style="'+(aiEnabled?'':'display:none')+'">'
-      +'<div style="flex:1;min-width:0">'
-        +'<div class="settings-label">APIキー</div>'
-        +'<div class="settings-sub" style="word-break:break-all">'+(apiKey?'sk-ant-...'+apiKey.slice(-4):'未設定')+'</div>'
-      +'</div>'
-      +'<button class="btn btn-ghost" id="s-key-edit" style="font-size:12px;flex-shrink:0">変更</button>'
     +'</div>'
     +'<div class="settings-row">'
       +'<div><div class="settings-label">🔊 SE音</div><div class="settings-sub">操作時のサウンドエフェクト</div></div>'
@@ -6738,7 +6731,6 @@ function openSettingsModal(){
     el.addEventListener('click',handle);
   }
   const tog=document.getElementById('s-ai-tog');
-  const keyRow=document.getElementById('s-key-row');
   const lockRow=document.getElementById('s-pin-row');
   addFastHandler('s-lock-tog',()=>{
     const now=localStorage.getItem('focus_lock_enabled')!=='false';
@@ -6764,15 +6756,7 @@ function openSettingsModal(){
     const now=!getSetting('aiChat',true);
     setSetting('aiChat',now);
     tog.classList.toggle('on',now);
-    keyRow.style.display=now?'':'none';
     applySettings();
-  });
-  addFastHandler('s-key-edit',()=>{
-    const v=prompt('AnthropicのAPIキーを入力（sk-ant-...）:',AI.key);
-    if(v===null)return;
-    if(v&&!v.startsWith('sk-')){alert('有効なAPIキーを入力してください');return}
-    AI.key=v||'';
-    ov.remove();openSettingsModal();
   });
   addFastHandler('s-close',()=>ov.remove());
   addFastHandler('s-se-tog',()=>{
@@ -6957,9 +6941,25 @@ const AI={
   msgs:[],
   open:false,
   loading:false,
-  get key(){return localStorage.getItem('ai_key')||''},
-  set key(v){localStorage.setItem('ai_key',v)},
+  usageCount:null,   // 今月の利用回数（Edge Functionから取得）
+  usageLimit:null,   // プランの上限
 };
+
+// Edge Function エンドポイント
+const AI_ENDPOINT='https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/ai-chat';
+
+function aiUpdateUsageLabel(){
+  const el=document.getElementById('ai-usage-label');
+  if(!el)return;
+  if(AI.usageCount!==null&&AI.usageLimit!==null){
+    const remaining=AI.usageLimit-AI.usageCount;
+    el.textContent=`今月の残り回数: ${remaining}/${AI.usageLimit}`;
+    el.style.color=remaining<=3?'var(--accent)':'';
+  }else{
+    el.textContent='タスクをAIで操作';
+    el.style.color='';
+  }
+}
 
 function aiToggle(force){
   const opening=force!==undefined?force:!AI.open;
@@ -6968,28 +6968,11 @@ function aiToggle(force){
   document.getElementById('ai-panel').classList.toggle('open',AI.open);
   document.getElementById('ai-btn').classList.toggle('open',AI.open);
   if(AI.open){
-    if(!AI.key){aiShowKeyPrompt();return}
     if(AI.msgs.length===0)aiAddMsg('ai','こんにちは！タスクの追加・完了・削除など、日本語で何でも話しかけてください 😊');
     aiRender();
+    aiUpdateUsageLabel();
     setTimeout(()=>document.getElementById('ai-input')?.focus(),300);
   }
-}
-
-function aiShowKeyPrompt(){
-  const msgs=document.getElementById('ai-msgs');
-  msgs.innerHTML='<div id="ai-key-wrap">'
-    +'<p>AnthropicのAPIキーを入力してください。<br>キーはこのデバイスのみに保存されます。</p>'
-    +'<input id="ai-key-input" type="password" placeholder="sk-ant-...">'
-    +'<button class="btn btn-primary" id="ai-key-save">保存して開始</button>'
-    +'</div>';
-  document.getElementById('ai-key-save').onclick=()=>{
-    const v=document.getElementById('ai-key-input').value.trim();
-    if(!v.startsWith('sk-'))return alert('有効なAPIキーを入力してください');
-    AI.key=v;
-    aiAddMsg('ai','APIキーを保存しました！タスクの追加・完了・削除など、日本語で話しかけてください 😊');
-    aiRender();
-    setTimeout(()=>document.getElementById('ai-input')?.focus(),300);
-  };
 }
 
 function aiAddMsg(role,text,actions=[]){
@@ -6998,7 +6981,6 @@ function aiAddMsg(role,text,actions=[]){
 
 function aiRender(){
   const el=document.getElementById('ai-msgs');
-  if(!AI.key){aiShowKeyPrompt();return}
   let h='';
   AI.msgs.forEach(m=>{
     h+='<div class="ai-msg '+m.role+'">';
@@ -7092,7 +7074,6 @@ async function aiSend(){
   const inp=document.getElementById('ai-input');
   const text=inp.value.trim();
   if(!text||AI.loading)return;
-  if(!AI.key){aiShowKeyPrompt();return}
 
   inp.value='';inp.style.height='auto';
   aiAddMsg('user',text);
@@ -7143,21 +7124,52 @@ ${JSON.stringify(context,null,2)}
 - 複数の操作も一度にできる`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    // Supabaseセッションからアクセストークンを取得
+    const { data: { session } } = await window._SB.auth.getSession();
+    if(!session?.access_token){
+      AI.loading=false;
+      aiAddMsg('ai','ログインが必要です。再度ログインしてください。');
+      aiRender();
+      return;
+    }
+
+    const res=await fetch(AI_ENDPOINT,{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':AI.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+session.access_token,
+      },
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:1024,
         system:systemPrompt,
-        messages:AI.msgs.filter(m=>m.role!=='ai'||!m.loading).slice(-8).map(m=>({
+        messages:AI.msgs.filter(m=>!m.loading).slice(-8).map(m=>({
           role:m.role==='user'?'user':'assistant',
           content:m.text,
         })),
       }),
     });
+
     const data=await res.json();
-    if(data.error)throw new Error(data.error.message);
+
+    // レート制限エラー
+    if(res.status===429){
+      AI.loading=false;
+      aiAddMsg('ai',data.message||'今月のAI利用回数が上限に達しました。');
+      aiRender();
+      showUpgradeModal('ai');
+      return;
+    }
+
+    if(data.error)throw new Error(data.error);
+
+    // 利用回数を更新
+    if(data._usage){
+      AI.usageCount=data._usage.count;
+      AI.usageLimit=data._usage.limit;
+      aiUpdateUsageLabel();
+    }
+
     const raw=data.content[0].text;
     let parsed;
     try{parsed=JSON.parse(raw.replace(/```json|```/g,'').trim())}
