@@ -2506,11 +2506,9 @@ function initNoteSwipe(container){
         const bgEl=wrap.querySelector('.note-swipe-del-bg');
         if(bgEl){bgEl.style.clipPath='inset(0 0 0 0)';bgEl.style.pointerEvents='auto';bgEl.style.cursor='pointer';}
         opened=true;
-        // del-bgをスライドイン
-        if(bg&&!bg._bound){
-          bg._bound=true;
-          bg.style.pointerEvents='auto';bg.style.cursor='pointer';
-          bg.addEventListener('click',()=>{
+        if(bgEl&&!bgEl._bound){
+          bgEl._bound=true;
+          bgEl.addEventListener('click',()=>{
             openConfirmModal('メモを削除','"'+(S.notes.find(n=>n.id===noteId)?.title||'無題')+'" を削除しますか？',async()=>{
               await delNote(noteId);playSE('delete');
               if(S.noteId===noteId){S.noteOpen=false;S.noteId=null;}
