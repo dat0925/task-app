@@ -359,6 +359,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .link-popover-wrap{position:relative;display:inline-block}
 .repeat-shortcut-btn{font-size:11px;padding:2px 8px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;color:var(--text2);}
 .repeat-shortcut-btn:active{opacity:.7;}
+.repeat-mday-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:4px;}
+.repeat-mday-btn{height:36px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;transition:all .12s;padding:0;touch-action:manipulation;}
+.repeat-mday-btn.sel{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);font-weight:700;}
+.repeat-mday-btn:active{transform:scale(.9);}
 .repeat-day-lbl:active{opacity:.7;transform:scale(.96)}
 .fselect{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239b9891' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 .fg{margin-bottom:12px}
@@ -4892,16 +4896,19 @@ function renderDrawer(){
           +'<option value="">なし</option>'
           +['daily:毎日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'"'+(baseRule===v?' selected':'')+'>'+l+'</option>';}).join('')
           +'</select>'
-          +'<div id="dt-repeat-days" style="margin-top:6px;display:'+(isWeekly?'block':'none')+'">'
-          +'<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">'
+          +'<div id="dt-repeat-days" style="margin-top:8px;display:'+(isWeekly?'block':'none')+'">'
+          +'<div style="display:flex;gap:6px;margin-bottom:8px">'
           +'<button type="button" onclick="_setRepeatDays([&quot;mon&quot;,&quot;tue&quot;,&quot;wed&quot;,&quot;thu&quot;,&quot;fri&quot;])" class="repeat-shortcut-btn">平日</button>'
           +'<button type="button" onclick="_setRepeatDays([&quot;sat&quot;,&quot;sun&quot;])" class="repeat-shortcut-btn">休日</button>'
           +'<button type="button" onclick="_setRepeatDays([&quot;sun&quot;,&quot;mon&quot;,&quot;tue&quot;,&quot;wed&quot;,&quot;thu&quot;,&quot;fri&quot;,&quot;sat&quot;])" class="repeat-shortcut-btn">全選択</button>'
           +'<button type="button" onclick="_setRepeatDays([])" class="repeat-shortcut-btn" style="color:var(--text3)">解除</button>'
           +'</div>'
-          +'<div style="display:flex;flex-wrap:wrap;gap:4px">'
-          +DAY_LABELS.map(([v,l])=>'<label style="display:flex;align-items:center;gap:2px;cursor:pointer;padding:3px 10px;border:1.5px solid '+(selDays.includes(v)?'var(--accent)':'var(--border)')+';border-radius:20px;font-size:13px;font-weight:'+(selDays.includes(v)?'700':'400')+';background:'+(selDays.includes(v)?'var(--accent-bg)':'')+'" class="repeat-day-lbl">'
-            +'<input type="checkbox" data-day="'+v+'" '+(selDays.includes(v)?'checked':'')+' style="display:none" onchange="_onRepeatDayChange()">'+l+'</label>').join('')
+          +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">'
+          +DAY_LABELS.map(([v,l])=>{
+            const isSel=selDays.includes(v);
+            return '<label style="display:flex;align-items:center;justify-content:center;cursor:pointer;height:36px;border:1.5px solid '+(isSel?'var(--accent)':'var(--border)')+';border-radius:8px;font-size:14px;font-weight:'+(isSel?'700':'400')+';background:'+(isSel?'var(--accent-bg)':'')+';touch-action:manipulation" class="repeat-day-lbl">'
+              +'<input type="checkbox" data-day="'+v+'" '+(isSel?'checked':'')+' style="display:none" onchange="_onRepeatDayChange()">'+l+'</label>';
+          }).join('')
           +'</div>'
           +'</div>'
           +(()=>{
