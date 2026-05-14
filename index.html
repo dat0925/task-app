@@ -357,6 +357,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .link-popover input:focus{border-color:var(--accent)}
 .link-popover-btns{display:flex;gap:6px;justify-content:flex-end}
 .link-popover-wrap{position:relative;display:inline-block}
+.repeat-day-lbl:active{opacity:.7;transform:scale(.96)}
 .fselect{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239b9891' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 .fg{margin-bottom:12px}
 .pri-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:12px}
@@ -2183,16 +2184,60 @@ function parseQA(input){
   return r;
 }
 
+function _onRepeatChange(sel){
+  const v=sel.value;
+  const daysEl=document.getElementById('dt-repeat-days');
+  const mdayEl=document.getElementById('dt-repeat-mday');
+  if(daysEl)daysEl.style.display=v==='weekly'?'flex':'none';
+  if(mdayEl)mdayEl.style.display=v==='monthly'?'flex':'none';
+  if(v==='weekly'){document.querySelectorAll('.repeat-day-lbl').forEach(lbl=>{const cb=lbl.querySelector('input');if(cb)_updateDayLabel(lbl,cb.checked);});}
+}
+function _updateDayLabel(lbl,checked){
+  lbl.style.background=checked?'var(--accent-bg)':'';
+  lbl.style.borderColor=checked?'var(--accent)':'var(--border)';
+  lbl.style.color=checked?'var(--accent)':'';
+}
+function _onRepeatDayChange(){document.querySelectorAll('.repeat-day-lbl').forEach(lbl=>{const cb=lbl.querySelector('input');if(cb)_updateDayLabel(lbl,cb.checked);});}
+function _onRepeatMdayChange(){}
+function getRepeatRule(){
+  const sel=document.getElementById('dt-repeat');if(!sel)return null;
+  const v=sel.value;
+  if(v==='weekly'){
+    const days=[];
+    document.querySelectorAll('#dt-repeat-days input[type=checkbox]').forEach(cb=>{if(cb.checked)days.push(cb.dataset.day);});
+    return days.length?'weekly:'+days.join(','):'weekly';
+  }
+  if(v==='monthly'){
+    const d=parseInt(document.getElementById('dt-repeat-mday-inp')?.value)||1;
+    return 'monthly:'+Math.min(31,Math.max(1,d));
+  }
+  return v||null;
+}
+
 function nextRepeat(task){
   if(!task.repeatRule||!task.dueAt)return null;
   const[dy,dm,dd]=task.dueAt.split('-').map(Number);
   const d=new Date(Date.UTC(dy,dm-1,dd));
   const origMs=d.getTime();
-  if(task.repeatRule==='daily')d.setUTCDate(d.getUTCDate()+1);
-  else if(task.repeatRule==='weekly')d.setUTCDate(d.getUTCDate()+7);
-  else if(task.repeatRule==='monthly')d.setUTCMonth(d.getUTCMonth()+1);
-  else if(task.repeatRule==='yearly')d.setUTCFullYear(d.getUTCFullYear()+1);
-  else if(task.repeatRule==='weekdays'){do{d.setUTCDate(d.getUTCDate()+1)}while(d.getUTCDay()===0||d.getUTCDay()===6)}
+  const rule=task.repeatRule;
+  if(rule==='daily')d.setUTCDate(d.getUTCDate()+1);
+  else if(rule==='weekly')d.setUTCDate(d.getUTCDate()+7);
+  else if(rule==='monthly')d.setUTCMonth(d.getUTCMonth()+1);
+  else if(rule==='yearly')d.setUTCFullYear(d.getUTCFullYear()+1);
+  else if(rule==='weekdays'){do{d.setUTCDate(d.getUTCDate()+1)}while(d.getUTCDay()===0||d.getUTCDay()===6)}
+  else if(rule.startsWith('weekly:')){
+    const DAY_MAP={sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6};
+    const days=rule.slice(7).split(',').map(x=>DAY_MAP[x]).filter(x=>x!==undefined).sort((a,b)=>a-b);
+    if(!days.length)return null;
+    d.setUTCDate(d.getUTCDate()+1);
+    for(let i=0;i<14;i++){if(days.includes(d.getUTCDay()))break;d.setUTCDate(d.getUTCDate()+1);}
+  }
+  else if(rule.startsWith('monthly:')){
+    const dayOfMonth=parseInt(rule.slice(8));
+    d.setUTCMonth(d.getUTCMonth()+1);
+    const maxDay=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
+    d.setUTCDate(Math.min(dayOfMonth,maxDay));
+  }
   const shift=d.getTime()-origMs;
   const result={...task,id:uid(),status:'active',completedAt:null,createdAt:now(),updatedAt:now(),dueAt:d.toISOString().slice(0,10)};
   if(task.startAt){
@@ -4188,7 +4233,13 @@ function renderRow(task){
       if(t)meta+='<span class="mc" style="background:'+t.color+'1a;color:'+t.color+'">#'+esc(t.name)+'</span>';
     });
   }
-  if(task.repeatRule)meta+='<span class="mc">↻</span>';
+  if(task.repeatRule){
+    const _rl=task.repeatRule;
+    const _rlLabel=_rl==='daily'?'毎日':_rl==='weekdays'?'平日':_rl==='weekly'?'毎週':_rl==='yearly'?'毎年'
+      :_rl.startsWith('weekly:')?'毎週('+_rl.slice(7).split(',').map(d=>({sun:'日',mon:'月',tue:'火',wed:'水',thu:'木',fri:'金',sat:'土'})[d]||d).join('・')+')'
+      :_rl.startsWith('monthly:')?'毎月'+_rl.slice(8)+'日':'毎月';
+    meta+='<span class="mc" title="'+_rlLabel+'">↻ '+_rlLabel+'</span>';
+  }
   if(task.flagged)meta+='<span>🚩</span>';
   if(subs.length){
     const dc=subs.filter(s=>s.status==='completed').length;
@@ -4795,12 +4846,30 @@ function renderDrawer(){
           +(S.tags.length===0?'<span class="muted xs">タグなし</span>':'')
         +'</div>'
       +'</div>'
-      +'<div class="fg"><label class="flabel">繰り返し</label>'
-        +'<select class="finput fselect" id="dt-repeat">'
+      +(()=>{
+        const rule=task.repeatRule||'';
+        const isWeekly=rule.startsWith('weekly:');
+        const isMonthly=rule.startsWith('monthly:');
+        const baseRule=isWeekly?'weekly':isMonthly?'monthly':rule;
+        const selDays=isWeekly?rule.slice(7).split(','):[];
+        const selDay=isMonthly?parseInt(rule.slice(8)):null;
+        const DAY_LABELS=[['sun','日'],['mon','月'],['tue','火'],['wed','水'],['thu','木'],['fri','金'],['sat','土']];
+        return '<div class="fg"><label class="flabel">繰り返し</label>'
+          +'<select class="finput fselect" id="dt-repeat" onchange="_onRepeatChange(this)">'
           +'<option value="">なし</option>'
-          +['daily:毎日','weekdays:平日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'"'+(task.repeatRule===v?' selected':'')+'>'+l+'</option>'}).join('')
-        +'</select>'
-      +'</div>'
+          +['daily:毎日','weekdays:平日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'"'+(baseRule===v?' selected':'')+'>'+l+'</option>';}).join('')
+          +'</select>'
+          +'<div id="dt-repeat-days" style="margin-top:6px;display:'+(isWeekly?'flex':'none')+';flex-wrap:wrap;gap:4px">'
+          +DAY_LABELS.map(([v,l])=>'<label style="display:flex;align-items:center;gap:2px;cursor:pointer;padding:3px 8px;border:1.5px solid '+(selDays.includes(v)?'var(--accent)':'var(--border)')+';border-radius:20px;font-size:12px;background:'+(selDays.includes(v)?'var(--accent-bg)':'')+'" class="repeat-day-lbl">'
+            +'<input type="checkbox" data-day="'+v+'" '+(selDays.includes(v)?'checked':'')+' style="display:none" onchange="_onRepeatDayChange()">'+l+'</label>').join('')
+          +'</div>'
+          +'<div id="dt-repeat-mday" style="margin-top:6px;display:'+(isMonthly?'flex':'none')+';align-items:center;gap:6px">'
+          +'<span style="font-size:13px;color:var(--text2)">毎月</span>'
+          +'<input type="number" id="dt-repeat-mday-inp" min="1" max="31" value="'+(selDay||1)+'" class="finput" style="width:60px;text-align:center" onchange="_onRepeatMdayChange()">'
+          +'<span style="font-size:13px;color:var(--text2)">日</span>'
+          +'</div>'
+        +'</div>';
+      })()
       +(!task.parentTaskId?'<div class="fg"><label class="flabel">サブタスク</label>'
         +'<div id="subs">'+subs.sort((a,b)=>a.order-b.order).map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
         +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…" style="margin-top:6px">'
@@ -4889,7 +4958,7 @@ function renderDrawer(){
       t2.startTime=document.getElementById('dt-start-time')?.value||null;
       t2.projectId=document.getElementById('dt-proj')?.value||null;
       t2.sectionId=document.getElementById('dt-sec')?.value||null;
-      t2.repeatRule=document.getElementById('dt-repeat')?.value||null;
+      t2.repeatRule=getRepeatRule();
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
 
       const activeId=document.activeElement?.id;
@@ -7125,7 +7194,7 @@ function reattachModalEvents(modal, type, onClose){
         const startTimeEl2=modal.querySelector('#dt-start-time');if(startTimeEl2)t.startTime=startTimeEl2.value||null;
         if(projEl)t.projectId=projEl.value||null;
         if(secEl)t.sectionId=secEl.value||null;
-        if(repeatEl)t.repeatRule=repeatEl.value||null;
+        if(repeatEl)t.repeatRule=getRepeatRule();
         await saveTask(t);
         if(!t.parentTaskId&&t.projectId!==prevProjectId){
           const children=S.tasks.filter(c=>c.parentTaskId===t.id);
