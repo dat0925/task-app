@@ -4753,14 +4753,15 @@ function renderDrawer(){
       +'</div>'
       +'<div class="fg"><label class="flabel">プロジェクト</label>'
         +'<div style="display:flex;gap:6px;align-items:center">'
-          +'<select class="finput fselect" id="dt-proj" style="flex:1;min-width:0">'
+          +'<select class="finput fselect" id="dt-proj" style="flex:1;min-width:0'+(task.parentTaskId?';background:var(--bg2);color:var(--text3)':'')+'"'+(task.parentTaskId?' disabled title="サブタスクのプロジェクトは親タスクに連動します"':'')+' >'
             +'<option value="">なし</option>'
             +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'"'+(task.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('')
           +'</select>'
-          +(task.projectId?(()=>{
-            const _prj=S.projects.find(p=>p.id===task.projectId);
-            return _prj?'<button class="date-clr-btn" data-a="goto-proj" data-id="'+task.projectId+'" title="'+esc(_prj.name)+'へ移動" style="flex-shrink:0;display:flex;align-items:center;gap:3px;padding:4px 8px;color:var(--accent);border-color:var(--accent);font-size:11px;font-weight:600;white-space:nowrap"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>':'';
-          })():'')
+          +(task.parentTaskId?'<span style="font-size:11px;color:var(--text3);white-space:nowrap;flex-shrink:0">親タスクに連動</span>'
+            :task.projectId?(()=>{
+              const _prj=S.projects.find(p=>p.id===task.projectId);
+              return _prj?'<button class="date-clr-btn" data-a="goto-proj" data-id="'+task.projectId+'" title="'+esc(_prj.name)+'へ移動" style="flex-shrink:0;display:flex;align-items:center;gap:3px;padding:4px 8px;color:var(--accent);border-color:var(--accent);font-size:11px;font-weight:600;white-space:nowrap"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>':'';
+            })():'')
         +'</div>'
       +'</div>'
       +(task.projectId?(()=>{
@@ -4866,6 +4867,7 @@ function renderDrawer(){
     autosave._t=setTimeout(async()=>{
       const t2=S.tasks.find(x=>x.id===S.taskId);if(!t2)return;
       const prevStatus=t2.status;
+      const prevProjectId=t2.projectId;
       t2.title=document.getElementById('dt-title')?.value||'';
       t2.notes=document.getElementById('dt-notes')?.value||'';
       t2.dueAt=document.getElementById('dt-due')?.value||null;
@@ -4879,6 +4881,10 @@ function renderDrawer(){
       const activeId=document.activeElement?.id;
       const activeInDrawer=document.activeElement?.closest('#drawer,.expand-modal');
       await saveTask(t2);
+      if(!t2.parentTaskId&&t2.projectId!==prevProjectId){
+        const children=S.tasks.filter(c=>c.parentTaskId===t2.id);
+        for(const child of children){child.projectId=t2.projectId;child.sectionId=null;await saveTask(child);}
+      }
       setInd('saved');
 
       const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-sec','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
@@ -7068,6 +7074,7 @@ function reattachModalEvents(modal, type, onClose){
       clearTimeout(save._t);
       save._t=setTimeout(async()=>{
         const t=S.tasks.find(x=>x.id===S.taskId);if(!t)return;
+        const prevProjectId=t.projectId;
         if(titleEl)t.title=titleEl.value;
         if(notesEl)t.notes=notesEl.value;
         if(dueEl)t.dueAt=dueEl.value||null;
@@ -7076,7 +7083,12 @@ function reattachModalEvents(modal, type, onClose){
         if(projEl)t.projectId=projEl.value||null;
         if(secEl)t.sectionId=secEl.value||null;
         if(repeatEl)t.repeatRule=repeatEl.value||null;
-        await saveTask(t);setInd('saved');
+        await saveTask(t);
+        if(!t.parentTaskId&&t.projectId!==prevProjectId){
+          const children=S.tasks.filter(c=>c.parentTaskId===t.id);
+          for(const child of children){child.projectId=t.projectId;child.sectionId=null;await saveTask(child);}
+        }
+        setInd('saved');
       },400);
     };
     ['dt-title','dt-notes'].forEach(id=>{
