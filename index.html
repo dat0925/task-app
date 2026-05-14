@@ -963,10 +963,8 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 /* モバイルではドラッグハンドルを常時表示 */
 @media (hover:none),(pointer:coarse){
   .task-drag-handle{
-    opacity:.3;font-size:16px;padding:0 6px 0 2px;
-    min-width:28px;min-height:36px;display:flex;align-items:center;justify-content:center;
+    display:none;
   }
-  .task-drag-handle:active{opacity:1;color:var(--accent);}
 }
 /* Drop indicators */
 .trow.drop-before{box-shadow:inset 0 2px 0 var(--accent)}
@@ -2614,10 +2612,10 @@ function showNoteContextMenu(row,noteId){
   if(top<4)top=4;
   popup.style.top=top+'px';popup.style.left=left+'px';
   setTimeout(()=>{
-    const close=ev=>{if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('click',close);document.removeEventListener('touchstart',close);}}
+    const close=ev=>{if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('click',close);document.removeEventListener('touchend',close);}}
     document.addEventListener('click',close);
-    document.addEventListener('touchstart',close,{passive:true});
-  },10);
+    document.addEventListener('touchend',close,{passive:true});
+  },300);
 }
 
 // タスク一覧コンテキストメニュー
