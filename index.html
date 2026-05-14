@@ -357,6 +357,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .link-popover input:focus{border-color:var(--accent)}
 .link-popover-btns{display:flex;gap:6px;justify-content:flex-end}
 .link-popover-wrap{position:relative;display:inline-block}
+.repeat-shortcut-btn{font-size:11px;padding:2px 8px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;color:var(--text2);}
+.repeat-shortcut-btn:active{opacity:.7;}
 .repeat-day-lbl:active{opacity:.7;transform:scale(.96)}
 .fselect{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239b9891' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
 .fg{margin-bottom:12px}
@@ -2156,7 +2158,7 @@ function parseQA(input){
   if(/毎日|daily/i.test(title)){r.repeatRule='daily';title=title.replace(/毎日|daily/gi,'')}
   else if(/毎週|weekly/i.test(title)){r.repeatRule='weekly';title=title.replace(/毎週|weekly/gi,'')}
   else if(/毎月|monthly/i.test(title)){r.repeatRule='monthly';title=title.replace(/毎月|monthly/gi,'')}
-  else if(/平日|weekdays/i.test(title)){r.repeatRule='weekdays';title=title.replace(/平日|weekdays/gi,'')}
+  else if(/平日|weekdays/i.test(title)){r.repeatRule='weekly:mon,tue,wed,thu,fri';title=title.replace(/平日|weekdays/gi,'')}
   // date
   const dateMap={'今日':0,'きょう':0,'明日':1,'あした':1,'明後日':2,'tomorrow':1,'today':0};
   for(const[k,v] of Object.entries(dateMap)){
@@ -2198,6 +2200,13 @@ function _updateDayLabel(lbl,checked){
   lbl.style.color=checked?'var(--accent)':'';
 }
 function _onRepeatDayChange(){document.querySelectorAll('.repeat-day-lbl').forEach(lbl=>{const cb=lbl.querySelector('input');if(cb)_updateDayLabel(lbl,cb.checked);});}
+function _setRepeatDays(days){
+  document.querySelectorAll('.repeat-day-lbl').forEach(lbl=>{
+    const cb=lbl.querySelector('input');if(!cb)return;
+    cb.checked=days.includes(cb.dataset.day);
+    _updateDayLabel(lbl,cb.checked);
+  });
+}
 function _onRepeatMdayChange(){}
 function _onRepeatMdayBtn(btn){btn.classList.toggle('sel');}
 function _clearRepeatMdays(){document.querySelectorAll('.repeat-mday-btn.sel').forEach(b=>b.classList.remove('sel'));}
@@ -4256,8 +4265,11 @@ function renderRow(task){
   }
   if(task.repeatRule){
     const _rl=task.repeatRule;
+    const _DMAP={sun:'日',mon:'月',tue:'火',wed:'水',thu:'木',fri:'金',sat:'土'};
     const _rlLabel=_rl==='daily'?'毎日':_rl==='weekdays'?'平日':_rl==='weekly'?'毎週':_rl==='yearly'?'毎年'
-      :_rl.startsWith('weekly:')?'毎週('+_rl.slice(7).split(',').map(d=>({sun:'日',mon:'月',tue:'火',wed:'水',thu:'木',fri:'金',sat:'土'})[d]||d).join('・')+')'
+      :_rl==='weekly:mon,tue,wed,thu,fri'?'平日'
+      :(_rl==='weekly:sat,sun'||_rl==='weekly:sun,sat')?'休日'
+      :_rl.startsWith('weekly:')?'毎週('+_rl.slice(7).split(',').map(d=>_DMAP[d]||d).join('・')+')'
       :_rl.startsWith('monthly:')?'毎月'+_rl.slice(8).split(',').join('・')+'日':'毎月';
     meta+='<span class="mc" title="'+_rlLabel+'">↻ '+_rlLabel+'</span>';
   }
@@ -4868,8 +4880,8 @@ function renderDrawer(){
         +'</div>'
       +'</div>'
       +(()=>{
-        const rule=task.repeatRule||'';
-        const isWeekly=rule.startsWith('weekly:');
+        const rule=(task.repeatRule||'').replace(/^weekdays$/,'weekly:mon,tue,wed,thu,fri');
+        const isWeekly=rule.startsWith('weekly:')||rule==='weekly';
         const isMonthly=rule.startsWith('monthly:');
         const baseRule=isWeekly?'weekly':isMonthly?'monthly':rule;
         const selDays=isWeekly?rule.slice(7).split(','):[];
@@ -4878,11 +4890,19 @@ function renderDrawer(){
         return '<div class="fg"><label class="flabel">繰り返し</label>'
           +'<select class="finput fselect" id="dt-repeat" onchange="_onRepeatChange(this)">'
           +'<option value="">なし</option>'
-          +['daily:毎日','weekdays:平日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'"'+(baseRule===v?' selected':'')+'>'+l+'</option>';}).join('')
+          +['daily:毎日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'"'+(baseRule===v?' selected':'')+'>'+l+'</option>';}).join('')
           +'</select>'
-          +'<div id="dt-repeat-days" style="margin-top:6px;display:'+(isWeekly?'flex':'none')+';flex-wrap:wrap;gap:4px">'
-          +DAY_LABELS.map(([v,l])=>'<label style="display:flex;align-items:center;gap:2px;cursor:pointer;padding:3px 8px;border:1.5px solid '+(selDays.includes(v)?'var(--accent)':'var(--border)')+';border-radius:20px;font-size:12px;background:'+(selDays.includes(v)?'var(--accent-bg)':'')+'" class="repeat-day-lbl">'
+          +'<div id="dt-repeat-days" style="margin-top:6px;display:'+(isWeekly?'block':'none')+'">'
+          +'<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">'
+          +'<button type="button" onclick="_setRepeatDays([&quot;mon&quot;,&quot;tue&quot;,&quot;wed&quot;,&quot;thu&quot;,&quot;fri&quot;])" class="repeat-shortcut-btn">平日</button>'
+          +'<button type="button" onclick="_setRepeatDays([&quot;sat&quot;,&quot;sun&quot;])" class="repeat-shortcut-btn">休日</button>'
+          +'<button type="button" onclick="_setRepeatDays([&quot;sun&quot;,&quot;mon&quot;,&quot;tue&quot;,&quot;wed&quot;,&quot;thu&quot;,&quot;fri&quot;,&quot;sat&quot;])" class="repeat-shortcut-btn">全選択</button>'
+          +'<button type="button" onclick="_setRepeatDays([])" class="repeat-shortcut-btn" style="color:var(--text3)">解除</button>'
+          +'</div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:4px">'
+          +DAY_LABELS.map(([v,l])=>'<label style="display:flex;align-items:center;gap:2px;cursor:pointer;padding:3px 10px;border:1.5px solid '+(selDays.includes(v)?'var(--accent)':'var(--border)')+';border-radius:20px;font-size:13px;font-weight:'+(selDays.includes(v)?'700':'400')+';background:'+(selDays.includes(v)?'var(--accent-bg)':'')+'" class="repeat-day-lbl">'
             +'<input type="checkbox" data-day="'+v+'" '+(selDays.includes(v)?'checked':'')+' style="display:none" onchange="_onRepeatDayChange()">'+l+'</label>').join('')
+          +'</div>'
           +'</div>'
           +(()=>{
             const selDaysM=isMonthly?rule.slice(8).split(',').map(Number):[];
@@ -5306,7 +5326,7 @@ async function handleBulkEdit(field){
     const ov=document.createElement('div');ov.className='overlay';
     ov.innerHTML='<div class="modal"><div class="modal-title">繰り返しを一括設定</div>'
       +'<select id="bulk-rep-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
-      +['daily:毎日','weekdays:平日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'">'+l+'</option>'}).join('')
+      +['daily:毎日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'">'+l+'</option>'}).join('')
       +'</select>'
       +'<div style="display:flex;gap:8px">'
         +'<button class="btn btn-primary" id="bulk-rep-ok">設定する</button>'
