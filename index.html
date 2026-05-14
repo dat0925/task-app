@@ -1458,8 +1458,8 @@ let S={
 // ===== PLAN SYSTEM =====
 // Stripe Payment Links（テスト用。本番切り替え時はURLを差し替え）
 const PAYMENT_LINKS={
-  standard:'https://buy.stripe.com/test_8x27sK4UQbwb4aBdqPds400',
-  premium:'https://buy.stripe.com/test_cNifZg0EA6bRcH70E3ds401',
+  standard:'https://buy.stripe.com/4gM4gycwbdi2aiu8ArfQI00',
+  premium:'https://buy.stripe.com/28E8wO7bR2DofCObMDfQI01',
 };
 // プラン定義: 将来のプラン追加はここにキーを足すだけ
 const PLAN_DEFS={
@@ -1501,43 +1501,72 @@ function isAdmin(){return ADMIN_EMAILS.includes(window._currentUser?.email);}
 function showUpgradeModal(feature){
   const pd=getPlanDef();
   const cfg={
-    tasks:{title:'タスクの上限に達しました',desc:'現在のプランでは最大'+pd.taskLimit+'件まで管理できます。<br>スタンダードプランにアップグレードするとタスク数無制限でご利用いただけます。'},
-    banner:{title:'スタンダードプランにアップグレード',desc:'タスク・プロジェクト無制限、AIアシスタント、繰り返しタスクなど全機能が使えます。'},
-    projects:{title:'プロジェクトの上限に達しました',desc:'現在のプランでは最大'+pd.projectLimit+'件まで作成できます。<br>スタンダードプランにアップグレードするとプロジェクト数無制限でご利用いただけます。'},
-    notes:{title:'ノートの上限に達しました',desc:'現在のプランでは最大'+pd.noteLimit+'件までノートを作成できます。<br>上位プランにアップグレードするとノート数を増やせます。'},
-    ai:{title:'AI利用回数の上限に達しました',desc:'今月のAI利用回数が上限（'+pd.aiLimit+'回）に達しました。<br>上位プランにアップグレードすると利用回数が増えます。'},
-    repeat:{title:'繰り返しタスク',desc:'<strong>繰り返しタスク</strong>はスタンダードプランでご利用いただける機能です。'},
-    ai:{title:'AIアシスタント',desc:'<strong>AIアシスタント</strong>はスタンダードプランでご利用いただける機能です。'},
+    tasks:{title:'タスクの上限に達しました',desc:'現在のプランでは最大'+pd.taskLimit+'件まで管理できます。上位プランにアップグレードするとタスク数無制限でご利用いただけます。'},
+    banner:{title:'プランをアップグレード',desc:'タスク・プロジェクト無制限、AIアシスタント、繰り返しタスクなど全機能が使えます。'},
+    projects:{title:'プロジェクトの上限に達しました',desc:'現在のプランでは最大'+pd.projectLimit+'件まで作成できます。上位プランにアップグレードするとプロジェクト数無制限でご利用いただけます。'},
+    notes:{title:'ノートの上限に達しました',desc:'現在のプランでは最大'+pd.noteLimit+'件までノートを作成できます。上位プランにアップグレードするとノート数を増やせます。'},
+    ai:{title:'AI利用回数の上限に達しました',desc:'今月のAI利用回数が上限（'+pd.aiLimit+'回）に達しました。上位プランにアップグレードすると利用回数が増えます。'},
+    repeat:{title:'繰り返しタスク',desc:'繰り返しタスクはスタンダードプラン以上でご利用いただける機能です。'},
   };
   const c=cfg[feature]||{title:feature,desc:'上位プランでご利用いただける機能です。'};
   const _isStd=getUserPlan()==='standard';
-  const _badge=_isStd?'✦ プレミアムプラン':'✦ スタンダードプラン';
-  const _feats=_isStd
-    ?['AIアシスタント（500回/月）','ノート無制限','全機能利用可能']
-    :['タスク管理（無制限）','プロジェクト（無制限）','ノート300件','繰り返しタスク','AIアシスタント（100回/月）'];
-  const _price=_isStd?'¥780':'¥480';
-  const _baseUrl=_isStd?PAYMENT_LINKS.premium:PAYMENT_LINKS.standard;
   const _email=window._currentUser?.email||'';
   const _uid=window._currentUser?.id||'';
-  const _qp=new URLSearchParams();
-  if(_email)_qp.set('prefilled_email',_email);
-  if(_uid)_qp.set('client_reference_id',_uid);
-  const _payUrl=_baseUrl+(_qp.toString()?'?'+_qp.toString():'');
+  function _payUrl(base){
+    const qp=new URLSearchParams();
+    if(_email)qp.set('prefilled_email',_email);
+    if(_uid)qp.set('client_reference_id',_uid);
+    return base+(qp.toString()?'?'+qp.toString():'');
+  }
+
   const ov=document.createElement('div');ov.className='overlay';
-  ov.innerHTML='<div class="modal upgrade-modal">'
-    +'<div class="upgrade-badge">'+_badge+'</div>'
-    +'<div class="upgrade-title">'+c.title+'</div>'
-    +'<div class="upgrade-desc">'+c.desc+'</div>'
-    +'<div class="upgrade-features">'
-      +_feats.map(f=>'<div class="upgrade-feat">'+f+'</div>').join('')
-    +'</div>'
-    +'<div class="upgrade-price">'+_price+'<span>/月</span></div>'
-    +'<div class="upgrade-price-note">月額・いつでもキャンセル可</div>'
-    +'<div class="modal-foot">'
-      +'<button class="btn btn-ghost" id="upg-cancel">閉じる</button>'
-      +'<a href="'+_payUrl+'" target="_blank" class="btn btn-primary" style="text-decoration:none">アップグレード →</a>'
-    +'</div>'
-  +'</div>';
+
+  if(_isStd){
+    // スタンダード → プレミアムへの誘導（1択）
+    ov.innerHTML='<div class="modal upgrade-modal">'
+      +'<div class="upgrade-badge">✦ プレミアムプラン</div>'
+      +'<div class="upgrade-title">'+c.title+'</div>'
+      +'<div class="upgrade-desc">'+c.desc+'</div>'
+      +'<div class="upgrade-features">'
+        +['AIアシスタント（500回/月）','ノート無制限','全機能利用可能'].map(f=>'<div class="upgrade-feat">'+f+'</div>').join('')
+      +'</div>'
+      +'<div class="upgrade-price">¥780<span>/月</span></div>'
+      +'<div class="upgrade-price-note">月額・いつでもキャンセル可</div>'
+      +'<div class="modal-foot">'
+        +'<button class="btn btn-ghost" id="upg-cancel">閉じる</button>'
+        +'<a href="'+_payUrl(PAYMENT_LINKS.premium)+'" target="_blank" class="btn btn-primary" style="text-decoration:none">アップグレード →</a>'
+      +'</div>'
+    +'</div>';
+  } else {
+    // フリー → スタンダード or プレミアムを選択
+    ov.innerHTML='<div class="modal upgrade-modal" style="max-width:520px">'
+      +'<div class="upgrade-title" style="margin-bottom:4px">'+c.title+'</div>'
+      +'<div class="upgrade-desc" style="margin-bottom:16px">'+c.desc+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">'
+        // スタンダードカード
+        +'<div style="border:2px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px">'
+          +'<div style="font-size:13px;font-weight:700;color:var(--text)">✦ スタンダード</div>'
+          +'<div style="font-size:22px;font-weight:800;color:var(--text)">¥480<span style="font-size:13px;font-weight:400;color:var(--text3)">/月</span></div>'
+          +'<div style="font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;flex:1">'
+            +['タスク無制限','プロジェクト無制限','ノート300件','繰り返しタスク','AI（100回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
+          +'</div>'
+          +'<a href="'+_payUrl(PAYMENT_LINKS.standard)+'" target="_blank" class="btn btn-ghost" style="text-decoration:none;text-align:center;margin-top:4px;font-size:13px">選択する →</a>'
+        +'</div>'
+        // プレミアムカード
+        +'<div style="border:2px solid var(--accent);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--accent-bg)">'
+          +'<div style="font-size:13px;font-weight:700;color:var(--accent)">✦ プレミアム</div>'
+          +'<div style="font-size:22px;font-weight:800;color:var(--text)">¥780<span style="font-size:13px;font-weight:400;color:var(--text3)">/月</span></div>'
+          +'<div style="font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;flex:1">'
+            +['タスク無制限','プロジェクト無制限','ノート無制限','繰り返しタスク','AI（500回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
+          +'</div>'
+          +'<a href="'+_payUrl(PAYMENT_LINKS.premium)+'" target="_blank" class="btn btn-primary" style="text-decoration:none;text-align:center;margin-top:4px;font-size:13px">選択する →</a>'
+        +'</div>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:8px">月額・いつでもキャンセル可</div>'
+      +'<div class="modal-foot"><button class="btn btn-ghost" id="upg-cancel">閉じる</button></div>'
+    +'</div>';
+  }
+
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
   document.getElementById('upg-cancel').onclick=()=>ov.remove();
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
