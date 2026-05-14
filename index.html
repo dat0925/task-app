@@ -3397,7 +3397,8 @@ function renderSidebar(){
     h+='<div class="nav-item" data-a="open-plan-admin" style="font-size:12px;color:var(--text3);margin:0 6px 4px">'
       +'<span style="font-size:14px">🔑</span><span>プラン管理</span>'
       +'</div>';
-  } else if(window._currentUser){
+  }
+  if(window._currentUser){
     h+='<div class="nav-item" data-a="open-my-plan" style="font-size:12px;color:var(--text3);margin:0 6px 4px">'
       +'<span style="font-size:14px">📋</span><span>マイプラン</span>'
       +'</div>';
