@@ -62,6 +62,28 @@ Deno.serve(async (req) => {
         break;
       }
 
+      // ── 新規サブスク作成：stripe_customer_id を保存 ──────────
+      case 'customer.subscription.created': {
+        const sub        = event.data.object as Stripe.Subscription;
+        const customerId = sub.customer as string;
+        if (sub.status !== 'active') break;
+
+        const priceId = sub.items.data[0]?.price?.id ?? '';
+        const plan    = PRICE_PLAN[priceId] ?? 'standard';
+
+        // Stripe顧客からメールを取得
+        const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+        const email    = customer.email;
+        if (!email) { console.error('email not found for customer', customerId); break; }
+
+        await sb.from('user_plans').upsert(
+          { email, plan, stripe_customer_id: customerId, updated_at: new Date().toISOString() },
+          { onConflict: 'email' }
+        );
+        console.log(`Subscription created: ${email} → ${plan}, customer: ${customerId}`);
+        break;
+      }
+
       // ── サブスク解約：フリープランに戻す ─────────────────────
       case 'customer.subscription.deleted': {
         const sub        = event.data.object as Stripe.Subscription;
