@@ -1590,10 +1590,19 @@ async function openMyPlan(){
   const planLabel=pd.label+'プラン';
   const isFree=getUserPlan()==='free';
 
+  const _email2=window._currentUser?.email||'';
+  const _uid2=window._currentUser?.id||'';
+  function _payUrl2(base){
+    const qp=new URLSearchParams();
+    if(_email2)qp.set('prefilled_email',_email2);
+    if(_uid2)qp.set('client_reference_id',_uid2);
+    return base+(qp.toString()?'?'+qp.toString():'');
+  }
+
   const ov=document.createElement('div');
-  ov.className='modal-overlay';
+  ov.className='overlay';
   ov.innerHTML=
-    '<div class="modal" style="max-width:420px;width:95vw">'
+    '<div class="modal" style="max-width:460px;width:95vw">'
       +'<div class="modal-title">📋 マイプラン</div>'
       +'<div style="display:flex;flex-direction:column;gap:16px;padding:4px 0 8px">'
 
@@ -1617,13 +1626,27 @@ async function openMyPlan(){
           +'</div>'
           :'')
 
-        // フリープランの場合：アップグレード案内
+        // フリープランの場合：スタンダード・プレミアム2択
         +(isFree
-          ?'<div style="border:1px solid var(--accent);border-radius:10px;padding:14px 16px">'
-            +'<div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px">スタンダードプランにアップグレード</div>'
-            +'<div style="font-size:12px;color:var(--text2)">タスク無制限・AI機能・繰り返しタスクが使えます</div>'
-            +'<a href="'+PAYMENT_LINKS.standard+'" target="_blank" class="btn btn-primary" style="margin-top:10px;display:inline-block;text-decoration:none;font-size:13px">アップグレード →</a>'
+          ?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+            +'<div style="border:2px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px">'
+              +'<div style="font-size:13px;font-weight:700">✦ スタンダード</div>'
+              +'<div style="font-size:20px;font-weight:800">¥480<span style="font-size:12px;font-weight:400;color:var(--text3)">/月</span></div>'
+              +'<div style="font-size:11px;color:var(--text2);display:flex;flex-direction:column;gap:3px;flex:1">'
+                +['タスク無制限','プロジェクト無制限','ノート300件','繰り返しタスク','AI（100回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
+              +'</div>'
+              +'<a href="'+_payUrl2(PAYMENT_LINKS.standard)+'" target="_blank" class="btn btn-ghost" style="text-decoration:none;text-align:center;font-size:12px;margin-top:4px">選択する →</a>'
+            +'</div>'
+            +'<div style="border:2px solid var(--accent);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--accent-bg)">'
+              +'<div style="font-size:13px;font-weight:700;color:var(--accent)">✦ プレミアム</div>'
+              +'<div style="font-size:20px;font-weight:800">¥780<span style="font-size:12px;font-weight:400;color:var(--text3)">/月</span></div>'
+              +'<div style="font-size:11px;color:var(--text2);display:flex;flex-direction:column;gap:3px;flex:1">'
+                +['タスク無制限','プロジェクト無制限','ノート無制限','繰り返しタスク','AI（500回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
+              +'</div>'
+              +'<a href="'+_payUrl2(PAYMENT_LINKS.premium)+'" target="_blank" class="btn btn-primary" style="text-decoration:none;text-align:center;font-size:12px;margin-top:4px">選択する →</a>'
+            +'</div>'
           +'</div>'
+          +'<div style="font-size:11px;color:var(--text3);text-align:center">月額・いつでもキャンセル可</div>'
           // 有料プランの場合：解約ボタン
           :'<div>'
             +'<button class="btn btn-ghost" id="my-plan-portal-btn" style="width:100%;font-size:13px;color:var(--text2)">プラン変更・解約はこちら →</button>'
