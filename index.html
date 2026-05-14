@@ -814,15 +814,17 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 /* Note title inline edit in list */
 .note-title-edit-inp{width:100%;font:inherit;font-size:13.5px;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:1px 6px;color:var(--text);outline:none;box-sizing:border-box}
 /* NOTE一覧スワイプ削除 */
-.note-swipe-wrap{position:relative;overflow:hidden;border-radius:8px;}
-.note-swipe-inner{transition:transform .2s cubic-bezier(.25,.1,.25,1);will-change:transform;background:var(--bg);display:flex;align-items:stretch;}
+.note-swipe-wrap{position:relative;border-radius:8px;overflow:hidden;}
+.note-swipe-inner{transition:transform .2s cubic-bezier(.25,.1,.25,1);will-change:transform;background:var(--bg);position:relative;z-index:1;}
 .note-swipe-inner.swiping{transition:none;}
-.note-swipe-trow{flex:1;min-width:0;}
+.note-swipe-trow{display:block;}
 .note-swipe-del-bg{
-  width:80px;flex-shrink:0;
+  position:absolute;top:0;right:0;bottom:0;width:80px;
   background:#ef4444;display:flex;align-items:center;justify-content:center;
   color:#fff;font-size:13px;font-weight:600;gap:4px;
-  pointer-events:none;
+  pointer-events:none;z-index:0;
+  clip-path:inset(0 0 0 100%);
+  transition:clip-path .2s;
 }
 /* AI button in topbar (PC + mobile) */
 .ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#a78bfa);color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation;transition:opacity .15s,transform .15s}
@@ -2495,10 +2497,14 @@ function initNoteSwipe(container){
         opened=false;
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='';
+        const bgEl2=wrap.querySelector('.note-swipe-del-bg');
+        if(bgEl2){bgEl2.style.clipPath='inset(0 0 0 100%)';bgEl2.style.pointerEvents='none';}
       } else if(finalDx<-THRESH){
         // 閾値超え → 削除ボタン表示
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='translateX(-'+THRESH+'px)';
+        const bgEl=wrap.querySelector('.note-swipe-del-bg');
+        if(bgEl){bgEl.style.clipPath='inset(0 0 0 0)';bgEl.style.pointerEvents='auto';bgEl.style.cursor='pointer';}
         opened=true;
         // del-bgをスライドイン
         if(bg&&!bg._bound){
@@ -2530,6 +2536,8 @@ function initNoteSwipe(container){
         opened=false;
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='';
+        const bgEl3=wrap.querySelector('.note-swipe-del-bg');
+        if(bgEl3){bgEl3.style.clipPath='inset(0 0 0 100%)';bgEl3.style.pointerEvents='none';}
       }
     },{passive:true});
   });
@@ -4122,8 +4130,9 @@ function renderNoteRow(n){
   const sel=S.noteId===n.id&&S.noteOpen;
   const tagChips=(n.tagIds&&n.tagIds.length)?n.tagIds.slice(0,3).map(tid=>{const t=S.tags.find(x=>x.id===tid);return t?'<span class="mc" style="background:'+t.color+'1a;color:'+t.color+'">#'+esc(t.name)+'</span>':''}).join(''):'';
   return '<div class="note-swipe-wrap" data-note-swipe-id="'+n.id+'">'
+    +'<div class="note-swipe-del-bg">🗑 削除</div>'
     +'<div class="note-swipe-inner">'
-    +'<div class="trow note-swipe-trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
+    +'<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
     +'<div class="tbody">'
       +'<div class="ttitle" data-note-title-edit="'+n.id+'">'+esc(n.title||'無題')+'</div>'
       +(tagChips?'<div class="tmeta">'+tagChips+'</div>':'')
@@ -4136,7 +4145,6 @@ function renderNoteRow(n){
       +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'
     +'</button>'
   +'</div>'
-  +'<div class="note-swipe-del-bg">🗑 削除</div>'
   +'</div>'// note-swipe-inner
   +'</div>';
 }
