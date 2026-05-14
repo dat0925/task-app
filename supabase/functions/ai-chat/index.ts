@@ -17,34 +17,28 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // ── 1. JWTからユーザー情報を取得 ──────────────────────
+    // ── 1. JWT認証 ──────────────────────────────────────────
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return json({ error: '認証が必要です' }, 401);
-    }
+    if (!authHeader) return json({ error: '認証が必要です' }, 401);
 
-    // anon keyで初期化してユーザーJWTを検証
     const sbAnon = createClient(
       SUPABASE_URL,
       Deno.env.get('SB_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
     const { data: { user }, error: authError } = await sbAnon.auth.getUser();
-    if (authError || !user) {
-      return json({ error: 'ログインが必要です' }, 401);
-    }
+    if (authError || !user) return json({ error: 'ログインが必要です' }, 401);
     const email = user.email!;
 
-    // ── 2. service_roleクライアント（DB操作用） ────────────
+    // ── 2. service_roleクライアント ──────────────────────────
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // ── 3. プランを取得 ────────────────────────────────────
+    // ── 3. プランを取得 ──────────────────────────────────────
     const { data: planRow } = await sb
       .from('user_plans')
       .select('plan')
@@ -53,47 +47,49 @@ Deno.serve(async (req) => {
     const plan  = planRow?.plan ?? 'free';
     const limit = AI_LIMITS[plan] ?? AI_LIMITS.free;
 
-    // ── 4. 今月の利用回数を確認（upsert） ────────────────
-    const month = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
-
+    // ── 4. 利用回数確認 ──────────────────────────────────────
+    const month = new Date().toISOString().slice(0, 7);
     const { data: usageRow, error: usageErr } = await sb
       .from('ai_usage')
       .select('count')
       .eq('email', email)
       .eq('month', month)
       .maybeSingle();
-
     if (usageErr) throw usageErr;
 
     const currentCount = usageRow?.count ?? 0;
-
     if (currentCount >= limit) {
       return json({
         error: 'limit_exceeded',
         message: `今月のAI利用回数（${limit}回）が上限に達しました。プランをアップグレードしてください。`,
-        count: currentCount,
-        limit,
-        plan,
+        count: currentCount, limit, plan,
       }, 429);
     }
 
-    // ── 5. リクエストボディを取得 ──────────────────────────
-    const { system, messages, model, max_tokens } = await req.json();
+    // ── 5. リクエストボディ ──────────────────────────────────
+    const { system, messages, model, max_tokens, tools, tool_choice } = await req.json();
 
-    // ── 6. Anthropic APIを呼ぶ ────────────────────────────
+    // ── 6. Anthropic API呼び出し ─────────────────────────────
+    const body: Record<string, unknown> = {
+      model:      model      ?? 'claude-sonnet-4-20250514',
+      max_tokens: max_tokens ?? 1024,
+      system,
+      messages,
+    };
+    // tool_use対応: toolsが渡された場合のみ付加
+    if (tools && tools.length > 0) {
+      body.tools = tools;
+      body.tool_choice = tool_choice ?? { type: 'auto' };
+    }
+
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Content-Type':    'application/json',
-        'x-api-key':       ANTHROPIC_API_KEY,
+        'Content-Type':      'application/json',
+        'x-api-key':         ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model:      model      ?? 'claude-sonnet-4-20250514',
-        max_tokens: max_tokens ?? 1024,
-        system,
-        messages,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!anthropicRes.ok) {
@@ -104,20 +100,16 @@ Deno.serve(async (req) => {
 
     const aiData = await anthropicRes.json();
 
-    // ── 7. 利用回数をインクリメント ───────────────────────
+    // ── 7. 利用回数インクリメント ────────────────────────────
     if (usageRow) {
-      await sb
-        .from('ai_usage')
+      await sb.from('ai_usage')
         .update({ count: currentCount + 1, updated_at: new Date().toISOString() })
-        .eq('email', email)
-        .eq('month', month);
+        .eq('email', email).eq('month', month);
     } else {
-      await sb
-        .from('ai_usage')
-        .insert({ email, month, count: 1 });
+      await sb.from('ai_usage').insert({ email, month, count: 1 });
     }
 
-    // ── 8. レスポンスに残り回数を付加して返す ────────────
+    // ── 8. レスポンス返却 ────────────────────────────────────
     return json({
       ...aiData,
       _usage: {
