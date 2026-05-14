@@ -7584,20 +7584,20 @@ function openSettingsModal(){
     +'</div>'
 
     +'<div class="settings-row">'
-      +'<div><div class="settings-label">📊 タスク CSV エクスポート</div><div class="settings-sub">全タスクをShiftJIS形式でダウンロード</div></div>'
-      +'<button class="btn btn-ghost" id="s-csv-task-export" style="font-size:12px;flex-shrink:0">エクスポート</button>'
+      +'<div><div class="settings-label">📊 タスク CSV</div><div class="settings-sub">ひな形DL・インポート・エクスポート</div></div>'
+      +'<div style="display:flex;gap:6px;flex-shrink:0">'
+        +'<button class="btn btn-ghost" id="s-csv-task-template" style="font-size:12px">ひな形DL</button>'
+        +'<button class="btn btn-ghost" id="s-csv-task-import" style="font-size:12px">インポート</button>'
+        +'<button class="btn btn-ghost" id="s-csv-task-export" style="font-size:12px">エクスポート</button>'
+      +'</div>'
     +'</div>'
     +'<div class="settings-row">'
-      +'<div><div class="settings-label">📊 タスク CSV インポート</div><div class="settings-sub">CSVからタスクを一括追加</div></div>'
-      +'<button class="btn btn-ghost" id="s-csv-task-import" style="font-size:12px;flex-shrink:0">インポート</button>'
-    +'</div>'
-    +'<div class="settings-row">'
-      +'<div><div class="settings-label">📝 ノート CSV エクスポート</div><div class="settings-sub">全ノートをShiftJIS形式でダウンロード</div></div>'
-      +'<button class="btn btn-ghost" id="s-csv-note-export" style="font-size:12px;flex-shrink:0">エクスポート</button>'
-    +'</div>'
-    +'<div class="settings-row">'
-      +'<div><div class="settings-label">📝 ノート CSV インポート</div><div class="settings-sub">CSVからノートを一括追加</div></div>'
-      +'<button class="btn btn-ghost" id="s-csv-note-import" style="font-size:12px;flex-shrink:0">インポート</button>'
+      +'<div><div class="settings-label">📝 ノート CSV</div><div class="settings-sub">ひな形DL・インポート・エクスポート</div></div>'
+      +'<div style="display:flex;gap:6px;flex-shrink:0">'
+        +'<button class="btn btn-ghost" id="s-csv-note-template" style="font-size:12px">ひな形DL</button>'
+        +'<button class="btn btn-ghost" id="s-csv-note-import" style="font-size:12px">インポート</button>'
+        +'<button class="btn btn-ghost" id="s-csv-note-export" style="font-size:12px">エクスポート</button>'
+      +'</div>'
     +'</div>'
     +'<div class="modal-foot"><button class="btn btn-ghost" id="s-nav-edit">🗂 メニュー編集</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
   +'</div>';
@@ -7756,6 +7756,15 @@ function openSettingsModal(){
     ov.remove();
   });
 
+  // タスク CSVひな形DL
+  addFastHandler('s-csv-task-template',()=>{
+    const headers=['title','status','priority','notes','startAt','dueAt','projectName','tagNames','flagged','repeatRule'];
+    const sample=['サンプルタスク','inbox','4','メモ欄','2026-06-01','2026-06-30','プロジェクト名','タグ1|タグ2','0',''];
+    const csv=headers.join(',')+'\n'+sample.map(v=>'"'+v+'"').join(',');
+    downloadCSV('tasks_template.csv',csv);
+    toast('✅ タスクCSVひな形をダウンロードしました');
+  });
+
   // タスク CSVインポート
   addFastHandler('s-csv-task-import',()=>{
     const inp=document.createElement('input');
@@ -7827,6 +7836,15 @@ function openSettingsModal(){
     downloadCSV('notes_'+d.toISOString().slice(0,10)+'.csv',csv);
     toast('✅ ノートCSVをダウンロードしました（'+notes.length+'件）');
     ov.remove();
+  });
+
+  // ノート CSVひな形DL
+  addFastHandler('s-csv-note-template',()=>{
+    const headers=['title','body','tagNames'];
+    const sample=['サンプルノート','本文をここに入力します','タグ1|タグ2'];
+    const csv=headers.join(',')+'\n'+sample.map(v=>'"'+v+'"').join(',');
+    downloadCSV('notes_template.csv',csv);
+    toast('✅ ノートCSVひな形をダウンロードしました');
   });
 
   // ノート CSVインポート
