@@ -1456,6 +1456,11 @@ let S={
 };
 
 // ===== PLAN SYSTEM =====
+// Stripe Payment Links（テスト用。本番切り替え時はURLを差し替え）
+const PAYMENT_LINKS={
+  standard:'https://buy.stripe.com/test_8x27sK4UQbwb4aBdqPds400',
+  premium:'https://buy.stripe.com/test_cNifZg0EA6bRcH70E3ds401',
+};
 // プラン定義: 将来のプラン追加はここにキーを足すだけ
 const PLAN_DEFS={
   free:    {label:'フリー',     taskLimit:100,      projectLimit:3,        noteLimit:50,  aiLimit:20,  ai:false, repeat:false},
@@ -1511,12 +1516,7 @@ function showUpgradeModal(feature){
     ?['AIアシスタント（500回/月）','ノート無制限','全機能利用可能']
     :['タスク管理（無制限）','プロジェクト（無制限）','ノート300件','繰り返しタスク','AIアシスタント（100回/月）'];
   const _price=_isStd?'¥780':'¥480';
-  // Stripe Payment Links（テスト用。本番切り替え時はURLを差し替え）
-  const _PAYMENT_LINKS={
-    standard:'https://buy.stripe.com/test_8x27sK4UQbwb4aBdqPds400',
-    premium:'https://buy.stripe.com/test_cNifZg0EA6bRcH70E3ds401',
-  };
-  const _baseUrl=_isStd?_PAYMENT_LINKS.premium:_PAYMENT_LINKS.standard;
+  const _baseUrl=_isStd?PAYMENT_LINKS.premium:PAYMENT_LINKS.standard;
   const _email=window._currentUser?.email||'';
   const _uid=window._currentUser?.id||'';
   const _qp=new URLSearchParams();
@@ -1541,6 +1541,98 @@ function showUpgradeModal(feature){
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
   document.getElementById('upg-cancel').onclick=()=>ov.remove();
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+// ===== マイプラン画面（一般ユーザー）=====
+async function openMyPlan(){
+  const pd=getPlanDef();
+  const email=window._currentUser?.email||'';
+  const month=new Date().toISOString().slice(0,7);
+
+  // AI利用回数を取得
+  let aiUsed=0;
+  try{
+    const{data}=await window._SB.from('ai_usage').select('count').eq('email',email).eq('month',month).maybeSingle();
+    if(data)aiUsed=data.count||0;
+  }catch(_){}
+
+  const aiLimit=pd.aiLimit??0;
+  const aiPct=aiLimit>0?Math.min(100,Math.round(aiUsed/aiLimit*100)):0;
+  const planLabel=pd.label+'プラン';
+  const isFree=getUserPlan()==='free';
+
+  const ov=document.createElement('div');
+  ov.className='modal-overlay';
+  ov.innerHTML=
+    '<div class="modal" style="max-width:420px;width:95vw">'
+      +'<div class="modal-title">📋 マイプラン</div>'
+      +'<div style="display:flex;flex-direction:column;gap:16px;padding:4px 0 8px">'
+
+        // 現在のプラン
+        +'<div style="background:var(--bg2);border-radius:10px;padding:14px 16px">'
+          +'<div style="font-size:12px;color:var(--text3);margin-bottom:4px">現在のプラン</div>'
+          +'<div style="font-size:18px;font-weight:700;color:var(--text)">✦ '+esc(planLabel)+'</div>'
+        +'</div>'
+
+        // AI利用回数
+        +(pd.ai
+          ?'<div style="background:var(--bg2);border-radius:10px;padding:14px 16px">'
+            +'<div style="font-size:12px;color:var(--text3);margin-bottom:6px">AI利用回数（今月）</div>'
+            +'<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px">'
+              +'<span style="font-size:22px;font-weight:700">'+aiUsed+'</span>'
+              +'<span style="font-size:13px;color:var(--text3)">/ '+aiLimit+' 回</span>'
+            +'</div>'
+            +'<div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">'
+              +'<div style="background:var(--accent);height:100%;width:'+aiPct+'%;border-radius:4px;transition:width .4s"></div>'
+            +'</div>'
+          +'</div>'
+          :'')
+
+        // フリープランの場合：アップグレード案内
+        +(isFree
+          ?'<div style="border:1px solid var(--accent);border-radius:10px;padding:14px 16px">'
+            +'<div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px">スタンダードプランにアップグレード</div>'
+            +'<div style="font-size:12px;color:var(--text2)">タスク無制限・AI機能・繰り返しタスクが使えます</div>'
+            +'<a href="'+PAYMENT_LINKS.standard+'" target="_blank" class="btn btn-primary" style="margin-top:10px;display:inline-block;text-decoration:none;font-size:13px">アップグレード →</a>'
+          +'</div>'
+          // 有料プランの場合：解約ボタン
+          :'<div>'
+            +'<button class="btn btn-ghost" id="my-plan-portal-btn" style="width:100%;font-size:13px;color:var(--text2)">プラン変更・解約はこちら →</button>'
+          +'</div>')
+
+      +'</div>'
+      +'<div class="modal-foot"><button class="btn btn-ghost" id="my-plan-close">閉じる</button></div>'
+    +'</div>';
+
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('open'));
+  document.getElementById('my-plan-close').onclick=()=>ov.remove();
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+
+  // カスタマーポータルへ遷移
+  const portalBtn=document.getElementById('my-plan-portal-btn');
+  if(portalBtn){
+    portalBtn.addEventListener('click',async()=>{
+      portalBtn.textContent='読み込み中...';
+      portalBtn.disabled=true;
+      try{
+        const session=await window._SB.auth.getSession();
+        const token=session?.data?.session?.access_token;
+        const res=await fetch(`${window._SB.supabaseUrl}/functions/v1/stripe-portal`,{
+          method:'POST',
+          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+          body:JSON.stringify({return_url:location.href}),
+        });
+        const data=await res.json();
+        if(data.url){location.href=data.url;}
+        else{toast('エラーが発生しました');portalBtn.textContent='プラン変更・解約はこちら →';portalBtn.disabled=false;}
+      }catch(_){
+        toast('エラーが発生しました');
+        portalBtn.textContent='プラン変更・解約はこちら →';
+        portalBtn.disabled=false;
+      }
+    });
+  }
 }
 
 // ===== プラン管理画面（管理者のみ）=====
@@ -3304,6 +3396,10 @@ function renderSidebar(){
   if(isAdmin()){
     h+='<div class="nav-item" data-a="open-plan-admin" style="font-size:12px;color:var(--text3);margin:0 6px 4px">'
       +'<span style="font-size:14px">🔑</span><span>プラン管理</span>'
+      +'</div>';
+  } else if(window._currentUser){
+    h+='<div class="nav-item" data-a="open-my-plan" style="font-size:12px;color:var(--text3);margin:0 6px 4px">'
+      +'<span style="font-size:14px">📋</span><span>マイプラン</span>'
       +'</div>';
   }
   document.getElementById('sidenav').innerHTML=h;
@@ -5763,6 +5859,7 @@ else if(a==='scroll-to-subs'){
   else if(a==='newtag'){openModal('tag')}
   else if(a==='upgrade-banner'){showUpgradeModal('banner')}
   else if(a==='open-plan-admin'){openPlanAdmin()}
+  else if(a==='open-my-plan'){openMyPlan()}
   else if(a==='sec-collapse-all'){
     const secs=S.sections.filter(s=>s.projectId===S.projId);
     secs.forEach(s=>{S.secCollapsed[s.id]=true;});
