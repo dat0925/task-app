@@ -2833,10 +2833,18 @@ function showTaskContextMenu(row, taskId){
   delBtn.onclick=async ev=>{
     ev.stopPropagation();popup.remove();
     const snap=JSON.stringify(task);
-    if(S.taskId===taskId){S.drawerOpen=false;S.taskId=null;}
-    await delTask(taskId);
-    toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render();});
-    render();
+    const incompleteSubs=S.tasks.filter(t=>t.parentTaskId===taskId&&t.status!=='completed');
+    const doDel=async()=>{
+      if(S.taskId===taskId){S.drawerOpen=false;S.taskId=null;}
+      await delTask(taskId);
+      toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render();});
+      render();
+    };
+    if(incompleteSubs.length>0){
+      openConfirmModal('未完了のサブタスクがあります',incompleteSubs.length+'件の未完了サブタスクがあります。タスクと一緒にすべて削除されます。',doDel,'削除する',true);
+    } else {
+      await doDel();
+    }
   };
   popup.appendChild(delBtn);
 
@@ -4978,7 +4986,7 @@ function renderDrawer(){
       if(subsEl){
         const allSubs=S.tasks.filter(t=>t.parentTaskId===S.taskId).sort((a,b)=>a.order-b.order);
         subsEl.innerHTML=allSubs.map(sub=>
-          '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><span class="sub-title" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</span><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
+          '<div class="sub-item" data-id="'+sub.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(sub.status==="completed"?' done':'')+'" data-a="chk" data-id="'+sub.id+'">'+(sub.status==="completed"?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+sub.id+'" style="'+(sub.status==="completed"?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(sub.title)+'</button><button class="icon-btn" data-a="del" data-id="'+sub.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>'
         ).join('');
         initSubDrag(subsEl);
       }
@@ -5463,33 +5471,41 @@ else if(a==='scroll-to-subs'){
       if(task.parentTaskId&&updateSubsOnly()){}else render();
     } else {
       const snap=JSON.stringify(task);
-      task.status='completed';task.completedAt=now();
-      await saveTask(task);
-      // サブタスクも完了にする
-      if(!task.parentTaskId){
-        const subs=S.tasks.filter(t=>t.parentTaskId===task.id&&t.status!=='completed');
-        for(const sub of subs){sub.status='completed';sub.completedAt=now();await saveTask(sub);}
-      }
-      playSE('complete');
-      if(task.repeatRule&&task.dueAt){
-        const next=nextRepeat(task);
-        if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}
-        else toast('"'+task.title+'" 完了 ✓');
-      } else {
-        toast('"'+(task.title||'無題')+'" 完了 ✓',async()=>{
-          const r=JSON.parse(snap);
-          r.status=r.status||'inbox';await saveTask(r);
-          // 元に戻す時はサブタスクも戻す
-          const subs=S.tasks.filter(t=>t.parentTaskId===r.id&&t.status==='completed');
-          for(const sub of subs){sub.status='active';sub.completedAt=null;await saveTask(sub);}
+      const incompleteSubs=!task.parentTaskId?S.tasks.filter(t=>t.parentTaskId===task.id&&t.status!=='completed'):[];
+      const doComplete=async()=>{
+        task.status='completed';task.completedAt=now();
+        await saveTask(task);
+        // サブタスクも完了にする
+        if(!task.parentTaskId){
+          const subs=S.tasks.filter(t=>t.parentTaskId===task.id&&t.status!=='completed');
+          for(const sub of subs){sub.status='completed';sub.completedAt=now();await saveTask(sub);}
+        }
+        playSE('complete');
+        if(task.repeatRule&&task.dueAt){
+          const next=nextRepeat(task);
+          if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}
+          else toast('"'+task.title+'" 完了 ✓');
+        } else {
+          toast('"'+(task.title||'無題')+'" 完了 ✓',async()=>{
+            const r=JSON.parse(snap);
+            r.status=r.status||'inbox';await saveTask(r);
+            // 元に戻す時はサブタスクも戻す
+            const subs=S.tasks.filter(t=>t.parentTaskId===r.id&&t.status==='completed');
+            for(const sub of subs){sub.status='active';sub.completedAt=null;await saveTask(sub);}
+            render();
+          });
+        }
+        if(task.parentTaskId){
+          if(!updateSubsOnly())render();
+        } else {
+          if(S.taskId===task.id){S.drawerOpen=false;S.taskId=null}
           render();
-        });
-      }
-      if(task.parentTaskId){
-        if(!updateSubsOnly())render();
+        }
+      };
+      if(incompleteSubs.length>0){
+        openConfirmModal('未完了のサブタスクがあります',incompleteSubs.length+'件の未完了サブタスクがあります。完了にするとサブタスクもすべて完了になります。',doComplete,'完了にする',false);
       } else {
-        if(S.taskId===task.id){S.drawerOpen=false;S.taskId=null}
-        render();
+        await doComplete();
       }
     }
   }
@@ -5878,10 +5894,18 @@ else if(a==='scroll-to-subs'){
       toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render()});
       if(!updateSubsOnly())render();
     } else {
-      if(S.taskId===id){S.drawerOpen=false;S.taskId=null}
-      await delTask(id);
-      toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render()});
-      render();
+      const incompleteSubs=S.tasks.filter(t=>t.parentTaskId===id&&t.status!=='completed');
+      const doDel=async()=>{
+        if(S.taskId===id){S.drawerOpen=false;S.taskId=null}
+        await delTask(id);
+        toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render()});
+        render();
+      };
+      if(incompleteSubs.length>0){
+        openConfirmModal('未完了のサブタスクがあります',incompleteSubs.length+'件の未完了サブタスクがあります。タスクと一緒にすべて削除されます。',doDel,'削除する',true);
+      } else {
+        await doDel();
+      }
     }
   }
   else if(a==='settings'){
