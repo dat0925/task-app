@@ -1447,7 +1447,7 @@ let S={
   sort:'order',
   hideNotStarted:false,
   sidebarOpen:window.innerWidth>768,
-  notes:[],noteId:null,noteOpen:false,noteSearch:'',noteSortUpdated:true,
+  notes:[],noteId:null,noteOpen:false,noteSearch:'',noteSortUpdated:true,noteSelectMode:false,selectedNoteIds:[],
   projsOpen:true,hiddenProjsOpen:false,tagsOpen:true,
   secCollapsed:JSON.parse(localStorage.getItem('secCollapsed')||'{}'),
   openSubs:{},
@@ -4278,11 +4278,12 @@ function renderReview(){
 // ===== NOTES =====
 function renderNoteRow(n){
   const sel=S.noteId===n.id&&S.noteOpen;
+  const bulkSel=S.noteSelectMode&&S.selectedNoteIds.includes(n.id);
   const tagChips=(n.tagIds&&n.tagIds.length)?n.tagIds.slice(0,3).map(tid=>{const t=S.tags.find(x=>x.id===tid);return t?'<span class="mc" style="background:'+t.color+'1a;color:'+t.color+'">#'+esc(t.name)+'</span>':''}).join(''):'';
   return '<div class="note-swipe-wrap" data-note-swipe-id="'+n.id+'">'
     +'<div class="note-swipe-del-bg">🗑 削除</div>'
     +'<div class="note-swipe-inner">'
-    +'<div class="trow'+(sel?' sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
+    +'<div class="trow'+(sel?' sel':'')+(bulkSel?' bulk-sel':'')+'" data-a="note-sel" data-id="'+n.id+'">'
     +'<div class="tbody">'
       +'<div class="ttitle" data-note-title-edit="'+n.id+'">'+esc(n.title||'無題')+'</div>'
       +(tagChips?'<div class="tmeta">'+tagChips+'</div>':'')
@@ -4305,10 +4306,21 @@ function renderNoteList(){
   if(S.filterTagIds&&S.filterTagIds.length)notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
   notes.sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
   let h='<div class="tlist">';
-  h+='<div style="padding:10px 0 6px;display:flex;gap:6px;align-items:center">'
-    +'<input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px;flex:1" autocomplete="off">'
-    +'<button class="toggle-completed-btn'+(S.noteSortUpdated!==false?' active':'')+'" data-a="note-tog-sort" style="white-space:nowrap;flex-shrink:0">'+(S.noteSortUpdated!==false?'↓ 更新日':'↓ 作成日')+'</button>'
+  if(S.noteSelectMode){
+    h+='<div style="padding:10px 0 6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+      +'<span style="font-size:12px;font-weight:600;color:var(--text);padding:0 2px">'+S.selectedNoteIds.length+'件選択</span>'
+      +'<button class="toggle-completed-btn" data-a="note-bulk-sel-all">全選択</button>'
+      +'<button class="toggle-completed-btn" data-a="note-bulk-desel-all">全解除</button>'
+      +'<button class="toggle-completed-btn" data-a="note-bulk-tag">タグ</button>'
+      +'<button class="toggle-completed-btn" data-a="note-bulk-cancel" style="margin-left:auto">✕ 終了</button>'
     +'</div>';
+  } else {
+    h+='<div style="padding:10px 0 6px;display:flex;gap:6px;align-items:center">'
+      +'<input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px;flex:1" autocomplete="off">'
+      +'<button class="toggle-completed-btn'+(S.noteSortUpdated!==false?' active':'')+'" data-a="note-tog-sort" style="white-space:nowrap;flex-shrink:0">'+(S.noteSortUpdated!==false?'↓ 更新日':'↓ 作成日')+'</button>'
+      +'<button class="toggle-completed-btn" data-a="note-tog-select-mode">一括</button>'
+    +'</div>';
+  }
   h+='<div id="note-list-items">';
   if(!notes.length){
     h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
@@ -5512,6 +5524,14 @@ else if(a==='scroll-to-subs'){
   }
   else if(a==='note-sel'){
     if(_touchMoved)return;
+    if(S.noteSelectMode){
+      const id=el.dataset.id;
+      const idx=S.selectedNoteIds.indexOf(id);
+      if(idx>=0)S.selectedNoteIds.splice(idx,1);
+      else S.selectedNoteIds.push(id);
+      renderContent();
+      return;
+    }
     if(window.innerWidth<=768)return; // モバイルはnote-sel-editで開く
     const id=el.dataset.id;
     if(S.noteId===id&&S.noteOpen){S.noteOpen=false;S.noteId=null;}
@@ -6098,6 +6118,41 @@ else if(a==='scroll-to-subs'){
   else if(a==='bulk-edit'){await handleBulkEdit(el.dataset.field);}
   else if(a==='bulk-cancel'){S.selectMode=false;S.selectedIds=[];renderContent();}
   else if(a==='note-tog-sort'){S.noteSortUpdated=S.noteSortUpdated===false?true:false;renderContent()}
+  else if(a==='note-tog-select-mode'){S.noteSelectMode=true;S.selectedNoteIds=[];renderContent();}
+  else if(a==='note-bulk-cancel'){S.noteSelectMode=false;S.selectedNoteIds=[];renderContent();}
+  else if(a==='note-bulk-sel-all'){
+    const _q=S.noteSearch.toLowerCase();
+    let _ns=[...S.notes].filter(n=>!_q||(n.title+n.body).toLowerCase().includes(_q));
+    if(S.filterTagIds&&S.filterTagIds.length)_ns=_ns.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+    S.selectedNoteIds=_ns.map(n=>n.id);renderContent();
+  }
+  else if(a==='note-bulk-desel-all'){S.selectedNoteIds=[];renderContent();}
+  else if(a==='note-bulk-tag'){
+    if(!S.selectedNoteIds.length){toast('ノートを選択してください');return;}
+    const notes=S.notes.filter(n=>S.selectedNoteIds.includes(n.id));
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括追加</div>'
+      +'<div style="max-height:220px;overflow-y:auto;margin-bottom:12px">'
+      +S.tags.map(t=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer"><input type="checkbox" data-tag="'+t.id+'"><span style="color:'+t.color+'">#'+esc(t.name)+'</span></label>').join('')
+      +'</div>'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-primary" id="note-bulk-tag-ok">追加</button>'
+        +'<button class="btn btn-ghost" id="note-bulk-tag-cancel">キャンセル</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+    ov.querySelector('#note-bulk-tag-cancel').onclick=()=>ov.remove();
+    ov.querySelector('#note-bulk-tag-ok').onclick=async()=>{
+      const checked=[...ov.querySelectorAll('input[data-tag]:checked')].map(i=>i.dataset.tag);
+      ov.remove();if(!checked.length)return;
+      for(const n of notes){
+        if(!n.tagIds)n.tagIds=[];
+        checked.forEach(tid=>{if(!n.tagIds.includes(tid))n.tagIds.push(tid);});
+        await saveNote(n);
+      }
+      toast(notes.length+'件にタグを追加しました');render();
+    };
+  }
   else if(a==='copy-title'){
     e.stopPropagation();
     if(_touchMoved)return;
