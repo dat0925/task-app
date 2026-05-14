@@ -2798,6 +2798,85 @@ function initNoteSwipe(container){
   });
 }
 
+// タスク一覧スワイプ削除
+function initTaskSwipe(container){
+  container.querySelectorAll('.note-swipe-wrap[data-task-swipe-id]').forEach(wrap=>{
+    const inner=wrap.querySelector('.note-swipe-inner');
+    const taskId=wrap.dataset.taskSwipeId;
+    if(!inner||!taskId)return;
+    const THRESH=72;
+    let sx=0,sy=0,dx=0,active=false,opened=false;
+
+    inner.addEventListener('touchstart',e=>{
+      if(e.touches.length>1)return;
+      if(e.target.closest('button,.chk,.task-drag-handle'))return;// ボタン類は除外
+      sx=e.touches[0].clientX;sy=e.touches[0].clientY;
+      dx=0;active=true;
+      inner.classList.add('swiping');
+    },{passive:true});
+
+    inner.addEventListener('touchmove',e=>{
+      if(!active)return;
+      dx=e.touches[0].clientX-sx;
+      const dy=Math.abs(e.touches[0].clientY-sy);
+      if(dy>Math.abs(dx)*1.5){active=false;inner.classList.remove('swiping');inner.style.transform='';return;}
+      if(dx>0&&!opened){inner.style.transform='';return;}
+      const tx=Math.max(-THRESH-20,Math.min(0,dx+(opened?-THRESH:0)));
+      inner.style.transform='translateX('+tx+'px)';
+    },{passive:true});
+
+    inner.addEventListener('touchend',async e=>{
+      if(!active){active=false;return;}
+      inner.classList.remove('swiping');
+      active=false;
+      const finalDx=dx+(opened?-THRESH:0);
+      if(dx>10&&opened){
+        opened=false;
+        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+        inner.style.transform='';
+        const bg=wrap.querySelector('.note-swipe-del-bg');
+        if(bg){bg.style.clipPath='inset(0 0 0 100%)';bg.style.pointerEvents='none';}
+      } else if(finalDx<-THRESH){
+        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+        inner.style.transform='translateX(-'+THRESH+'px)';
+        const bg=wrap.querySelector('.note-swipe-del-bg');
+        if(bg){bg.style.clipPath='inset(0 0 0 0)';bg.style.pointerEvents='auto';bg.style.cursor='pointer';}
+        opened=true;
+        if(bg&&!bg._bound){
+          bg._bound=true;
+          bg.addEventListener('click',()=>{
+            const task=S.tasks.find(t=>t.id===taskId);if(!task)return;
+            const snap=JSON.stringify(task);
+            openConfirmModal('タスクを削除','"'+(task.title||'無題')+'" を削除しますか？',async()=>{
+              if(S.taskId===taskId){S.drawerOpen=false;S.taskId=null;}
+              await delTask(taskId);
+              wrap.style.transition='height .2s,opacity .2s';
+              wrap.style.overflow='hidden';
+              wrap.style.height=wrap.offsetHeight+'px';
+              requestAnimationFrame(()=>{wrap.style.height='0';wrap.style.opacity='0';});
+              setTimeout(()=>render(),220);
+              toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render();});
+            },'削除',true);
+          });
+        }
+      } else {
+        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+        inner.style.transform=opened?'translateX(-'+THRESH+'px)':'';
+      }
+    },{passive:true});
+
+    container.addEventListener('touchstart',e=>{
+      if(opened&&!wrap.contains(e.target)){
+        opened=false;
+        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+        inner.style.transform='';
+        const bg=wrap.querySelector('.note-swipe-del-bg');
+        if(bg){bg.style.clipPath='inset(0 0 0 100%)';bg.style.pointerEvents='none';}
+      }
+    },{passive:true});
+  });
+}
+
 // NOTE一覧コンテキストメニュー
 function showNoteContextMenu(row,noteId){
   document.querySelectorAll('.proj-edit-popup').forEach(el=>el.remove());
@@ -3773,6 +3852,7 @@ function renderContent(){
   if(S.view==='nextview'){el.innerHTML=renderNextView();return}
   el.innerHTML=renderList();
   if(S.view==='project')setupSectionDrag();
+  initTaskSwipe(el);
 }
 
 // ===== SECTION DRAG & DROP =====
@@ -4315,7 +4395,10 @@ function renderRow(task){
   }
   const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">✏️ '+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
 
-  let html='<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
+  let html=(!S.selectMode?'<div class="note-swipe-wrap" data-task-swipe-id="'+task.id+'">'
+    +'<div class="note-swipe-del-bg">🗑 削除</div>'
+    +'<div class="note-swipe-inner">':'')
+  +'<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
     +(!S.selectMode?'<span class="task-drag-handle" data-drag-task="'+task.id+'" title="ドラッグで並び替え" ontouchstart="event.stopPropagation()">⠿</span>':'')
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'"'+(S.selectMode?' style="pointer-events:none"':'')+' >'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
@@ -4330,7 +4413,8 @@ function renderRow(task){
       +'<button class="trow-edit-btn" data-a="sel-edit" data-id="'+task.id+'" title="詳細">'
         +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
       +'</button>')
-  +'</div>';
+  +'</div>'
+  +(!S.selectMode?'</div></div>':'');
   if(subs.length){
     html+='<div class="sub-rows'+(subsOpen?' open':'')+'" id="sub-rows-'+task.id+'">';
     html+=subs.map(s=>'<div style="padding-left:28px">'+renderRow(s)+'</div>').join('');
