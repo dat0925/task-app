@@ -4324,10 +4324,15 @@ function renderNoteList(){
       +'<button class="toggle-completed-btn" data-a="note-bulk-cancel" style="margin-left:auto">✕ 終了</button>'
     +'</div>';
   } else {
-    h+='<div style="padding:10px 0 6px;display:flex;gap:6px;align-items:center">'
-      +'<input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px;flex:1" autocomplete="off">'
-      +'<button class="toggle-completed-btn'+(S.noteSortUpdated!==false?' active':'')+'" data-a="note-tog-sort" style="white-space:nowrap;flex-shrink:0">'+(S.noteSortUpdated!==false?'↓ 更新日':'↓ 作成日')+'</button>'
-      +'<button class="toggle-completed-btn" data-a="note-tog-select-mode">一括</button>'
+    const _isFiltered=!!(q||(S.filterTagIds&&S.filterTagIds.length));
+    const _countLabel=_isFiltered?(notes.length+'件 / 全'+S.notes.length+'件'):(S.notes.length+'件');
+    h+='<div style="padding:10px 0 6px;display:flex;flex-direction:column;gap:4px">'
+      +'<div style="display:flex;gap:6px;align-items:center">'
+        +'<input class="finput" id="note-srch" type="search" value="'+esc(S.noteSearch)+'" placeholder="メモを検索…" style="font-size:14px;flex:1" autocomplete="off">'
+        +'<button class="toggle-completed-btn'+(S.noteSortUpdated!==false?' active':'')+'" data-a="note-tog-sort" style="white-space:nowrap;flex-shrink:0">'+(S.noteSortUpdated!==false?'↓ 更新日':'↓ 作成日')+'</button>'
+        +'<button class="toggle-completed-btn" data-a="note-tog-select-mode">一括</button>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--text3);padding:0 2px">'+_countLabel+'</div>'
     +'</div>';
   }
   h+='<div id="note-list-items">';
