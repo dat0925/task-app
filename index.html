@@ -2190,6 +2190,37 @@ function parseQA(input){
   return r;
 }
 
+function _showRepeatHelp(btn){
+  document.querySelectorAll('.repeat-help-pop').forEach(el=>el.remove());
+  const pop=document.createElement('div');
+  pop.className='repeat-help-pop';
+  pop.innerHTML=
+    '<div style="font-weight:700;font-size:13px;margin-bottom:10px">🔁 繰り返しの仕様</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.6">'
+    +'<div><b>毎日</b><br>完了した翌日に次のタスクを生成</div>'
+    +'<div><b>毎週</b><br>曜日を複数選択可。選択した曜日の直近日に生成<br><span style="color:var(--text3)">例: 火・木 → 完了後、次の火曜か木曜</span></div>'
+    +'<div><b>毎月</b><br>日付を複数選択可。同月内の直近指定日、なければ翌月最初の指定日に生成<br><span style="color:var(--text3)">例: 12・25日 → 完了後、次の12日か25日<br>29〜31日は存在しない月は末日に自動調整</span></div>'
+    +'<div><b>毎年</b><br>タスクの期日の月・日を基準に翌年同日に生成<br><span style="color:var(--text3)">例: 期日5/15 → 毎年5/15に生成</span></div>'
+    +'<div style="padding-top:6px;border-top:1px solid var(--border);color:var(--text3)">完了すると次回タスクが自動生成されます。<br>開始日と期限の間隔は引き継がれます。</div>'
+    +'</div>';
+  const rect=btn.getBoundingClientRect();
+  const pw=260;
+  pop.style.cssText='position:fixed;z-index:9999;'
+    +'width:'+pw+'px;background:var(--bg);border:1px solid var(--border);'
+    +'border-radius:12px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,.15);'
+    +'color:var(--text);font-size:12px;';
+  document.body.appendChild(pop);
+  const ph=pop.offsetHeight;
+  let top=rect.bottom+6;
+  let left=Math.max(8,Math.min(rect.left,window.innerWidth-pw-8));
+  if(top+ph>window.innerHeight-12)top=rect.top-ph-6;
+  pop.style.top=top+'px';pop.style.left=left+'px';
+  let _skip=true;
+  const close=ev=>{if(_skip){_skip=false;return;}if(!pop.contains(ev.target)){pop.remove();document.removeEventListener('touchstart',close);document.removeEventListener('click',close);}}
+  document.addEventListener('touchstart',close,{passive:true});
+  document.addEventListener('click',close);
+}
+
 function _onRepeatChange(sel){
   const v=sel.value;
   const daysEl=document.getElementById('dt-repeat-days');
@@ -4891,7 +4922,14 @@ function renderDrawer(){
         const selDays=isWeekly?rule.slice(7).split(','):[];
         const selDay=isMonthly?parseInt(rule.slice(8)):null;
         const DAY_LABELS=[['sun','日'],['mon','月'],['tue','火'],['wed','水'],['thu','木'],['fri','金'],['sat','土']];
-        return '<div class="fg"><label class="flabel">繰り返し</label>'
+        return '<div class="fg">'
+          +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
+          +'<label class="flabel" style="margin-bottom:0">繰り返し</label>'
+          +'<button type="button" id="repeat-help-btn" onclick="_showRepeatHelp(this)" '
+          +'style="width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);'
+          +'background:var(--bg2);color:var(--text3);font-size:10px;font-weight:700;'
+          +'cursor:pointer;flex-shrink:0;line-height:1;padding:0">?</button>'
+          +'</div>'
           +'<select class="finput fselect" id="dt-repeat" onchange="_onRepeatChange(this)">'
           +'<option value="">なし</option>'
           +['daily:毎日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'"'+(baseRule===v?' selected':'')+'>'+l+'</option>';}).join('')
