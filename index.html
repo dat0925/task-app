@@ -2208,8 +2208,10 @@ function getRepeatRule(){
     return days.length?'weekly:'+days.join(','):'weekly';
   }
   if(v==='monthly'){
-    const d=parseInt(document.getElementById('dt-repeat-mday-inp')?.value)||1;
-    return 'monthly:'+Math.min(31,Math.max(1,d));
+    const raw=document.getElementById('dt-repeat-mday-inp')?.value||'1';
+    const days=raw.split(',').map(s=>parseInt(s.trim())).filter(n=>n>=1&&n<=31);
+    const unique=[...new Set(days)].sort((a,b)=>a-b);
+    return unique.length?'monthly:'+unique.join(','):'monthly:1';
   }
   return v||null;
 }
@@ -2233,10 +2235,27 @@ function nextRepeat(task){
     for(let i=0;i<14;i++){if(days.includes(d.getUTCDay()))break;d.setUTCDate(d.getUTCDate()+1);}
   }
   else if(rule.startsWith('monthly:')){
-    const dayOfMonth=parseInt(rule.slice(8));
-    d.setUTCMonth(d.getUTCMonth()+1);
-    const maxDay=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
-    d.setUTCDate(Math.min(dayOfMonth,maxDay));
+    // 複数日対応: monthly:12,18,21
+    const targetDays=rule.slice(8).split(',').map(Number).filter(n=>n>=1&&n<=31).sort((a,b)=>a-b);
+    if(!targetDays.length)return null;
+    // 今日以降で直近の指定日を探す（同月→翌月→翌々月）
+    const curDay=d.getUTCDate();
+    const curMonth=d.getUTCMonth();
+    const curYear=d.getUTCFullYear();
+    let found=false;
+    for(let mOffset=0;mOffset<=2&&!found;mOffset++){
+      const tryMonth=curMonth+mOffset;
+      const tryYear=curYear+Math.floor(tryMonth/12);
+      const tryMonthMod=tryMonth%12;
+      const maxDay=new Date(Date.UTC(tryYear,tryMonthMod+1,0)).getUTCDate();
+      for(const td of targetDays){
+        const actualDay=Math.min(td,maxDay);// 末日処理
+        if(mOffset===0&&actualDay<=curDay)continue;// 同月は今日より後のみ
+        d.setUTCFullYear(tryYear,tryMonthMod,actualDay);
+        found=true;break;
+      }
+    }
+    if(!found)return null;
   }
   const shift=d.getTime()-origMs;
   const result={...task,id:uid(),status:'active',completedAt:null,createdAt:now(),updatedAt:now(),dueAt:d.toISOString().slice(0,10)};
@@ -4237,7 +4256,7 @@ function renderRow(task){
     const _rl=task.repeatRule;
     const _rlLabel=_rl==='daily'?'毎日':_rl==='weekdays'?'平日':_rl==='weekly'?'毎週':_rl==='yearly'?'毎年'
       :_rl.startsWith('weekly:')?'毎週('+_rl.slice(7).split(',').map(d=>({sun:'日',mon:'月',tue:'火',wed:'水',thu:'木',fri:'金',sat:'土'})[d]||d).join('・')+')'
-      :_rl.startsWith('monthly:')?'毎月'+_rl.slice(8)+'日':'毎月';
+      :_rl.startsWith('monthly:')?'毎月'+_rl.slice(8).split(',').join('・')+'日':'毎月';
     meta+='<span class="mc" title="'+_rlLabel+'">↻ '+_rlLabel+'</span>';
   }
   if(task.flagged)meta+='<span>🚩</span>';
@@ -4865,8 +4884,8 @@ function renderDrawer(){
           +'</div>'
           +'<div id="dt-repeat-mday" style="margin-top:6px;display:'+(isMonthly?'flex':'none')+';align-items:center;gap:6px">'
           +'<span style="font-size:13px;color:var(--text2)">毎月</span>'
-          +'<input type="number" id="dt-repeat-mday-inp" min="1" max="31" value="'+(selDay||1)+'" class="finput" style="width:60px;text-align:center" onchange="_onRepeatMdayChange()">'
-          +'<span style="font-size:13px;color:var(--text2)">日</span>'
+          +'<input type="text" id="dt-repeat-mday-inp" value="'+(isMonthly?rule.slice(8):'1')+'" class="finput" style="width:120px;text-align:center" placeholder="例: 1,15,28" onchange="_onRepeatMdayChange()">'
+          +'<span style="font-size:13px;color:var(--text2)">日（複数可: 1,15,28）</span>'
           +'</div>'
         +'</div>';
       })()
