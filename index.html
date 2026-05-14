@@ -222,7 +222,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-drawer{position:fixed;top:0;right:0;height:100%;width:337px;z-index:801;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden;box-shadow:-4px 0 24px rgba(0,0,0,.1);touch-action:none}
 .calc-drawer.open{transform:translateX(0)}
 @media(max-width:768px){.calc-drawer{width:82.5vw}}
-.calc-drawer-head{display:flex;align-items:center;padding:13px 14px 11px;border-bottom:1px solid var(--border);flex-shrink:0;gap:8px}
+.calc-drawer-head{display:flex;flex-direction:column;padding:13px 14px 11px;border-bottom:1px solid var(--border);flex-shrink:0;gap:6px}
+.calc-drawer-head-row1{display:flex;align-items:center;gap:8px;width:100%}
 .calc-drawer-head-title{font-size:15px;font-weight:600;flex:1}
 .calc-drawer-close{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:17px;transition:background .15s;flex-shrink:0}
 .calc-drawer-close:hover{background:var(--bg2)}
@@ -1242,15 +1243,17 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 <div class="calc-drawer-ov" id="calc-drawer-ov"></div>
 <div class="calc-drawer" id="calc-drawer-global">
   <div class="calc-drawer-head">
-    <span class="calc-drawer-head-title">電卓</span>
-    <div style="margin-left:auto;display:flex;gap:5px;align-items:center">
-      <button class="note-stamp-btn" id="calc-head-tonote-btn" title="計算ログをノートに追記" style="display:none;background:var(--accent-bg);color:var(--accent);border-color:var(--accent);font-weight:600">📝 ノートへ</button>
+    <div class="calc-drawer-head-row1">
+      <span class="calc-drawer-head-title">電卓</span>
+      <div style="margin-left:auto;display:flex;gap:5px;align-items:center">
       <button id="calc-head-help-btn" title="使い方" style="display:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0">?</button>
       <button class="note-stamp-btn" id="calc-head-clear-btn" title="ログをクリア">🗑</button>
       <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:5px 8px;gap:4px;background:#3b82f6;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
       <button class="btn btn-primary" data-a="newnote" title="ノートを追加" style="padding:5px 8px;gap:4px;background:#6b7280;font-size:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
       <button class="calc-drawer-close" id="calc-drawer-close-btn">✕</button>
     </div>
+    </div>
+    <button class="note-stamp-btn" id="calc-head-tonote-btn" title="計算ログをノートに追記" style="display:none;background:var(--accent-bg);color:var(--accent);border-color:var(--accent);font-weight:600;align-self:flex-start">📝 ノートへ</button>
   </div>
   <div class="calc-drawer-body" id="calc-drawer-body"></div>
 </div>
