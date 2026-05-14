@@ -2194,8 +2194,8 @@ function _onRepeatChange(sel){
   const v=sel.value;
   const daysEl=document.getElementById('dt-repeat-days');
   const mdayEl=document.getElementById('dt-repeat-mday');
-  if(daysEl)daysEl.style.display=v==='weekly'?'flex':'none';
-  if(mdayEl)mdayEl.style.display=v==='monthly'?'flex':'none';
+  if(daysEl)daysEl.style.display=v==='weekly'?'block':'none';
+  if(mdayEl)mdayEl.style.display=v==='monthly'?'block':'none';
   if(v==='weekly'){document.querySelectorAll('.repeat-day-lbl').forEach(lbl=>{const cb=lbl.querySelector('input');if(cb)_updateDayLabel(lbl,cb.checked);});}
 }
 function _updateDayLabel(lbl,checked){
