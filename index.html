@@ -4320,6 +4320,7 @@ function renderNoteList(){
       +'<button class="toggle-completed-btn" data-a="note-bulk-sel-all">全選択</button>'
       +'<button class="toggle-completed-btn" data-a="note-bulk-desel-all">全解除</button>'
       +'<button class="toggle-completed-btn" data-a="note-bulk-tag">タグ</button>'
+      +'<button class="toggle-completed-btn" data-a="note-bulk-del" style="color:var(--p1)">削除</button>'
       +'<button class="toggle-completed-btn" data-a="note-bulk-cancel" style="margin-left:auto">✕ 終了</button>'
     +'</div>';
   } else {
@@ -6182,6 +6183,19 @@ else if(a==='scroll-to-subs'){
       }
       toast(notes.length+'件にタグを追加しました');render();
     };
+  }
+  else if(a==='note-bulk-del'){
+    if(!S.selectedNoteIds.length){toast('ノートを選択してください');return;}
+    const count=S.selectedNoteIds.length;
+    openConfirmModal('ノートを一括削除',count+'件のノートを削除します。この操作は取り消せません。',async()=>{
+      const ids=[...S.selectedNoteIds];
+      for(const id of ids){
+        if(S.noteId===id){S.noteOpen=false;S.noteId=null;}
+        await delNote(id);
+      }
+      S.noteSelectMode=false;S.selectedNoteIds=[];
+      toast(count+'件のノートを削除しました');render();
+    },'削除する',true);
   }
   else if(a==='copy-title'){
     e.stopPropagation();
