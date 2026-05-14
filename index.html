@@ -2199,6 +2199,8 @@ function _updateDayLabel(lbl,checked){
 }
 function _onRepeatDayChange(){document.querySelectorAll('.repeat-day-lbl').forEach(lbl=>{const cb=lbl.querySelector('input');if(cb)_updateDayLabel(lbl,cb.checked);});}
 function _onRepeatMdayChange(){}
+function _onRepeatMdayBtn(btn){btn.classList.toggle('sel');}
+function _clearRepeatMdays(){document.querySelectorAll('.repeat-mday-btn.sel').forEach(b=>b.classList.remove('sel'));}
 function getRepeatRule(){
   const sel=document.getElementById('dt-repeat');if(!sel)return null;
   const v=sel.value;
@@ -2208,10 +2210,10 @@ function getRepeatRule(){
     return days.length?'weekly:'+days.join(','):'weekly';
   }
   if(v==='monthly'){
-    const raw=document.getElementById('dt-repeat-mday-inp')?.value||'1';
-    const days=raw.split(',').map(s=>parseInt(s.trim())).filter(n=>n>=1&&n<=31);
-    const unique=[...new Set(days)].sort((a,b)=>a-b);
-    return unique.length?'monthly:'+unique.join(','):'monthly:1';
+    const days=[];
+    document.querySelectorAll('.repeat-mday-btn.sel').forEach(b=>days.push(parseInt(b.dataset.mday)));
+    days.sort((a,b)=>a-b);
+    return days.length?'monthly:'+days.join(','):'monthly:1';
   }
   return v||null;
 }
@@ -4882,11 +4884,19 @@ function renderDrawer(){
           +DAY_LABELS.map(([v,l])=>'<label style="display:flex;align-items:center;gap:2px;cursor:pointer;padding:3px 8px;border:1.5px solid '+(selDays.includes(v)?'var(--accent)':'var(--border)')+';border-radius:20px;font-size:12px;background:'+(selDays.includes(v)?'var(--accent-bg)':'')+'" class="repeat-day-lbl">'
             +'<input type="checkbox" data-day="'+v+'" '+(selDays.includes(v)?'checked':'')+' style="display:none" onchange="_onRepeatDayChange()">'+l+'</label>').join('')
           +'</div>'
-          +'<div id="dt-repeat-mday" style="margin-top:6px;display:'+(isMonthly?'flex':'none')+';align-items:center;gap:6px">'
-          +'<span style="font-size:13px;color:var(--text2)">毎月</span>'
-          +'<input type="text" id="dt-repeat-mday-inp" value="'+(isMonthly?rule.slice(8):'1')+'" class="finput" style="width:120px;text-align:center" placeholder="例: 1,15,28" onchange="_onRepeatMdayChange()">'
-          +'<span style="font-size:13px;color:var(--text2)">日（複数可: 1,15,28）</span>'
-          +'</div>'
+          +(()=>{
+            const selDaysM=isMonthly?rule.slice(8).split(',').map(Number):[];
+            const btns=Array.from({length:31},(_,i)=>i+1).map(n=>
+              '<button type="button" class="repeat-mday-btn'+(selDaysM.includes(n)?' sel':'')+'" data-mday="'+n+'" onclick="_onRepeatMdayBtn(this)">'+n+'</button>'
+            ).join('');
+            return '<div id="dt-repeat-mday" style="margin-top:6px;display:'+(isMonthly?'block':'none')+'">'
+              +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+              +'<span style="font-size:11px;color:var(--text3)">日付を選択（複数可）</span>'
+              +'<button type="button" onclick="_clearRepeatMdays()" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:2px 6px">すべて解除</button>'
+              +'</div>'
+              +'<div class="repeat-mday-grid">'+btns+'</div>'
+            +'</div>';
+          })()
         +'</div>';
       })()
       +(!task.parentTaskId?'<div class="fg"><label class="flabel">サブタスク</label>'
