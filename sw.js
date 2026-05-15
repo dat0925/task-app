@@ -1,5 +1,5 @@
 // Taskra - Service Worker v6
-const CACHE_NAME = 'taskra-v28';
+const CACHE_NAME = 'taskra-v29';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
