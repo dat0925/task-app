@@ -1060,6 +1060,28 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .gantt-chevron.gclosed{transform:rotate(-90deg)}
 .gantt-bar-label{position:absolute;inset:0;display:flex;align-items:center;padding:0 6px;font-size:11px;color:rgba(255,255,255,.9);overflow:hidden;white-space:nowrap;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.25)}
 .gantt-done-badge{font-size:10px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;margin-left:4px;flex-shrink:0;white-space:nowrap}
+/* ===== Comments ===== */
+.cm-section{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.cm-section-head{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.cm-section-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
+.cm-count{font-size:11px;color:var(--text3);background:var(--bg2);border-radius:10px;padding:1px 7px;font-weight:600}
+.cm-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.cm-item{display:flex;gap:8px;align-items:flex-start}
+.cm-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.cm-avatar img{width:100%;height:100%;object-fit:cover}
+.cm-bubble{flex:1;min-width:0}
+.cm-meta{display:flex;align-items:baseline;gap:6px;margin-bottom:3px}
+.cm-name{font-size:11px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+.cm-time{font-size:10px;color:var(--text3);flex-shrink:0}
+.cm-body{font-size:13px;color:var(--text);line-height:1.6;word-break:break-word;background:var(--bg2);border-radius:0 8px 8px 8px;padding:7px 10px}
+.cm-del{background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);padding:2px 4px;border-radius:4px;margin-left:4px;flex-shrink:0;opacity:0;transition:opacity .15s}
+.cm-item:hover .cm-del{opacity:1}
+.cm-input-row{display:flex;gap:6px;align-items:flex-end}
+.cm-textarea{flex:1;min-width:0;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;font-family:var(--font);line-height:1.5;resize:none;background:var(--bg);color:var(--text);transition:border-color .15s;min-height:38px;max-height:120px;overflow-y:auto}
+.cm-textarea:focus{outline:none;border-color:var(--accent)}
+.cm-send-btn{height:36px;padding:0 14px;border-radius:9px;background:var(--accent);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;transition:opacity .15s}
+.cm-send-btn:disabled{opacity:.4;cursor:default}
+.cm-loading{font-size:12px;color:var(--text3);padding:8px 0;text-align:center}
 </style>
 </head>
 <body>
@@ -5108,6 +5130,17 @@ function renderDrawer(){
         +'<div id="subs">'+subs.sort((a,b)=>a.order-b.order).map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
         +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…" style="margin-top:6px">'
       +'</div>':'')
+      +'<div class="cm-section" id="cm-section" data-task-id="'+task.id+'">'
+        +'<div class="cm-section-head">'
+          +'<span class="cm-section-label">コメント</span>'
+          +'<span class="cm-count" id="cm-count">…</span>'
+        +'</div>'
+        +'<div class="cm-list" id="cm-list"><div class="cm-loading">読み込み中…</div></div>'
+        +'<div class="cm-input-row">'
+          +'<textarea class="cm-textarea" id="cm-input" placeholder="コメントを追加…" rows="1"></textarea>'
+          +'<button class="cm-send-btn" id="cm-send" disabled>送信</button>'
+        +'</div>'
+      +'</div>'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
         +'<div class="muted xs" style="line-height:2">'
           +'<div>作成: '+new Date(task.createdAt).toLocaleString('ja-JP')+' </div>'
@@ -5313,6 +5346,139 @@ function renderDrawer(){
       const _drBody2=document.getElementById('drawer-body');
       if(_drBody2)_drBody2.scrollTop=_scrollY;
     },50);
+  }
+  // コメントセクションを非同期ロード（パフォーマンス: メインのloadAllには含めない）
+  initComments(task.id);
+}
+
+// ===== COMMENTS =====
+// S._commentCache[taskId] = {comments:[], loaded:true} でセッション内キャッシュ
+if(!window.S||!S._commentCache)S._commentCache={};
+
+function _cmTimeStr(isoStr){
+  const d=new Date(isoStr),now=new Date();
+  const diff=now-d;
+  if(diff<60000)return 'たった今';
+  if(diff<3600000)return Math.floor(diff/60000)+'分前';
+  if(diff<86400000)return Math.floor(diff/3600000)+'時間前';
+  if(d.getFullYear()===now.getFullYear())return (d.getMonth()+1)+'/'+(d.getDate())+' '+(d.getHours()+'').padStart(2,'0')+':'+(d.getMinutes()+'').padStart(2,'0');
+  return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+(d.getDate());
+}
+
+function _cmRenderList(comments){
+  const list=document.getElementById('cm-list');
+  const count=document.getElementById('cm-count');
+  if(!list)return;
+  if(count)count.textContent=comments.length||'0';
+  if(!comments.length){list.innerHTML='<div class="cm-loading" style="font-size:12px;color:var(--text3);padding:6px 0">コメントなし</div>';return;}
+  const uid=window._currentUser?.id;
+  list.innerHTML=comments.map(c=>{
+    const initial=(c.user_name||c.userName||'?').charAt(0).toUpperCase();
+    const avatar=c.user_avatar||c.userAvatar
+      ?`<img src="${c.user_avatar||c.userAvatar}" onerror="this.style.display='none'">`
+      :initial;
+    const isOwn=(c.user_id||c.userId)===uid;
+    return `<div class="cm-item" data-cmid="${c.id}">
+      <div class="cm-avatar">${typeof avatar==='string'&&avatar.startsWith('<')?avatar:initial}</div>
+      <div class="cm-bubble">
+        <div class="cm-meta">
+          <span class="cm-name">${esc(c.user_name||c.userName||'ユーザー')}</span>
+          <span class="cm-time">${_cmTimeStr(c.created_at||c.createdAt)}</span>
+          ${isOwn?`<button class="cm-del" data-a="cm-del" data-cmid="${c.id}" title="削除">✕</button>`:''}
+        </div>
+        <div class="cm-body">${esc(c.body).replace(/\n/g,'<br>')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function initComments(taskId){
+  // キャッシュがあれば即描画
+  if(S._commentCache[taskId]){
+    _cmRenderList(S._commentCache[taskId]);
+  }
+  // Supabaseから取得（task_idが一致するものだけ）
+  const SB=window._SB;
+  if(!SB){
+    const list=document.getElementById('cm-list');
+    if(list)list.innerHTML='';
+    _cmSetupInput(taskId,[]);
+    return;
+  }
+  const uid=window._currentUser?.id;
+  if(!uid)return;
+  const{data,error}=await SB.from('task_comments')
+    .select('*')
+    .eq('task_id',taskId)
+    .eq('user_id',uid)
+    .order('created_at',{ascending:true});
+  if(error){console.error('cm load',error);return;}
+  const comments=data||[];
+  S._commentCache[taskId]=comments;
+  // ドロワーが同じタスクを開いたままの場合のみ描画
+  if(S.taskId===taskId&&S.drawerOpen){
+    _cmRenderList(comments);
+    _cmSetupInput(taskId,comments);
+  }
+}
+
+function _cmSetupInput(taskId,comments){
+  const inp=document.getElementById('cm-input');
+  const btn=document.getElementById('cm-send');
+  if(!inp||!btn)return;
+  // 送信ボタンの活性制御
+  inp.addEventListener('input',()=>{
+    btn.disabled=!inp.value.trim();
+    // テキストエリアの自動高さ調整
+    inp.style.height='auto';
+    inp.style.height=Math.min(inp.scrollHeight,120)+'px';
+  });
+  // Cmd/Ctrl+Enter で送信
+  inp.addEventListener('keydown',e=>{
+    if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();if(!btn.disabled)_cmSend(taskId);}
+  });
+  btn.addEventListener('click',()=>_cmSend(taskId));
+}
+
+async function _cmSend(taskId){
+  const inp=document.getElementById('cm-input');
+  const btn=document.getElementById('cm-send');
+  if(!inp||!btn)return;
+  const body=inp.value.trim();
+  if(!body)return;
+  const SB=window._SB;
+  const user=window._currentUser;
+  if(!SB||!user)return;
+  btn.disabled=true;
+  const comment={
+    id:uid(),
+    task_id:taskId,
+    user_id:user.id,
+    user_name:user.user_metadata?.full_name||user.email||'',
+    user_avatar:user.user_metadata?.avatar_url||'',
+    body,
+    created_at:new Date().toISOString(),
+    updated_at:new Date().toISOString()
+  };
+  const{error}=await SB.from('task_comments').insert(comment);
+  if(error){console.error('cm send',error);toast('コメントの送信に失敗しました');btn.disabled=false;return;}
+  // キャッシュ更新
+  if(!S._commentCache[taskId])S._commentCache[taskId]=[];
+  S._commentCache[taskId]=[...S._commentCache[taskId],comment];
+  _cmRenderList(S._commentCache[taskId]);
+  inp.value='';inp.style.height='auto';btn.disabled=true;
+  // リストの最下部にスクロール
+  const list=document.getElementById('cm-list');
+  if(list)list.scrollTop=list.scrollHeight;
+}
+
+async function _cmDelete(cmId,taskId){
+  const SB=window._SB;if(!SB)return;
+  const{error}=await SB.from('task_comments').delete().eq('id',cmId);
+  if(error){toast('削除に失敗しました');return;}
+  if(S._commentCache[taskId]){
+    S._commentCache[taskId]=S._commentCache[taskId].filter(c=>c.id!==cmId);
+    _cmRenderList(S._commentCache[taskId]);
   }
 }
 
@@ -5855,6 +6021,10 @@ else if(a==='scroll-to-subs'){
     toast('独立したタスクにしました');renderDrawer();renderContent();
   }
   else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent()}
+  else if(a==='cm-del'){
+    const cmId=el.dataset.cmid;
+    if(cmId&&S.taskId)await _cmDelete(cmId,S.taskId);
+  }
   else if(a==='task-nav-prev'||a==='task-nav-next'){
     const visibleTasks=getTasks().filter(t=>!t.parentTaskId);
     const idx=visibleTasks.findIndex(t=>t.id===S.taskId);
