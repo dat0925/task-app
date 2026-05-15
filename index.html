@@ -4652,7 +4652,7 @@ function openSortPopup(btn){
 }
 
 function renderRow(task){
-  const subs=S.tasks.filter(t=>t.parentTaskId===task.id);
+  const subs=S.tasks.filter(t=>t.parentTaskId===task.id).sort((a,b)=>(a.order||0)-(b.order||0));
   const done=task.status==='completed';
   const notStarted=!done&&isNotStartedTask(task);
   const pclass=task.priority<4?'p'+task.priority:'';
