@@ -6680,7 +6680,11 @@ function _buildCalcInDrawer(){
           +'<button class="calc-label-clear" id="calc-label-clear" title="クリア">✕</button>'
         +'</div>'
         +'<div class="calc-display">'
-          +'<div class="calc-expr-inline"></div>'
+          +'<div style="position:relative">'
+            +'<div class="calc-expr-inline"></div>'
+            +'<input id="calc-paste-inp" type="text" inputmode="none" tabindex="-1" autocomplete="off" '
+            +'style="position:absolute;inset:0;opacity:.01;border:none;outline:none;background:transparent;cursor:text;color:transparent;caret-color:transparent;min-width:0;width:100%">'
+          +'</div>'
           +'<div class="calc-result-wrap">'
             +'<div style="flex:1">'
               +'<div class="calc-result">0</div>'
@@ -6696,12 +6700,11 @@ function _buildCalcInDrawer(){
           +'<button class="calc-paren-btn calc-tax-in">税込</button>'
           +'<button class="calc-paren-btn calc-tax-out">税抜</button>'
         +'</div>'
-        +'<div class="calc-action-row" style="gap:4px;grid-template-columns:repeat(5,1fr)">'
+        +'<div class="calc-action-row" style="gap:4px">'
           +'<button class="calc-paren-btn" data-cv="(">(</button>'
           +'<button class="calc-paren-btn" data-cv=")">)</button>'
           +'<button class="calc-paren-btn" data-fn="pct">%</button>'
           +'<button class="calc-paren-btn" data-fn="int">INT</button>'
-          +'<button class="calc-paren-btn" data-fn="paste">貼付</button>'
         +'</div>'
         +'<div class="calc-grid">'
           +'<button class="calc-btn cac" data-cv="AC">AC</button>'
@@ -7165,15 +7168,16 @@ function _buildCalcInDrawer(){
   taxIn.addEventListener('click',()=>{if(!('ontouchstart' in window))window.playClick?.();applyTax(true);});
   taxOut.addEventListener('click',()=>{if(!('ontouchstart' in window))window.playClick?.();applyTax(false);});
 
+  function pasteNumber(text){
+    const cleaned=text.replace(/[,，¥$￥€£\s]/g,'').match(/^-?\d+(?:\.\d*)?/)?.[0];
+    if(!cleaned||cleaned==='-'){window.playClickNG?.();return;}
+    if(justEvaled){expr=cleaned;result='';justEvaled=false;}else expr+=cleaned;
+    const r=safeCalc(expr);if(r!=null)result=r;
+    window.playClick?.();upd();
+  }
   async function doPaste(){
-    try{
-      const text=await navigator.clipboard.readText();
-      const cleaned=text.replace(/[,，¥$￥€£\s]/g,'').match(/^-?\d+(?:\.\d*)?/)?.[0];
-      if(!cleaned||cleaned==='-'){window.playClickNG?.();return;}
-      if(justEvaled){expr=cleaned;result='';justEvaled=false;}else expr+=cleaned;
-      const r=safeCalc(expr);if(r!=null)result=r;
-      window.playClick?.();upd();
-    }catch(e){window.playClickNG?.();}
+    try{const text=await navigator.clipboard.readText();pasteNumber(text);}
+    catch(e){window.playClickNG?.();}
   }
 
   // Paren / fn buttons (top row)
@@ -7182,7 +7186,6 @@ function _buildCalcInDrawer(){
     if(btn.dataset.cv){window.playClick?.();pressParen(btn.dataset.cv);}
     else if(btn.dataset.fn==='pct'){window.playClick?.();applyPct();}
     else if(btn.dataset.fn==='int'){window.playClick?.();applyInt();}
-    else if(btn.dataset.fn==='paste'){doPaste();}
   }
   attachPressEvents(actionRow, btn=>execActionBtn(btn));
   actionRow.addEventListener('click',e=>{
@@ -7190,6 +7193,30 @@ function _buildCalcInDrawer(){
     const btn=e.target.closest('[data-cv],[data-fn]');if(!btn)return;
     pressAnimate(btn);execActionBtn(btn);
   });
+
+  // 貼付: スマホ→式エリア長押しOSメニュー、PC→Ctrl+V
+  const pasteInp=wrap.querySelector('#calc-paste-inp');
+  if(pasteInp){
+    // スマホ: 式エリアをタップ→フォーカス→長押しでOSペーストメニュー(inputmode=noneでキーボード非表示)
+    pasteInp.addEventListener('paste',e=>{
+      e.preventDefault();
+      const text=(e.clipboardData||window.clipboardData)?.getData('text')||'';
+      pasteNumber(text);
+      pasteInp.blur();
+      setTimeout(()=>{pasteInp.value='';},10);
+    });
+    // フォーカスが外れたら値をリセット
+    pasteInp.addEventListener('blur',()=>{setTimeout(()=>{pasteInp.value='';},50);});
+  }
+  // PC: Ctrl+V / Cmd+V（ラベル入力欄は除外）
+  document.addEventListener('keydown',e=>{
+    const dr=document.getElementById('calc-drawer-global');
+    if(!dr?.classList.contains('open'))return;
+    if(e.target===pasteInp)return;// paste イベントに任せる
+    if(e.target?.id==='calc-label-inp')return;
+    if(e.target?.tagName==='INPUT'||e.target?.tagName==='TEXTAREA')return;
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){e.preventDefault();doPaste();}
+  },{capture:true});
 
   // bottom row (toドル / to円 / 税込 / 税抜) — touchstartで即実行、clickはPC専用
   const bottomRow=wrap.querySelector('.calc-bottom-row');
