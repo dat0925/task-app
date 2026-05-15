@@ -8894,7 +8894,11 @@ ${JSON.stringify(context,null,2)}
             dueAt:inp.due_at||null,
             priority:inp.priority||4,
           });
-
+        } else if(block.name==='add_tag'){
+          actions.push({type:'addTag',name:inp.name,color:inp.color||'#7c3aed'});
+        } else if(block.name==='add_note'){
+          actions.push({type:'addNote',title:inp.title,body:inp.body||'',tagNames:inp.tag_names||[]});
+        }
       }
     }
 
