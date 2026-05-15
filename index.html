@@ -5032,22 +5032,31 @@ function renderDrawer(){
     +'<div class="drawer-body">'
       +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">'+esc(pt.title||'無題')+'</button><button class="date-clr-btn" data-a="set-parent" data-id="'+task.id+'" title="親タスクを変更" style="flex-shrink:0;font-size:10px;padding:2px 6px">変更</button><button class="date-clr-btn" data-a="detach-parent" data-id="'+task.id+'" title="独立したタスクにする" style="flex-shrink:0">✕</button></div>':''})():'')
       +((!task.parentTaskId)?'<div style="margin-bottom:12px"><button class="btn btn-ghost" data-a="set-parent" data-id="'+task.id+'" style="font-size:12px;height:30px;padding:0 10px">＋ サブタスクにする</button></div>':''  )
-      +(!task.parentTaskId&&subs.length>0?(()=>{const dc=subs.filter(s=>s.status==='completed').length;return'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="dt-sub-badge" data-a="scroll-to-subs" title="サブタスクへ移動"><span class="dt-sub-badge-chev">▶</span><span>サブタスク</span><span class="dt-sub-badge-count">'+dc+'/'+subs.length+'</span></button><button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動" style="display:none"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count">0</span></button></div>';})()
-      :(!task.parentTaskId?'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動" style="display:none"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count">0</span></button></div>':'')
+      +(!task.parentTaskId&&subs.length>0?(()=>{const dc=subs.filter(s=>s.status==='completed').length;return'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="dt-sub-badge" data-a="scroll-to-subs" title="サブタスクへ移動"><span class="dt-sub-badge-chev">▶</span><span>サブタスク</span><span class="dt-sub-badge-count">'+dc+'/'+subs.length+'</span></button><button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count" id="cm-jump-count">…</span></button></div>';})()
+      :(!task.parentTaskId?'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count" id="cm-jump-count">…</span></button></div>':'')
       )
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
-      +'<div class="fg"><label class="flabel">メモ</label>'
-      +'<div class="note-stamp-bar" style="margin-bottom:6px">'
-        +'<button class="note-stamp-btn" data-a="stamp" data-type="datetimeweek">📅 日時</button>'
-        +'<button class="note-stamp-btn" data-a="clear-task-notes">クリア</button>'
-        +'<button class="note-stamp-btn" data-a="copy-task-notes" title="メモ内容をコピー">コピー</button>'
-        +'<button class="note-stamp-btn" data-a="paste-to-field" data-target="dt-notes" title="クリップボードから貼り付け">貼付</button>'
-        +'<button class="note-stamp-btn" data-a="paste-newline-field" data-target="dt-notes" title="改行してから貼り付け"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg> 貼付</button>'
-        +'<button class="note-stamp-btn" id="dt-link-btn">Link</button>'
-        +'<button class="note-stamp-btn" id="dt-preview-btn">プレビュー</button>'
+      +'<div class="fg" id="memo-section">'
+      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer;user-select:none" id="memo-toggle-row">'
+        +'<label class="flabel" style="margin-bottom:0;cursor:pointer">メモ</label>'
+        +(task.notes?'<span id="memo-preview-badge" style="font-size:10px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 6px">プレビュー</span>':'')
+        +'<span id="memo-toggle-chev" style="font-size:10px;color:var(--text3);margin-left:auto;transition:transform .2s">'+(task.notes?'▼':'▶')+'</span>'
       +'</div>'
-      +'<textarea class="finput ftextarea" id="dt-notes" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
-      +'<div id="dt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:156px;word-break:break-word"></div>'
+      // メモ本体（折りたたみ）
+      +'<div id="memo-collapse" style="'+(task.notes?'':'display:none')+'">'
+        +'<div class="note-stamp-bar" style="margin-bottom:6px">'
+          +'<button class="note-stamp-btn" data-a="stamp" data-type="datetimeweek">📅 日時</button>'
+          +'<button class="note-stamp-btn" data-a="clear-task-notes">クリア</button>'
+          +'<button class="note-stamp-btn" data-a="copy-task-notes" title="メモ内容をコピー">コピー</button>'
+          +'<button class="note-stamp-btn" data-a="paste-to-field" data-target="dt-notes" title="クリップボードから貼り付け">貼付</button>'
+          +'<button class="note-stamp-btn" data-a="paste-newline-field" data-target="dt-notes" title="改行してから貼り付け"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg> 貼付</button>'
+          +'<button class="note-stamp-btn" id="dt-link-btn">Link</button>'
+          +'<button class="note-stamp-btn" id="dt-preview-btn">編集</button>'
+        +'</div>'
+        +'<textarea class="finput ftextarea" id="dt-notes" rows="6" style="resize:vertical;font-size:14px;line-height:1.7;display:none" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
+        +'<div id="dt-preview-area" style="font-size:14px;color:var(--text);line-height:1.8;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);word-break:break-word;max-height:160px;overflow:hidden;position:relative"></div>'
+        +'<button id="memo-expand-btn" style="display:none;width:100%;margin-top:4px;font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">▼ もっと見る</button>'
+      +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">'
         +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="'+dateInputStyle(task.startAt)+'"><span id="dt-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.startAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button></div></div>'
@@ -5258,21 +5267,85 @@ function renderDrawer(){
   const dtPreviewBtn=document.getElementById('dt-preview-btn');
   const dtPreviewArea=document.getElementById('dt-preview-area');
   const dtNotesEl=document.getElementById('dt-notes');
-  let dtPrevMode=false;
+  let dtPrevMode=true; // デフォルトはプレビュー（編集テキストエリアは非表示）
+
   function renderDtPreview(){
     if(!dtNotesEl||!dtPreviewArea)return;
     dtPreviewArea.innerHTML=esc(dtNotesEl.value)
       .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent);text-decoration:underline">$1</a>')
       .replace(/(^|[\s\n>])((https?:\/\/)[^\s<&"]+)/g,'$1<a href="$2" target="_blank" style="color:var(--accent);text-decoration:underline">$2</a>')
       .replace(/\n/g,'<br>');
+    // 高さ超過で「もっと見る」表示
+    const expandBtn=document.getElementById('memo-expand-btn');
+    if(expandBtn){
+      const isOverflow=dtPreviewArea.scrollHeight>dtPreviewArea.clientHeight+4;
+      expandBtn.style.display=isOverflow?'block':'none';
+    }
   }
-  function dtEnterPreview(){renderDtPreview();dtNotesEl.style.display='none';dtPreviewArea.style.display='block';if(dtPreviewBtn)dtPreviewBtn.textContent='編集';dtPrevMode=true;}
-  function dtExitPreview(){dtNotesEl.style.display='';dtPreviewArea.style.display='none';if(dtPreviewBtn)dtPreviewBtn.textContent='プレビュー';dtPrevMode=false;}
+  function dtEnterPreview(){
+    renderDtPreview();
+    if(dtNotesEl)dtNotesEl.style.display='none';
+    if(dtPreviewArea)dtPreviewArea.style.display='block';
+    if(dtPreviewBtn)dtPreviewBtn.textContent='編集';
+    dtPrevMode=true;
+    const badge=document.getElementById('memo-preview-badge');
+    if(badge)badge.style.display='';
+  }
+  function dtExitPreview(){
+    if(dtNotesEl){dtNotesEl.style.display='';dtNotesEl.focus();}
+    if(dtPreviewArea)dtPreviewArea.style.display='none';
+    if(dtPreviewBtn)dtPreviewBtn.textContent='プレビュー';
+    dtPrevMode=false;
+    const badge=document.getElementById('memo-preview-badge');
+    if(badge)badge.style.display='none';
+    const expandBtn=document.getElementById('memo-expand-btn');
+    if(expandBtn)expandBtn.style.display='none';
+  }
   if(dtPreviewBtn){dtPreviewBtn.addEventListener('click',()=>{dtPrevMode?dtExitPreview():dtEnterPreview();});}
-  // デフォルトはプレビューモード
-  dtEnterPreview();
-  // 長押しで編集モードへ
-  if(dtPreviewArea){(function(){let _t=null,_mv=false,_x=0,_y=0;dtPreviewArea.addEventListener('touchstart',e=>{_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;dtExitPreview();},600);},{passive:true});dtPreviewArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};dtPreviewArea.addEventListener('touchend',end,{passive:true});dtPreviewArea.addEventListener('touchcancel',end,{passive:true});})();}
+
+  // メモ折りたたみトグル
+  const memoToggleRow=document.getElementById('memo-toggle-row');
+  const memoCollapse=document.getElementById('memo-collapse');
+  const memoChev=document.getElementById('memo-toggle-chev');
+  let memoOpen=!!(task.notes);
+  function _memoSetOpen(open){
+    memoOpen=open;
+    if(memoCollapse)memoCollapse.style.display=open?'':'none';
+    if(memoChev)memoChev.style.transform=open?'rotate(0deg)':'rotate(-90deg)';
+    if(open&&dtPrevMode)renderDtPreview();
+    if(open&&!task.notes&&!dtPrevMode){if(dtNotesEl){dtNotesEl.focus();}}
+  }
+  if(memoToggleRow){
+    memoToggleRow.addEventListener('click',e=>{
+      if(e.target.closest('button'))return; // ボタンクリックは通さない
+      _memoSetOpen(!memoOpen);
+    });
+  }
+
+  // もっと見るボタン
+  const expandBtn=document.getElementById('memo-expand-btn');
+  if(expandBtn){
+    expandBtn.addEventListener('click',()=>{
+      if(dtPreviewArea){dtPreviewArea.style.maxHeight='none';dtPreviewArea.style.overflow='visible';}
+      expandBtn.style.display='none';
+    });
+  }
+
+  // プレビューエリアタップで編集へ（長押し不要にしてシングルタップで編集へ）
+  if(dtPreviewArea){
+    dtPreviewArea.addEventListener('click',e=>{
+      if(e.target.tagName==='A')return; // リンククリックは通す
+      dtExitPreview();
+    });
+  }
+
+  // メモ内容があればプレビュー、なければ編集モードで開く
+  if(task.notes){
+    dtEnterPreview();
+  } else {
+    // メモが空なら折りたたまれているのでプレビューエリアは隠す
+    if(dtPreviewArea)dtPreviewArea.style.display='none';
+  }
   ['dt-title','dt-notes'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
@@ -5385,9 +5458,9 @@ function _cmRenderList(comments){
   if(!list)return;
   const n=comments.length;
   if(count)count.textContent=n||'0';
-  // ドロワー上部のコメントバッジも更新
-  const badge=document.getElementById('cm-jump-badge');
-  if(badge){badge.style.display=n>0?'':'none';badge.querySelector('.dt-sub-badge-count').textContent=n;}
+  // ドロワー上部のコメントバッジも常時更新
+  const jumpCount=document.getElementById('cm-jump-count');
+  if(jumpCount)jumpCount.textContent=n;
   if(!n){list.innerHTML='<div class="cm-loading" style="font-size:12px;color:var(--text3);padding:6px 0">コメントなし</div>';return;}
   const uid=window._currentUser?.id;
   list.innerHTML=comments.map(c=>{
@@ -6043,9 +6116,17 @@ else if(a==='scroll-to-comments'){
   if(cmSection&&drBody){
     const offset=cmSection.getBoundingClientRect().top-drBody.getBoundingClientRect().top+drBody.scrollTop-8;
     drBody.scrollTo({top:offset,behavior:'smooth'});
-    cmSection.style.transition='background .3s';
-    cmSection.style.background='var(--accent-bg)';
-    setTimeout(()=>{cmSection.style.background='';},800);
+    // コメント0件の場合は入力欄にフォーカス
+    const cmInput=document.getElementById('cm-input');
+    const jumpCount=document.getElementById('cm-jump-count');
+    const isZero=jumpCount&&(jumpCount.textContent==='0'||jumpCount.textContent==='…');
+    if(isZero&&cmInput){
+      setTimeout(()=>cmInput.focus(),300);
+    } else {
+      cmSection.style.transition='background .3s';
+      cmSection.style.background='var(--accent-bg)';
+      setTimeout(()=>{cmSection.style.background='';},800);
+    }
   }
 }
 
