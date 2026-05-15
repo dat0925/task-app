@@ -9185,9 +9185,11 @@ document.getElementById('ai-input').addEventListener('input',function(){
     handleKey(k);
   }
   screen.addEventListener('touchstart',e=>{
-    e.preventDefault();
     const k=e.target.closest('[data-k]');
-    pressKey(k);
+    if(k){
+      e.preventDefault();// キータップのみprevent（スクロール等は止めない）
+      pressKey(k);
+    }
   },{passive:false});
   screen.addEventListener('click',e=>{
     const k=e.target.closest('[data-k]');
