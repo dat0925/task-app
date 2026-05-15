@@ -5042,20 +5042,18 @@ function renderDrawer(){
         +(task.notes?'<span id="memo-preview-badge" style="font-size:10px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 6px">プレビュー</span>':'')
         +'<span id="memo-toggle-chev" style="font-size:10px;color:var(--text3);margin-left:auto;transition:transform .2s">'+(task.notes?'▼':'▶')+'</span>'
       +'</div>'
-      // メモ本体（折りたたみ）
       +'<div id="memo-collapse" style="'+(task.notes?'':'display:none')+'">'
         +'<div class="note-stamp-bar" style="margin-bottom:6px">'
           +'<button class="note-stamp-btn" data-a="stamp" data-type="datetimeweek">📅 日時</button>'
           +'<button class="note-stamp-btn" data-a="clear-task-notes">クリア</button>'
           +'<button class="note-stamp-btn" data-a="copy-task-notes" title="メモ内容をコピー">コピー</button>'
-          +'<button class="note-stamp-btn" data-a="paste-to-field" data-target="dt-notes" title="クリップボードから貼り付け">貼付</button>'
-          +'<button class="note-stamp-btn" data-a="paste-newline-field" data-target="dt-notes" title="改行してから貼り付け"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg> 貼付</button>'
           +'<button class="note-stamp-btn" id="dt-link-btn">Link</button>'
           +'<button class="note-stamp-btn" id="dt-preview-btn">編集</button>'
         +'</div>'
         +'<textarea class="finput ftextarea" id="dt-notes" rows="6" style="resize:vertical;font-size:14px;line-height:1.7;display:none" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
         +'<div id="dt-preview-area" style="font-size:14px;color:var(--text);line-height:1.8;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);word-break:break-word;max-height:160px;overflow:hidden;position:relative"></div>'
         +'<button id="memo-expand-btn" style="display:none;width:100%;margin-top:4px;font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">▼ もっと見る</button>'
+        +'<button id="memo-collapse-btn" style="display:none;width:100%;margin-top:2px;font-size:12px;color:var(--text3);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">▲ 閉じる</button>'
       +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">'
@@ -5324,10 +5322,24 @@ function renderDrawer(){
 
   // もっと見るボタン
   const expandBtn=document.getElementById('memo-expand-btn');
+  const collapseBtn=document.getElementById('memo-collapse-btn');
   if(expandBtn){
     expandBtn.addEventListener('click',()=>{
       if(dtPreviewArea){dtPreviewArea.style.maxHeight='none';dtPreviewArea.style.overflow='visible';}
       expandBtn.style.display='none';
+      if(collapseBtn)collapseBtn.style.display='block';
+    });
+  }
+  if(collapseBtn){
+    collapseBtn.addEventListener('click',()=>{
+      if(dtPreviewArea){dtPreviewArea.style.maxHeight='160px';dtPreviewArea.style.overflow='hidden';}
+      collapseBtn.style.display='none';
+      if(expandBtn){
+        const isOverflow=dtPreviewArea&&dtPreviewArea.scrollHeight>164;
+        expandBtn.style.display=isOverflow?'block':'none';
+      }
+      // 先頭にスクロール
+      if(dtPreviewArea)dtPreviewArea.scrollTop=0;
     });
   }
 
