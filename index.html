@@ -3760,8 +3760,9 @@ function renderSidebar(){
   h+='<div class="proj-drop-line" data-drop-after="last"></div>';
   h+='</div></div>';
 
-  // ワークスペース（チーム）セクション
-  S.workspaces.forEach(ws=>{
+  // ワークスペース（チーム）セクション ※プロジェクトセクションの外に配置
+  if(S.workspaces&&S.workspaces.length){
+    S.workspaces.forEach(ws=>{
     const wsMembers=S.wsMembers[ws.id]||[];
     const wsProjects=getSortedProjects('active').filter(p=>p.workspaceId===ws.id);
     const wsOpen=S.wsOpen?.[ws.id]!==false;
@@ -3798,7 +3799,8 @@ function renderSidebar(){
     h+='<button class="nav-item" data-a="ws-add-proj" data-wsid="'+ws.id+'" style="font-size:12px;color:var(--text3);gap:4px;padding:5px 8px;width:100%;text-align:left">＋ プロジェクトを追加</button>';
     h+='</div></div>';
   });
-  // ワークスペース新規作成ボタン
+  } // end if workspaces.length
+  // ワークスペース新規作成ボタンは常時表示
   h+='<button class="nav-item" data-a="ws-create" style="font-size:12px;color:var(--text3);gap:4px;padding:5px 8px;margin-top:2px;width:100%;text-align:left">＋ チームを作成</button>';
   // Hidden projects section with accordion
   const hiddenProjs=S.projects.filter(p=>p.status==='hidden').sort((a,b)=>(a.hiddenOrder||0)-(b.hiddenOrder||0));
