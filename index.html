@@ -1113,6 +1113,10 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .gantt-scale-btn{padding:4px 12px;border:1px solid var(--border);background:none;color:var(--text2);border-radius:6px;font-size:12px;cursor:pointer;touch-action:manipulation;transition:background .12s,color .12s,border-color .12s}
 .gantt-scale-btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .gantt-help-btn{margin-left:auto;width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:none;cursor:pointer;font-size:13px;color:var(--text2);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.gantt-chevron{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0;font-size:10px;color:var(--text3);transition:transform .15s;cursor:pointer}
+.gantt-chevron.gclosed{transform:rotate(-90deg)}
+.gantt-bar-label{position:absolute;inset:0;display:flex;align-items:center;padding:0 6px;font-size:11px;color:rgba(255,255,255,.9);overflow:hidden;white-space:nowrap;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.gantt-done-badge{font-size:10px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;margin-left:4px;flex-shrink:0;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -1487,6 +1491,7 @@ let S={
   selectMode:false,selectedIds:[],
   filterTagIds:[],
   ganttScale:'week',
+  ganttCollapsed:JSON.parse(localStorage.getItem('ganttCollapsed')||'{}'),
 };
 
 // ===== PLAN SYSTEM =====
@@ -3889,50 +3894,79 @@ function renderGantt(){
       +'</div>';
   }
   const scale=S.ganttScale||'week';
-  // px per day by scale
-  const PX={day:36,week:11.43,month:3.2,year:0.7};
-  const pxPerDay=PX[scale];
-  const NAMES_W=220;
-  const HEAD_H=40;
+  const PX_MAP={day:36,week:11.43,month:3.2,year:0.7};
+  const pxPerDay=PX_MAP[scale];
+  const NAMES_W=250;
   const ROW_H=40;
+  const PROJ_H=36;
 
-  // Filter: non-recurring, non-completed
-  const allT=S.tasks.filter(t=>t.status!=='completed'&&!t.repeatRule);
-  // Build parent→children map
+  // 繰り返しタスク以外すべて（完了含む）
+  const allT=S.tasks.filter(t=>!t.repeatRule);
   const childMap={};
   allT.forEach(t=>{if(t.parentTaskId)(childMap[t.parentTaskId]||(childMap[t.parentTaskId]=[])).push(t);});
-  const parents=allT.filter(t=>!t.parentTaskId&&childMap[t.id]);
+  const parentsAll=allT.filter(t=>!t.parentTaskId&&childMap[t.id]);
 
-  if(!parents.length){
+  if(!parentsAll.length){
     return '<div style="padding:48px 24px;text-align:center;color:var(--text3);font-size:14px">'
       +'サブタスクを持つタスクがありません。<br>'
       +'<span style="font-size:12px">タスクにサブタスクを追加するとガントに表示されます。</span>'
       +'</div>';
   }
 
-  // Build flat row list: parent then its children
-  const rows=[];
-  parents.forEach(p=>{
-    rows.push({t:p,child:false});
-    (childMap[p.id]||[]).sort((a,b)=>(a.order||0)-(b.order||0)).forEach(c=>rows.push({t:c,child:true}));
+  // プロジェクト別にグループ化
+  const projGroups={};
+  const projOrder=[];
+  parentsAll.forEach(p=>{
+    const pid=p.projectId||'__none__';
+    if(!projGroups[pid]){
+      projOrder.push(pid);
+      const proj=S.projects.find(x=>x.id===pid)||{id:'__none__',name:'プロジェクトなし',color:'#9ca3af'};
+      projGroups[pid]={proj,parents:[]};
+    }
+    projGroups[pid].parents.push(p);
   });
 
-  // Compute timeline range
+  const gc=S.ganttCollapsed||{};
+
+  // フラットな行リスト構築
+  const rows=[];
+  projOrder.forEach(pid=>{
+    const {proj,parents:ps}=projGroups[pid];
+    const projKey='proj_'+pid;
+    const projCol=!!gc[projKey];
+    rows.push({type:'proj',proj,key:projKey,collapsed:projCol,h:PROJ_H,pid});
+    if(!projCol){
+      ps.forEach(p=>{
+        const taskKey='task_'+p.id;
+        const taskCol=!!gc[taskKey];
+        const hasKids=!!(childMap[p.id]?.length);
+        rows.push({type:'parent',task:p,key:taskKey,collapsed:taskCol,hasKids,done:p.status==='completed',h:ROW_H,pid});
+        if(!taskCol){
+          (childMap[p.id]||[]).sort((a,b)=>(a.order||0)-(b.order||0)).forEach(c=>{
+            rows.push({type:'child',task:c,done:c.status==='completed',h:ROW_H,pid});
+          });
+        }
+      });
+    }
+  });
+
+  // 日付レンジ（折りたたまれていても全タスク対象）
   const todayD=new Date();todayD.setHours(0,0,0,0);
   let minD=new Date(todayD),maxD=new Date(todayD);
-  rows.forEach(r=>{
-    if(r.t.startAt){const d=new Date(r.t.startAt);if(d<minD)minD=new Date(d);}
-    if(r.t.dueAt){const d=new Date(r.t.dueAt);if(d>maxD)maxD=new Date(d);}
+  allT.forEach(t=>{
+    if(t.startAt){const d=new Date(t.startAt);if(d<minD)minD=new Date(d);}
+    if(t.dueAt){const d=new Date(t.dueAt);if(d>maxD)maxD=new Date(d);}
+    if(t.completedAt){const d=new Date(t.completedAt.slice(0,10));if(d>maxD)maxD=new Date(d);}
   });
   const buf=scale==='day'?7:scale==='week'?21:scale==='month'?45:90;
   minD.setDate(minD.getDate()-buf);
   maxD.setDate(maxD.getDate()+buf);
-  const totalDays=Math.ceil((maxD-minD)/86400000);
-  const timelineW=Math.max(Math.ceil(totalDays*pxPerDay),200);
+  const timelineW=Math.max(Math.ceil((maxD-minD)/86400000*pxPerDay),400);
   const d2px=d=>(new Date(d)-minD)/86400000*pxPerDay;
   const todayX=d2px(todayD);
+  const totalH=rows.reduce((s,r)=>s+r.h,0);
 
-  // Build date header HTML
+  // ヘッダーセル
   const DAY=['日','月','火','水','木','金','土'];
   let headCells='';
   if(scale==='day'){
@@ -3944,50 +3978,74 @@ function renderGantt(){
       cur.setDate(cur.getDate()+1);
     }
   } else if(scale==='week'){
-    const startW=new Date(minD);startW.setDate(startW.getDate()-((startW.getDay()+6)%7));
-    const cellW=Math.round(7*pxPerDay);
-    const cur=new Date(startW);
+    const sw=new Date(minD);sw.setDate(sw.getDate()-((sw.getDay()+6)%7));
+    const cw=Math.round(7*pxPerDay);
+    const cur=new Date(sw);
     while(cur<=maxD){
-      headCells+=`<div class="gantt-date-cell" style="width:${cellW}px;font-size:11px">${cur.getMonth()+1}/${cur.getDate()}</div>`;
+      headCells+=`<div class="gantt-date-cell" style="width:${cw}px;font-size:11px">${cur.getMonth()+1}/${cur.getDate()}</div>`;
       cur.setDate(cur.getDate()+7);
     }
   } else if(scale==='month'){
     let cy=minD.getFullYear(),cm=minD.getMonth();
-    for(;;){
-      const mS=new Date(cy,cm,1);if(mS>maxD)break;
-      const days=new Date(cy,cm+1,0).getDate();
-      const cellW=Math.round(days*pxPerDay);
-      headCells+=`<div class="gantt-date-cell" style="width:${cellW}px;font-size:11px">${cy}/${cm+1}</div>`;
-      cm++;if(cm>11){cm=0;cy++;}
-    }
+    for(;;){if(new Date(cy,cm,1)>maxD)break;const days=new Date(cy,cm+1,0).getDate();headCells+=`<div class="gantt-date-cell" style="width:${Math.round(days*pxPerDay)}px;font-size:11px">${cy}/${cm+1}</div>`;cm++;if(cm>11){cm=0;cy++;}}
   } else {
-    for(let y=minD.getFullYear();y<=maxD.getFullYear();y++){
-      const days=((y%4===0&&y%100!==0)||y%400===0)?366:365;
-      const cellW=Math.round(days*pxPerDay);
-      headCells+=`<div class="gantt-date-cell" style="width:${cellW}px;font-size:12px;font-weight:600;color:var(--text2)">${y}</div>`;
-    }
+    for(let y=minD.getFullYear();y<=maxD.getFullYear();y++){const days=((y%4===0&&y%100!==0)||y%400===0)?366:365;headCells+=`<div class="gantt-date-cell" style="width:${Math.round(days*pxPerDay)}px;font-size:12px;font-weight:600;color:var(--text2)">${y}</div>`;}
   }
 
-  // Build name rows + bar rows
+  // 行レンダリング
   let nameRows='',barRows='';
-  const totalH=rows.length*ROW_H;
   rows.forEach(r=>{
-    const t=r.t;
-    const cls=r.child?'gchild':'gparent';
-    nameRows+=`<div class="gantt-name-row ${cls}" data-a="gantt-open" data-id="${t.id}" title="${esc(t.title)}">${esc(t.title)||'（無題）'}</div>`;
-    let barHtml='';
-    if(t.startAt&&t.dueAt){
-      const x=d2px(t.startAt);
-      const x2=d2px(t.dueAt)+pxPerDay;
-      const w=Math.max(x2-x,6);
-      const barH=r.child?16:14;
-      const barTop=(ROW_H-barH)/2;
-      barHtml=`<div class="gantt-bar ${r.child?'gbar-child':'gbar-parent'}" style="left:${x}px;width:${w}px;height:${barH}px;top:${barTop}px" title="${esc(t.title)}"></div>`;
+    if(r.type==='proj'){
+      const proj=r.proj;
+      const col=esc(proj.color||'#9ca3af');
+      const chev=`<span class="gantt-chevron${r.collapsed?' gclosed':''}" style="margin:0 2px 0 4px">▼</span>`;
+      const dot=`<span style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;margin-right:6px"></span>`;
+      nameRows+=`<div style="height:${r.h}px;display:flex;align-items:center;background:var(--bg2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;overflow:hidden" data-a="gantt-toggle" data-id="${r.key}">${chev}${dot}<span style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text)">${esc(proj.name)}</span></div>`;
+      // プロジェクトサマリーバー（全タスクのspan）
+      const allProjTasks=[...projGroups[r.pid].parents,...projGroups[r.pid].parents.flatMap(p=>childMap[p.id]||[])];
+      let pMin=null,pMax=null;
+      allProjTasks.forEach(t=>{if(t.startAt){const d=new Date(t.startAt);if(!pMin||d<pMin)pMin=d;}if(t.dueAt){const d=new Date(t.dueAt);if(!pMax||d>pMax)pMax=d;}});
+      let pBar='';
+      if(pMin&&pMax){
+        const bx=d2px(pMin),bw=Math.max(d2px(pMax)+pxPerDay-bx,6),bh=5,bt=(r.h-bh)/2;
+        pBar=`<div style="position:absolute;left:${bx}px;width:${bw}px;height:${bh}px;top:${bt}px;background:${col};border-radius:3px;opacity:.5"></div>`;
+      }
+      barRows+=`<div style="position:relative;height:${r.h}px;border-bottom:1px solid var(--border);background:var(--bg2)">${pBar}</div>`;
+    } else {
+      const t=r.task,isP=r.type==='parent',done=r.done;
+      const doneStyle=done?'text-decoration:line-through;color:var(--text3);':'';
+      let chev='';
+      if(isP&&r.hasKids) chev=`<span class="gantt-chevron${r.collapsed?' gclosed':''}" style="margin-right:2px" data-a="gantt-toggle" data-id="${r.key}">▼</span>`;
+      else if(isP) chev='<span style="width:18px;flex-shrink:0"></span>';
+      let doneBadge='';
+      if(done&&t.completedAt){const cd=new Date(t.completedAt);doneBadge=`<span class="gantt-done-badge">✓ ${cd.getMonth()+1}/${cd.getDate()}</span>`;}
+      const pl=isP?'padding-left:8px':'padding-left:28px';
+      nameRows+=`<div style="height:${r.h}px;display:flex;align-items:center;${pl};padding-right:6px;border-bottom:1px solid var(--border);overflow:hidden;cursor:pointer;${doneStyle}" data-a="gantt-open" data-id="${t.id}" title="${esc(t.title)}">`
+        +(done?'<span style="color:var(--text3);font-size:12px;margin-right:4px;flex-shrink:0">✓</span>':'')
+        +chev
+        +`<span style="font-size:${isP?'13':'12'}px;font-weight:${isP?'600':'400'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(t.title)||'（無題）'}</span>`
+        +doneBadge
+        +'</div>';
+      let barHtml='';
+      if(t.startAt&&t.dueAt){
+        const bx=d2px(t.startAt),bw=Math.max(d2px(t.dueAt)+pxPerDay-bx,8);
+        const bh=isP?14:16,bt=(ROW_H-bh)/2;
+        const proj=S.projects.find(p=>p.id===t.projectId);
+        const barCol=done?'#9ca3af':(proj?.color||'var(--accent)');
+        const op=done?'0.5':'1';
+        barHtml=`<div style="position:absolute;left:${bx}px;width:${bw}px;height:${bh}px;top:${bt}px;background:${barCol};opacity:${op};border-radius:3px;overflow:hidden${done?';background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.15) 0,rgba(255,255,255,.15) 4px,transparent 4px,transparent 8px)':''}" title="${esc(t.title)}">`
+          +`<span class="gantt-bar-label">${done?'✓ ':''} ${esc(t.title)}</span>`
+          +'</div>';
+        // 完了日マーカー
+        if(done&&t.completedAt){
+          const cx=d2px(t.completedAt.slice(0,10));
+          barHtml+=`<div style="position:absolute;left:${cx}px;top:2px;width:2px;height:${ROW_H-4}px;background:#6b7280;opacity:.7;z-index:1;border-radius:1px"></div>`;
+        }
+      }
+      barRows+=`<div style="position:relative;height:${r.h}px;border-bottom:1px solid var(--border)${done?';background:rgba(0,0,0,.02)':''}">${barHtml}</div>`;
     }
-    barRows+=`<div class="gantt-bar-row">${barHtml}</div>`;
   });
 
-  // Scale buttons
   const scales=[['day','日'],['week','週'],['month','月'],['year','年']];
   const scaleBtns=scales.map(([k,l])=>`<button class="gantt-scale-btn${scale===k?' on':''}" data-a="gantt-scale" data-scale="${k}">${l}</button>`).join('');
 
@@ -5873,6 +5931,16 @@ document.addEventListener('click',async e=>{
   }
   
   else if(a==='gantt-scale'){S.ganttScale=el.dataset.scale;render();scrollGanttToToday();}
+  else if(a==='gantt-toggle'){
+    const id=el.dataset.id;if(!id)return;
+    S.ganttCollapsed=Object.assign({},S.ganttCollapsed);
+    S.ganttCollapsed[id]=!S.ganttCollapsed[id];
+    localStorage.setItem('ganttCollapsed',JSON.stringify(S.ganttCollapsed));
+    const area=document.getElementById('gantt-area');
+    const sl=area?.scrollLeft||0,st=area?.scrollTop||0;
+    renderContent();
+    requestAnimationFrame(()=>{const a2=document.getElementById('gantt-area');if(a2){a2.scrollLeft=sl;a2.scrollTop=st;}});
+  }
   else if(a==='gantt-open'){S.taskId=el.dataset.id;S.drawerOpen=true;render();}
   else if(a==='gantt-help'){
     const ov=document.createElement('div');ov.className='overlay';
