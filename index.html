@@ -5032,7 +5032,9 @@ function renderDrawer(){
     +'<div class="drawer-body">'
       +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">'+esc(pt.title||'無題')+'</button><button class="date-clr-btn" data-a="set-parent" data-id="'+task.id+'" title="親タスクを変更" style="flex-shrink:0;font-size:10px;padding:2px 6px">変更</button><button class="date-clr-btn" data-a="detach-parent" data-id="'+task.id+'" title="独立したタスクにする" style="flex-shrink:0">✕</button></div>':''})():'')
       +((!task.parentTaskId)?'<div style="margin-bottom:12px"><button class="btn btn-ghost" data-a="set-parent" data-id="'+task.id+'" style="font-size:12px;height:30px;padding:0 10px">＋ サブタスクにする</button></div>':''  )
-      +(!task.parentTaskId&&subs.length>0?(()=>{const dc=subs.filter(s=>s.status==='completed').length;return'<div style="margin-bottom:10px"><button class="dt-sub-badge" data-a="scroll-to-subs" title="サブタスクへ移動"><span class="dt-sub-badge-chev">▶</span><span>サブタスク</span><span class="dt-sub-badge-count">'+dc+'/'+subs.length+'</span></button></div>';})():'')
+      +(!task.parentTaskId&&subs.length>0?(()=>{const dc=subs.filter(s=>s.status==='completed').length;return'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="dt-sub-badge" data-a="scroll-to-subs" title="サブタスクへ移動"><span class="dt-sub-badge-chev">▶</span><span>サブタスク</span><span class="dt-sub-badge-count">'+dc+'/'+subs.length+'</span></button><button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動" style="display:none"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count">0</span></button></div>';})()
+      :(!task.parentTaskId?'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動" style="display:none"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count">0</span></button></div>':'')
+      )
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div class="fg"><label class="flabel">メモ</label>'
       +'<div class="note-stamp-bar" style="margin-bottom:6px">'
@@ -5136,8 +5138,12 @@ function renderDrawer(){
           +'<span class="cm-count" id="cm-count">…</span>'
         +'</div>'
         +'<div class="cm-list" id="cm-list"><div class="cm-loading">読み込み中…</div></div>'
+        +'<div style="display:flex;gap:4px;margin-bottom:5px">'
+          +'<button class="note-stamp-btn" data-a="cm-stamp" data-type="datetimeweek">📅 日時</button>'
+          +'<button class="note-stamp-btn" id="cm-link-btn">🔗 Link</button>'
+        +'</div>'
         +'<div class="cm-input-row">'
-          +'<textarea class="cm-textarea" id="cm-input" placeholder="コメントを追加…" rows="1"></textarea>'
+          +'<textarea class="cm-textarea" id="cm-input" placeholder="コメントを追加… (Cmd+Enterで送信)" rows="1"></textarea>'
           +'<button class="cm-send-btn" id="cm-send" disabled>送信</button>'
         +'</div>'
       +'</div>'
@@ -5365,12 +5371,24 @@ function _cmTimeStr(isoStr){
   return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+(d.getDate());
 }
 
+function _cmLinkify(escapedText){
+  // エスケープ済みテキストのURLをリンク化（改行はbrに）
+  return escapedText
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;word-break:break-all">$1</a>')
+    .replace(/(^|[\s\n])(https?:\/\/[^\s<&"]+)/g,'$1<a href="$2" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;word-break:break-all">$2</a>')
+    .replace(/\n/g,'<br>');
+}
+
 function _cmRenderList(comments){
   const list=document.getElementById('cm-list');
   const count=document.getElementById('cm-count');
   if(!list)return;
-  if(count)count.textContent=comments.length||'0';
-  if(!comments.length){list.innerHTML='<div class="cm-loading" style="font-size:12px;color:var(--text3);padding:6px 0">コメントなし</div>';return;}
+  const n=comments.length;
+  if(count)count.textContent=n||'0';
+  // ドロワー上部のコメントバッジも更新
+  const badge=document.getElementById('cm-jump-badge');
+  if(badge){badge.style.display=n>0?'':'none';badge.querySelector('.dt-sub-badge-count').textContent=n;}
+  if(!n){list.innerHTML='<div class="cm-loading" style="font-size:12px;color:var(--text3);padding:6px 0">コメントなし</div>';return;}
   const uid=window._currentUser?.id;
   list.innerHTML=comments.map(c=>{
     const initial=(c.user_name||c.userName||'?').charAt(0).toUpperCase();
@@ -5386,7 +5404,7 @@ function _cmRenderList(comments){
           <span class="cm-time">${_cmTimeStr(c.created_at||c.createdAt)}</span>
           ${isOwn?`<button class="cm-del" data-a="cm-del" data-cmid="${c.id}" title="削除">✕</button>`:''}
         </div>
-        <div class="cm-body">${esc(c.body).replace(/\n/g,'<br>')}</div>
+        <div class="cm-body">${_cmLinkify(esc(c.body))}</div>
       </div>
     </div>`;
   }).join('');
@@ -5396,6 +5414,7 @@ async function initComments(taskId){
   // キャッシュがあれば即描画
   if(S._commentCache[taskId]){
     _cmRenderList(S._commentCache[taskId]);
+    _cmSetupInput(taskId,S._commentCache[taskId]);
   }
   // Supabaseから取得（task_idが一致するものだけ）
   const SB=window._SB;
@@ -5426,6 +5445,9 @@ function _cmSetupInput(taskId,comments){
   const inp=document.getElementById('cm-input');
   const btn=document.getElementById('cm-send');
   if(!inp||!btn)return;
+  // Linkボタン
+  const cmLinkBtn=document.getElementById('cm-link-btn');
+  if(cmLinkBtn)cmLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(cmLinkBtn,'cm-input',false);});
   // 送信ボタンの活性制御
   inp.addEventListener('input',()=>{
     btn.disabled=!inp.value.trim();
@@ -5951,6 +5973,19 @@ else if(a==='scroll-to-subs'){
     subsEl.style.transition='background .3s';
     subsEl.style.background='var(--accent-bg)';
     setTimeout(()=>{subsEl.style.background='';},800);
+  }
+}
+else if(a==='scroll-to-comments'){
+  e.stopPropagation();
+  const dr=document.getElementById('drawer');
+  const drBody=dr&&dr.querySelector('.drawer-body');
+  const cmSection=drBody&&drBody.querySelector('#cm-section');
+  if(cmSection&&drBody){
+    const offset=cmSection.getBoundingClientRect().top-drBody.getBoundingClientRect().top+drBody.scrollTop-8;
+    drBody.scrollTo({top:offset,behavior:'smooth'});
+    cmSection.style.transition='background .3s';
+    cmSection.style.background='var(--accent-bg)';
+    setTimeout(()=>{cmSection.style.background='';},800);
   }
 }
 
@@ -6479,6 +6514,22 @@ else if(a==='scroll-to-subs'){
       ta.value=ta.value.slice(0,s)+ins+ta.value.slice(en);
       ta.selectionStart=ta.selectionEnd=s+ins.length;
     }
+    ta.focus();
+    ta.dispatchEvent(new Event('input'));
+  }
+  else if(a==='cm-stamp'){
+    const ta=document.getElementById('cm-input');
+    if(!ta)return;
+    const now2=new Date();
+    const pad=n=>String(n).padStart(2,'0');
+    const days2=['日','月','火','水','木','金','土'];
+    const dateStr=now2.getFullYear()+'/'+(pad(now2.getMonth()+1))+'/'+pad(now2.getDate());
+    const timeStr=pad(now2.getHours())+':'+pad(now2.getMinutes());
+    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+' ',sep:'\n---\n'};
+    const ins=map[el.dataset.type]||'';
+    const s=ta.selectionStart,en=ta.selectionEnd;
+    ta.value=ta.value.slice(0,s)+ins+ta.value.slice(en);
+    ta.selectionStart=ta.selectionEnd=s+ins.length;
     ta.focus();
     ta.dispatchEvent(new Event('input'));
   }
