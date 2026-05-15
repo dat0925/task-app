@@ -8910,7 +8910,6 @@ async function aiExecuteActions(actions){
         const tagIds=await resolveTagIds(a.tagNames||[]);
         const note=mkNote({title:a.title||'無題',body:a.body||'',tagIds});
         await saveNote(note);
-        S.notes.unshift(note);
         done.push({...a,label:a.title});
       }
     }catch(e){console.error('action error',e)}
