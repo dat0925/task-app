@@ -8685,7 +8685,10 @@ ${JSON.stringify(context,null,2)}
 - 「今のビューの」「表示されているタスク」などはcurrentViewTasksを参照する
 - repeat_ruleの書式: daily/weekly/monthly/yearly/weekdays/weekly:mon,wed,fri/monthly:1,15,25
 - append_noteはメモへの追記。既存メモを上書きしない
-- start_time/due_timeはHH:MM形式（24時間）`;
+- start_time/due_timeはHH:MM形式（24時間）
+- 【重要】「ノートを追加」「Note追加」「メモを作って」→ 必ず add_note ツールを使う。add_task は絶対に使わない
+- 【重要】add_note の body フィールドには必ずユーザーが指定した内容を入れる。省略しない
+- タスクのメモ（notes）への追記は append_note フィールドを使う。ノート（Note機能）とは別物`;
 
   // ── ツール定義 ──────────────────────────────────────────
   const tools=[
