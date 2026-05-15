@@ -3777,6 +3777,12 @@ async function loadNavOrder(){
     if(val){
       const parsed=JSON.parse(val);
       if(Array.isArray(parsed)&&parsed.length){
+        // 既存の保存順に 'gantt' がなければ forecast の直後に挿入
+        if(!parsed.includes('gantt')){
+          const fi=parsed.indexOf('forecast');
+          fi>=0?parsed.splice(fi+1,0,'gantt'):parsed.unshift('gantt');
+          window.sbSetSetting('bnav_order',JSON.stringify(parsed));
+        }
         localStorage.setItem('bnav_order',JSON.stringify(parsed));
         renderBotNav();renderSidebar();
       }
