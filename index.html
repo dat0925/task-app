@@ -8786,6 +8786,31 @@ ${JSON.stringify(context,null,2)}
         required:['title'],
       },
     },
+    {
+      name:'add_tag',
+      description:'新しいタグを作成する',
+      input_schema:{
+        type:'object',
+        properties:{
+          name:{type:'string',description:'タグ名'},
+          color:{type:'string',description:'カラーコード #xxxxxx。省略時は紫'},
+        },
+        required:['name'],
+      },
+    },
+    {
+      name:'add_note',
+      description:'新しいノート（メモ帳）を作成する。「ノート追加」「Note追加」「メモを作って」などの指示に使う。タスクとは別の機能',
+      input_schema:{
+        type:'object',
+        properties:{
+          title:{type:'string',description:'ノートのタイトル'},
+          body:{type:'string',description:'ノートの本文・内容。ユーザーが指定した内容を必ず入れる'},
+          tag_names:{type:'array',items:{type:'string'},description:'タグ名の配列'},
+        },
+        required:['title'],
+      },
+    },
   ];
   // update_taskツール定義にフィールドを追加（既存定義を拡張）
   const updateTaskTool=tools.find(t=>t.name==='update_task');
