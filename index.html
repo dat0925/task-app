@@ -5741,21 +5741,22 @@ function _cmSetupInput(taskId,comments){
   const inp=document.getElementById('cm-input');
   const btn=document.getElementById('cm-send');
   if(!inp||!btn)return;
-  // Linkボタン
+  // すでにセットアップ済みなら再登録しない
+  if(inp._cmTaskId===taskId)return;
+  inp._cmTaskId=taskId;
+  // Linkボタン（onclickで上書き）
   const cmLinkBtn=document.getElementById('cm-link-btn');
-  if(cmLinkBtn)cmLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(cmLinkBtn,'cm-input',false);});
-  // 送信ボタンの活性制御
-  inp.addEventListener('input',()=>{
+  if(cmLinkBtn)cmLinkBtn.onclick=e=>{e.stopPropagation();showLinkPopover(cmLinkBtn,'cm-input',false);};
+  // 送信ボタンの活性制御（onclickで上書き）
+  inp.oninput=()=>{
     btn.disabled=!inp.value.trim();
-    // テキストエリアの自動高さ調整
     inp.style.height='auto';
     inp.style.height=Math.min(inp.scrollHeight,120)+'px';
-  });
-  // Cmd/Ctrl+Enter で送信
-  inp.addEventListener('keydown',e=>{
+  };
+  inp.onkeydown=e=>{
     if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();if(!btn.disabled)_cmSend(taskId);}
-  });
-  btn.addEventListener('click',()=>_cmSend(taskId));
+  };
+  btn.onclick=()=>_cmSend(taskId);
 }
 
 async function _cmSend(taskId){
