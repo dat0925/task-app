@@ -3900,8 +3900,12 @@ function renderGantt(){
   const ROW_H=40;
   const PROJ_H=36;
 
-  // 繰り返しタスク以外すべて（完了含む）
-  const allT=S.tasks.filter(t=>!t.repeatRule);
+  // フィルタ適用（繰り返し除外 + 現在/完了/タグ）
+  const todayD=new Date();todayD.setHours(0,0,0,0);
+  let allT=S.tasks.filter(t=>!t.repeatRule);
+  if(!S.showCompleted)allT=allT.filter(t=>t.status!=='completed');
+  if(S.hideNotStarted)allT=allT.filter(t=>!t.startAt||new Date(t.startAt)<=todayD);
+  if(S.filterTagIds&&S.filterTagIds.length)allT=allT.filter(t=>S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)));
   const childMap={};
   allT.forEach(t=>{if(t.parentTaskId)(childMap[t.parentTaskId]||(childMap[t.parentTaskId]=[])).push(t);});
   const parentsAll=allT.filter(t=>!t.parentTaskId&&childMap[t.id]);
@@ -3951,7 +3955,6 @@ function renderGantt(){
   });
 
   // 日付レンジ（折りたたまれていても全タスク対象）
-  const todayD=new Date();todayD.setHours(0,0,0,0);
   let minD=new Date(todayD),maxD=new Date(todayD);
   allT.forEach(t=>{
     if(t.startAt){const d=new Date(t.startAt);if(d<minD)minD=new Date(d);}
@@ -4554,14 +4557,15 @@ function renderTaskFilters(){
   const isNotes=S.view==='notes';
   const isSearch=S.view==='search';
   const isNextView=S.view==='nextview';
+  const isGantt=S.view==='gantt';
   const showStatusBtns=!isForecast&&!isNotes&&!isSearch;
   tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
     +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
-    +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
-    +(!isForecast&&!isNotes&&!isSearch&&!isNextView?'<button class="toggle-completed-btn'+(S.sort==='priority'?' active':'')+'" data-a="quick-sort-priority" title="優先度順に並び替え">優先</button>':'')
-    +(!isForecast&&!isNotes&&!isSearch?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
+    +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
+    +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="toggle-completed-btn'+(S.sort==='priority'?' active':'')+'" data-a="quick-sort-priority" title="優先度順に並び替え">優先</button>':'')
+    +(!isForecast&&!isNotes&&!isSearch&&!isGantt?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
 }
 
 function _closeTfPopups(){document.querySelectorAll('.tf-popup,.tf-backdrop').forEach(p=>p.remove());}
