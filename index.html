@@ -2198,11 +2198,12 @@ function _showAiHelp(btn){
   pop.innerHTML=
     '<div style="font-weight:700;font-size:13px;margin-bottom:10px">✦ Taskra AI でできること</div>'
     +'<div style="display:flex;flex-direction:column;gap:7px;font-size:12px;line-height:1.6">'
-    +'<div><b>✅ タスク操作</b><br>追加・完了・削除・タイトル変更・期日変更・タグ付け・優先度変更</div>'
-    +'<div><b>📁 プロジェクト</b><br>新規プロジェクトの作成</div>'
-    +'<div><b>💬 まとめて指示</b><br>「タグなしのタスクに仕事タグをつけて」など複数タスクの一括操作</div>'
-    +'<div style="padding-top:7px;border-top:1px solid var(--border)"><b>❌ できないこと</b><br>カレンダー連携・外部サービス操作・ファイル添付・ノート編集・天気など</div>'
-    +'<div style="color:var(--text3);font-size:11px;padding-top:4px">※ できない操作はその旨をお伝えします</div>'
+    +'<div><b>✅ タスク操作</b><br>追加・完了・削除・タイトル変更・期日/開始日・時刻・タグ・優先度・フラグ・プロジェクト割当・繰り返し設定・メモ追記・サブタスク追加・一括操作</div>'
+    +'<div><b>📁 プロジェクト・🏷 タグ</b><br>新規プロジェクト作成・新規タグ作成</div>'
+    +'<div><b>📝 ノート</b><br>タイトルと内容を指定して新規ノートを作成</div>'
+    +'<div><b>💬 まとめて指示</b><br>「今のビューのタスク全部に仕事タグをつけて」「Next Viewのタスクの開始時間を10時にして」など</div>'
+    +'<div style="padding-top:7px;border-top:1px solid var(--border)"><b>❌ できないこと</b><br>カレンダー連携・外部サービス・ファイル添付・ノート編集・天気・リマインダーなど</div>'
+    +'<div style="color:var(--text3);font-size:11px;padding-top:4px">※ できない操作は正直にお伝えします</div>'
     +'</div>';
   const rect=btn.getBoundingClientRect();
   const pw=260;
@@ -8577,7 +8578,6 @@ async function aiExecuteActions(actions){
         const p=mkProject({name:a.name,color:a.color||'#3b82f6'});
         await saveProject(p);done.push({...a,label:a.name});
       } else if(a.type==='addSubtask'){
-        // 親タスクを特定
         let parent=a.parentTaskId?S.tasks.find(x=>x.id===a.parentTaskId):null;
         if(!parent&&a.parentKeyword)parent=S.tasks.find(x=>x.title&&x.title.includes(a.parentKeyword)&&x.status!=='completed');
         if(parent){
@@ -8593,6 +8593,20 @@ async function aiExecuteActions(actions){
         } else {
           done.push({...a,label:a.title,error:'親タスクが見つかりません'});
         }
+      } else if(a.type==='addTag'){
+        const exists=S.tags.find(t=>t.name===a.name);
+        if(exists){
+          done.push({...a,label:a.name,error:'同名タグが既に存在します'});
+        } else {
+          const tag=mkTag({name:a.name,color:a.color||'#7c3aed'});
+          await saveTag(tag);done.push({...a,label:'#'+a.name});
+        }
+      } else if(a.type==='addNote'){
+        const tagIds=await resolveTagIds(a.tagNames||[]);
+        const note=mkNote({title:a.title||'無題',body:a.body||'',tagIds});
+        await saveNote(note);
+        S.notes.unshift(note);
+        done.push({...a,label:a.title});
       }
     }catch(e){console.error('action error',e)}
   }
@@ -8883,7 +8897,7 @@ ${JSON.stringify(context,null,2)}
     if(done&&done.length>0){
       const counts={};
       done.forEach(d=>{
-        const label=d.type==='addTask'?'追加':d.type==='completeTask'?'完了':d.type==='updateTask'?'更新':d.type==='deleteTask'?'削除':d.type==='addProject'?'プロジェクト追加':d.type;
+        const label=d.type==='addTask'?'タスク追加':d.type==='completeTask'?'完了':d.type==='updateTask'?'更新':d.type==='deleteTask'?'削除':d.type==='addProject'?'プロジェクト追加':d.type==='addTag'?'タグ追加':d.type==='addNote'?'ノート追加':d.type==='addSubtask'?'サブタスク追加':d.type;
         counts[label]=(counts[label]||0)+1;
       });
       const parts=Object.entries(counts).map(([k,v])=>k+' '+v+'件');
