@@ -1156,7 +1156,8 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
       <div class="ai-title">Taskra AI</div>
       <div class="ai-sub" id="ai-usage-label">タスクをAIで操作</div>
     </div>
-    <button class="icon-btn" id="ai-close" style="margin-left:auto;width:36px;height:36px;font-size:20px;display:flex;align-items:center;justify-content:center">✕</button>
+    <button id="ai-help-btn" onclick="_showAiHelp(this)" style="margin-left:auto;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);color:var(--text3);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;margin-right:6px">?</button>
+    <button class="icon-btn" id="ai-close" style="width:36px;height:36px;font-size:20px;display:flex;align-items:center;justify-content:center">✕</button>
   </div>
   <div id="ai-msgs"></div>
   <div id="ai-input-wrap">
@@ -2188,6 +2189,37 @@ function parseQA(input){
   }
   r.title=title.replace(/\s+/g,' ').trim();
   return r;
+}
+
+function _showAiHelp(btn){
+  document.querySelectorAll('.ai-help-pop').forEach(el=>el.remove());
+  const pop=document.createElement('div');
+  pop.className='ai-help-pop';
+  pop.innerHTML=
+    '<div style="font-weight:700;font-size:13px;margin-bottom:10px">✦ Taskra AI でできること</div>'
+    +'<div style="display:flex;flex-direction:column;gap:7px;font-size:12px;line-height:1.6">'
+    +'<div><b>✅ タスク操作</b><br>追加・完了・削除・タイトル変更・期日変更・タグ付け・優先度変更</div>'
+    +'<div><b>📁 プロジェクト</b><br>新規プロジェクトの作成</div>'
+    +'<div><b>💬 まとめて指示</b><br>「タグなしのタスクに仕事タグをつけて」など複数タスクの一括操作</div>'
+    +'<div style="padding-top:7px;border-top:1px solid var(--border)"><b>❌ できないこと</b><br>カレンダー連携・外部サービス操作・ファイル添付・ノート編集・天気など</div>'
+    +'<div style="color:var(--text3);font-size:11px;padding-top:4px">※ できない操作はその旨をお伝えします</div>'
+    +'</div>';
+  const rect=btn.getBoundingClientRect();
+  const pw=260;
+  pop.style.cssText='position:fixed;z-index:9999;'
+    +'width:'+pw+'px;background:var(--bg);border:1px solid var(--border);'
+    +'border-radius:12px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,.15);'
+    +'color:var(--text);font-size:12px;';
+  document.body.appendChild(pop);
+  const ph=pop.offsetHeight;
+  let top=rect.bottom+6;
+  let left=Math.max(8,Math.min(rect.left-pw+rect.width,window.innerWidth-pw-8));
+  if(top+ph>window.innerHeight-12)top=rect.top-ph-6;
+  pop.style.top=top+'px';pop.style.left=left+'px';
+  let _skip=true;
+  const close=ev=>{if(_skip){_skip=false;return;}if(!pop.contains(ev.target)){pop.remove();document.removeEventListener('touchstart',close);document.removeEventListener('click',close);}}
+  document.addEventListener('touchstart',close,{passive:true});
+  document.addEventListener('click',close);
 }
 
 function _showRepeatHelp(btn){
