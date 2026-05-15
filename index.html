@@ -9058,10 +9058,14 @@ document.getElementById('ai-input').addEventListener('input',function(){
   if(!screen)return;
   // ロック無効 or セッション認証済み or 直近認証済み or ローカル開発環境ならスキップ
   const UNLOCK_TS_KEY='focus_unlocked_ts';
+  // localStorageが使えない場合（シークレットモード等）はスキップ
+  let _lsOk=true;
+  try{localStorage.getItem('_test');}catch(e){_lsOk=false;}
+  if(!_lsOk){screen.style.display='none';return;}
   const lockEnabled=localStorage.getItem(LOCK_ENABLED_KEY)==='true';
   const isLocalhost=['localhost','127.0.0.1',''].includes(location.hostname);
   const recentUnlock=Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_KEY)||'0')<3600000; // 1時間以内
-  if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'||recentUnlock||isLocalhost){screen.style.display='none';return}
+  if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'||recentUnlock||isLocalhost){screen.style.display='none';return;}
   function getPin(){return localStorage.getItem(PIN_KEY)||DEFAULT_PIN;}
 
   function unlock(){
