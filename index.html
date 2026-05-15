@@ -3881,8 +3881,8 @@ function renderGantt(){
   if(S.filterTagIds&&S.filterTagIds.length)allT=allT.filter(t=>S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)));
   const childMap={};
   allT.forEach(t=>{if(t.parentTaskId)(childMap[t.parentTaskId]||(childMap[t.parentTaskId]=[])).push(t);});
-  // サブタスクを持たないタスクも含め、親タスク（トップレベル）をすべて表示
-  const parentsAll=allT.filter(t=>!t.parentTaskId);
+  // サブタスクを持たないタスクも含め、プロジェクト所属の親タスク（トップレベル）をすべて表示
+  const parentsAll=allT.filter(t=>!t.parentTaskId&&t.projectId);
 
   if(!parentsAll.length){
     return '<div style="padding:48px 24px;text-align:center;color:var(--text3);font-size:14px">'
