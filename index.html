@@ -2372,20 +2372,20 @@ async function loadAll(){
 // ===== WORKSPACE =====
 async function loadWorkspaces(){
   const SB=window._SB;
-  if(!SB||!window._currentUser)return;
+  if(!SB)return;
   try{
-    const{data:wsList}=await SB.from('workspaces').select('*');
-    // snake_case → camelCase
+    const{data:wsList,error}=await SB.from('workspaces').select('*');
+    if(error){console.error('loadWorkspaces select error',error);return;}
     S.workspaces=(wsList||[]).map(w=>({
       id:w.id,name:w.name,ownerId:w.owner_id,
       inviteToken:w.invite_token,
-      // RLS等で使うためオリジナルも保持
       owner_id:w.owner_id,invite_token:w.invite_token,
       createdAt:w.created_at,updatedAt:w.updated_at
     }));
     if(S.workspaces.length){
       const wsIds=S.workspaces.map(w=>w.id);
-      const{data:members}=await SB.from('workspace_members').select('*').in('workspace_id',wsIds);
+      const{data:members,error:e2}=await SB.from('workspace_members').select('*').in('workspace_id',wsIds);
+      if(e2){console.error('loadWorkspaces members error',e2);return;}
       S.wsMembers={};
       (members||[]).forEach(m=>{
         if(!S.wsMembers[m.workspace_id])S.wsMembers[m.workspace_id]=[];
@@ -2397,6 +2397,7 @@ async function loadWorkspaces(){
         });
       });
     }
+    console.log('loadWorkspaces ok',S.workspaces.length,'件');
   }catch(e){console.error('loadWorkspaces',e);}
 }
 
