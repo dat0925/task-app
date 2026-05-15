@@ -5396,15 +5396,21 @@ function _cmRenderList(comments){
       ?`<img src="${c.user_avatar||c.userAvatar}" onerror="this.style.display='none'">`
       :initial;
     const isOwn=(c.user_id||c.userId)===uid;
+    const createdAt=c.created_at||c.createdAt;
+    const updatedAt=c.updated_at||c.updatedAt;
+    const wasEdited=updatedAt&&createdAt&&(new Date(updatedAt)-new Date(createdAt))>2000;
+    const editedLabel=wasEdited?`<span style="font-size:10px;color:var(--text3);margin-top:3px;display:block">編集済み ${_cmTimeStr(updatedAt)}</span>`:'';
     return `<div class="cm-item" data-cmid="${c.id}">
       <div class="cm-avatar">${typeof avatar==='string'&&avatar.startsWith('<')?avatar:initial}</div>
       <div class="cm-bubble">
         <div class="cm-meta">
           <span class="cm-name">${esc(c.user_name||c.userName||'ユーザー')}</span>
-          <span class="cm-time">${_cmTimeStr(c.created_at||c.createdAt)}</span>
+          <span class="cm-time">${_cmTimeStr(createdAt)}</span>
+          ${isOwn?`<button class="cm-del" data-a="cm-edit" data-cmid="${c.id}" title="編集" style="opacity:0">編集</button>`:''}
           ${isOwn?`<button class="cm-del" data-a="cm-del" data-cmid="${c.id}" title="削除">✕</button>`:''}
         </div>
-        <div class="cm-body">${_cmLinkify(esc(c.body))}</div>
+        <div class="cm-body" id="cm-body-${c.id}">${_cmLinkify(esc(c.body))}</div>
+        ${editedLabel}
       </div>
     </div>`;
   }).join('');
@@ -5502,6 +5508,60 @@ async function _cmDelete(cmId,taskId){
     S._commentCache[taskId]=S._commentCache[taskId].filter(c=>c.id!==cmId);
     _cmRenderList(S._commentCache[taskId]);
   }
+}
+
+function _cmStartEdit(cmId,taskId){
+  const cache=S._commentCache[taskId];
+  if(!cache)return;
+  const c=cache.find(x=>x.id===cmId);
+  if(!c)return;
+  const bodyEl=document.getElementById('cm-body-'+cmId);
+  if(!bodyEl)return;
+  // すでに編集中なら何もしない
+  if(bodyEl.querySelector('textarea'))return;
+  const origHtml=bodyEl.innerHTML;
+  const origText=c.body;
+  bodyEl.innerHTML='';
+  // テキストエリア
+  const ta=document.createElement('textarea');
+  ta.className='cm-textarea';
+  ta.value=origText;
+  ta.style.cssText='width:100%;margin-bottom:6px;display:block';
+  ta.rows=Math.max(2,origText.split('\n').length);
+  // ボタン行
+  const btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:6px';
+  const saveBtn=document.createElement('button');
+  saveBtn.className='cm-send-btn';
+  saveBtn.style.cssText='height:30px;padding:0 12px;font-size:12px';
+  saveBtn.textContent='保存';
+  const cancelBtn=document.createElement('button');
+  cancelBtn.className='note-stamp-btn';
+  cancelBtn.style.cssText='height:30px';
+  cancelBtn.textContent='キャンセル';
+  btnRow.append(saveBtn,cancelBtn);
+  bodyEl.append(ta,btnRow);
+  ta.focus();
+  ta.selectionStart=ta.selectionEnd=ta.value.length;
+
+  cancelBtn.onclick=()=>{bodyEl.innerHTML=origHtml;};
+  saveBtn.onclick=async()=>{
+    const newBody=ta.value.trim();
+    if(!newBody){toast('本文を入力してください');return;}
+    if(newBody===origText){bodyEl.innerHTML=origHtml;return;}
+    saveBtn.disabled=true;saveBtn.textContent='保存中…';
+    const SB=window._SB;
+    const now=new Date().toISOString();
+    const{error}=await SB.from('task_comments').update({body:newBody,updated_at:now}).eq('id',cmId);
+    if(error){toast('更新に失敗しました');saveBtn.disabled=false;saveBtn.textContent='保存';return;}
+    // キャッシュ更新
+    const idx=cache.findIndex(x=>x.id===cmId);
+    if(idx>=0){cache[idx]={...cache[idx],body:newBody,updated_at:now};}
+    _cmRenderList(cache);
+  };
+  // Cmd/Ctrl+Enter で保存
+  ta.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();saveBtn.click();}});
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,200)+'px';});
 }
 
 // ===== BULK EDIT =====
@@ -6059,6 +6119,10 @@ else if(a==='scroll-to-comments'){
   else if(a==='cm-del'){
     const cmId=el.dataset.cmid;
     if(cmId&&S.taskId)await _cmDelete(cmId,S.taskId);
+  }
+  else if(a==='cm-edit'){
+    const cmId=el.dataset.cmid;
+    if(cmId&&S.taskId)_cmStartEdit(cmId,S.taskId);
   }
   else if(a==='task-nav-prev'||a==='task-nav-next'){
     const visibleTasks=getTasks().filter(t=>!t.parentTaskId);
