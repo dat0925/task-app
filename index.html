@@ -4212,7 +4212,10 @@ function renderNoteListOnly(){
   const q=S.noteSearch.toLowerCase();
   const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
   let notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q));
-  if(S.filterTagIds&&S.filterTagIds.length)notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  if(S.filterTagIds&&S.filterTagIds.length){
+    if(S.filterTagIds.includes('__none__'))notes=notes.filter(n=>!n.tagIds||n.tagIds.length===0);
+    else notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  }
   notes.sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
   let h='';
   if(!notes.length){
@@ -4549,7 +4552,10 @@ function renderNoteList(){
   const q=S.noteSearch.toLowerCase();
   const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
   let notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q));
-  if(S.filterTagIds&&S.filterTagIds.length)notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  if(S.filterTagIds&&S.filterTagIds.length){
+    if(S.filterTagIds.includes('__none__'))notes=notes.filter(n=>!n.tagIds||n.tagIds.length===0);
+    else notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  }
   notes.sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
   let h='<div class="tlist">';
   if(S.noteSelectMode){
@@ -4825,7 +4831,10 @@ function renderSearchResults(q){
   let tasks=S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql)));
   if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(t=>S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)));
   let notes=S.notes.filter(n=>(n.title+n.body).toLowerCase().includes(ql));
-  if(S.filterTagIds&&S.filterTagIds.length)notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  if(S.filterTagIds&&S.filterTagIds.length){
+    if(S.filterTagIds.includes('__none__'))notes=notes.filter(n=>!n.tagIds||n.tagIds.length===0);
+    else notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  }
   if(!tasks.length&&!notes.length)return renderEmpty();
   let h='';
   if(tasks.length)h+='<div class="nav-label">タスク</div><div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
