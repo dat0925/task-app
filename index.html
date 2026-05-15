@@ -2375,13 +2375,14 @@ async function loadWorkspaces(){
   if(!SB)return;
   try{
     const{data:wsList,error}=await SB.from('workspaces').select('*');
-    if(error){console.error('loadWorkspaces select error',error);return;}
+    if(error){console.error('loadWorkspaces select error',error);toast('WS取得エラー: '+(error.message||''));return;}
     S.workspaces=(wsList||[]).map(w=>({
       id:w.id,name:w.name,ownerId:w.owner_id,
       inviteToken:w.invite_token,
       owner_id:w.owner_id,invite_token:w.invite_token,
       createdAt:w.created_at,updatedAt:w.updated_at
     }));
+    toast('WS取得: '+S.workspaces.length+'件 / SB:'+(!!window._SB)+' user:'+(!!window._currentUser));
     if(S.workspaces.length){
       const wsIds=S.workspaces.map(w=>w.id);
       const{data:members,error:e2}=await SB.from('workspace_members').select('*').in('workspace_id',wsIds);
