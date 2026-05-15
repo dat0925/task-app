@@ -4117,7 +4117,25 @@ function renderContent(){
     const nc=document.getElementById('note-list-items');if(nc)initNoteSwipe(nc);
     return}
   if(S.view==='nextview'){el.innerHTML=renderNextView();return}
-  if(S.view==='gantt'){el.innerHTML=renderGantt();scrollGanttToToday();return}
+  if(S.view==='gantt'){
+    // スクロール位置を保持してGantt再描画（初回のみ今日へスクロール）
+    const _ganttArea=document.getElementById('gantt-area');
+    const _isFirstRender=!_ganttArea; // gantt-areaがまだなければ初回
+    const _prevScrollLeft=_ganttArea?_ganttArea.scrollLeft:0;
+    const _prevScrollTop=_ganttArea?_ganttArea.scrollTop:0;
+    el.innerHTML=renderGantt();
+    requestAnimationFrame(()=>{
+      const a=document.getElementById('gantt-area');
+      if(!a)return;
+      if(_isFirstRender){
+        scrollGanttToToday();
+      } else {
+        a.scrollLeft=_prevScrollLeft;
+        a.scrollTop=_prevScrollTop;
+      }
+    });
+    return;
+  }
   el.innerHTML=renderList();
   if(S.view==='project')setupSectionDrag();
   initTaskSwipe(el);
