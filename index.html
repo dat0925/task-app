@@ -2392,20 +2392,21 @@ async function loadWorkspaces(){
 
 async function createWorkspace(name){
   const SB=window._SB;const user=window._currentUser;
-  if(!SB||!user)return null;
+  if(!SB||!user){toast('ログインが必要です');return null;}
   const wsId=uid();
-  const token=uid()+uid(); // 招待トークン
-  const ws={id:wsId,name,owner_id:user.id,invite_token:token,
+  const token=uid()+uid();
+  const userId=String(user.id); // uuidをtextに変換
+  const ws={id:wsId,name,owner_id:userId,invite_token:token,
     created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
   const{error:e1}=await SB.from('workspaces').insert(ws);
-  if(e1){toast('ワークスペース作成に失敗しました');return null;}
-  // ownerを自動メンバー追加
-  const mem={id:uid(),workspace_id:wsId,user_id:user.id,
+  if(e1){console.error('createWorkspace error',e1);toast('作成に失敗: '+(e1.message||'不明なエラー'));return null;}
+  const mem={id:uid(),workspace_id:wsId,user_id:userId,
     user_name:user.user_metadata?.full_name||user.email||'',
     user_avatar:user.user_metadata?.avatar_url||'',
     user_email:user.email||'',role:'owner',
     joined_at:new Date().toISOString()};
-  await SB.from('workspace_members').insert(mem);
+  const{error:e2}=await SB.from('workspace_members').insert(mem);
+  if(e2){console.error('createWorkspace member error',e2);toast('メンバー追加に失敗: '+(e2.message||'不明なエラー'));return null;}
   await loadWorkspaces();
   render();
   return ws;
