@@ -3930,6 +3930,10 @@ function renderGantt(){
   const buf=scale==='day'?7:scale==='week'?21:scale==='month'?45:90;
   minD.setDate(minD.getDate()-buf);
   maxD.setDate(maxD.getDate()+buf);
+  // ヘッダーセルと仕切り線の座標系を一致させるためスケール境界に揃える
+  if(scale==='week') minD.setDate(minD.getDate()-((minD.getDay()+6)%7));
+  else if(scale==='month') minD.setDate(1);
+  else if(scale==='year'){minD.setDate(1);minD.setMonth(0);}
   const timelineW=Math.max(Math.ceil((maxD-minD)/86400000*pxPerDay),400);
   const d2px=d=>(new Date(d)-minD)/86400000*pxPerDay;
   const todayX=d2px(todayD);
@@ -3947,11 +3951,10 @@ function renderGantt(){
       cur.setDate(cur.getDate()+1);
     }
   } else if(scale==='week'){
-    const sw=new Date(minD);sw.setDate(sw.getDate()-((sw.getDay()+6)%7));
     const cw=Math.round(7*pxPerDay);
-    const cur=new Date(sw);
+    const cur=new Date(minD);
     while(cur<=maxD){
-      headCells+=`<div class="gantt-date-cell" style="width:${cw}px;font-size:11px">${cur.getMonth()+1}/${cur.getDate()}</div>`;
+      headCells+=`<div class="gantt-date-cell" style="width:${cw}px;font-size:11px">${cur.getMonth()+1}/${cur.getDate()}(${DAY[cur.getDay()]})</div>`;
       cur.setDate(cur.getDate()+7);
     }
   } else if(scale==='month'){
