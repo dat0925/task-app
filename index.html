@@ -8545,9 +8545,18 @@ async function aiExecuteActions(actions){
         for(const t of targets){
           if(!t.tagIds)t.tagIds=[];// tagIds未初期化ガード
           if(a.dueAt!==undefined)t.dueAt=a.dueAt;
+          if(a.startAt!==undefined)t.startAt=a.startAt;
           if(a.priority!==undefined)t.priority=a.priority;
           if(a.flagged!==undefined)t.flagged=a.flagged;
           if(a.newTitle)t.title=a.newTitle;
+          if(a.repeatRule!==undefined)t.repeatRule=a.repeatRule||null;
+          // 時刻フィールド（HH:MM形式でdueAt/startAtに付加）
+          if(a.startTime&&t.startAt)t.startAt=t.startAt.slice(0,10)+'T'+a.startTime+':00';
+          if(a.dueTime&&t.dueAt)t.dueAt=t.dueAt.slice(0,10)+'T'+a.dueTime+':00';
+          // メモ追記
+          if(a.appendNote){
+            t.notes=(t.notes?t.notes+'\n':'')+a.appendNote;
+          }
           if(a.projectId!==undefined){
             const proj=S.projects.find(p=>p.name===a.projectId);
             t.projectId=proj?proj.id:null;
@@ -8556,7 +8565,6 @@ async function aiExecuteActions(actions){
           // タグの追加・置換
           if(a.tagNames!==undefined){
             const newIds=await resolveTagIds(a.tagNames);
-            // appendTags:trueなら既存タグに追記、falseなら置換
             if(a.appendTags){
               newIds.forEach(id=>{if(!t.tagIds.includes(id))t.tagIds.push(id);});
             } else {
@@ -8568,6 +8576,23 @@ async function aiExecuteActions(actions){
       } else if(a.type==='addProject'){
         const p=mkProject({name:a.name,color:a.color||'#3b82f6'});
         await saveProject(p);done.push({...a,label:a.name});
+      } else if(a.type==='addSubtask'){
+        // 親タスクを特定
+        let parent=a.parentTaskId?S.tasks.find(x=>x.id===a.parentTaskId):null;
+        if(!parent&&a.parentKeyword)parent=S.tasks.find(x=>x.title&&x.title.includes(a.parentKeyword)&&x.status!=='completed');
+        if(parent){
+          const sub=mkTask({
+            title:a.title||'サブタスク',
+            parentTaskId:parent.id,
+            projectId:parent.projectId,
+            status:parent.status==='inbox'?'inbox':'active',
+            dueAt:a.dueAt||parent.dueAt,
+            priority:a.priority||parent.priority,
+          });
+          await saveTask(sub);done.push({...a,label:a.title+'（'+parent.title+'のサブタスク）'});
+        } else {
+          done.push({...a,label:a.title,error:'親タスクが見つかりません'});
+        }
       }
     }catch(e){console.error('action error',e)}
   }
@@ -8585,10 +8610,30 @@ async function aiSend(){
   AI.loading=true;aiRender();
 
   // 現在の状態をコンテキストとして渡す
+  // 現在表示中のタスクを特定
+  const _viewTasks=(()=>{
+    const t2=today();
+    if(S.view==='today')return S.tasks.filter(x=>(isToday(x.dueAt)||x.flagged)&&x.status!=='completed');
+    if(S.view==='next')return S.tasks.filter(x=>x.startAt&&x.startAt>t2&&x.status!=='completed').slice(0,20);
+    if(S.view==='flagged')return S.tasks.filter(x=>x.flagged&&x.status!=='completed');
+    if(S.view==='inbox')return S.tasks.filter(x=>x.status==='inbox'&&!x.parentTaskId);
+    if(S.view==='project')return S.tasks.filter(x=>x.projectId===S.projId&&x.status!=='completed');
+    if(S.view==='tag')return S.tasks.filter(x=>(x.tagIds||[]).includes(S.tagId)&&x.status!=='completed');
+    return [];
+  })();
   const context={
+    currentView:S.view,
+    currentViewTasks:_viewTasks.map(t=>({
+      id:t.id,title:t.title,dueAt:t.dueAt,startAt:t.startAt,
+      priority:t.priority,flagged:t.flagged,repeatRule:t.repeatRule,
+      notes:t.notes,
+      project:S.projects.find(p=>p.id===t.projectId)?.name||null,
+      tags:(t.tagIds||[]).map(id=>S.tags.find(g=>g.id===id)?.name).filter(Boolean),
+    })),
     tasks:S.tasks.filter(t=>t.status!=='completed').map(t=>({
       id:t.id,title:t.title,status:t.status,priority:t.priority,
-      dueAt:t.dueAt,flagged:t.flagged,
+      dueAt:t.dueAt,startAt:t.startAt,flagged:t.flagged,
+      repeatRule:t.repeatRule,notes:t.notes,
       project:S.projects.find(p=>p.id===t.projectId)?.name||null,
       tags:(t.tagIds||[]).map(id=>S.tags.find(g=>g.id===id)?.name).filter(Boolean),
     })),
@@ -8609,7 +8654,11 @@ ${JSON.stringify(context,null,2)}
 - 提供されたツール以外の操作（カレンダー連携・外部サービス・ファイル操作など）はできないことを正直に伝える
 - 操作不要な質問や雑談には reply_to_user で返答する
 - タスクが見つからない場合は reply_to_user で丁寧に伝える
-- 複数の操作を一度にまとめて実行できる（複数ツール呼び出し可）`;
+- 複数の操作を一度にまとめて実行できる（複数ツール呼び出し可）
+- 「今のビューの」「表示されているタスク」などはcurrentViewTasksを参照する
+- repeat_ruleの書式: daily/weekly/monthly/yearly/weekdays/weekly:mon,wed,fri/monthly:1,15,25
+- append_noteはメモへの追記。既存メモを上書きしない
+- start_time/due_timeはHH:MM形式（24時間）`;
 
   // ── ツール定義 ──────────────────────────────────────────
   const tools=[
@@ -8692,7 +8741,33 @@ ${JSON.stringify(context,null,2)}
         required:['name'],
       },
     },
+    {
+      name:'add_subtask',
+      description:'既存タスクにサブタスクを追加する',
+      input_schema:{
+        type:'object',
+        properties:{
+          parent_task_id:{type:'string',description:'親タスクのID'},
+          parent_keyword:{type:'string',description:'親タスクのタイトルの一部（parent_task_id不明時）'},
+          title:{type:'string',description:'サブタスクのタイトル'},
+          due_at:{type:'string',description:'期日 YYYY-MM-DD'},
+          priority:{type:'number',description:'優先度 1-4'},
+        },
+        required:['title'],
+      },
+    },
   ];
+  // update_taskツール定義にフィールドを追加（既存定義を拡張）
+  const updateTaskTool=tools.find(t=>t.name==='update_task');
+  if(updateTaskTool){
+    Object.assign(updateTaskTool.input_schema.properties,{
+      start_at:{type:'string',description:'開始日 YYYY-MM-DD'},
+      start_time:{type:'string',description:'開始時刻 HH:MM（例: 10:42）'},
+      due_time:{type:'string',description:'期限時刻 HH:MM'},
+      repeat_rule:{type:'string',description:'繰り返しルール。daily/weekly/monthly/yearly/weekdays/weekly:mon,tue,fri/monthly:1,15 など'},
+      append_note:{type:'string',description:'メモ（notes）に追記するテキスト。既存メモの末尾に改行して追加される'},
+    });
+  }
 
   try{
     const { data: { session } } = await window._SB.auth.getSession();
@@ -8771,18 +8846,28 @@ ${JSON.stringify(context,null,2)}
             type:'updateTask',
             taskId:inp.task_id,keyword:inp.keyword,
             newTitle:inp.new_title,
-            dueAt:inp.due_at,
-            priority:inp.priority,
-            flagged:inp.flagged,
+            dueAt:inp.due_at,startAt:inp.start_at,
+            startTime:inp.start_time,dueTime:inp.due_time,
+            priority:inp.priority,flagged:inp.flagged,
             projectId:inp.project_name,
-            tagNames:inp.tag_names,
-            appendTags:inp.append_tags,
+            tagNames:inp.tag_names,appendTags:inp.append_tags,
+            repeatRule:inp.repeat_rule,
+            appendNote:inp.append_note,
           });
         } else if(block.name==='delete_task'){
           actions.push({type:'deleteTask',taskId:inp.task_id,keyword:inp.keyword});
         } else if(block.name==='add_project'){
           actions.push({type:'addProject',name:inp.name,color:inp.color||'#3b82f6'});
-        }
+        } else if(block.name==='add_subtask'){
+          actions.push({
+            type:'addSubtask',
+            parentTaskId:inp.parent_task_id,
+            parentKeyword:inp.parent_keyword,
+            title:inp.title,
+            dueAt:inp.due_at||null,
+            priority:inp.priority||4,
+          });
+
       }
     }
 
