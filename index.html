@@ -8761,7 +8761,19 @@ ${JSON.stringify(context,null,2)}
       // assistantのtool_useブロックを会話履歴に保持
     }
     const done=await aiExecuteActions(actions);
-    aiAddMsg('ai',replyMessage||'完了しました',done);
+    // 件数サマリーをメッセージに付加
+    let summary=replyMessage||'';
+    if(done&&done.length>0){
+      const counts={};
+      done.forEach(d=>{
+        const label=d.type==='addTask'?'追加':d.type==='completeTask'?'完了':d.type==='updateTask'?'更新':d.type==='deleteTask'?'削除':d.type==='addProject'?'プロジェクト追加':d.type;
+        counts[label]=(counts[label]||0)+1;
+      });
+      const parts=Object.entries(counts).map(([k,v])=>k+' '+v+'件');
+      if(!summary)summary='処理が完了しました。';
+      summary+='\n\n✅ '+parts.join('、');
+    }
+    aiAddMsg('ai',summary||'完了しました',done);
     aiRender();
 
   }catch(e){
