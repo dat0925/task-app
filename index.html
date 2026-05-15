@@ -1456,6 +1456,9 @@ let S={
   filterTagIds:[],
   ganttScale:'week',
   ganttCollapsed:JSON.parse(localStorage.getItem('ganttCollapsed')||'{}'),
+  workspaces:[],      // 自分が属するワークスペース一覧
+  wsMembers:{},       // {workspaceId: [members]}
+  _commentCache:{},
 };
 
 // ===== PLAN SYSTEM =====
@@ -2362,6 +2365,103 @@ async function loadAll(){
   [S.tasks,S.projects,S.tags,S.notes]=await Promise.all([
     dbAll('tasks'),dbAll('projects'),dbAll('tags'),dbAll('notes')
   ]);
+  // ワークスペースは専用関数で取得（user_idフィルタではなくRLS任せ）
+  await loadWorkspaces();
+}
+
+// ===== WORKSPACE =====
+async function loadWorkspaces(){
+  const SB=window._SB;
+  if(!SB||!window._currentUser)return;
+  try{
+    // 自分が属するワークスペース
+    const{data:wsList}=await SB.from('workspaces').select('*');
+    S.workspaces=wsList||[];
+    // 各ワークスペースのメンバー
+    if(S.workspaces.length){
+      const wsIds=S.workspaces.map(w=>w.id);
+      const{data:members}=await SB.from('workspace_members').select('*').in('workspace_id',wsIds);
+      S.wsMembers={};
+      (members||[]).forEach(m=>{
+        if(!S.wsMembers[m.workspace_id])S.wsMembers[m.workspace_id]=[];
+        S.wsMembers[m.workspace_id].push(m);
+      });
+    }
+  }catch(e){console.error('loadWorkspaces',e);}
+}
+
+async function createWorkspace(name){
+  const SB=window._SB;const user=window._currentUser;
+  if(!SB||!user)return null;
+  const wsId=uid();
+  const token=uid()+uid(); // 招待トークン
+  const ws={id:wsId,name,owner_id:user.id,invite_token:token,
+    created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+  const{error:e1}=await SB.from('workspaces').insert(ws);
+  if(e1){toast('ワークスペース作成に失敗しました');return null;}
+  // ownerを自動メンバー追加
+  const mem={id:uid(),workspace_id:wsId,user_id:user.id,
+    user_name:user.user_metadata?.full_name||user.email||'',
+    user_avatar:user.user_metadata?.avatar_url||'',
+    user_email:user.email||'',role:'owner',
+    joined_at:new Date().toISOString()};
+  await SB.from('workspace_members').insert(mem);
+  await loadWorkspaces();
+  render();
+  return ws;
+}
+
+async function joinWorkspaceByToken(token){
+  const SB=window._SB;const user=window._currentUser;
+  if(!SB||!user)return false;
+  // トークンからワークスペース検索
+  const{data:ws}=await SB.from('workspaces').select('*').eq('invite_token',token).maybeSingle();
+  if(!ws){toast('招待リンクが無効です');return false;}
+  // 既にメンバーか確認
+  const{data:existing}=await SB.from('workspace_members').select('id')
+    .eq('workspace_id',ws.id).eq('user_id',user.id).maybeSingle();
+  if(existing){toast('すでにメンバーです');await loadWorkspaces();render();return true;}
+  const mem={id:uid(),workspace_id:ws.id,user_id:user.id,
+    user_name:user.user_metadata?.full_name||user.email||'',
+    user_avatar:user.user_metadata?.avatar_url||'',
+    user_email:user.email||'',role:'member',
+    joined_at:new Date().toISOString()};
+  const{error}=await SB.from('workspace_members').insert(mem);
+  if(error){toast('参加に失敗しました');return false;}
+  await loadWorkspaces();
+  render();
+  toast('「'+ws.name+'」に参加しました！');
+  return true;
+}
+
+async function setProjectWorkspace(projectId, workspaceId){
+  const SB=window._SB;if(!SB)return;
+  const{error}=await SB.from('projects').update({workspace_id:workspaceId}).eq('id',projectId);
+  if(error){toast('更新に失敗しました');return;}
+  const p=S.projects.find(x=>x.id===projectId);
+  if(p)p.workspaceId=workspaceId;
+  // 共有プロジェクト配下のタスクをリロード（他メンバーのタスクが見えるように）
+  await loadAll();
+  render();
+}
+
+function getInviteUrl(workspace){
+  return location.origin+location.pathname+'#invite/'+workspace.invite_token;
+}
+
+// 招待トークンURLを起動時にチェック
+function checkInviteToken(){
+  const hash=location.hash;
+  if(hash.startsWith('#invite/')){
+    const token=hash.slice(8);
+    history.replaceState(null,'',location.pathname);
+    // ログイン後に処理
+    if(window._currentUser){
+      joinWorkspaceByToken(token);
+    }else{
+      window._pendingInviteToken=token;
+    }
+  }
 }
 async function saveNote(n){
   // 新規ノートの件数チェック
@@ -3152,6 +3252,38 @@ function showProjEditPopup(btn, projId, projName){
   popup.appendChild(renameBtn);
   popup.appendChild(colorBtn);
   popup.appendChild(hideBtn);
+
+  // ワークスペース共有オプション
+  if(S.workspaces.length){
+    const proj=S.projects.find(x=>x.id===projId);
+    const sep2=document.createElement('div');
+    sep2.style.cssText='height:1px;background:var(--border);margin:2px 0';
+    popup.appendChild(sep2);
+    if(!proj?.workspaceId){
+      // 個人→チームに追加
+      S.workspaces.forEach(ws=>{
+        const shareBtn=document.createElement('button');
+        shareBtn.innerHTML='👥 「'+ws.name+'」で共有';
+        shareBtn.onclick=async ev=>{
+          ev.stopPropagation();popup.remove();
+          if(confirm('「'+projName+'」を「'+ws.name+'」チームで共有します。\nメンバー全員がこのプロジェクトを見られるようになります。'))
+            await setProjectWorkspace(projId, ws.id);
+        };
+        popup.appendChild(shareBtn);
+      });
+    } else {
+      // チーム→個人に戻す
+      const unshareBtn=document.createElement('button');
+      unshareBtn.innerHTML='🔒 個人プロジェクトに戻す';
+      unshareBtn.onclick=async ev=>{
+        ev.stopPropagation();popup.remove();
+        if(confirm('「'+projName+'」の共有を解除します。\n他のメンバーからは見えなくなります。'))
+          await setProjectWorkspace(projId, null);
+      };
+      popup.appendChild(unshareBtn);
+    }
+  }
+
   popup.appendChild(delBtn);
   document.body.appendChild(popup);
 
@@ -3600,7 +3732,8 @@ function renderSidebar(){
     +'</div>';
   h+='<div class="proj-section-wrap'+(projsOpen?'':' collapsed')+'" id="proj-section-wrap">';
   h+='<div class="proj-section-inner">';
-  getSortedProjects('active').forEach(p=>{
+  // 個人プロジェクト
+  getSortedProjects('active').filter(p=>!p.workspaceId).forEach(p=>{
     h+='<div class="proj-drop-line" data-drop-before="'+p.id+'"></div>';
     h+='<div class="nav-item proj-item'+(S.view==='project'&&S.projId===p.id?' on':'')+'" data-a="proj" data-id="'+p.id+'">'
       +'<span class="pdot" style="background:'+esc(p.color)+'"></span>'
@@ -3613,6 +3746,47 @@ function renderSidebar(){
   });
   h+='<div class="proj-drop-line" data-drop-after="last"></div>';
   h+='</div></div>';
+
+  // ワークスペース（チーム）セクション
+  S.workspaces.forEach(ws=>{
+    const wsMembers=S.wsMembers[ws.id]||[];
+    const wsProjects=getSortedProjects('active').filter(p=>p.workspaceId===ws.id);
+    const wsOpen=S.wsOpen?.[ws.id]!==false;
+    h+='<div class="nav-label-row'+(wsOpen?'':' collapsed')+'" data-a="ws-toggle" data-wsid="'+ws.id+'" style="margin-top:8px">'
+      +'<span style="font-size:9px;color:var(--accent);margin-right:2px">👥</span>'
+      +'<span class="nav-label" style="color:var(--accent)">'+esc(ws.name)+'</span>'
+      +'<button class="proj-action-btn" data-a="ws-settings" data-wsid="'+ws.id+'" style="margin-left:auto;opacity:.6" title="設定">⋯</button>'
+      +'<span class="toggle-chevron" style="margin-left:2px">▼</span>'
+    +'</div>';
+    h+='<div class="proj-section-wrap'+(wsOpen?'':' collapsed')+'">';
+    h+='<div class="proj-section-inner">';
+    // メンバーアバター小表示
+    h+='<div style="display:flex;gap:3px;padding:2px 8px 6px;align-items:center">';
+    wsMembers.slice(0,5).forEach(m=>{
+      const av=m.user_avatar
+        ?`<img src="${esc(m.user_avatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        :(m.user_name||'?').charAt(0).toUpperCase();
+      h+=`<div title="${esc(m.user_email)}" style="width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${av}</div>`;
+    });
+    if(wsMembers.length>5)h+=`<span style="font-size:10px;color:var(--text3)">+${wsMembers.length-5}</span>`;
+    h+='<button class="proj-action-btn" data-a="ws-invite" data-wsid="'+ws.id+'" style="margin-left:auto;font-size:11px;color:var(--accent);padding:2px 6px" title="招待リンクをコピー">＋招待</button>';
+    h+='</div>';
+    // ワークスペースのプロジェクト
+    wsProjects.forEach(p=>{
+      h+='<div class="nav-item proj-item'+(S.view==='project'&&S.projId===p.id?' on':'')+'" data-a="proj" data-id="'+p.id+'">'
+        +'<span class="pdot" style="background:'+esc(p.color)+'"></span>'
+        +'<span class="proj-name-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-proj-id="'+p.id+'">'+esc(p.name)+'</span>'
+        +'<span style="font-size:9px;color:var(--accent);flex-shrink:0" title="共有プロジェクト">👥</span>'
+        +'<div class="proj-actions">'
+          +'<button class="proj-action-btn proj-edit-btn" data-a="proj-edit" data-id="'+p.id+'" data-name="'+esc(p.name)+'" title="編集">⋯</button>'
+        +'</div>'
+      +'</div>';
+    });
+    h+='<button class="nav-item" data-a="ws-add-proj" data-wsid="'+ws.id+'" style="font-size:12px;color:var(--text3);gap:4px;padding:5px 8px;width:100%;text-align:left">＋ プロジェクトを追加</button>';
+    h+='</div></div>';
+  });
+  // ワークスペース新規作成ボタン
+  h+='<button class="nav-item" data-a="ws-create" style="font-size:12px;color:var(--text3);gap:4px;padding:5px 8px;margin-top:2px;width:100%;text-align:left">＋ チームを作成</button>';
   // Hidden projects section with accordion
   const hiddenProjs=S.projects.filter(p=>p.status==='hidden').sort((a,b)=>(a.hiddenOrder||0)-(b.hiddenOrder||0));
   if(hiddenProjs.length){
@@ -5462,7 +5636,6 @@ function renderDrawer(){
 
 // ===== COMMENTS =====
 // S._commentCache[taskId] = {comments:[], loaded:true} でセッション内キャッシュ
-if(!window.S||!S._commentCache)S._commentCache={};
 
 function _cmTimeStr(isoStr){
   const d=new Date(isoStr),now=new Date();
@@ -6032,6 +6205,115 @@ document.addEventListener('click',async e=>{
   else if(a==='hidden-proj-toggle'){S.hiddenProjsOpen=!S.hiddenProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='tags-toggle'){S.tagsOpen=!S.tagsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='hidden-proj-edit'){e.stopPropagation();showHiddenProjEditPopup(el,el.dataset.id,el.dataset.name);}
+
+  // ===== WORKSPACE HANDLERS =====
+  else if(a==='ws-toggle'){
+    e.stopPropagation();
+    const wsId=el.dataset.wsid;
+    if(!S.wsOpen)S.wsOpen={};
+    S.wsOpen[wsId]=S.wsOpen[wsId]===false?true:false;
+    renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();
+  }
+  else if(a==='ws-create'){
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal" style="max-width:360px">'
+      +'<div class="modal-title">チームを作成</div>'
+      +'<div class="fg"><label class="flabel">チーム名</label>'
+        +'<input class="finput" id="ws-name-inp" placeholder="例: デザインチーム" style="font-size:15px">'
+      +'</div>'
+      +'<div class="modal-foot">'
+        +'<button class="btn btn-ghost" id="ws-create-cancel">キャンセル</button>'
+        +'<button class="btn btn-primary" id="ws-create-ok">作成</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    const inp=ov.querySelector('#ws-name-inp');inp.focus();
+    ov.querySelector('#ws-create-cancel').onclick=()=>ov.remove();
+    ov.querySelector('#ws-create-ok').onclick=async()=>{
+      const name=inp.value.trim();if(!name)return;
+      const ws=await createWorkspace(name);
+      if(ws){ov.remove();toast('「'+name+'」を作成しました');}
+    };
+    inp.addEventListener('keydown',e2=>{if(e2.key==='Enter')ov.querySelector('#ws-create-ok').click();if(e2.key==='Escape')ov.remove();});
+  }
+  else if(a==='ws-invite'){
+    e.stopPropagation();
+    const wsId=el.dataset.wsid;
+    const ws=S.workspaces.find(w=>w.id===wsId);
+    if(!ws)return;
+    const url=getInviteUrl(ws);
+    try{await navigator.clipboard.writeText(url);toast('招待リンクをコピーしました 🔗');}
+    catch{const inp=document.createElement('input');inp.value=url;document.body.appendChild(inp);inp.select();document.execCommand('copy');inp.remove();toast('招待リンクをコピーしました 🔗');}
+  }
+  else if(a==='ws-settings'){
+    e.stopPropagation();
+    const wsId=el.dataset.wsid;
+    const ws=S.workspaces.find(w=>w.id===wsId);
+    if(!ws)return;
+    const isOwner=ws.owner_id===window._currentUser?.id;
+    const members=S.wsMembers[wsId]||[];
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal" style="max-width:400px">'
+      +'<div class="modal-title">'+esc(ws.name)+'</div>'
+      +'<div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:8px">メンバー ('+members.length+'人)</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">'
+        +members.map(m=>{
+          const av=m.user_avatar
+            ?`<img src="${esc(m.user_avatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+            :(m.user_name||'?').charAt(0).toUpperCase();
+          const badge=m.role==='owner'?'<span style="font-size:10px;color:var(--accent);background:var(--accent-bg);border-radius:4px;padding:1px 5px;margin-left:4px">Owner</span>':'';
+          const delBtn=(isOwner&&m.user_id!==window._currentUser?.id)
+            ?`<button data-a="ws-kick" data-wsid="${wsId}" data-memberid="${m.id}" style="font-size:11px;color:var(--p1);background:none;border:none;cursor:pointer;padding:2px 6px;flex-shrink:0">除名</button>`:'';
+          return `<div style="display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${av}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600">${esc(m.user_name||'ユーザー')}${badge}</div>
+              <div style="font-size:11px;color:var(--text3)">${esc(m.user_email)}</div>
+            </div>${delBtn}
+          </div>`;
+        }).join('')
+      +'</div>'
+      +(isOwner?'<div style="margin-bottom:12px"><button class="btn btn-ghost" data-a="ws-invite" data-wsid="'+wsId+'" style="font-size:13px;width:100%">🔗 招待リンクをコピー</button></div>':'')
+      +'<div class="modal-foot">'
+        +(!isOwner?'<button class="btn" style="color:var(--p1);border-color:var(--p1)" data-a="ws-leave" data-wsid="'+wsId+'">脱退する</button>':'')
+        +(isOwner?'<button class="btn" style="color:var(--p1);border-color:var(--p1)" data-a="ws-delete" data-wsid="'+wsId+'">チームを削除</button>':'')
+        +'<button class="btn btn-ghost" id="ws-settings-close">閉じる</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#ws-settings-close')?.addEventListener('click',()=>ov.remove());
+    ov.addEventListener('click',async e2=>{
+      const btn=e2.target.closest('[data-a]');if(!btn)return;
+      const ba=btn.dataset.a;
+      if(ba==='ws-kick'){
+        const mid=btn.dataset.memberid;
+        if(!confirm('このメンバーを除名しますか？'))return;
+        const SB=window._SB;
+        await SB.from('workspace_members').delete().eq('id',mid);
+        await loadWorkspaces();ov.remove();render();
+      } else if(ba==='ws-leave'){
+        if(!confirm('このチームから脱退しますか？'))return;
+        const SB=window._SB;const uid2=window._currentUser?.id;
+        await SB.from('workspace_members').delete().eq('workspace_id',wsId).eq('user_id',uid2);
+        await loadWorkspaces();ov.remove();render();toast('チームから脱退しました');
+      } else if(ba==='ws-delete'){
+        if(!confirm('チームを削除します。共有プロジェクトは個人プロジェクトに戻ります。よろしいですか？'))return;
+        const SB=window._SB;
+        // プロジェクトのworkspace_idをnullに
+        await SB.from('projects').update({workspace_id:null}).eq('workspace_id',wsId);
+        await SB.from('workspaces').delete().eq('id',wsId);
+        await loadAll();ov.remove();render();toast('チームを削除しました');
+      } else if(ba==='ws-invite'){
+        const url=getInviteUrl(ws);
+        try{await navigator.clipboard.writeText(url);toast('招待リンクをコピーしました 🔗');}
+        catch{const inp2=document.createElement('input');inp2.value=url;document.body.appendChild(inp2);inp2.select();document.execCommand('copy');inp2.remove();toast('招待リンクをコピーしました 🔗');}
+      }
+    });
+    ov.addEventListener('click',e2=>{if(e2.target===ov)ov.remove();});
+  }
+  else if(a==='ws-add-proj'){
+    // ワークスペースに新しいプロジェクトを追加
+    const wsId=el.dataset.wsid;
+    showNewProjectModal(wsId);
+  }
   
   else if(a==='menu'){if(Date.now()-_drawerClosedAt<400)return;playSE('toggle');S.sidebarOpen=!S.sidebarOpen;render()}
 
@@ -8720,6 +9002,39 @@ function openConfirmModal(title,message,onOk,okLabel='削除',danger=true){
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
 }
 
+function showNewProjectModal(workspaceId=null){
+  if(!workspaceId&&isPlanFree()&&getActiveProjectCount()>=getPlanDef().projectLimit){showUpgradeModal('projects');return;}
+  const wsName=workspaceId?S.workspaces.find(w=>w.id===workspaceId)?.name:'';
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal"><div class="modal-title">新規プロジェクト'+(wsName?' <span style="font-size:12px;color:var(--accent)">'+esc(wsName)+'</span>':'')+'</div>'
+    +'<div class="fg"><label class="flabel">名前</label><input class="finput" id="m-name" placeholder="プロジェクト名"></div>'
+    +'<div class="fg"><label class="flabel">カラー</label><input type="color" id="m-color" value="#3b82f6" style="width:100%;height:34px;border:none;border-radius:6px;cursor:pointer"></div>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" id="m-cancel">キャンセル</button><button class="btn btn-primary" id="m-ok">作成</button></div>'
+  +'</div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+  document.getElementById('m-cancel').onclick=()=>ov.remove();
+  document.getElementById('m-ok').onclick=async()=>{
+    const name=document.getElementById('m-name').value.trim();if(!name)return;
+    const p=mkProject({name,color:document.getElementById('m-color').value});
+    if(workspaceId){
+      // Supabaseに直接保存してworkspace_idを付与
+      p.workspaceId=workspaceId;
+      const SB=window._SB;const uid2=window._currentUser?.id;
+      const row={id:p.id,name:p.name,color:p.color,status:'active',user_id:uid2,
+        workspace_id:workspaceId,sort_order:p.order,
+        created_at:p.createdAt,updated_at:p.updatedAt};
+      await SB.from('projects').insert(row);
+      S.projects.push(p);
+    } else {
+      await saveProject(p);
+    }
+    ov.remove();S.view='project';S.projId=p.id;render();
+  };
+  document.getElementById('m-name').focus();
+  document.getElementById('m-name').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('m-ok').click();if(e.key==='Escape')ov.remove();});
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
 // ===== MODAL =====
 function openModal(type){
   if((type==='project'||type==='proj')&&isPlanFree()&&getActiveProjectCount()>=getPlanDef().projectLimit){showUpgradeModal('projects');return;}
@@ -9660,6 +9975,12 @@ async function init(){
     await seed();
     await loadAll();
     await loadNavOrder();
+    // 招待トークンチェック
+    checkInviteToken();
+    if(window._pendingInviteToken){
+      await joinWorkspaceByToken(window._pendingInviteToken);
+      window._pendingInviteToken=null;
+    }
     // 保存済みビューの有効性を検証（削除済みプロジェクト/タグへの参照を除去）
     if(S.view==='project'&&!S.projects.find(p=>p.id===S.projId)){S.view='inbox';S.projId=null;}
     if(S.view==='tag'&&S.tagId!=='__none__'&&!S.tags.find(t=>t.id===S.tagId)){S.view='inbox';S.tagId=null;}
