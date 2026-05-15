@@ -2368,6 +2368,14 @@ async function deleteProject(id){
   S.projects=S.projects.filter(p=>p.id!==id);
 }
 function mkTask(o={}){const _t=today();const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();return{id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_d3,startAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o}}
+async function dupTask(task){
+  const newId=uid();
+  const d={...task,id:newId,title:task.title+' (コピー)',createdAt:now(),updatedAt:now(),completedAt:null,order:Date.now()};
+  await saveTask(d);
+  const children=S.tasks.filter(c=>c.parentTaskId===task.id).sort((a,b)=>(a.order||0)-(b.order||0));
+  for(const c of children){await saveTask({...c,id:uid(),parentTaskId:newId,createdAt:now(),updatedAt:now(),completedAt:null});}
+  return d;
+}
 function mkProject(o={}){return{id:uid(),name:'新プロジェクト',type:'list',color:'#3b82f6',status:'active',reviewEveryDays:7,nextReviewAt:null,createdAt:now(),updatedAt:now(),...o}}
 function mkTag(o={}){return{id:uid(),name:'新タグ',color:'#7c3aed',status:'active',...o}}
 
@@ -3009,8 +3017,7 @@ function showTaskContextMenu(row, taskId){
   dupBtn.innerHTML='📋 複製';
   dupBtn.onclick=async ev=>{
     ev.stopPropagation();popup.remove();
-    const d={...task,id:uid(),title:task.title+' (コピー)',createdAt:now(),updatedAt:now(),completedAt:null,order:Date.now()};
-    await saveTask(d);S.taskId=d.id;render();
+    const d=await dupTask(task);S.taskId=d.id;render();
     toast('"'+(d.title)+'" を複製しました');
   };
   popup.appendChild(dupBtn);
@@ -6199,7 +6206,7 @@ else if(a==='scroll-to-subs'){
   }
   else if(a==='dup'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
-    if(task){const d={...task,id:uid(),title:task.title+' (コピー)',createdAt:now(),updatedAt:now(),completedAt:null,order:Date.now()};await saveTask(d);S.taskId=d.id;render()}
+    if(task){const d=await dupTask(task);S.taskId=d.id;render();}
   }
   else if(a==='calc-open'||a==='calc-toggle'){
     toggleCalcDrawer();
