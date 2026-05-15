@@ -4013,17 +4013,17 @@ function renderGantt(){
       barRows+=`<div style="position:relative;height:${r.h}px;border-bottom:1px solid var(--border);background:var(--bg2)">${pBar}</div>`;
     } else {
       const t=r.task,isP=r.type==='parent',done=r.done;
-      const doneStyle=done?'text-decoration:line-through;color:var(--text3);':'';
+      const doneColor=done?'color:var(--text3);':'';
       let chev='';
       if(isP&&r.hasKids) chev=`<span class="gantt-chevron${r.collapsed?' gclosed':''}" style="margin-right:2px" data-a="gantt-toggle" data-id="${r.key}">▼</span>`;
       else if(isP) chev='<span style="width:18px;flex-shrink:0"></span>';
       let doneBadge='';
       if(done&&t.completedAt){const cd=new Date(t.completedAt);doneBadge=`<span class="gantt-done-badge">✓ ${cd.getMonth()+1}/${cd.getDate()}</span>`;}
       const pl=isP?'padding-left:8px':'padding-left:28px';
-      nameRows+=`<div style="height:${r.h}px;display:flex;align-items:center;${pl};padding-right:6px;border-bottom:1px solid var(--border);overflow:hidden;cursor:pointer;${doneStyle}" data-a="gantt-open" data-id="${t.id}" title="${esc(t.title)}">`
+      nameRows+=`<div style="height:${r.h}px;display:flex;align-items:center;${pl};padding-right:6px;border-bottom:1px solid var(--border);overflow:hidden;cursor:pointer;${doneColor}" data-a="gantt-open" data-id="${t.id}" title="${esc(t.title)}">`
         +(done?'<span style="color:var(--text3);font-size:12px;margin-right:4px;flex-shrink:0">✓</span>':'')
         +chev
-        +`<span style="font-size:${isP?'13':'12'}px;font-weight:${isP?'600':'400'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(t.title)||'（無題）'}</span>`
+        +`<span style="font-size:${isP?'13':'12'}px;font-weight:${isP?'600':'400'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1${done?';text-decoration:line-through':''}">${esc(t.title)||'（無題）'}</span>`
         +doneBadge
         +'</div>';
       let barHtml='';
