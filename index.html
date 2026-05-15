@@ -2374,17 +2374,27 @@ async function loadWorkspaces(){
   const SB=window._SB;
   if(!SB||!window._currentUser)return;
   try{
-    // 自分が属するワークスペース
     const{data:wsList}=await SB.from('workspaces').select('*');
-    S.workspaces=wsList||[];
-    // 各ワークスペースのメンバー
+    // snake_case → camelCase
+    S.workspaces=(wsList||[]).map(w=>({
+      id:w.id,name:w.name,ownerId:w.owner_id,
+      inviteToken:w.invite_token,
+      // RLS等で使うためオリジナルも保持
+      owner_id:w.owner_id,invite_token:w.invite_token,
+      createdAt:w.created_at,updatedAt:w.updated_at
+    }));
     if(S.workspaces.length){
       const wsIds=S.workspaces.map(w=>w.id);
       const{data:members}=await SB.from('workspace_members').select('*').in('workspace_id',wsIds);
       S.wsMembers={};
       (members||[]).forEach(m=>{
         if(!S.wsMembers[m.workspace_id])S.wsMembers[m.workspace_id]=[];
-        S.wsMembers[m.workspace_id].push(m);
+        S.wsMembers[m.workspace_id].push({
+          id:m.id,workspaceId:m.workspace_id,workspace_id:m.workspace_id,
+          userId:m.user_id,user_id:m.user_id,
+          user_name:m.user_name,user_avatar:m.user_avatar,
+          user_email:m.user_email,role:m.role,joinedAt:m.joined_at
+        });
       });
     }
   }catch(e){console.error('loadWorkspaces',e);}
@@ -10097,7 +10107,7 @@ async function setupSB(){
     window._SB=SB;
 
     // カラム名マッピング（JS camelCase ↔ DB snake_case）
-    const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order'};
+    const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order',workspaceId:'workspace_id'};
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_'))continue;r[TO[k]||k]=v;}return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
