@@ -6226,7 +6226,9 @@ document.addEventListener('click',async e=>{
         +'<button class="btn btn-primary" id="ws-create-ok">作成</button>'
       +'</div></div>';
     document.body.appendChild(ov);
-    const inp=ov.querySelector('#ws-name-inp');inp.focus();
+    requestAnimationFrame(()=>ov.classList.add('open'));
+    const inp=ov.querySelector('#ws-name-inp');
+    setTimeout(()=>inp.focus(),100);
     ov.querySelector('#ws-create-cancel').onclick=()=>ov.remove();
     ov.querySelector('#ws-create-ok').onclick=async()=>{
       const name=inp.value.trim();if(!name)return;
@@ -6234,6 +6236,7 @@ document.addEventListener('click',async e=>{
       if(ws){ov.remove();toast('「'+name+'」を作成しました');}
     };
     inp.addEventListener('keydown',e2=>{if(e2.key==='Enter')ov.querySelector('#ws-create-ok').click();if(e2.key==='Escape')ov.remove();});
+    ov.addEventListener('click',e2=>{if(e2.target===ov)ov.remove();});
   }
   else if(a==='ws-invite'){
     e.stopPropagation();
