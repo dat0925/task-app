@@ -880,53 +880,6 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .trow[draggable="true"]{cursor:grab}
 .trow[draggable="true"]:active{cursor:grabbing}
 .trow.dragging{opacity:.4;pointer-events:none}
-.sec-drop-zone{
-  height:6px;border-radius:4px;margin:2px 0;
-  transition:height .15s,background .15s;
-}
-.sec-drop-zone.drag-over,.sec-drop-zone.drag-active{
-  height:28px;background:var(--accent-bg);
-  border:1.5px dashed var(--accent);border-radius:6px;
-}
-.sec-head.drag-over{
-  background:var(--accent-bg);border-color:var(--accent);
-  border-radius:6px;
-}
-
-/* ===== SECTION HEADERS ===== */
-.sec-head{
-  display:flex;align-items:center;gap:6px;
-  padding:16px 4px 5px;margin-top:4px;
-  border-bottom:1.5px solid var(--border);
-  font-size:13px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.5px;color:var(--text2);
-}
-.sec-head-name{flex:1}
-.sec-act-btn{
-  background:none;border:none;cursor:pointer;
-  color:var(--text3);padding:3px 6px;border-radius:5px;
-  font-size:11px;display:flex;align-items:center;
-  transition:background .12s,color .12s;
-}
-.sec-act-btn:hover{background:var(--bg2);color:var(--text)}
-.sec-act-btn.del:hover{background:rgba(239,68,68,.1);color:var(--p1)}
-
-/* Section collapse/expand all */
-.sec-actions-row{display:flex;gap:6px;padding:4px 4px 6px;justify-content:flex-end}
-.sec-ac-btn{font-size:11px;padding:2px 8px;border-radius:5px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);cursor:pointer;transition:background .15s,color .15s;touch-action:manipulation}
-.sec-ac-btn:hover{background:var(--bg3);color:var(--text)}
-
-/* ===== ACCORDION + SECTION DRAG ===== */
-.sec-chevron{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:13px;height:13px;flex-shrink:0;
-  color:var(--text2);font-size:11px;
-  transition:transform .2s ease;
-  user-select:none;pointer-events:none;line-height:1;
-}
-.sec-head.sec-collapsed .sec-chevron{transform:rotate(-90deg)}
-.sec-body{overflow:hidden;max-height:5000px;opacity:1;transition:max-height .32s ease,opacity .25s ease}
-.sec-body.sec-hidden{max-height:0!important;opacity:0}
 /* 親タスク（サブタスクを持つ）タイトル強調 */
 .ttitle.has-subs{font-weight:700}
 /* タスク詳細 サブタスクバッジ */
@@ -956,13 +909,6 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .tf-popup-check.on{opacity:1}
 .tf-popup-sep{height:1px;background:var(--border);margin:4px 2px}
 .tf-popup-label{font-size:10px;font-weight:700;color:var(--text3);padding:6px 12px 2px;text-transform:uppercase;letter-spacing:.6px}
-.sec-drag-handle{
-  cursor:grab;color:var(--text3);font-size:16px;
-  padding:0 2px;flex-shrink:0;line-height:1;
-  opacity:.35;transition:opacity .15s;user-select:none;
-}
-.sec-drag-handle:hover{opacity:.9}
-.sec-drag-handle:active{cursor:grabbing}
 .task-drag-handle{
   cursor:grab;color:var(--text3);font-size:14px;
   padding:0 3px 0 0;flex-shrink:0;line-height:1;
@@ -980,9 +926,6 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 /* Drop indicators */
 .trow.drop-before{box-shadow:inset 0 2px 0 var(--accent)}
 .trow.drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
-.sec-head.drop-sec-before{box-shadow:inset 0 2px 0 var(--accent)}
-.sec-head.drop-sec-after{box-shadow:inset 0 -2px 0 var(--accent)}
-.sec-head.sec-dragging{opacity:.35}
 
 /* ===== VIEW HELP POPUP ===== */
 .vhelp-btn{
@@ -1475,7 +1418,7 @@ function dbDel(s,id){
 // ===== STATE =====
 const _vst=(()=>{try{return JSON.parse(localStorage.getItem('focus_view_state')||'{}')}catch(e){return{}}})();
 let S={
-  tasks:[],projects:[],sections:[],tags:[],
+  tasks:[],projects:[],tags:[],
   view:_vst.view||'inbox',projId:_vst.projId||null,tagId:_vst.tagId||null,
   taskId:null,drawerOpen:false,
   dark:localStorage.getItem('dark')==='1',
@@ -1486,7 +1429,6 @@ let S={
   sidebarOpen:window.innerWidth>768,
   notes:[],noteId:null,noteOpen:false,noteSearch:'',noteSortUpdated:true,noteSelectMode:false,selectedNoteIds:[],
   projsOpen:true,hiddenProjsOpen:false,tagsOpen:true,
-  secCollapsed:JSON.parse(localStorage.getItem('secCollapsed')||'{}'),
   openSubs:{},
   selectMode:false,selectedIds:[],
   filterTagIds:[],
@@ -2395,8 +2337,8 @@ function showSaveStatus(state){
 
 // ===== STORE =====
 async function loadAll(){
-  [S.tasks,S.projects,S.sections,S.tags,S.notes]=await Promise.all([
-    dbAll('tasks'),dbAll('projects'),dbAll('sections'),dbAll('tags'),dbAll('notes')
+  [S.tasks,S.projects,S.tags,S.notes]=await Promise.all([
+    dbAll('tasks'),dbAll('projects'),dbAll('tags'),dbAll('notes')
   ]);
 }
 async function saveNote(n){
@@ -2425,9 +2367,6 @@ async function deleteProject(id){
   await dbDel('projects',id);
   S.projects=S.projects.filter(p=>p.id!==id);
 }
-async function saveSec(s){await dbPut('sections',s);const i=S.sections.findIndex(x=>x.id===s.id);i>=0?S.sections[i]=s:S.sections.push(s)}
-async function delSec(id){await dbDel('sections',id);S.sections=S.sections.filter(s=>s.id!==id)}
-
 function mkTask(o={}){const _t=today();const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();return{id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_d3,startAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o}}
 function mkProject(o={}){return{id:uid(),name:'新プロジェクト',type:'list',color:'#3b82f6',status:'active',reviewEveryDays:7,nextReviewAt:null,createdAt:now(),updatedAt:now(),...o}}
 function mkTag(o={}){return{id:uid(),name:'新タグ',color:'#7c3aed',status:'active',...o}}
@@ -4169,71 +4108,23 @@ function setupSectionDrag(){
       el.classList.remove('drag-over','drop-before','drop-after','drop-sec-before','drop-sec-after','sec-dragging','dragging');
     });
   }
-  function getSortedSecs(){
-    return S.sections.filter(s=>s.projectId===S.projId).sort((a,b)=>a.order-b.order);
-  }
-  function getSortedTasksForSec(secId){
-    // secId===null → unsectioned tasks
-    const all=getTasks().filter(t=>!t.parentTaskId);
-    return secId===null?all.filter(t=>!t.sectionId):all.filter(t=>t.sectionId===secId);
-  }
-
-  // ── apply section reorder ─────────────────────────────
-  async function applySecReorder(dragSecId,targetSecId,pos){
-    clearInd();
-    if(!dragSecId||!targetSecId||dragSecId===targetSecId)return;
-    const secs=getSortedSecs();
-    const from=secs.findIndex(s=>s.id===dragSecId);
-    if(from===-1)return;
-    const [moved]=secs.splice(from,1);
-    let to=secs.findIndex(s=>s.id===targetSecId);
-    if(to===-1)return;
-    if(pos==='after')to++;
-    secs.splice(to,0,moved);
-    for(let i=0;i<secs.length;i++){secs[i].order=(i+1)*1000;await saveSec(secs[i]);}
-    renderContent();
-  }
-
-  // ── apply task drop (cross-section + reorder) ─────────
+  // ── apply task drop (reorder) ─────────────────────────
   async function applyTaskDrop(taskId,targetEl,pos){
-    // pos: 'before'|'after'|'sec'
     clearInd();
-    if(!taskId||!targetEl)return;
+    if(!taskId||!targetEl||pos==='sec')return;
     const task=S.tasks.find(t=>t.id===taskId);
     if(!task)return;
-
-    let newSecId,targetTaskId=null;
-    if(pos==='sec'){
-      newSecId=targetEl.dataset.dropSec==='null'?null:targetEl.dataset.dropSec;
-    } else {
-      targetTaskId=targetEl.dataset.id;
-      const tt=S.tasks.find(t=>t.id===targetTaskId);
-      if(!tt)return;
-      newSecId=tt.sectionId||null;
-    }
-
-    // build new order for target section
-    const secTasks=getSortedTasksForSec(newSecId).filter(t=>t.id!==taskId);
-    let idx=secTasks.length;
-    if(targetTaskId){
-      const ti=secTasks.findIndex(t=>t.id===targetTaskId);
-      idx=pos==='before'?ti:ti+1;
-      if(idx<0)idx=0;
-    }
-    secTasks.splice(idx,0,task);
-
-    // if sectionId changed, also reorder old section
-    const oldSecId=task.sectionId||null;
-    const secChanged=oldSecId!==newSecId;
-    task.sectionId=newSecId;
-
-    for(let i=0;i<secTasks.length;i++){
-      secTasks[i].order=(i+1)*1000;
-      await saveTask(secTasks[i]);
-    }
-    if(secChanged&&oldSecId!==null){
-      const oldTasks=getSortedTasksForSec(oldSecId).filter(t=>t.id!==taskId);
-      for(let i=0;i<oldTasks.length;i++){oldTasks[i].order=(i+1)*1000;await saveTask(oldTasks[i]);}
+    const targetTaskId=targetEl.dataset.id;
+    const tt=S.tasks.find(t=>t.id===targetTaskId);
+    if(!tt)return;
+    const allTasks=getTasks().filter(t=>!t.parentTaskId&&t.id!==taskId);
+    const ti=allTasks.findIndex(t=>t.id===targetTaskId);
+    let idx=pos==='before'?ti:ti+1;
+    if(idx<0)idx=0;
+    allTasks.splice(idx,0,task);
+    for(let i=0;i<allTasks.length;i++){
+      allTasks[i].order=(i+1)*1000;
+      await saveTask(allTasks[i]);
     }
     renderContent();
   }
@@ -4241,80 +4132,48 @@ function setupSectionDrag(){
   // ════════════════════════════════════════════════════
   if(!isMobile){
     // ── PC: HTML5 Drag & Drop ──────────────────────────
-    let dtype=null,dragId=null,dragSecId=null;
+    let dragId=null;
 
-    // PC: ハンドルにmousedownでdraggable付与、ハンドル外ではdraggable不要
     content.querySelectorAll('.trow[data-id]').forEach(r=>{
       const h=r.querySelector('.task-drag-handle[data-drag-task]');
       if(h){
         h.addEventListener('mousedown',()=>r.setAttribute('draggable','true'));
         r.addEventListener('dragend',()=>r.removeAttribute('draggable'));
       } else {
-        r.setAttribute('draggable','true');// fallback
+        r.setAttribute('draggable','true');
       }
     });
-    content.querySelectorAll('[data-drag-sec]').forEach(h=>h.setAttribute('draggable','true'));
 
     content.addEventListener('dragstart',e=>{
-      const sh=e.target.closest('[data-drag-sec]');
       const row=e.target.closest('.trow[data-id]');
-      if(sh){
-        dtype='sec';dragSecId=sh.dataset.dragSec;
-        const head=sh.closest('.sec-head');
-        setTimeout(()=>head?.classList.add('sec-dragging'),0);
-        e.dataTransfer.effectAllowed='move';
-      } else if(row){
-        dtype='task';dragId=row.dataset.id;
+      if(row){
+        dragId=row.dataset.id;
         setTimeout(()=>row.classList.add('dragging'),0);
         e.dataTransfer.effectAllowed='move';
       } else {e.preventDefault();}
     },{signal:sig});
 
-    content.addEventListener('dragend',()=>{clearInd();dtype=null;dragId=null;dragSecId=null;},{signal:sig});
+    content.addEventListener('dragend',()=>{clearInd();dragId=null;},{signal:sig});
 
     content.addEventListener('dragover',e=>{
-      if(!dtype)return;
+      if(!dragId)return;
       e.preventDefault();clearInd();
-      if(dtype==='sec'){
-        const sh=e.target.closest('.sec-head[data-sec-id]');
-        if(sh&&sh.dataset.secId!==dragSecId){
-          const r=sh.getBoundingClientRect();
-          sh.classList.add(e.clientY<r.top+r.height/2?'drop-sec-before':'drop-sec-after');
-        }
-      } else {
-        const row=e.target.closest('.trow[data-id]');
-        if(row&&row.dataset.id!==dragId){
-          const r=row.getBoundingClientRect();
-          row.classList.add(e.clientY<r.top+r.height/2?'drop-before':'drop-after');
-          e.dataTransfer.dropEffect='move';
-        } else {
-          const zone=e.target.closest('[data-drop-sec]');
-          if(zone){zone.classList.add('drag-over');e.dataTransfer.dropEffect='move';}
-        }
+      const row=e.target.closest('.trow[data-id]');
+      if(row&&row.dataset.id!==dragId){
+        const r=row.getBoundingClientRect();
+        row.classList.add(e.clientY<r.top+r.height/2?'drop-before':'drop-after');
+        e.dataTransfer.dropEffect='move';
       }
     },{signal:sig});
 
     content.addEventListener('drop',async e=>{
       e.preventDefault();
-      if(dtype==='sec'){
-        const sh=e.target.closest('.sec-head[data-sec-id]');
-        if(sh&&sh.dataset.secId!==dragSecId){
-          const r=sh.getBoundingClientRect();
-          const pos=e.clientY<r.top+r.height/2?'before':'after';
-          const id=dragSecId;dtype=null;dragSecId=null;
-          await applySecReorder(id,sh.dataset.secId,pos);
-        }
-      } else if(dtype==='task'){
-        const row=e.target.closest('.trow[data-id]');
-        const id=dragId;dtype=null;dragId=null;
-        if(row&&row.dataset.id!==id){
-          const r=row.getBoundingClientRect();
-          const pos=e.clientY<r.top+r.height/2?'before':'after';
-          await applyTaskDrop(id,row,pos);
-        } else {
-          const zone=e.target.closest('[data-drop-sec]');
-          if(zone)await applyTaskDrop(id,zone,'sec');
-        }
+      const row=e.target.closest('.trow[data-id]');
+      const id=dragId;dragId=null;
+      if(row&&row.dataset.id!==id){
+        const r=row.getBoundingClientRect();
+        const pos=e.clientY<r.top+r.height/2?'before':'after';
+        await applyTaskDrop(id,row,pos);
       }
     },{signal:sig});
 
@@ -4382,7 +4241,7 @@ function setupSectionDrag(){
           if(Math.abs(t.clientX-startX)>MOVE_LIM||Math.abs(t.clientY-startY)>MOVE_LIM)clearTimeout(lpTimer);
           return;
         }
-        e.preventDefault();// dragging中はスクロール禁止
+        e.preventDefault();
         if(ghost)ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';
         clearInd();ghost.style.pointerEvents='none';
         const el=document.elementFromPoint(t.clientX,t.clientY);
@@ -4390,9 +4249,6 @@ function setupSectionDrag(){
         if(row2&&row2.dataset.id!==dragId){
           const r=row2.getBoundingClientRect();
           row2.classList.add(t.clientY<r.top+r.height/2?'drop-before':'drop-after');
-        } else {
-          const zone=el?.closest('[data-drop-sec]');
-          if(zone)zone.classList.add('drag-over');
         }
       },{signal:sig,passive:false});
 
@@ -4410,60 +4266,9 @@ function setupSectionDrag(){
         if(row2&&row2.dataset.id!==id){
           const r=row2.getBoundingClientRect();
           await applyTaskDrop(id,row2,t.clientY<r.top+r.height/2?'before':'after');
-        } else {
-          const zone=el?.closest('[data-drop-sec]');
-          await applyTaskDrop(id,zone,'sec');
         }
       },{signal:sig});
       row.addEventListener('touchcancel',()=>cancelAll(),{signal:sig,passive:true});
-    });
-
-    // section drag handles
-    content.querySelectorAll('[data-drag-sec]').forEach(handle=>{
-      const secHead=handle.closest('.sec-head');
-      handle.addEventListener('touchstart',e=>{
-        if(e.touches.length>1){cancelAll();return;}
-        const t=e.touches[0];startX=t.clientX;startY=t.clientY;
-        lpTimer=setTimeout(()=>{
-          dragging=true;navigator.vibrate?.(40);
-          dragSecId=handle.dataset.dragSec;spawnGhost(secHead||handle,'sec');
-        },LONG_MS);
-      },{signal:sig,passive:false});
-
-      handle.addEventListener('touchmove',e=>{
-        const t=e.touches[0];
-        if(!dragging){
-          if(Math.abs(t.clientX-startX)>MOVE_LIM||Math.abs(t.clientY-startY)>MOVE_LIM)clearTimeout(lpTimer);
-          return;
-        }
-        e.preventDefault();
-        if(ghost)ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';
-        clearInd();ghost.style.pointerEvents='none';
-        const el=document.elementFromPoint(t.clientX,t.clientY);
-        const sh=el?.closest('.sec-head[data-sec-id]');
-        if(sh&&sh.dataset.secId!==dragSecId){
-          const r=sh.getBoundingClientRect();
-          sh.classList.add(t.clientY<r.top+r.height/2?'drop-sec-before':'drop-sec-after');
-        }
-      },{signal:sig,passive:false});
-
-      handle.addEventListener('touchend',async e=>{
-        clearTimeout(lpTimer);
-        const wasDragging=dragging;
-        if(ghost){ghost.remove();ghost=null;}
-        if(activeEl){activeEl.style.opacity='';activeEl=null;}
-        if(!wasDragging){dragging=false;dragSecId=null;dtype=null;return;}
-        dragging=false;
-        const t=e.changedTouches[0];
-        const el=document.elementFromPoint(t.clientX,t.clientY);
-        const sh=el?.closest('.sec-head[data-sec-id]');
-        const id=dragSecId;dragSecId=null;dtype=null;
-        if(sh&&sh.dataset.secId!==id){
-          const r=sh.getBoundingClientRect();
-          await applySecReorder(id,sh.dataset.secId,t.clientY<r.top+r.height/2?'before':'after');
-        }
-      },{signal:sig});
-      handle.addEventListener('touchcancel',()=>cancelAll(),{signal:sig,passive:true});
     });
   }
 }
@@ -4491,58 +4296,6 @@ function renderNoteListOnly(){
 function renderList(){
   const showSubsInView=['today','flagged'].includes(S.view);
   const tasks=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId);
-  if(S.view==='project'){
-    const projSecs=S.sections.filter(s=>s.projectId===S.projId).sort((a,b)=>a.order-b.order);
-    if(!tasks.length&&!projSecs.length)return renderEmpty();
-    const projSecIds=new Set(projSecs.map(s=>s.id));
-    const unsectioned=tasks.filter(t=>!t.sectionId||!projSecIds.has(t.sectionId));
-    let h='<div class="tlist">';
-    if(projSecs.length){
-      h+='<div class="sec-actions-row">'
-        +'<button class="sec-ac-btn" data-a="sec-collapse-all">▴ 全て閉じる</button>'
-        +'<button class="sec-ac-btn" data-a="sec-expand-all">▾ 全て開く</button>'
-        +'</div>';
-    }
-    // セクション未割り当てエリア（セクションがある場合はヘッダーとドロップゾーンを追加）
-    if(projSecs.length){
-      const uc=S.secCollapsed['__null__'];
-      h+='<div class="sec-head'+(uc?' sec-collapsed':'')+'" data-drop-sec="null" data-sec-id="__null__">'
-        +'<span class="sec-chevron" data-a="sec-toggle" data-sec-id="__null__" style="cursor:pointer">▼</span>'
-        +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="__null__" style="color:var(--text3);cursor:pointer">セクションなし</span>'
-        +(unsectioned.length?'<span class="badge">'+unsectioned.length+'</span>':'')
-        +'</div>';
-      h+='<div class="sec-body'+(uc?' sec-hidden':'')+'" id="sec-body-__null__" data-drop-sec="null">';
-      unsectioned.forEach(t=>{h+=renderRow(t)});
-      h+='</div>';
-    } else {
-      unsectioned.forEach(t=>{h+=renderRow(t)});
-    }
-    // 各セクション
-    projSecs.forEach(sec=>{
-      const secTasks=tasks.filter(t=>t.sectionId===sec.id).sort((a,b)=>(a.order||0)-(b.order||0));
-      const collapsed=S.secCollapsed[sec.id];
-      h+='<div class="sec-drop-zone" data-drop-sec="null" style="margin-top:0"></div>';
-      h+='<div class="sec-head'+(collapsed?' sec-collapsed':'')+'" data-drop-sec="'+sec.id+'" data-sec-id="'+sec.id+'" data-a="sec-toggle" data-sec-toggle-id="'+sec.id+'" style="cursor:pointer">'
-        +'<span class="sec-drag-handle" data-drag-sec="'+sec.id+'" title="ドラッグでセクションを並び替え" style="cursor:grab" onclick="event.stopPropagation()">⠿</span>'
-        +'<span class="sec-chevron" data-a="sec-toggle" data-sec-id="'+sec.id+'">▼</span>'
-        +'<span class="sec-head-name" data-a="sec-toggle" data-sec-id="'+sec.id+'">'+esc(sec.name)+'</span>'
-        +(secTasks.length?'<span class="badge" style="margin-right:2px">'+secTasks.length+'</span>':'')
-        +'<button class="sec-act-btn" data-a="sec-rename" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="名前変更" onclick="event.stopPropagation()">'
-          +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
-          +' 名前変更</button>'
-        +'<button class="sec-act-btn del" data-a="sec-del" data-id="'+sec.id+'" data-name="'+esc(sec.name)+'" title="削除" onclick="event.stopPropagation()">'
-          +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>'
-          +' 削除</button>'
-      +'</div>';
-      h+='<div class="sec-body'+(collapsed?' sec-hidden':'')+'" id="sec-body-'+sec.id+'" data-drop-sec="'+sec.id+'">';
-      if(secTasks.length){secTasks.forEach(t=>{h+=renderRow(t)});}
-      else{h+='<div class="sec-drop-zone" data-drop-sec="'+sec.id+'" style="height:40px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3)">ここにドラッグ</div>';}
-      h+='</div>';
-    });
-    h+='<div class="nav-item muted" data-a="addsec" style="margin-top:10px;font-size:13px"><span style="font-size:16px">+</span> セクション追加</div>';
-    h+='</div>';
-    return h;
-  }
   if(!tasks.length)return renderEmpty();
   let h='<div class="tlist">';
   tasks.forEach(t=>{h+=renderRow(t)});
@@ -5008,8 +4761,6 @@ function renderNextView(){
   const projs=getSortedProjects('active');
   const rows=[];
   for(const proj of projs){
-    const projSecs=S.sections.filter(s=>s.projectId===proj.id).sort((a,b)=>(a.order||0)-(b.order||0));
-    const secOrder=Object.fromEntries(projSecs.map((s,i)=>[s.id,i+1]));
     const tasks=S.tasks
       .filter(t=>{
         if(t.projectId!==proj.id||t.parentTaskId)return false;
@@ -5021,9 +4772,6 @@ function renderNextView(){
       .sort((a,b)=>{
         if(S.sort==='priority')return (a.priority||4)-(b.priority||4);
         if(S.sort==='dueAt'){if(!a.dueAt&&!b.dueAt)return 0;if(!a.dueAt)return 1;if(!b.dueAt)return-1;return a.dueAt.localeCompare(b.dueAt);}
-        const sa=a.sectionId?secOrder[a.sectionId]||999:0;
-        const sb=b.sectionId?secOrder[b.sectionId]||999:0;
-        if(sa!==sb)return sa-sb;
         return (a.order||0)-(b.order||0);
       });
     if(tasks.length===0)continue;
@@ -5289,17 +5037,6 @@ function renderDrawer(){
             })())
         +'</div>'
       +'</div>'
-      +(task.projectId?(()=>{
-        const projSecs=S.sections.filter(s=>s.projectId===task.projectId).sort((a,b)=>a.order-b.order);
-        return projSecs.length
-          ?'<div class="fg"><label class="flabel">セクション</label>'
-            +'<select class="finput fselect" id="dt-sec">'
-              +'<option value="">（セクションなし）</option>'
-              +projSecs.map(s=>'<option value="'+s.id+'"'+(task.sectionId===s.id?' selected':'')+'>'+esc(s.name)+'</option>').join('')
-            +'</select>'
-            +'</div>'
-          :'';
-      })():'')
       +'<div class="fg"><label class="flabel">タグ</label>'
         +'<div class="tag-wrap">'
           +S.tags.map(t=>'<span class="topt'+(task.tagIds&&task.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-task="'+task.id+'" data-tag="'+t.id+'" style="'+(task.tagIds&&task.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
@@ -5443,7 +5180,6 @@ function renderDrawer(){
       t2.startAt=document.getElementById('dt-start')?.value||null;
       t2.startTime=document.getElementById('dt-start-time')?.value||null;
       t2.projectId=document.getElementById('dt-proj')?.value||null;
-      t2.sectionId=document.getElementById('dt-sec')?.value||null;
       t2.repeatRule=getRepeatRule();
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
 
@@ -5452,11 +5188,11 @@ function renderDrawer(){
       await saveTask(t2);
       if(!t2.parentTaskId&&t2.projectId!==prevProjectId){
         const children=S.tasks.filter(c=>c.parentTaskId===t2.id);
-        for(const child of children){child.projectId=t2.projectId;child.sectionId=null;await saveTask(child);}
+        for(const child of children){child.projectId=t2.projectId;await saveTask(child);}
       }
       setInd('saved');
 
-      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-sec','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
+      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
       if(t2.status!==prevStatus||(!drawerInputIds.includes(activeId)&&!activeInDrawer)){
         renderSidebar();renderContent();
       }
@@ -5495,7 +5231,7 @@ function renderDrawer(){
     el.addEventListener('input',()=>{autosave();});
   });
   // 日付・セレクトはcomposition不要
-  ['dt-due','dt-start','dt-start-time','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
+  ['dt-due','dt-start','dt-start-time','dt-proj','dt-repeat'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('change',()=>{
       if(id==='dt-repeat'&&el.value&&isPlanFree()){
@@ -5754,7 +5490,6 @@ async function handleBulkEdit(field){
       const val=ov.querySelector('#bulk-proj-sel').value||null;ov.remove();
       for(const t of tasks){
         t.projectId=val;
-        if(!val)t.sectionId=null;
         if(val&&t.status==='inbox')t.status='active'; // Inboxから移動
       await saveTask(t);}
       toast(tasks.length+'件を更新しました');render();
@@ -6545,82 +6280,6 @@ else if(a==='scroll-to-subs'){
   else if(a==='upgrade-banner'){showUpgradeModal('banner')}
   else if(a==='open-plan-admin'){openPlanAdmin()}
   else if(a==='open-my-plan'){openMyPlan()}
-  else if(a==='sec-collapse-all'){
-    const secs=S.sections.filter(s=>s.projectId===S.projId);
-    secs.forEach(s=>{S.secCollapsed[s.id]=true;});
-    S.secCollapsed['__null__']=true;
-    try{localStorage.setItem('secCollapsed',JSON.stringify(S.secCollapsed))}catch(_){}
-    renderContent();
-  }
-  else if(a==='sec-expand-all'){
-    const secs=S.sections.filter(s=>s.projectId===S.projId);
-    secs.forEach(s=>{delete S.secCollapsed[s.id];});
-    delete S.secCollapsed['__null__'];
-    try{localStorage.setItem('secCollapsed',JSON.stringify(S.secCollapsed))}catch(_){}
-    renderContent();
-  }
-  else if(a==='sec-toggle'){
-    const secId=el.dataset.secId||el.dataset.secToggleId;
-    if(!secId)return;
-    S.secCollapsed[secId]=!S.secCollapsed[secId];
-    try{localStorage.setItem('secCollapsed',JSON.stringify(S.secCollapsed))}catch(_){}
-    const body=document.getElementById('sec-body-'+secId);
-    const head=el.classList.contains('sec-head')?el:el.closest('.sec-head');
-    if(body)body.classList.toggle('sec-hidden',!!S.secCollapsed[secId]);
-    if(head)head.classList.toggle('sec-collapsed',!!S.secCollapsed[secId]);
-  }
-  else if(a==='addsec'){
-    const ov=document.createElement('div');ov.className='overlay';
-    ov.innerHTML='<div class="modal"><div class="modal-title">セクション追加</div>'
-      +'<div class="fg"><label class="flabel">セクション名</label><input class="finput" id="m-secname" placeholder="例：設計、実装、レビュー…" autocomplete="off"></div>'
-      +'<div class="modal-foot"><button class="btn btn-ghost" id="m-cancel">キャンセル</button><button class="btn btn-primary" id="m-ok">追加</button></div>'
-      +'</div>';
-    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
-    const inp=document.getElementById('m-secname');
-    setTimeout(()=>inp?.focus(),80);
-    document.getElementById('m-cancel').onclick=()=>ov.remove();
-    document.getElementById('m-ok').onclick=async()=>{
-      const name=(inp?.value||'').trim();
-      if(!name)return;
-      const s={id:uid(),projectId:S.projId,name,order:Date.now()};
-      await saveSec(s);ov.remove();renderContent();
-    };
-    inp?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('m-ok')?.click();if(e.key==='Escape')ov.remove();});
-    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
-  }
-  else if(a==='sec-rename'){
-    const id=el.dataset.id;const oldName=el.dataset.name;
-    const ov=document.createElement('div');ov.className='overlay';
-    ov.innerHTML='<div class="modal"><div class="modal-title">セクション名を変更</div>'
-      +'<div class="fg"><label class="flabel">セクション名</label><input class="finput" id="m-secname" value="'+esc(oldName)+'" autocomplete="off"></div>'
-      +'<div class="modal-foot"><button class="btn btn-ghost" id="m-cancel">キャンセル</button><button class="btn btn-primary" id="m-ok">変更</button></div>'
-      +'</div>';
-    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
-    const inp=document.getElementById('m-secname');
-    setTimeout(()=>{inp?.focus();inp?.select();},80);
-    document.getElementById('m-cancel').onclick=()=>ov.remove();
-    document.getElementById('m-ok').onclick=async()=>{
-      const name=(inp?.value||'').trim();if(!name)return;
-      const sec=S.sections.find(s=>s.id===id);if(!sec)return;
-      sec.name=name;await saveSec(sec);ov.remove();renderContent();
-    };
-    inp?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('m-ok')?.click();if(e.key==='Escape')ov.remove();});
-    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
-  }
-  else if(a==='sec-del'){
-    const id=el.dataset.id;const name=el.dataset.name;
-    openConfirmModal(
-      '"'+name+'" を削除',
-      'セクションを削除します。タスクはセクションなしに移動します。',
-      async()=>{
-        const affected=S.tasks.filter(t=>t.sectionId===id);
-        for(const t of affected){t.sectionId=null;await saveTask(t);}
-        await delSec(id);
-        if(S.taskId){const t=S.tasks.find(x=>x.id===S.taskId);if(t&&t.sectionId===id){t.sectionId=null;}}
-        renderContent();renderDrawer();
-      },'削除',true
-    );
-  }
   else if(a==='stamp'){
     const ta=document.getElementById('dt-notes');
     if(!ta)return;
@@ -6658,9 +6317,7 @@ else if(a==='scroll-to-subs'){
       const projs=getSortedProjects('active');
       const ids=[];
       for(const proj of projs){
-        const projSecs=S.sections.filter(s=>s.projectId===proj.id).sort((a,b)=>(a.order||0)-(b.order||0));
-        const secOrder=Object.fromEntries(projSecs.map((s,i)=>[s.id,i+1]));
-        const tasks=S.tasks.filter(t=>t.projectId===proj.id&&!t.parentTaskId&&(!S.showCompleted&&t.status!=='completed')&&(!S.hideNotStarted||!isNotStartedTask(t))).sort((a,b)=>{const sa=a.sectionId?secOrder[a.sectionId]||999:0;const sb=b.sectionId?secOrder[b.sectionId]||999:0;if(sa!==sb)return sa-sb;return(a.order||0)-(b.order||0);});
+        const tasks=S.tasks.filter(t=>t.projectId===proj.id&&!t.parentTaskId&&(!S.showCompleted&&t.status!=='completed')&&(!S.hideNotStarted||!isNotStartedTask(t))).sort((a,b)=>(a.order||0)-(b.order||0));
         if(tasks.length)ids.push(tasks[0].id);
       }
       S.selectedIds=ids;
@@ -7691,7 +7348,6 @@ function reattachModalEvents(modal, type, onClose){
     const dueEl=modal.querySelector('#dt-due');
     const startEl=modal.querySelector('#dt-start');
     const projEl=modal.querySelector('#dt-proj');
-    const secEl=modal.querySelector('#dt-sec');
     const repeatEl=modal.querySelector('#dt-repeat');
     const indEl=modal.querySelector('#autosave-ind');
     const setInd=(s)=>{if(!indEl)return;indEl.className='autosave-ind '+s;indEl.textContent=s==='saving'?'保存中…':s==='saved'?'保存済み ✓':'自動保存 ✓'};
@@ -7709,12 +7365,11 @@ function reattachModalEvents(modal, type, onClose){
         if(startEl)t.startAt=startEl.value||null;
         const startTimeEl2=modal.querySelector('#dt-start-time');if(startTimeEl2)t.startTime=startTimeEl2.value||null;
         if(projEl)t.projectId=projEl.value||null;
-        if(secEl)t.sectionId=secEl.value||null;
         if(repeatEl)t.repeatRule=getRepeatRule();
         await saveTask(t);
         if(!t.parentTaskId&&t.projectId!==prevProjectId){
           const children=S.tasks.filter(c=>c.parentTaskId===t.id);
-          for(const child of children){child.projectId=t.projectId;child.sectionId=null;await saveTask(child);}
+          for(const child of children){child.projectId=t.projectId;await saveTask(child);}
         }
         setInd('saved');
       },400);
@@ -7725,7 +7380,7 @@ function reattachModalEvents(modal, type, onClose){
       el.addEventListener('compositionend',()=>{_c=false;save(true);});
       el.addEventListener('input',()=>save());
     });
-    ['dt-due','dt-start','dt-start-time','dt-proj','dt-sec','dt-repeat'].forEach(id=>{
+    ['dt-due','dt-start','dt-start-time','dt-proj','dt-repeat'].forEach(id=>{
       const el=modal.querySelector('#'+id);
       if(el)el.addEventListener('change',()=>{
         // 開始日を直接変更した場合は開始時間をクリア
@@ -8095,7 +7750,6 @@ async function saveBackup(label){
   const data={
     tasks:S.tasks,
     projects:S.projects,
-    sections:S.sections,
     tags:S.tags,
   };
   const uid2=window._currentUser?.id;
@@ -8124,12 +7778,10 @@ async function restoreBackup(backup){
   // 現在のデータを全削除してから復元
   for(const t of S.tasks)await dbDel('tasks',t.id);
   for(const p of S.projects)await dbDel('projects',p.id);
-  for(const s of S.sections)await dbDel('sections',s.id);
   for(const g of S.tags)await dbDel('tags',g.id);
   // 復元
   for(const t of data.tasks||[])await dbPut('tasks',t);
   for(const p of data.projects||[])await dbPut('projects',p);
-  for(const s of data.sections||[])await dbPut('sections',s);
   for(const g of data.tags||[])await dbPut('tags',g);
   await loadAll();
   render();
@@ -8433,10 +8085,9 @@ function openSettingsModal(){
   // タスク CSVエクスポート
   addFastHandler('s-csv-task-export',()=>{
     const tasks=S.tasks.filter(t=>t.status!=='archived');
-    const headers=['id','title','status','priority','notes','startAt','dueAt','startTime','projectName','sectionName','tagNames','parentTaskTitle','flagged','repeatRule','createdAt','completedAt'];
+    const headers=['id','title','status','priority','notes','startAt','dueAt','startTime','projectName','tagNames','parentTaskTitle','flagged','repeatRule','createdAt','completedAt'];
     const rows=tasks.map(t=>{
       const proj=S.projects.find(p=>p.id===t.projectId);
-      const sec=S.sections.find(s=>s.id===t.sectionId);
       const tagNames=(t.tagIds||[]).map(tid=>{const tg=S.tags.find(x=>x.id===tid);return tg?tg.name:'';}).filter(Boolean).join('|');
       const parent=t.parentTaskId?S.tasks.find(x=>x.id===t.parentTaskId):null;
       return[
@@ -8449,7 +8100,6 @@ function openSettingsModal(){
         escCsv(t.dueAt),
         escCsv(t.startTime),
         escCsv(proj?proj.name:''),
-        escCsv(sec?sec.name:''),
         escCsv(tagNames),
         escCsv(parent?parent.title:''),
         escCsv(t.flagged?'1':'0'),
