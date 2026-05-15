@@ -5282,11 +5282,11 @@ function renderDrawer(){
             +'<option value="">なし</option>'
             +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'"'+(task.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('')
           +'</select>'
-          +(task.parentTaskId?'<span style="font-size:11px;color:var(--text3);white-space:nowrap;flex-shrink:0">親タスクに連動</span>'
-            :task.projectId?(()=>{
-              const _prj=S.projects.find(p=>p.id===task.projectId);
-              return _prj?'<button class="date-clr-btn" data-a="goto-proj" data-id="'+task.projectId+'" title="'+esc(_prj.name)+'へ移動" style="flex-shrink:0;display:flex;align-items:center;gap:3px;padding:4px 8px;color:var(--accent);border-color:var(--accent);font-size:11px;font-weight:600;white-space:nowrap"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>':'';
-            })():'')
+          +((()=>{
+              const _prj=task.projectId?S.projects.find(p=>p.id===task.projectId):null;
+              const _goBtn=_prj?'<button class="date-clr-btn" data-a="goto-proj" data-id="'+task.projectId+'" title="'+esc(_prj.name)+'へ移動" style="flex-shrink:0;display:flex;align-items:center;gap:3px;padding:4px 8px;color:var(--accent);border-color:var(--accent);font-size:11px;font-weight:600;white-space:nowrap"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>':'';
+              return (task.parentTaskId?'<span style="font-size:11px;color:var(--text3);white-space:nowrap;flex-shrink:0">親タスクに連動</span>':'')+_goBtn;
+            })())
         +'</div>'
       +'</div>'
       +(task.projectId?(()=>{
