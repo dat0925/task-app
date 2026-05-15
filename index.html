@@ -105,6 +105,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 
 /* Quick Add */
 .qabar{padding:6px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.qabar.bulk-sticky{position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.08);}
 .qawrap{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;transition:border-color .15s}
 .qawrap:focus-within{border-color:var(--accent)}
 .qawrap input{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--text)}
@@ -2417,6 +2418,7 @@ function getTasks(){
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   if(S.sort==='startAt') return tasks.sort((a,b)=>{if(!a.startAt&&!b.startAt)return 0;if(!a.startAt)return 1;if(!b.startAt)return -1;return a.startAt.localeCompare(b.startAt);});
   if(S.sort==='priority') return tasks.sort((a,b)=>(a.priority||4)-(b.priority||4));
+  if(S.sort==='dueAt') return tasks.sort((a,b)=>{if(!a.dueAt&&!b.dueAt)return 0;if(!a.dueAt)return 1;if(!b.dueAt)return-1;return a.dueAt.localeCompare(b.dueAt);});
   return tasks.sort((a,b)=>(a.order||0)-(b.order||0));
 }
 function counts(){
@@ -4749,6 +4751,8 @@ function renderNextView(){
         return true;
       })
       .sort((a,b)=>{
+        if(S.sort==='priority')return (a.priority||4)-(b.priority||4);
+        if(S.sort==='dueAt'){if(!a.dueAt&&!b.dueAt)return 0;if(!a.dueAt)return 1;if(!b.dueAt)return-1;return a.dueAt.localeCompare(b.dueAt);}
         const sa=a.sectionId?secOrder[a.sectionId]||999:0;
         const sb=b.sectionId?secOrder[b.sectionId]||999:0;
         if(sa!==sb)return sa-sb;
@@ -6384,6 +6388,10 @@ else if(a==='scroll-to-subs'){
     S.sort=S.sort==='priority'?'order':'priority';
     renderTaskFilters();renderContent();
   }
+  else if(a==='quick-sort-due'){
+    S.sort=S.sort==='dueAt'?'order':'dueAt';
+    renderTaskFilters();renderContent();
+  }
   else if(a==='fpop-toggle'){
     const key=el.dataset.key;
     if(key==='hideNotStarted')S.hideNotStarted=!S.hideNotStarted;
@@ -6421,6 +6429,8 @@ else if(a==='scroll-to-subs'){
     if(!S.selectMode){S.selectedIds=[];S.drawerOpen=false;S.taskId=null;}
     else{toast('タスクをタップして選択 → 上のボタンで一括変更');}
     renderContent();
+    const qaEl=document.getElementById('qabar');
+    if(qaEl)S.selectMode?qaEl.classList.add('bulk-sticky'):qaEl.classList.remove('bulk-sticky');
   }
   else if(a==='tog-subs'){
     e.stopPropagation();
@@ -6432,7 +6442,10 @@ else if(a==='scroll-to-subs'){
     if(chev)chev.classList.toggle('open',!!S.openSubs[id]);
   }
   else if(a==='bulk-edit'){await handleBulkEdit(el.dataset.field);}
-  else if(a==='bulk-cancel'){S.selectMode=false;S.selectedIds=[];renderContent();}
+  else if(a==='bulk-cancel'){
+    S.selectMode=false;S.selectedIds=[];renderContent();
+    const qaEl=document.getElementById('qabar');if(qaEl)qaEl.classList.remove('bulk-sticky');
+  }
   else if(a==='note-tog-sort'){S.noteSortUpdated=S.noteSortUpdated===false?true:false;renderContent()}
   else if(a==='note-tog-select-mode'){S.noteSelectMode=true;S.selectedNoteIds=[];renderContent();}
   else if(a==='note-bulk-cancel'){S.noteSelectMode=false;S.selectedNoteIds=[];renderContent();}
