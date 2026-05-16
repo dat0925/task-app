@@ -5343,7 +5343,8 @@ function renderDrawer(){
       })()
       +(!task.parentTaskId?'<div class="fg"><label class="flabel">サブタスク</label>'
         +'<div id="subs">'+subs.sort((a,b)=>a.order-b.order).map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'
-        +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…" style="margin-top:6px">'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;margin-bottom:4px"><button class="note-stamp-btn" id="sub-parent-btn" title="親タスクのタイトルを入力欄に挿入">📌 親件名</button></div>'
+        +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…">'
       +'</div>':'')
       +'<div class="cm-section" id="cm-section" data-task-id="'+task.id+'">'
         +'<div class="cm-section-head">'
@@ -5612,6 +5613,22 @@ function renderDrawer(){
       }
     });
   });
+  const subParentBtn=document.getElementById('sub-parent-btn');
+  if(subParentBtn){
+    subParentBtn.addEventListener('click',()=>{
+      const si=document.getElementById('sub-inp');
+      if(!si)return;
+      const pt=S.tasks.find(t=>t.id===S.taskId);
+      if(!pt)return;
+      const title=pt.title||'無題';
+      const prefix='('+title+')';
+      if(!si.value.includes(prefix)){
+        si.value=prefix+(si.value?' '+si.value:'');
+      }
+      si.focus();
+      si.setSelectionRange(si.value.length,si.value.length);
+    });
+  }
   const si=document.getElementById('sub-inp');
   if(si)si.addEventListener('keydown',async e=>{
     if(e.key==='Enter'&&si.value.trim()){
