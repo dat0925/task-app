@@ -4103,6 +4103,7 @@ function renderGantt(){
   const childMap={};
   allT.forEach(t=>{if(t.parentTaskId)(childMap[t.parentTaskId]||(childMap[t.parentTaskId]=[])).push(t);});
   // サブタスクを持たないタスクも含め、プロジェクト所属の親タスク（トップレベル）をすべて表示
+  if(S.ganttProjFilter)allT=allT.filter(t=>t.projectId===S.ganttProjFilter);
   const parentsAll=allT.filter(t=>!t.parentTaskId&&t.projectId);
 
   if(!parentsAll.length){
@@ -4251,7 +4252,7 @@ function renderGantt(){
   const scaleBtns=scales.map(([k,l])=>`<button class="gantt-scale-btn${scale===k?' on':''}" data-a="gantt-scale" data-scale="${k}">${l}</button>`).join('');
 
   return `<div class="gantt-outer">`
-    +`<div class="gantt-toolbar"><div style="display:flex;gap:4px">${scaleBtns}</div><div style="display:flex;gap:4px;margin-left:auto"><button class="gantt-scale-btn" data-a="gantt-expand-all" title="全て展開">全開</button><button class="gantt-scale-btn" data-a="gantt-collapse-all" title="全て折りたたむ">全閉</button></div><button class="gantt-help-btn" data-a="gantt-help" style="margin-left:6px">？</button></div>`
+    +`<div class="gantt-toolbar"><div style="display:flex;gap:4px">${scaleBtns}</div>${S.ganttProjFilter?`<div style="display:flex;align-items:center;gap:4px;margin-left:8px;padding:2px 8px;background:var(--accent-bg);border-radius:6px;font-size:12px;color:var(--accent);border:1px solid var(--accent)">${esc(S.projects.find(p=>p.id===S.ganttProjFilter)?.name||'')} <button data-a="gantt-clear-proj-filter" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:14px;padding:0;line-height:1" title="絞り込み解除">×</button></div>`:''}<div style="display:flex;gap:4px;margin-left:auto"><button class="gantt-scale-btn" data-a="gantt-expand-all" title="全て展開">全開</button><button class="gantt-scale-btn" data-a="gantt-collapse-all" title="全て折りたたむ">全閉</button></div><button class="gantt-help-btn" data-a="gantt-help" style="margin-left:6px">？</button></div>`
     +`<div class="gantt-area" id="gantt-area">`
       +`<div class="gantt-names-col" style="width:${NAMES_W}px">`
         +`<div class="gantt-name-head">タスク</div>`
@@ -4596,6 +4597,7 @@ function renderTaskFilters(){
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="toggle-completed-btn'+(S.sort==='priority'?' active':'')+'" data-a="quick-sort-priority" title="優先度順に並び替え">優先</button>':'')
+    +(S.view==='project'&&S.projId?'<button class="toggle-completed-btn" data-a="proj-to-gantt" title="このプロジェクトのGanttを表示">'+ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')+'</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isGantt?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
 }
 
@@ -6403,6 +6405,15 @@ document.addEventListener('click',async e=>{
   }
   
   else if(a==='gantt-scale'){S.ganttScale=el.dataset.scale;render();scrollGanttToToday();}
+  else if(a==='proj-to-gantt'){
+    S.ganttProjFilter=S.projId;
+    S.view='gantt';
+    render();
+  }
+  else if(a==='gantt-clear-proj-filter'){
+    S.ganttProjFilter=null;
+    render();
+  }
   else if(a==='gantt-expand-all'){
     S.ganttCollapsed={};
     localStorage.setItem('ganttCollapsed',JSON.stringify(S.ganttCollapsed));
