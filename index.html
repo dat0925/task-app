@@ -1504,9 +1504,15 @@ async function openMyPlan(){
         });
         const data=await res.json();
         if(data.url){location.href=data.url;}
-        else{toast('エラーが発生しました');portalBtn.textContent='プラン変更・解約はこちら →';portalBtn.disabled=false;}
-      }catch(_){
-        toast('エラーが発生しました');
+        else{
+          const msg=data.error||data.message||JSON.stringify(data);
+          console.error('[stripe-portal]',res.status,msg);
+          toast('エラー: '+msg);
+          portalBtn.textContent='プラン変更・解約はこちら →';portalBtn.disabled=false;
+        }
+      }catch(e){
+        console.error('[stripe-portal] fetch error',e);
+        toast('通信エラー: '+e.message);
         portalBtn.textContent='プラン変更・解約はこちら →';
         portalBtn.disabled=false;
       }
