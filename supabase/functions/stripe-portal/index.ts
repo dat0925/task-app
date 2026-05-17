@@ -44,8 +44,23 @@ Deno.serve(async (req) => {
       .eq('email', user.email)
       .maybeSingle();
 
-    if (!planRow?.stripe_customer_id) {
-      return json({ error: 'サブスクリプションが見つかりません' }, 404);
+    let customerId = planRow?.stripe_customer_id;
+
+    // CustomerIDがない or 空の場合はStripeで新規作成してDBに保存（自動復旧）
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email!,
+        metadata: { supabase_uid: user.id },
+      });
+      customerId = customer.id;
+
+      // DBに保存（次回以降は自動復旧）
+      await sb
+        .from('user_plans')
+        .update({ stripe_customer_id: customerId })
+        .eq('email', user.email);
+
+      console.info(`[stripe-portal] Created new Stripe customer: ${customerId} for ${user.email}`);
     }
 
     // 3. return_url を取得（リクエストボディから）
@@ -54,7 +69,7 @@ Deno.serve(async (req) => {
 
     // 4. カスタマーポータルセッション作成
     const session = await stripe.billingPortal.sessions.create({
-      customer: planRow.stripe_customer_id,
+      customer: customerId,
       return_url: returnUrl,
     });
 
