@@ -1654,8 +1654,19 @@ async function openMyPlan(){
             +'</div>'
           +'</div>'
           +'<div style="font-size:11px;color:var(--text3);text-align:center">月額・いつでもキャンセル可</div>'
-          // 有料プランの場合：解約ボタン
-          :'<div>'
+          // 有料プランの場合
+          :(getUserPlan()==='standard'
+            // スタンダード → プレミアムアップグレードカード
+            ?'<div style="border:2px solid var(--accent);border-radius:12px;padding:16px;background:var(--accent-bg);display:flex;flex-direction:column;gap:8px">'
+              +'<div style="font-size:13px;font-weight:700;color:var(--accent)">✦ プレミアムにアップグレード</div>'
+              +'<div style="font-size:20px;font-weight:800">¥780<span style="font-size:12px;font-weight:400;color:var(--text3)">/月</span></div>'
+              +'<div style="font-size:11px;color:var(--text2);display:flex;flex-direction:column;gap:3px">'
+                +['ノート無制限（現在300件）','AI利用500回/月（現在100回）','その他スタンダードの全機能'].map(f=>'<span>✓ '+f+'</span>').join('')
+              +'</div>'
+              +'<a href="'+_payUrl2(PAYMENT_LINKS.premium)+'" target="_blank" class="btn btn-primary" style="text-decoration:none;text-align:center;font-size:13px;margin-top:4px">プレミアムにアップグレード →</a>'
+            +'</div>'
+            :'')
+          +'<div>'
             +'<button class="btn btn-ghost" id="my-plan-portal-btn" style="width:100%;font-size:13px;color:var(--text2)">プラン変更・解約はこちら →</button>'
           +'</div>')
 
