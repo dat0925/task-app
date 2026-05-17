@@ -5711,7 +5711,7 @@ function _cmRenderList(comments){
         <div class="cm-meta">
           <span class="cm-name">${esc(c.user_name||c.userName||'ユーザー')}</span>
           <span class="cm-time">${_cmTimeStr(createdAt)}</span>
-          ${isOwn?`<button class="cm-del" data-a="cm-edit" data-cmid="${c.id}" title="編集" style="opacity:0">編集</button>`:''}
+          ${isOwn?`<button class="cm-del" data-a="cm-edit" data-cmid="${c.id}" title="編集">編集</button>`:''}
           ${isOwn?`<button class="cm-del" data-a="cm-del" data-cmid="${c.id}" title="削除">✕</button>`:''}
         </div>
         <div class="cm-body" id="cm-body-${c.id}">${_cmLinkify(esc(c.body))}</div>
