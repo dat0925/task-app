@@ -1458,9 +1458,16 @@ async function openMyPlan(){
     const bg=isCurrent?'var(--accent-bg)':'transparent';
     const badge=isCurrent?'<span style="display:inline-block;background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-bottom:6px">現在のプラン ✓</span>':'';
     const titleColor=isCurrent?'color:var(--accent)':'color:var(--text)';
-    const btnHtml=isUpgrade&&p.btnUrl
-      ?'<a href="'+p.btnUrl+'" target="_blank" class="btn '+p.btnClass+'" style="text-decoration:none;text-align:center;font-size:12px;margin-top:auto;padding-top:8px">'+p.btnLabel+'</a>'
-      :'';
+    // 有料プラン→上位プランはカスタマーポータル経由（二重課金防止）
+    const usePortal=currentPlan!=='free'&&isUpgrade;
+    let btnHtml='';
+    if(isUpgrade){
+      if(usePortal){
+        btnHtml='<button class="btn btn-primary" id="plan-upgrade-portal-btn" style="font-size:12px;margin-top:auto;padding-top:8px">'+p.btnLabel+'</button>';
+      } else if(p.btnUrl){
+        btnHtml='<a href="'+p.btnUrl+'" target="_blank" class="btn '+p.btnClass+'" style="text-decoration:none;text-align:center;font-size:12px;margin-top:auto;padding-top:8px">'+p.btnLabel+'</a>';
+      }
+    }
     return '<div style="border:'+border+';border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:4px;background:'+bg+'">'
       +badge
       +'<div style="font-size:13px;font-weight:700;'+titleColor+'">✦ '+p.label+'</div>'
@@ -1515,36 +1522,40 @@ async function openMyPlan(){
   document.getElementById('my-plan-close').onclick=()=>ov.remove();
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
 
-  // カスタマーポータルへ遷移
-  const portalBtn=document.getElementById('my-plan-portal-btn');
-  if(portalBtn){
-    portalBtn.addEventListener('click',async()=>{
-      portalBtn.textContent='読み込み中...';
-      portalBtn.disabled=true;
-      try{
-        const session=await window._SB.auth.getSession();
-        const token=session?.data?.session?.access_token;
-        const res=await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/stripe-portal',{
-          method:'POST',
-          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-          body:JSON.stringify({return_url:location.href}),
-        });
-        const data=await res.json();
-        if(data.url){location.href=data.url;}
-        else{
-          const msg=data.error||data.message||JSON.stringify(data);
-          console.error('[stripe-portal]',res.status,msg);
-          toast('エラー: '+msg);
-          portalBtn.textContent='プラン変更・解約はこちら →';portalBtn.disabled=false;
-        }
-      }catch(e){
-        console.error('[stripe-portal] fetch error',e);
-        toast('通信エラー: '+e.message);
-        portalBtn.textContent='プラン変更・解約はこちら →';
-        portalBtn.disabled=false;
+  // カスタマーポータルへ遷移（共通処理）
+  async function goToPortal(btn,originalLabel){
+    btn.textContent='読み込み中...';
+    btn.disabled=true;
+    try{
+      const session=await window._SB.auth.getSession();
+      const token=session?.data?.session?.access_token;
+      const res=await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/stripe-portal',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({return_url:location.href}),
+      });
+      const data=await res.json();
+      if(data.url){location.href=data.url;}
+      else{
+        const msg=data.error||data.message||JSON.stringify(data);
+        console.error('[stripe-portal]',res.status,msg);
+        toast('エラー: '+msg);
+        btn.textContent=originalLabel;btn.disabled=false;
       }
-    });
+    }catch(e){
+      console.error('[stripe-portal] fetch error',e);
+      toast('通信エラー: '+e.message);
+      btn.textContent=originalLabel;btn.disabled=false;
+    }
   }
+
+  // 「プラン変更・解約」ボタン
+  const portalBtn=document.getElementById('my-plan-portal-btn');
+  if(portalBtn)portalBtn.addEventListener('click',()=>goToPortal(portalBtn,'プラン変更・解約はこちら →'));
+
+  // 有料プランからの「アップグレード」ボタン（ポータル経由）
+  const upgradePortalBtn=document.getElementById('plan-upgrade-portal-btn');
+  if(upgradePortalBtn)upgradePortalBtn.addEventListener('click',()=>goToPortal(upgradePortalBtn,'プレミアムにアップグレード →'));
 }
 
 // ===== プラン管理画面（管理者のみ）=====
