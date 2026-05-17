@@ -6607,12 +6607,20 @@ document.addEventListener('click',async e=>{
     render();
   }
   else if(a==='gantt-collapse-all'){
-    // 全プロジェクトキーと全親タスクキーをcollapsed=trueに
+    // ガントと同じフィルタ条件でタスクを絞り込んでから全閉じ
     const gc={};
-    const parents=S.tasks.filter(t=>!t.parentTaskId&&t.status!=='done'&&S.tasks.some(c=>c.parentTaskId===t.id&&c.status!=='done'));
-    const projIds=[...new Set(S.tasks.filter(t=>t.parentTaskId==null&&S.tasks.some(c=>c.parentTaskId===t.id)).map(t=>t.projectId||'__none__'))];
-    projIds.forEach(pid=>gc['proj_'+pid]=true);
-    parents.forEach(p=>gc['task_'+p.id]=true);
+    const todayD2=new Date();todayD2.setHours(0,0,0,0);
+    let allT2=S.tasks.filter(t=>!t.repeatRule);
+    if(!S.showCompleted)allT2=allT2.filter(t=>t.status!=='completed');
+    if(S.hideNotStarted)allT2=allT2.filter(t=>!t.startAt||new Date(t.startAt)<=todayD2);
+    if(S.filterTagIds&&S.filterTagIds.length)allT2=allT2.filter(t=>S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)));
+    const childMap2={};
+    allT2.forEach(t=>{if(t.parentTaskId)(childMap2[t.parentTaskId]||(childMap2[t.parentTaskId]=[])).push(t);});
+    if(S.ganttProjFilter)allT2=allT2.filter(t=>t.projectId===S.ganttProjFilter);
+    const parentsAll2=allT2.filter(t=>!t.parentTaskId&&t.projectId);
+    const projIds2=[...new Set(parentsAll2.map(t=>t.projectId||'__none__'))];
+    projIds2.forEach(pid=>gc['proj_'+pid]=true);
+    parentsAll2.forEach(p=>gc['task_'+p.id]=true);
     S.ganttCollapsed=gc;
     localStorage.setItem('ganttCollapsed',JSON.stringify(S.ganttCollapsed));
     render();
