@@ -1087,7 +1087,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 <body>
 
 <!-- Login Screen -->
-<div class="login-screen" id="loginScreen">
+<div class="login-screen" id="loginScreen" style="display:none">
   <div class="lock-bg"></div>
   <div class="login-card">
     <div class="lock-logo"><img src="icon-192.png" alt="Taskra"></div>
@@ -10175,7 +10175,7 @@ async function setupSB(){
 
     // ===== 認証状態の管理 =====
     const loginScreen=document.getElementById('loginScreen');
-    const showLogin=()=>{if(loginScreen)loginScreen.style.display='';};
+    const showLogin=()=>{if(loginScreen)loginScreen.style.display='flex';};
     const hideLogin=()=>{if(loginScreen)loginScreen.style.display='none';};
 
     // Googleサインインボタン
@@ -10187,7 +10187,7 @@ async function setupSB(){
         if(loadingEl)loadingEl.style.display='flex';
         await SB.auth.signInWithOAuth({
           provider:'google',
-          options:{redirectTo:location.origin+location.pathname,queryParams:{prompt:'select_account'}}
+          options:{redirectTo:location.origin+location.pathname}
         });
       });
     }
