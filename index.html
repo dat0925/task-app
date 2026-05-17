@@ -1509,7 +1509,7 @@ async function openMyPlan(){
         // プラン変更・解約（有料プランのみ表示）
         +(currentPlan!=='free'
           ?'<div>'
-            +'<button class="btn btn-ghost" id="my-plan-portal-btn" style="width:100%;font-size:13px;color:var(--text2)">プラン変更・解約はこちら →</button>'
+            +'<button class="btn btn-ghost" id="my-plan-portal-btn" style="width:100%;font-size:13px;color:var(--text2)">プランの管理・解約はこちら →</button>'
           +'</div>'
           :'')
 
@@ -1551,7 +1551,7 @@ async function openMyPlan(){
 
   // 「プラン変更・解約」ボタン
   const portalBtn=document.getElementById('my-plan-portal-btn');
-  if(portalBtn)portalBtn.addEventListener('click',()=>goToPortal(portalBtn,'プラン変更・解約はこちら →'));
+  if(portalBtn)portalBtn.addEventListener('click',()=>goToPortal(portalBtn,'プランの管理・解約はこちら →'));
 
   // 有料プランからの「アップグレード」ボタン（ポータル経由）
   const upgradePortalBtn=document.getElementById('plan-upgrade-portal-btn');
