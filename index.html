@@ -3940,7 +3940,7 @@ function getNavOrder(){
     const saved=JSON.parse(localStorage.getItem('bnav_order')||'null');
     if(Array.isArray(saved)&&saved.length)return saved;
   }catch(e){}
-  return['inbox','today','forecast','gantt','_sidebar','search','ai','_edit'];
+  return['inbox','today','forecast','_sidebar','search','ai','_edit'];
 }
 async function loadNavOrder(){
   try{
