@@ -1688,7 +1688,7 @@ async function openMyPlan(){
       try{
         const session=await window._SB.auth.getSession();
         const token=session?.data?.session?.access_token;
-        const res=await fetch(`${window._SB.supabaseUrl}/functions/v1/stripe-portal`,{
+        const res=await fetch('https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/stripe-portal',{
           method:'POST',
           headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
           body:JSON.stringify({return_url:location.href}),
