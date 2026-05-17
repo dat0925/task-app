@@ -4460,24 +4460,35 @@ function setupGanttDrag(){
       clearTimeout(lpTimer);
       const was=dragging;
       const t=e.changedTouches[0];
+      // ghostを先に非表示にしてからelementFromPointで正確な要素を取得
+      if(ghost){ghost.style.display='none';}
+      const el=document.elementFromPoint(t.clientX,t.clientY);
       if(ghost){ghost.remove();ghost=null;}
       if(activeEl){activeEl.style.opacity='';activeEl=null;}
-      if(!was){dragging=false;dragId=null;dragProjId=null;return;}
+      if(!was){dragging=false;dragId=null;dragProjId=null;_clearGanttInd();return;}
       dragging=false;
-      const el=document.elementFromPoint(t.clientX,t.clientY);
-      const target=el?.closest('[data-a="gantt-open"]');
       const id=dragId,projId=dragProjId;dragId=null;dragProjId=null;
+      // drop-before/drop-afterのついた行を優先して使う
+      const marked=document.querySelector('[data-a="gantt-open"].drop-before,[data-a="gantt-open"].drop-after');
+      const target=marked||el?.closest('[data-a="gantt-open"]');
       if(target&&target.dataset.id!==id&&target.dataset.projId===projId){
-        const r=target.getBoundingClientRect();
-        await _applyGanttDrop(id,target.dataset.id,t.clientY<r.top+r.height/2?'before':'after',projId);
+        const pos=target.classList.contains('drop-before')?'before':'after';
+        _clearGanttInd();
+        await _applyGanttDrop(id,target.dataset.id,pos,projId);
       } else _clearGanttInd();
     }
 
-    // namesColにpassive:falseでまとめてバインド（スクロール乗っ取りのため）
+    // namesColにpassive:falseでまとめてバインド
     namesCol.addEventListener('touchstart',onTouchStart,{passive:false});
     namesCol.addEventListener('touchmove',onTouchMove,{passive:false});
     namesCol.addEventListener('touchend',onTouchEnd,{passive:true});
+    // touchendがnamesCol外で起きた場合もdocumentで拾う
+    document.addEventListener('touchend',async e=>{
+      if(!dragging)return;
+      await onTouchEnd(e);
+    },{passive:true});
     namesCol.addEventListener('touchcancel',cancelG,{passive:true});
+    document.addEventListener('touchcancel',cancelG,{passive:true});
   }
 }
 
