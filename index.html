@@ -917,10 +917,11 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 }
 .trow:hover .task-drag-handle{opacity:.45}
 .task-drag-handle:active{cursor:grabbing}
-/* モバイルではドラッグハンドルを常時表示 */
+/* モバイルではドラッグハンドルを薄く常時表示 */
 @media (hover:none),(pointer:coarse){
   .task-drag-handle{
-    display:none;
+    display:flex;
+    opacity:.25;
   }
 }
 /* Drop indicators */
@@ -4478,12 +4479,19 @@ function setupSectionDrag(){
       }
       // passive:false にして touchmove 内での e.preventDefault() を有効化（iOS scroll乗っ取り防止）
       row.addEventListener('touchstart',e=>{
-        if(dragging)return;// ハンドルが既に開始している場合スキップ
+        if(dragging)return;
         if(e.target.closest('.task-drag-handle'))return;// ハンドルはハンドル側で処理
+        if(e.target.closest('.task-check,.task-flag,.cm-del'))return;// チェック・フラグ等は除外
         if(e.touches.length>1){cancelAll();return;}
         const t=e.touches[0];startX=t.clientX;startY=t.clientY;
-        // 行直接の長押しドラッグ無効（コンテキストメニュー経由に統一）
-        // ハンドルからの即ドラッグは上のhandle.addEventListener側で処理
+        // 長押しでドラッグ開始
+        lpTimer=setTimeout(()=>{
+          if(dragging)return;
+          navigator.vibrate?.(40);
+          dragId=row.dataset.id;
+          dragging=true;
+          spawnGhost(row,'task');
+        },LONG_MS);
       },{signal:sig,passive:false});
 
       row.addEventListener('touchmove',e=>{
