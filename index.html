@@ -1313,6 +1313,8 @@ document.addEventListener('touchstart',e=>{
     const id=_lpRow?.dataset.id;
     const a=_lpRow?.dataset.a;
     if(!id)return;
+    // ドラッグ中であればメニューを出さない
+    if(window.__taskDragging)return;
     if(a==='sel'){
       // 長押し → コンテキストメニュー
       const id=_lpRow?.dataset.id;
@@ -1324,7 +1326,7 @@ document.addEventListener('touchstart',e=>{
       if(titleEl){playSE('toggle');showNoteContextMenu(_lpRow,titleEl.dataset.noteTitleEdit);}
     }
     _lpRow=null;
-  },600);
+  },700);
 },{passive:true});
 document.addEventListener('touchmove',e=>{
   if(!_lpTimer)return;
@@ -4436,6 +4438,7 @@ function setupSectionDrag(){
     const LONG_MS=480,MOVE_LIM=12;
 
     function spawnGhost(el,ty){
+      window.__taskDragging=true;
       const rect=el.getBoundingClientRect();
       ghost=el.cloneNode(true);
       Object.assign(ghost.style,{
@@ -4454,6 +4457,7 @@ function setupSectionDrag(){
 
     function cancelAll(){
       clearTimeout(lpTimer);
+      window.__taskDragging=false;
       if(ghost){ghost.remove();ghost=null;}
       if(activeEl){activeEl.style.opacity='';activeEl=null;}
       if(window.__activeDragEl){window.__activeDragEl.style.opacity='';window.__activeDragEl=null;}
@@ -4487,6 +4491,7 @@ function setupSectionDrag(){
         // 長押しでドラッグ開始
         lpTimer=setTimeout(()=>{
           if(dragging)return;
+          _cancelLp(); // コンテキストメニューをキャンセル
           navigator.vibrate?.(40);
           dragId=row.dataset.id;
           dragging=true;
