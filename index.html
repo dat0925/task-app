@@ -4095,7 +4095,10 @@ function renderGantt(){
         // 完了日マーカー
         if(done&&t.completedAt){
           const cx=d2px(t.completedAt.slice(0,10));
-          barHtml+=`<div style="position:absolute;left:${cx}px;top:2px;width:2px;height:${ROW_H-4}px;background:#6b7280;opacity:.7;z-index:1;border-radius:1px"></div>`;
+          const cd=new Date(t.completedAt);
+          const cdLabel=`${cd.getMonth()+1}/${cd.getDate()}`;
+          barHtml+=`<div style="position:absolute;left:${cx}px;top:0;width:3px;height:${ROW_H}px;background:#10b981;opacity:.9;z-index:2;border-radius:1px" title="完了日: ${cdLabel}"></div>`;
+          barHtml+=`<div style="position:absolute;left:${cx+5}px;top:50%;transform:translateY(-50%);font-size:10px;color:#10b981;font-weight:700;z-index:2;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.15)" title="完了日">✓${cdLabel}</div>`;
         }
       }
       barRows+=`<div style="position:relative;height:${r.h}px;border-bottom:1px solid var(--border)${done?';background:rgba(0,0,0,.02)':''}">${barHtml}</div>`;
