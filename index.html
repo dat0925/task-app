@@ -9755,7 +9755,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
   },{passive:false});
 })();
 
-// ===== メカニカル打鍵音（電卓・PIN画面で共用） =====
+// ===== メカニカル打鍵音（電卓用） =====
 (function(){
   let _audioCtx=null;
   window.playClick=function(){
@@ -9976,6 +9976,55 @@ async function init(){
   }
 }
 init();
+</script>
+
+<script>
+// ===== Web Crypto API: PIN ハッシュ化ユーティリティ =====
+(function(){
+  const SALT='taskra-pin-salt-v1';
+  const PIN_KEY='focus_pin';
+  const PIN_HASHED_KEY='focus_pin_hashed';
+
+  // PIN文字列をSHA-256でハッシュ化して16進数文字列を返す
+  async function hashPin(pin){
+    const data=new TextEncoder().encode(pin+SALT);
+    const buf=await crypto.subtle.digest('SHA-256',data);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  // 既存の生PINをハッシュ化して移行（初回1回だけ実行）
+  async function migrateLegacyPin(){
+    const legacy=localStorage.getItem(PIN_KEY);
+    const alreadyMigrated=localStorage.getItem(PIN_HASHED_KEY);
+    if(legacy&&!alreadyMigrated){
+      const hashed=await hashPin(legacy);
+      localStorage.setItem(PIN_HASHED_KEY,hashed);
+      localStorage.removeItem(PIN_KEY); // 生のPINを削除
+      console.info('[Taskra] PIN migrated to hashed storage.');
+    }
+  }
+
+  // PINを検証する（入力値とハッシュ済み保存値を比較）
+  async function verifyPin(input){
+    const stored=localStorage.getItem(PIN_HASHED_KEY);
+    if(!stored)return false;
+    const hashed=await hashPin(input);
+    return hashed===stored;
+  }
+
+  // PINを新規保存（ハッシュ化して保存）
+  async function savePin(pin){
+    const hashed=await hashPin(pin);
+    localStorage.setItem(PIN_HASHED_KEY,hashed);
+    localStorage.removeItem(PIN_KEY); // 念のため生PINも削除
+  }
+
+  // グローバルに公開
+  window._pinUtil={hashPin,verifyPin,savePin};
+
+  // ページ読み込み時に移行処理を実行
+  migrateLegacyPin();
+})();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
