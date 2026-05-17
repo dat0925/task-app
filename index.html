@@ -6572,7 +6572,11 @@ else if(a==='scroll-to-comments'){
   else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent()}
   else if(a==='cm-del'){
     const cmId=el.dataset.cmid;
-    if(cmId&&S.taskId)await _cmDelete(cmId,S.taskId);
+    if(cmId&&S.taskId){
+      openConfirmModal('コメントを削除','このコメントを削除しますか？',async()=>{
+        await _cmDelete(cmId,S.taskId);
+      },'削除',true);
+    }
   }
   else if(a==='cm-edit'){
     const cmId=el.dataset.cmid;
