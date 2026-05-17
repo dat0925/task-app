@@ -5763,6 +5763,21 @@ function _cmSetupInput(taskId,comments){
   const cmLinkBtn=document.getElementById('cm-link-btn');
   if(cmLinkBtn)cmLinkBtn.onclick=e=>{e.stopPropagation();showLinkPopover(cmLinkBtn,'cm-input',false);};
   // 送信ボタンの活性制御（onclickで上書き）
+  inp.onfocus=()=>{
+    // iPadOS/iOS でフォーカス時にページが最上部へ飛ぶのを防ぐ
+    // drawer-body内でcm-inputが見えるよう、drawer-body側をスクロール
+    requestAnimationFrame(()=>{
+      setTimeout(()=>{
+        const drBody=document.getElementById('drawer')?.querySelector('.drawer-body');
+        if(!drBody)return;
+        const inputRect=inp.getBoundingClientRect();
+        const bodyRect=drBody.getBoundingClientRect();
+        if(inputRect.bottom>bodyRect.bottom-10){
+          drBody.scrollTop+=inputRect.bottom-bodyRect.bottom+24;
+        }
+      },350); // キーボードアニメーション待ち
+    });
+  };
   inp.oninput=()=>{
     btn.disabled=!inp.value.trim();
     inp.style.height='auto';
@@ -6466,7 +6481,20 @@ else if(a==='scroll-to-comments'){
     const jumpCount=document.getElementById('cm-jump-count');
     const isZero=jumpCount&&(jumpCount.textContent==='0'||jumpCount.textContent==='…');
     if(isZero&&cmInput){
-      setTimeout(()=>cmInput.focus(),300);
+      setTimeout(()=>{
+        cmInput.focus({preventScroll:true});
+        // フォーカス後、drawer-body内でcm-inputが見えるようスクロール
+        setTimeout(()=>{
+          const drBody2=document.getElementById('drawer')?.querySelector('.drawer-body');
+          if(drBody2){
+            const inputRect=cmInput.getBoundingClientRect();
+            const bodyRect=drBody2.getBoundingClientRect();
+            if(inputRect.bottom>bodyRect.bottom-10){
+              drBody2.scrollTop+=inputRect.bottom-bodyRect.bottom+20;
+            }
+          }
+        },100);
+      },300);
     } else {
       cmSection.style.transition='background .3s';
       cmSection.style.background='var(--accent-bg)';
