@@ -4351,10 +4351,11 @@ function renderContent(){
 function setupGanttDrag(){
   const namesCol=document.querySelector('.gantt-names-col');
   if(!namesCol)return;
-  const isMobile=window.innerWidth<=768;
+  // iPadはinnerWidthが大きくてもタッチデバイスなのでontouchstartで判定
+  const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 
-  if(!isMobile){
-    // ── PC: HTML5 D&D ──
+  if(!isTouch){
+    // ── PC(マウス): HTML5 D&D ──
     let dragId=null,dragProjId=null;
     namesCol.querySelectorAll('[data-gantt-drag]').forEach(handle=>{
       const row=handle.closest('[data-a="gantt-open"]');
@@ -4365,8 +4366,7 @@ function setupGanttDrag(){
     namesCol.addEventListener('dragstart',e=>{
       const row=e.target.closest('[data-a="gantt-open"]');
       if(!row)return;
-      dragId=row.dataset.id;
-      dragProjId=row.dataset.projId;
+      dragId=row.dataset.id;dragProjId=row.dataset.projId;
       setTimeout(()=>row.classList.add('dragging'),0);
       e.dataTransfer.effectAllowed='move';
     });
@@ -4374,33 +4374,33 @@ function setupGanttDrag(){
       if(!dragId)return;
       e.preventDefault();_clearGanttInd();
       const row=e.target.closest('[data-a="gantt-open"]');
-      if(!row||row.dataset.id===dragId)return;
-      if(row.dataset.projId!==dragProjId)return; // 別プロジェクトは不可
+      if(!row||row.dataset.id===dragId||row.dataset.projId!==dragProjId)return;
       const r=row.getBoundingClientRect();
       row.classList.add(e.clientY<r.top+r.height/2?'drop-before':'drop-after');
     });
     namesCol.addEventListener('drop',async e=>{
       e.preventDefault();
       const row=e.target.closest('[data-a="gantt-open"]');
-      const id=dragId;const projId=dragProjId;dragId=null;dragProjId=null;
+      const id=dragId,projId=dragProjId;dragId=null;dragProjId=null;
       if(!row||row.dataset.id===id||row.dataset.projId!==projId)return;
       const r=row.getBoundingClientRect();
       await _applyGanttDrop(id,row.dataset.id,e.clientY<r.top+r.height/2?'before':'after',projId);
     });
+
   } else {
-    // ── モバイル: 長押しタッチD&D ──
+    // ── タッチ(iPad/iPhone): documentレベルでtouchを拾う ──
     let ghost=null,dragId=null,dragProjId=null,dragging=false,lpTimer=null,activeEl=null;
     let startX=0,startY=0;
-    const LONG_MS=480,MOVE_LIM=12;
+    const LONG_MS=480,MOVE_LIM=10;
 
-    function spawnGhostG(el){
+    function spawnGhostG(el,ty){
       const rect=el.getBoundingClientRect();
       ghost=el.cloneNode(true);
       Object.assign(ghost.style,{
-        position:'fixed',zIndex:'9999',opacity:'.85',pointerEvents:'none',
-        width:rect.width+'px',left:rect.left+'px',top:(startY-rect.height/2)+'px',
+        position:'fixed',zIndex:'9999',opacity:'.88',pointerEvents:'none',
+        width:rect.width+'px',left:rect.left+'px',top:(ty-rect.height/2)+'px',
         boxShadow:'0 8px 28px rgba(0,0,0,.25)',borderRadius:'8px',
-        background:'var(--surface)',transform:'scale(1.03)'
+        background:'var(--bg)',transform:'scale(1.03)',transition:'none'
       });
       document.body.appendChild(ghost);
       el.style.opacity='.3';
@@ -4410,71 +4410,74 @@ function setupGanttDrag(){
       clearTimeout(lpTimer);
       if(ghost){ghost.remove();ghost=null;}
       if(activeEl){activeEl.style.opacity='';activeEl=null;}
-      _clearGanttInd();dragging=false;dragId=null;dragProjId=null;
+      _clearGanttInd();
+      dragging=false;dragId=null;dragProjId=null;
     }
 
-    namesCol.querySelectorAll('[data-a="gantt-open"]').forEach(row=>{
-      const handle=row.querySelector('[data-gantt-drag]');
-      // ハンドルタップ → 即ドラッグ
+    // touchstartをdocumentで拾ってganstt-open行を判定
+    function onTouchStart(e){
+      if(e.touches.length>1){cancelG();return;}
+      const t=e.touches[0];
+      startX=t.clientX;startY=t.clientY;
+      const handle=e.target.closest('[data-gantt-drag]');
+      const row=e.target.closest('[data-a="gantt-open"]');
+      if(!row)return;
       if(handle){
-        handle.addEventListener('touchstart',e=>{
-          if(e.touches.length>1){cancelG();return;}
-          e.preventDefault();e.stopPropagation();
-          const t=e.touches[0];startX=t.clientX;startY=t.clientY;
-          dragId=row.dataset.id;dragProjId=row.dataset.projId;
-          dragging=true;navigator.vibrate?.(30);
-          spawnGhostG(row);
-        },{passive:false});
-      }
-      // 行長押し → ドラッグ
-      row.addEventListener('touchstart',e=>{
-        if(dragging||e.target===handle)return;
-        if(e.touches.length>1){cancelG();return;}
-        const t=e.touches[0];startX=t.clientX;startY=t.clientY;
+        // ハンドル直接タップ → 即ドラッグ
+        e.preventDefault();
+        dragId=row.dataset.id;dragProjId=row.dataset.projId;
+        dragging=true;navigator.vibrate?.(30);
+        spawnGhostG(row,t.clientY);
+      } else {
+        // 行長押し → ドラッグ
         lpTimer=setTimeout(()=>{
           if(dragging)return;
           _cancelLp();
           navigator.vibrate?.(40);
           dragId=row.dataset.id;dragProjId=row.dataset.projId;
-          dragging=true;spawnGhostG(row);
+          dragging=true;spawnGhostG(row,startY);
         },LONG_MS);
-      },{passive:false});
+      }
+    }
+    function onTouchMove(e){
+      const t=e.touches[0];
+      if(!dragging){
+        if(Math.abs(t.clientX-startX)>MOVE_LIM||Math.abs(t.clientY-startY)>MOVE_LIM)clearTimeout(lpTimer);
+        return;
+      }
+      e.preventDefault();
+      if(ghost)ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';
+      _clearGanttInd();
+      // ghostをポインターイベント無効にして下の要素を取得
+      const el=document.elementFromPoint(t.clientX,t.clientY);
+      const target=el?.closest('[data-a="gantt-open"]');
+      if(target&&target!==activeEl&&target.dataset.projId===dragProjId){
+        const r=target.getBoundingClientRect();
+        target.classList.add(t.clientY<r.top+r.height/2?'drop-before':'drop-after');
+      }
+    }
+    async function onTouchEnd(e){
+      clearTimeout(lpTimer);
+      const was=dragging;
+      const t=e.changedTouches[0];
+      if(ghost){ghost.remove();ghost=null;}
+      if(activeEl){activeEl.style.opacity='';activeEl=null;}
+      if(!was){dragging=false;dragId=null;dragProjId=null;return;}
+      dragging=false;
+      const el=document.elementFromPoint(t.clientX,t.clientY);
+      const target=el?.closest('[data-a="gantt-open"]');
+      const id=dragId,projId=dragProjId;dragId=null;dragProjId=null;
+      if(target&&target.dataset.id!==id&&target.dataset.projId===projId){
+        const r=target.getBoundingClientRect();
+        await _applyGanttDrop(id,target.dataset.id,t.clientY<r.top+r.height/2?'before':'after',projId);
+      } else _clearGanttInd();
+    }
 
-      row.addEventListener('touchmove',e=>{
-        const t=e.touches[0];
-        if(!dragging){
-          if(Math.abs(t.clientX-startX)>MOVE_LIM||Math.abs(t.clientY-startY)>MOVE_LIM)clearTimeout(lpTimer);
-          return;
-        }
-        e.preventDefault();
-        if(ghost)ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';
-        _clearGanttInd();
-        const el=document.elementFromPoint(t.clientX,t.clientY);
-        const target=el?.closest('[data-a="gantt-open"]');
-        if(target&&target.dataset.id!==dragId&&target.dataset.projId===dragProjId){
-          const r=target.getBoundingClientRect();
-          target.classList.add(t.clientY<r.top+r.height/2?'drop-before':'drop-after');
-        }
-      },{passive:false});
-
-      row.addEventListener('touchend',async e=>{
-        clearTimeout(lpTimer);
-        const was=dragging;
-        if(ghost){ghost.remove();ghost=null;}
-        if(activeEl){activeEl.style.opacity='';activeEl=null;}
-        if(!was){dragging=false;dragId=null;dragProjId=null;return;}
-        dragging=false;
-        const t=e.changedTouches[0];
-        const el=document.elementFromPoint(t.clientX,t.clientY);
-        const target=el?.closest('[data-a="gantt-open"]');
-        const id=dragId,projId=dragProjId;dragId=null;dragProjId=null;
-        if(target&&target.dataset.id!==id&&target.dataset.projId===projId){
-          const r=target.getBoundingClientRect();
-          await _applyGanttDrop(id,target.dataset.id,t.clientY<r.top+r.height/2?'before':'after',projId);
-        }else _clearGanttInd();
-      },{passive:true});
-      row.addEventListener('touchcancel',cancelG,{passive:true});
-    });
+    // namesColにpassive:falseでまとめてバインド（スクロール乗っ取りのため）
+    namesCol.addEventListener('touchstart',onTouchStart,{passive:false});
+    namesCol.addEventListener('touchmove',onTouchMove,{passive:false});
+    namesCol.addEventListener('touchend',onTouchEnd,{passive:true});
+    namesCol.addEventListener('touchcancel',cancelG,{passive:true});
   }
 }
 
