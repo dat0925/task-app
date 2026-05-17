@@ -759,8 +759,6 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 /* Drop indicators */
 .trow.drop-before{box-shadow:inset 0 2px 0 var(--accent)}
 .trow.drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
-[data-a="gantt-open"].drop-before{box-shadow:inset 0 2px 0 var(--accent)}
-[data-a="gantt-open"].drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
 
 /* ===== VIEW HELP POPUP ===== */
 .vhelp-btn{
@@ -2368,7 +2366,7 @@ async function deleteProject(id){
   await dbDel('projects',id);
   S.projects=S.projects.filter(p=>p.id!==id);
 }
-function mkTask(o={}){const _t=today();const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();const base={id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_d3,startAt:_t,plannedStartAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o};if(!base.plannedStartAt)base.plannedStartAt=base.startAt;return base;}
+function mkTask(o={}){const _t=today();const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();return{id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_d3,startAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o}}
 async function dupTask(task){
   const newId=uid();
   const d={...task,id:newId,title:task.title+' (コピー)',createdAt:now(),updatedAt:now(),completedAt:null,order:Date.now()};
@@ -3945,7 +3943,6 @@ function renderGantt(){
   const scale=S.ganttScale||'week';
   const PX_MAP={day:36,week:11.43,month:3.2,year:0.7};
   const pxPerDay=PX_MAP[scale];
-  S._ganttPxPerDay=pxPerDay; // バードラッグ用にグローバル保持
   const NAMES_W=250;
   const ROW_H=40;
   const PROJ_H=36;
@@ -4009,8 +4006,7 @@ function renderGantt(){
   // 日付レンジ（折りたたまれていても全タスク対象）
   let minD=new Date(todayD),maxD=new Date(todayD);
   allT.forEach(t=>{
-    const ps=t.plannedStartAt||t.startAt;
-    if(ps){const d=new Date(ps);if(d<minD)minD=new Date(d);}
+    if(t.startAt){const d=new Date(t.startAt);if(d<minD)minD=new Date(d);}
     if(t.dueAt){const d=new Date(t.dueAt);if(d>maxD)maxD=new Date(d);}
     if(t.completedAt){const d=new Date(t.completedAt.slice(0,10));if(d>maxD)maxD=new Date(d);}
   });
@@ -4020,7 +4016,6 @@ function renderGantt(){
   // ヘッダーセルと仕切り線の座標系を一致させるためスケール境界に揃える
   if(scale==='week') minD.setDate(minD.getDate()-((minD.getDay()+6)%7));
   else if(scale==='month') minD.setDate(1);
-  S._ganttMinD=minD; // バードラッグ用にグローバル保持
   else if(scale==='year'){minD.setDate(1);minD.setMonth(0);}
   const timelineW=Math.max(Math.ceil((maxD-minD)/86400000*pxPerDay),400);
   const d2px=d=>(new Date(d)-minD)/86400000*pxPerDay;
@@ -4064,7 +4059,7 @@ function renderGantt(){
       // プロジェクトサマリーバー（全タスクのspan）
       const allProjTasks=[...projGroups[r.pid].parents,...projGroups[r.pid].parents.flatMap(p=>childMap[p.id]||[])];
       let pMin=null,pMax=null;
-      allProjTasks.forEach(t=>{const ps=t.plannedStartAt||t.startAt;if(ps){const d=new Date(ps);if(!pMin||d<pMin)pMin=d;}if(t.dueAt){const d=new Date(t.dueAt);if(!pMax||d>pMax)pMax=d;}});
+      allProjTasks.forEach(t=>{if(t.startAt){const d=new Date(t.startAt);if(!pMin||d<pMin)pMin=d;}if(t.dueAt){const d=new Date(t.dueAt);if(!pMax||d>pMax)pMax=d;}});
       let pBar='';
       if(pMin&&pMax){
         const bx=d2px(pMin),bw=Math.max(d2px(pMax)+pxPerDay-bx,6),bh=5,bt=(r.h-bh)/2;
@@ -4088,14 +4083,13 @@ function renderGantt(){
         +doneBadge
         +'</div>';
       let barHtml='';
-      const barStart=t.plannedStartAt||t.startAt;
-      if(barStart&&t.dueAt){
-        const bx=d2px(barStart),bw=Math.max(d2px(t.dueAt)+pxPerDay-bx,8);
+      if(t.startAt&&t.dueAt){
+        const bx=d2px(t.startAt),bw=Math.max(d2px(t.dueAt)+pxPerDay-bx,8);
         const bh=isP?14:16,bt=(ROW_H-bh)/2;
         const proj=S.projects.find(p=>p.id===t.projectId);
         const barCol=done?'#9ca3af':(proj?.color||'var(--accent)');
         const op=done?'0.5':'1';
-        barHtml=`<div class="gantt-bar-drag" data-task-id="${t.id}" style="position:absolute;left:${bx}px;width:${bw}px;height:${bh}px;top:${bt}px;background:${barCol};opacity:${op};border-radius:3px;overflow:hidden;cursor:ew-resize${done?';background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.15) 0,rgba(255,255,255,.15) 4px,transparent 4px,transparent 8px)':''}" title="${esc(t.title)}（計画開始: ${barStart}）">`
+        barHtml=`<div style="position:absolute;left:${bx}px;width:${bw}px;height:${bh}px;top:${bt}px;background:${barCol};opacity:${op};border-radius:3px;overflow:hidden${done?';background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.15) 0,rgba(255,255,255,.15) 4px,transparent 4px,transparent 8px)':''}" title="${esc(t.title)}">`
           +`<span class="gantt-bar-label">${done?'✓ ':''} ${esc(t.title)}</span>`
           +'</div>';
         // 完了日マーカー
@@ -4188,7 +4182,6 @@ function renderContent(){
     const _prevScrollTop=_ganttArea?_ganttArea.scrollTop:0;
     el.innerHTML=renderGantt();
     setupGanttDrag();
-    setupGanttBarDrag(S._ganttMinD,S._ganttPxPerDay);
     requestAnimationFrame(()=>{
       const a=document.getElementById('gantt-area');
       if(!a)return;
@@ -4206,133 +4199,6 @@ function renderContent(){
   initTaskSwipe(el);
 }
 
-
-// ===== GANTT BAR DRAG（バーを横ドラッグしてplannedStartAtを変更）=====
-function setupGanttBarDrag(minD,pxPerDay){
-  const barsArea=document.querySelector('.gantt-bars-area');
-  if(!barsArea)return;
-  const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
-  let dragging=false,taskId=null,startX=0,origPlannedStart=null,indicator=null;
-
-  function px2date(px){
-    const ms=minD.getTime()+px/pxPerDay*86400000;
-    const d=new Date(ms);
-    return d.toISOString().slice(0,10);
-  }
-  function spawnIndicator(bar){
-    indicator=document.createElement('div');
-    Object.assign(indicator.style,{
-      position:'fixed',background:'var(--accent)',color:'#fff',fontSize:'11px',fontWeight:'700',
-      padding:'2px 6px',borderRadius:'4px',zIndex:'9999',pointerEvents:'none',whiteSpace:'nowrap',
-      boxShadow:'0 2px 8px rgba(0,0,0,.2)'
-    });
-    document.body.appendChild(indicator);
-  }
-  function updateIndicator(date,cx,cy){
-    if(!indicator)return;
-    indicator.textContent='📅 計画開始: '+date;
-    indicator.style.left=(cx+12)+'px';
-    indicator.style.top=(cy-20)+'px';
-  }
-  function removeIndicator(){if(indicator){indicator.remove();indicator=null;}}
-
-  async function commitDrag(newDate){
-    removeIndicator();
-    if(!taskId)return;
-    const task=S.tasks.find(t=>t.id===taskId);
-    if(!task)return;
-    task.plannedStartAt=newDate;
-    await saveTask(task);
-    render();
-  }
-
-  if(!isTouch){
-    barsArea.addEventListener('mousedown',e=>{
-      const bar=e.target.closest('.gantt-bar-drag');
-      if(!bar)return;
-      taskId=bar.dataset.taskId;
-      const task=S.tasks.find(t=>t.id===taskId);
-      if(!task)return;
-      origPlannedStart=task.plannedStartAt||task.startAt;
-      startX=e.clientX;
-      dragging=true;
-      bar.style.cursor='grabbing';
-      spawnIndicator(bar);
-      e.preventDefault();
-    });
-    document.addEventListener('mousemove',e=>{
-      if(!dragging||!taskId)return;
-      const task=S.tasks.find(t=>t.id===taskId);
-      if(!task)return;
-      const dx=e.clientX-startX;
-      const origPx=barsArea.getBoundingClientRect().left;
-      // バーの現在left値を取得してオフセット計算
-      const bar=barsArea.querySelector(`.gantt-bar-drag[data-task-id="${taskId}"]`);
-      if(bar){
-        const currentLeft=parseFloat(bar.style.left)||0;
-        const newLeft=currentLeft+dx;
-        bar.style.left=newLeft+'px';
-        startX=e.clientX;
-        const scrollLeft=document.getElementById('gantt-area')?.scrollLeft||0;
-        const newDate=px2date(newLeft+scrollLeft-barsArea.getBoundingClientRect().left+document.getElementById('gantt-area').getBoundingClientRect().left);
-        updateIndicator(px2date(newLeft),e.clientX,e.clientY);
-      }
-    });
-    document.addEventListener('mouseup',async e=>{
-      if(!dragging)return;
-      dragging=false;
-      const bar=barsArea.querySelector(`.gantt-bar-drag[data-task-id="${taskId}"]`);
-      if(bar){
-        const ganttArea=document.getElementById('gantt-area');
-        const areaRect=barsArea.getBoundingClientRect();
-        const scrollLeft=ganttArea?.scrollLeft||0;
-        const barLeft=parseFloat(bar.style.left)||0;
-        // barLeftはbarsArea相対のpx → minDからのpx
-        const newDate=px2date(barLeft);
-        await commitDrag(newDate);
-      }
-      taskId=null;origPlannedStart=null;
-    });
-  } else {
-    // タッチ版
-    barsArea.addEventListener('touchstart',e=>{
-      const bar=e.target.closest('.gantt-bar-drag');
-      if(!bar)return;
-      if(e.touches.length>1)return;
-      taskId=bar.dataset.taskId;
-      const task=S.tasks.find(t=>t.id===taskId);
-      if(!task)return;
-      origPlannedStart=task.plannedStartAt||task.startAt;
-      startX=e.touches[0].clientX;
-      dragging=true;
-      spawnIndicator(bar);
-      e.stopPropagation();
-    },{passive:true});
-    barsArea.addEventListener('touchmove',e=>{
-      if(!dragging||!taskId)return;
-      e.preventDefault();
-      const dx=e.touches[0].clientX-startX;
-      const bar=barsArea.querySelector(`.gantt-bar-drag[data-task-id="${taskId}"]`);
-      if(bar){
-        const currentLeft=parseFloat(bar.style.left)||0;
-        const newLeft=currentLeft+dx;
-        bar.style.left=newLeft+'px';
-        startX=e.touches[0].clientX;
-        updateIndicator(px2date(newLeft),e.touches[0].clientX,e.touches[0].clientY);
-      }
-    },{passive:false});
-    barsArea.addEventListener('touchend',async e=>{
-      if(!dragging)return;
-      dragging=false;
-      const bar=barsArea.querySelector(`.gantt-bar-drag[data-task-id="${taskId}"]`);
-      if(bar){
-        const newDate=px2date(parseFloat(bar.style.left)||0);
-        await commitDrag(newDate);
-      }
-      taskId=null;origPlannedStart=null;
-    },{passive:true});
-  }
-}
 
 // ===== GANTT DRAG & DROP（同一プロジェクト内の親タスク並び替え）=====
 function setupGanttDrag(){
@@ -5451,10 +5317,9 @@ function renderDrawer(){
       +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">'
-        +'<div><label class="flabel">開始日 <span style="font-size:10px;color:var(--text3);font-weight:400">（スヌーズ）</span></label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="'+dateInputStyle(task.startAt)+'"><span id="dt-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.startAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button></div></div>'
+        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="'+dateInputStyle(task.startAt)+'"><span id="dt-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.startAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button></div></div>'
         +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="'+dateInputStyle(task.dueAt)+'"><span id="dt-due-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.dueAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.dueAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="-1">-1月</button></div></div>'
       +'</div>'
-      +'<div style="margin-bottom:8px"><label class="flabel">計画開始日 <span style="font-size:10px;color:var(--text3);font-weight:400">（ガント表示用）</span></label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-planned-start" value="'+esc(task.plannedStartAt||task.startAt||'')+'" style="'+dateInputStyle(task.plannedStartAt||task.startAt)+'"><span style="font-size:13px;font-weight:800;color:'+wdColor(task.plannedStartAt||task.startAt)+';white-space:nowrap;flex-shrink:0" id="dt-planned-start-wd">('+(wdStr(task.plannedStartAt||task.startAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="planned-start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-months="1">+1月</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-months="-1">-1月</button></div></div>'
       +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:flex;gap:3px;align-items:center;margin-bottom:3px"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button><button class="date-adj-btn" data-a="start-time-adj-min" data-mins="10">+10m</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button><button class="date-adj-btn" data-a="start-time-zero-min">分00</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px"><button class="date-adj-btn" data-a="start-time-set" data-hhmm="09:00">9:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="12:00">12:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="15:00">15:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="18:00">18:00</button></div></div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
@@ -5631,7 +5496,6 @@ function renderDrawer(){
       t2.notes=document.getElementById('dt-notes')?.value||'';
       t2.dueAt=document.getElementById('dt-due')?.value||null;
       t2.startAt=document.getElementById('dt-start')?.value||null;
-      t2.plannedStartAt=document.getElementById('dt-planned-start')?.value||t2.startAt||null;
       t2.startTime=document.getElementById('dt-start-time')?.value||null;
       t2.projectId=document.getElementById('dt-proj')?.value||null;
       t2.repeatRule=getRepeatRule();
@@ -5763,7 +5627,7 @@ function renderDrawer(){
     el.addEventListener('input',()=>{autosave();});
   });
   // 日付・セレクトはcomposition不要
-  ['dt-due','dt-start','dt-start-time','dt-proj','dt-repeat','dt-planned-start'].forEach(id=>{
+  ['dt-due','dt-start','dt-start-time','dt-proj','dt-repeat'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('change',()=>{
       if(id==='dt-repeat'&&el.value&&isPlanFree()){
@@ -5798,11 +5662,6 @@ function renderDrawer(){
       autosave(true);
       if(id==='dt-due'||id==='dt-start'){
         const wd=document.getElementById('dt-'+( id==='dt-due'?'due':'start')+'-wd');
-        if(wd){wd.textContent='('+(wdStr(el.value).replace('曜','')||'　')+')';wd.style.color=wdColor(el.value);}
-        applyDateInputStyle(el,el.value);
-      }
-      if(id==='dt-planned-start'){
-        const wd=document.getElementById('dt-planned-start-wd');
         if(wd){wd.textContent='('+(wdStr(el.value).replace('曜','')||'　')+')';wd.style.color=wdColor(el.value);}
         applyDateInputStyle(el,el.value);
       }
@@ -6953,7 +6812,7 @@ else if(a==='scroll-to-comments'){
     const field=el.dataset.field;
     const days=parseInt(el.dataset.days||'0');
     const months=parseInt(el.dataset.months||'0');
-    const inputId=field==='start'?'dt-start':field==='planned-start'?'dt-planned-start':'dt-due';
+    const inputId=field==='start'?'dt-start':'dt-due';
     const input=el.closest('.expand-modal')?.querySelector('#'+inputId)||document.getElementById(inputId);
     if(!input)return;
     let base;
@@ -6963,39 +6822,38 @@ else if(a==='scroll-to-comments'){
       if(days)base.setUTCDate(base.getUTCDate()+days);
       if(months)base.setUTCMonth(base.getUTCMonth()+months);
     }else{
+      // 空欄の場合は「今日」を初期値にする（+1日は次のクリックから）
       const n=new Date();
       base=new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
+      // 月単位の調整は空欄からでも適用
       if(months)base.setUTCMonth(base.getUTCMonth()+months);
     }
     const newVal=base.toISOString().slice(0,10);
     input.value=newVal;
     applyDateInputStyle(input,newVal);
-    const wdId=field==='planned-start'?'dt-planned-start-wd':'dt-'+field+'-wd';
-    document.querySelectorAll('#'+wdId).forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
+    document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
       if(field==='start'){
         task.startAt=newVal;
+        // 開始日変更時は開始時間をクリア
         task.startTime=null;
         const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
         if(sti)sti.value='';
       }
-      else if(field==='planned-start')task.plannedStartAt=newVal;
       else task.dueAt=newVal;
       await saveTask(task);
     }
   }
   else if(a==='date-clear'){
     const field=el.dataset.field;
-    const inputId=field==='start'?'dt-start':field==='planned-start'?'dt-planned-start':'dt-due';
+    const inputId=field==='start'?'dt-start':'dt-due';
     const input=el.closest('.expand-modal')?.querySelector('#'+inputId)||document.getElementById(inputId);
     if(input){input.value='';applyDateInputStyle(input,'');}
-    const wdId=field==='planned-start'?'dt-planned-start-wd':'dt-'+field+'-wd';
-    document.querySelectorAll('#'+wdId).forEach(s=>s.textContent='');
+    document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>s.textContent='');
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
       if(field==='start'){task.startAt=null;task.startTime=null;const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';}
-      else if(field==='planned-start')task.plannedStartAt=null;
       else task.dueAt=null;
       await saveTask(task);
     }
@@ -10185,7 +10043,7 @@ async function setupSB(){
     window._SB=SB;
 
     // カラム名マッピング（JS camelCase ↔ DB snake_case）
-    const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',plannedStartAt:'planned_start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order',workspaceId:'workspace_id'};
+    const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order',workspaceId:'workspace_id'};
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_'))continue;r[TO[k]||k]=v;}return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
