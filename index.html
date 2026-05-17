@@ -4251,7 +4251,7 @@ function renderGantt(){
   const scaleBtns=scales.map(([k,l])=>`<button class="gantt-scale-btn${scale===k?' on':''}" data-a="gantt-scale" data-scale="${k}">${l}</button>`).join('');
 
   return `<div class="gantt-outer">`
-    +`<div class="gantt-toolbar"><div style="display:flex;gap:4px">${scaleBtns}</div><button class="gantt-help-btn" data-a="gantt-help">？</button></div>`
+    +`<div class="gantt-toolbar"><div style="display:flex;gap:4px">${scaleBtns}</div><div style="display:flex;gap:4px;margin-left:auto"><button class="gantt-scale-btn" data-a="gantt-expand-all" title="全て展開">全開</button><button class="gantt-scale-btn" data-a="gantt-collapse-all" title="全て折りたたむ">全閉</button></div><button class="gantt-help-btn" data-a="gantt-help" style="margin-left:6px">？</button></div>`
     +`<div class="gantt-area" id="gantt-area">`
       +`<div class="gantt-names-col" style="width:${NAMES_W}px">`
         +`<div class="gantt-name-head">タスク</div>`
@@ -6403,6 +6403,22 @@ document.addEventListener('click',async e=>{
   }
   
   else if(a==='gantt-scale'){S.ganttScale=el.dataset.scale;render();scrollGanttToToday();}
+  else if(a==='gantt-expand-all'){
+    S.ganttCollapsed={};
+    localStorage.setItem('ganttCollapsed',JSON.stringify(S.ganttCollapsed));
+    render();
+  }
+  else if(a==='gantt-collapse-all'){
+    // 全プロジェクトキーと全親タスクキーをcollapsed=trueに
+    const gc={};
+    const parents=S.tasks.filter(t=>!t.parentTaskId&&t.status!=='done'&&S.tasks.some(c=>c.parentTaskId===t.id&&c.status!=='done'));
+    const projIds=[...new Set(S.tasks.filter(t=>t.parentTaskId==null&&S.tasks.some(c=>c.parentTaskId===t.id)).map(t=>t.projectId||'__none__'))];
+    projIds.forEach(pid=>gc['proj_'+pid]=true);
+    parents.forEach(p=>gc['task_'+p.id]=true);
+    S.ganttCollapsed=gc;
+    localStorage.setItem('ganttCollapsed',JSON.stringify(S.ganttCollapsed));
+    render();
+  }
   else if(a==='gantt-toggle'){
     const id=el.dataset.id;if(!id)return;
     S.ganttCollapsed=Object.assign({},S.ganttCollapsed);
