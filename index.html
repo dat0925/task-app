@@ -998,6 +998,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .login-loading{font-size:13px;color:var(--text3);margin-top:16px;display:none;align-items:center;gap:6px}
 .login-loading-spinner{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 .login-sub{font-size:12px;color:var(--text3);margin-top:14px;text-align:center;max-width:260px;line-height:1.6}
+.google-switch-btn{background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;margin-top:10px;padding:4px 8px;border-radius:6px;transition:color .15s;-webkit-tap-highlight-color:rgba(0,0,0,0)}.google-switch-btn:hover{color:var(--accent)}
 .login-back-link{display:inline-block;margin-top:24px;font-size:13px;color:var(--text3);text-decoration:none;transition:color .15s}.login-back-link:hover{color:var(--accent)}
 /* ===== PLAN BANNER ===== */
 .plan-banner{margin:8px 6px 4px;padding:10px 12px;border-radius:9px;background:linear-gradient(135deg,var(--accent-bg),#f5f7ff);border:1px solid rgba(79,70,229,.2);cursor:pointer;transition:background .15s}
@@ -1099,6 +1100,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
     </button>
     <div class="login-loading" id="login-loading"><div class="login-loading-spinner"></div>サインイン処理中...</div>
     <div class="login-sub">Googleアカウントでかんたんにご利用いただけます</div>
+    <button class="google-switch-btn" id="google-switch-btn">別のアカウントでサインイン</button>
     <a href="https://taskra.jp" class="login-back-link">← サービスサイトに戻る</a>
   </div>
 </div>
@@ -10213,16 +10215,17 @@ async function setupSB(){
     // Googleサインインボタン
     const signinBtn=document.getElementById('google-signin-btn');
     const loadingEl=document.getElementById('login-loading');
-    if(signinBtn){
-      signinBtn.addEventListener('click',async()=>{
-        signinBtn.disabled=true;
-        if(loadingEl)loadingEl.style.display='flex';
-        await SB.auth.signInWithOAuth({
-          provider:'google',
-          options:{redirectTo:location.origin+location.pathname}
-        });
-      });
-    }
+    const switchBtn=document.getElementById('google-switch-btn');
+    const _doSignIn=async(selectAccount)=>{
+      if(signinBtn)signinBtn.disabled=true;
+      if(switchBtn)switchBtn.disabled=true;
+      if(loadingEl)loadingEl.style.display='flex';
+      const opts={redirectTo:location.origin+location.pathname};
+      if(selectAccount)opts.queryParams={prompt:'select_account'};
+      await SB.auth.signInWithOAuth({provider:'google',options:opts});
+    };
+    if(signinBtn)signinBtn.addEventListener('click',()=>_doSignIn(false));
+    if(switchBtn)switchBtn.addEventListener('click',()=>_doSignIn(true));
 
     // 初回セッション確認（getSession()を正とする。onAuthStateChangeのINITIAL_SESSIONは使わない）
     const{data:{session}}=await SB.auth.getSession();
