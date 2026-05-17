@@ -246,7 +246,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-unit-label{position:absolute;font-size:9px;font-weight:600;color:rgba(30,58,138,.5);letter-spacing:.03em;top:-1px;pointer-events:none;line-height:1}
 
 .calc-drawer .calc-result-wrap{cursor:pointer;display:flex;justify-content:flex-end}
-/* Dark pad base (same feel as .lock-pad) */
+
 .calc-pad-wrap{background:#bfdbfe;padding:8px;border-radius:16px;display:flex;flex-direction:column;gap:5px;box-shadow:0 2px 0 #93c5fd,0 4px 12px rgba(37,99,235,.15),inset 0 1px 0 rgba(255,255,255,.7)}
 .calc-drawer .calc-grid{gap:5px}
 .calc-drawer .calc-action-row,.calc-drawer .calc-util-flat-row,.calc-drawer .calc-bottom-row{gap:5px;margin-bottom:0}
@@ -481,175 +481,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   html.browser-mode .qabar{bottom:var(--nav-h)}
   html.browser-mode .content{padding-bottom:calc(var(--nav-h))}
 }
-/* Lock screen */
-.lock-screen{
-  position:fixed;inset:0;z-index:9999;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:var(--bg);
-  overflow:hidden;
-}
-.lock-bg{
-  position:absolute;inset:0;pointer-events:none;overflow:hidden;
-}
-.lock-bg::before{
-  content:'';position:absolute;
-  width:480px;height:480px;
-  background:radial-gradient(circle, rgba(59,130,246,.18) 0%, transparent 70%);
-  top:-80px;left:50%;transform:translateX(-50%);
-  border-radius:50%;
-}
-.lock-bg::after{
-  content:'';position:absolute;
-  width:320px;height:320px;
-  background:radial-gradient(circle, rgba(6,182,212,.13) 0%, transparent 70%);
-  bottom:60px;left:50%;transform:translateX(-50%);
-  border-radius:50%;
-}
-.lock-card{
-  display:flex;flex-direction:column;align-items:center;
-  gap:0;
-  position:relative;z-index:1;
-  animation:lockIn .5s cubic-bezier(.34,1.56,.64,1) both;
-}
-@keyframes lockIn{
-  from{opacity:0;transform:translateY(24px) scale(.96)}
-  to{opacity:1;transform:translateY(0) scale(1)}
-}
-.lock-logo{
-  width:72px;height:72px;
-  border-radius:22px;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 8px 32px rgba(59,130,246,.35),0 2px 8px rgba(0,0,0,.15);
-  margin-bottom:20px;
-  overflow:hidden;
-}
-.lock-logo img{width:100%;height:100%;object-fit:cover;display:block;border-radius:22px}
-.lock-title{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:5px}
-.lock-sub{font-size:13px;color:var(--text3);margin-bottom:28px;font-weight:400}
-.lock-dots{display:flex;gap:14px;margin-bottom:8px}
-.lock-dot{
-  width:13px;height:13px;border-radius:50%;
-  border:2px solid var(--border);
-  background:transparent;
-  transition:all .2s cubic-bezier(.34,1.56,.64,1);
-}
-.lock-dot.filled{
-  background:var(--accent);
-  border-color:var(--accent);
-  transform:scale(1.15);
-  box-shadow:0 0 8px rgba(79,70,229,.5);
-}
-.lock-err{
-  color:var(--p1);font-size:12px;font-weight:600;
-  min-height:18px;margin-top:6px;margin-bottom:14px;
-  letter-spacing:.2px;
-}
-.lock-pad{
-  display:grid;grid-template-columns:repeat(3,80px);
-  gap:12px;
-  /* ベースプレート：キーの土台となるグレーの板 */
-  background:#1a1a1a;
-  padding:16px;
-  border-radius:16px;
-  box-shadow:
-    0 2px 0 #0a0a0a,
-    0 4px 12px rgba(0,0,0,.6),
-    inset 0 1px 0 rgba(255,255,255,.04);
-}
-/* キーの「軸＋ステム」部分：押し込み量を表現するラッパー */
-.lock-key-wrap{
-  position:relative;
-  height:80px;
-}
-.lock-key{
-  width:80px;
-  height:80px;
-  border-radius:8px;
-  font-size:24px;font-weight:700;
-  cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:3px;
-  touch-action:manipulation;
-  -webkit-tap-highlight-color:rgba(0,0,0,0);
-  position:relative;
-  border:none;outline:none;
-  /* キーキャップ上面：ライティングで立体感 */
-  background:
-    linear-gradient(175deg,
-      #525252 0%,
-      #3e3e3e 35%,
-      #2e2e2e 70%,
-      #252525 100%);
-  color:#cccccc;
-  /* 深いストローク：14px分の「壁」 */
-  box-shadow:
-    /* 底面（一番暗い）*/
-    0 14px 0 0 #0d0d0d,
-    /* 側面グラデーション（立体の壁） */
-    0 13px 0 0 #161616,
-    0 11px 0 0 #1c1c1c,
-    0 9px  0 0 #222222,
-    0 7px  0 0 #282828,
-    /* ドロップシャドウ */
-    0 16px 8px rgba(0,0,0,.7),
-    /* キャップ上面のエッジハイライト */
-    inset 0 1px 0 rgba(255,255,255,.18),
-    inset 1px 0 0 rgba(255,255,255,.08),
-    inset -1px 0 0 rgba(0,0,0,.5),
-    inset 0 -2px 0 rgba(0,0,0,.5);
-  transform:translateY(0);
-  transition:transform .07s cubic-bezier(.25,.1,.25,1),
-             box-shadow .07s cubic-bezier(.25,.1,.25,1);
-  border-top:1px solid rgba(255,255,255,.2);
-  border-left:1px solid rgba(255,255,255,.08);
-  border-right:1px solid rgba(0,0,0,.6);
-  border-bottom:1px solid rgba(0,0,0,.7);
-  letter-spacing:-.5px;
-  /* テクスチャ感：微細なグレイン */
-  image-rendering:crisp-edges;
-}
-/* 完全に押し込んだ状態：14px沈んで壁が消える */
-.lock-key.pressed{
-  transform:translateY(13px);
-  box-shadow:
-    0 1px 0 0 #0d0d0d,
-    0 3px 4px rgba(0,0,0,.6),
-    inset 0 2px 3px rgba(0,0,0,.5),
-    inset 0 1px 0 rgba(0,0,0,.3),
-    inset 1px 0 0 rgba(0,0,0,.3),
-    inset -1px 0 0 rgba(0,0,0,.3);
-  background:
-    linear-gradient(175deg,
-      #3a3a3a 0%,
-      #2e2e2e 40%,
-      #262626 100%);
-  border-top-color:rgba(255,255,255,.06);
-}
-.lock-key-sub{
-  font-size:7px;font-weight:800;letter-spacing:2px;
-  color:#666;line-height:1;
-  text-transform:uppercase;
-}
-.lock-key.del-key{
-  font-size:18px;
-  color:#999;
-  letter-spacing:0;
-}
-.lock-face-btn{
-  margin-top:20px;
-  display:none;
-  flex-direction:column;align-items:center;gap:5px;
-  background:none;border:none;cursor:pointer;
-  color:var(--text3);font-size:12px;font-weight:500;
-  padding:8px 16px;border-radius:10px;
-  transition:color .15s,background .15s;
-}
-.lock-face-btn:hover{color:var(--text);background:var(--bg2)}
-.lock-face-icon{font-size:26px;line-height:1}
-.lock-biometric-hint{
-  font-size:11px;color:var(--text3);margin-top:4px;
-  min-height:16px;text-align:center;
-}
+
 /* Autosave indicator */
 .autosave-ind{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;transition:opacity .3s}
 .autosave-ind.saving{color:var(--yellow)}
@@ -1106,41 +938,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   </div>
 </div>
 
-<!-- Lock Screen -->
-<div class="lock-screen" id="lockScreen" style="display:none!important">
-  <div class="lock-bg"></div>
-  <div class="lock-card">
-    <div class="lock-logo"><img src="icon-192.png" alt="Taskra"></div>
-    <div class="lock-title">Taskra</div>
-    <div class="lock-sub">PINを入力してください</div>
-    <div class="lock-dots" id="lockDots">
-      <div class="lock-dot" id="ld0"></div>
-      <div class="lock-dot" id="ld1"></div>
-      <div class="lock-dot" id="ld2"></div>
-      <div class="lock-dot" id="ld3"></div>
-    </div>
-    <div class="lock-err" id="lockErr"></div>
-    <div class="lock-pad">
-      <button class="lock-key" data-k="1"><span>1</span><span class="lock-key-sub"></span></button>
-      <button class="lock-key" data-k="2"><span>2</span><span class="lock-key-sub">ABC</span></button>
-      <button class="lock-key" data-k="3"><span>3</span><span class="lock-key-sub">DEF</span></button>
-      <button class="lock-key" data-k="4"><span>4</span><span class="lock-key-sub">GHI</span></button>
-      <button class="lock-key" data-k="5"><span>5</span><span class="lock-key-sub">JKL</span></button>
-      <button class="lock-key" data-k="6"><span>6</span><span class="lock-key-sub">MNO</span></button>
-      <button class="lock-key" data-k="7"><span>7</span><span class="lock-key-sub">PQRS</span></button>
-      <button class="lock-key" data-k="8"><span>8</span><span class="lock-key-sub">TUV</span></button>
-      <button class="lock-key" data-k="9"><span>9</span><span class="lock-key-sub">WXYZ</span></button>
-      <button class="lock-key del-key" data-k="del">⌫</button>
-      <button class="lock-key" data-k="0"><span>0</span><span class="lock-key-sub">+</span></button>
-      <button class="lock-key del-key" data-k="clr" title="クリア"><span style="font-size:13px;font-weight:700;letter-spacing:0">CLR</span></button>
-    </div>
-    <button class="lock-face-btn" id="face-id-btn" style="display:none" title="顔認証">
-      <span class="lock-face-icon">🔓</span>
-      <span>顔認証でロック解除</span>
-    </button>
-    <div class="lock-biometric-hint" id="biometric-hint"></div>
-  </div>
-</div>
+
 <div class="sov" id="sov"></div>
 <div class="toast-wrap" id="toasts"></div>
 
@@ -8929,19 +8727,10 @@ function openSettingsModal(){
   if(document.querySelector('.overlay #s-close'))return;
   const ov=document.createElement('div');ov.className='overlay';
   const aiEnabled=getSetting('aiChat',true);
-  const lockEnabled=localStorage.getItem('focus_lock_enabled')!=='false';
   const seEnabled=getSetting('soundFx',true);
   const planLabel=getPlanDef().label;
   ov.innerHTML='<div class="modal" style="max-width:360px">'
     +'<div class="modal-title" style="display:flex;align-items:center;justify-content:space-between">設定<button class="icon-btn" id="s-close" style="width:28px;height:28px;font-size:18px;border-radius:6px;flex-shrink:0">✕</button></div>'
-    +'<div class="settings-row" style="display:none">'
-      +'<div><div class="settings-label">🔒 パスワードロック</div><div class="settings-sub">起動時にPINを要求する</div></div>'
-      +'<button class="tog'+(lockEnabled?' on':'')+'" id="s-lock-tog"></button>'
-    +'</div>'
-    +'<div class="settings-row" id="s-pin-row" style="display:none">'
-      +'<div><div class="settings-label">PINを変更</div><div class="settings-sub">4桁の数字</div></div>'
-      +'<button class="btn btn-ghost" id="s-pin-edit" style="font-size:12px;flex-shrink:0">変更</button>'
-    +'</div>'
     +'<div class="settings-row">'
       +'<div><div class="settings-label">AIチャット</div><div class="settings-sub">現在のプラン: '+planLabel+'（'+(AI.usageCount!==null?`今月 ${AI.usageCount}/${AI.usageLimit}回 使用`:'ご利用可能')+'）</div></div>'
       +'<button class="tog'+(aiEnabled?' on':'')+'" id="s-ai-tog"></button>'
@@ -8988,27 +8777,6 @@ function openSettingsModal(){
     el.addEventListener('click',handle);
   }
   const tog=document.getElementById('s-ai-tog');
-  const lockRow=document.getElementById('s-pin-row');
-  addFastHandler('s-lock-tog',()=>{
-    const now=localStorage.getItem('focus_lock_enabled')!=='false';
-    const next=!now;
-    localStorage.setItem('focus_lock_enabled',String(next));
-    document.getElementById('s-lock-tog').classList.toggle('on',next);
-    lockRow.style.display=next?'':'none';
-  });
-  addFastHandler('s-pin-edit',()=>{
-    const cur=localStorage.getItem('focus_pin')||'7086';
-    const v1=prompt('現在のPINを入力:');
-    if(v1===null)return;
-    if(v1!==cur){alert('現在のPINが違います');return}
-    const v2=prompt('新しいPIN（4桁の数字）:');
-    if(v2===null)return;
-    if(!/^\d{4}$/.test(v2)){alert('4桁の数字を入力してください');return}
-    const v3=prompt('新しいPINを再入力:');
-    if(v3!==v2){alert('PINが一致しません');return}
-    localStorage.setItem('focus_pin',v2);
-    alert('PINを変更しました');
-  });
   addFastHandler('s-ai-tog',()=>{
     const now=!getSetting('aiChat',true);
     setSetting('aiChat',now);
@@ -9978,7 +9746,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
   let _ft=false;
   document.addEventListener('touchend',function(e){
     const el=e.target.closest('[data-a],[data-k],button');
-    if(!el||el.closest('#lockScreen'))return;
+    if(!el)return;
     e.preventDefault();
     if(_ft)return;
     _ft=true;
@@ -10082,181 +9850,7 @@ document.getElementById('ai-input').addEventListener('input',function(){
   };
 })();
 
-// ===== LOCK SCREEN =====
-(function(){
-  const DEFAULT_PIN='7086';
-  const SESS_KEY='focus_unlocked';
-  const CRED_KEY='focus_webauthn_cred';
-  const PIN_KEY='focus_pin';
-  const LOCK_ENABLED_KEY='focus_lock_enabled';
-  const screen=document.getElementById('lockScreen');
-  if(!screen)return;
-  // ロック無効 or セッション認証済み or 直近認証済み or ローカル開発環境ならスキップ
-  const UNLOCK_TS_KEY='focus_unlocked_ts';
-  // localStorageが使えない場合（シークレットモード等）はスキップ
-  let _lsOk=true;
-  try{localStorage.getItem('_test');}catch(e){_lsOk=false;}
-  if(!_lsOk){screen.style.display='none';return;}
-  const lockEnabled=localStorage.getItem(LOCK_ENABLED_KEY)==='true';
-  const isLocalhost=['localhost','127.0.0.1',''].includes(location.hostname);
-  const recentUnlock=Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_KEY)||'0')<3600000; // 1時間以内
-  if(!lockEnabled||sessionStorage.getItem(SESS_KEY)==='1'||recentUnlock||isLocalhost){screen.style.display='none';return;}
-  function getPin(){return localStorage.getItem(PIN_KEY)||DEFAULT_PIN;}
 
-  function unlock(){
-    sessionStorage.setItem(SESS_KEY,'1');
-    localStorage.setItem(UNLOCK_TS_KEY,String(Date.now())); // タイムスタンプ保存
-    screen.style.transition='opacity .3s';
-    screen.style.opacity='0';
-    setTimeout(()=>screen.style.display='none',300);
-  }
-
-  // WebAuthn
-  const faceBtn=document.getElementById('face-id-btn');
-  const hint=document.getElementById('biometric-hint');
-  const supported=window.PublicKeyCredential&&typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable==='function';
-
-  async function checkBiometric(){
-    if(!supported)return;
-    const available=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    if(!available)return;
-    faceBtn.style.display='flex';
-    const cred=localStorage.getItem(CRED_KEY);
-    if(cred){
-      hint.textContent='顔認証ボタンでロック解除';
-    } else {
-      hint.textContent='初回: PINで認証後に顔認証を登録できます';
-    }
-  }
-
-  async function registerBiometric(){
-    try{
-      const challenge=crypto.getRandomValues(new Uint8Array(32));
-      const cred=await navigator.credentials.create({publicKey:{
-        challenge,
-        rp:{name:'Taskra',id:location.hostname},
-        user:{id:new TextEncoder().encode('taskra-user'),name:'user',displayName:'Taskra User'},
-        pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
-        authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},
-        timeout:60000
-      }});
-      localStorage.setItem(CRED_KEY,JSON.stringify({id:btoa(String.fromCharCode(...new Uint8Array(cred.rawId)))}));
-      hint.textContent='顔認証を登録しました！次回から使えます';
-      faceBtn.style.display='flex';
-    }catch(e){
-      hint.textContent='顔認証の登録に失敗しました';
-    }
-  }
-
-  async function tryBiometric(){
-    const stored=localStorage.getItem(CRED_KEY);
-    if(!stored)return;
-    try{
-      const {id}=JSON.parse(stored);
-      const credId=Uint8Array.from(atob(id),c=>c.charCodeAt(0));
-      const challenge=crypto.getRandomValues(new Uint8Array(32));
-      await navigator.credentials.get({publicKey:{
-        challenge,
-        allowCredentials:[{type:'public-key',id:credId}],
-        userVerification:'required',
-        timeout:60000
-      }});
-      unlock();
-    }catch(e){
-      // 資格情報が無効な場合はクリアして再登録を促す
-      if(e.name==='NotAllowedError'||e.name==='InvalidStateError'){
-        localStorage.removeItem(CRED_KEY);
-        hint.textContent='顔認証の再登録が必要です。PINで認証してください';
-        faceBtn.style.display='none';
-      } else {
-        hint.textContent='認証に失敗しました';
-      }
-    }
-  }
-
-  faceBtn.addEventListener('click',()=>tryBiometric());
-  // checkBiometric(); // 顔認証は現在無効
-
-  // PIN
-  let entered='';
-  function updateDots(){
-    for(let i=0;i<4;i++){
-      const d=document.getElementById('ld'+i);
-      if(d)d.className='lock-dot'+(i<entered.length?' filled':'');
-    }
-  }
-  function shake(){
-    screen.style.animation='none';
-    requestAnimationFrame(()=>{screen.style.animation='lkshake .4s ease';});
-  }
-  document.head.insertAdjacentHTML('beforeend','<style>@keyframes lkshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}</style>');
-  function handleKey(k){
-    const v=k.dataset.k;
-    if(v==='clr'){entered=''}
-    else if(v==='del'){entered=entered.slice(0,-1)}
-    else if(entered.length<4){entered+=v}
-    updateDots();
-    document.getElementById('lockErr').textContent='';
-    if(entered.length===4){
-      if(entered===getPin()){
-        unlock();
-        if(supported&&!localStorage.getItem(CRED_KEY)&&!localStorage.getItem('focus_faceid_skip')){
-          setTimeout(()=>{
-            if(confirm('顔認証（Face ID / Touch ID）を登録しますか？次回からPIN不要になります。')){
-              registerBiometric();
-            } else {
-              localStorage.setItem('focus_faceid_skip','1');
-            }
-          },400);
-        }
-      } else {
-        document.getElementById('lockErr').textContent='PINが違います';
-        setTimeout(()=>{entered='';updateDots();document.getElementById('lockErr').textContent=''},800);
-      }
-    }
-  }
-  function pressKey(k){
-    if(!k)return;
-    k.classList.add('pressed');
-    window.playClick?.();
-    // 深いストロークに合わせて押し込み保持を長めに
-    setTimeout(()=>k.classList.remove('pressed'),160);
-    handleKey(k);
-  }
-  screen.addEventListener('touchstart',e=>{
-    const k=e.target.closest('[data-k]');
-    if(k){
-      e.preventDefault();// キータップのみprevent（スクロール等は止めない）
-      pressKey(k);
-    }
-  },{passive:false});
-  screen.addEventListener('click',e=>{
-    const k=e.target.closest('[data-k]');
-    if(!k)return;
-    // avoid double-fire on touch devices
-    if(k._lastTouch&&Date.now()-k._lastTouch<300)return;
-    pressKey(k);
-  });
-  screen.addEventListener('touchend',e=>{
-    const k=e.target.closest('[data-k]');
-    if(k)k._lastTouch=Date.now();
-  });
-  // PC keyboard number key support
-  document.addEventListener('keydown',e=>{
-    const ls=document.getElementById('lockScreen');
-    if(!ls||ls.style.display==='none')return;
-    if(e.key>='0'&&e.key<='9'){
-      const k=screen.querySelector('[data-k="'+e.key+'"]');
-      if(k)pressKey(k);
-    } else if(e.key==='Backspace'){
-      const k=screen.querySelector('[data-k="del"]');
-      if(k)pressKey(k);
-    } else if(e.key==='Escape'){
-      const k=screen.querySelector('[data-k="clr"]');
-      if(k)pressKey(k);
-    }
-  });
-})();
 
 // ===== INIT =====
 async function init(){
