@@ -2366,7 +2366,7 @@ async function deleteProject(id){
   await dbDel('projects',id);
   S.projects=S.projects.filter(p=>p.id!==id);
 }
-function mkTask(o={}){const _t=today();const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();return{id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_d3,startAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o}}
+function mkTask(o={}){const _t=today();const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();const base={id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_d3,startAt:_t,plannedStartAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o};if(!base.plannedStartAt)base.plannedStartAt=base.startAt;return base;}
 async function dupTask(task){
   const newId=uid();
   const d={...task,id:newId,title:task.title+' (コピー)',createdAt:now(),updatedAt:now(),completedAt:null,order:Date.now()};
@@ -4006,7 +4006,7 @@ function renderGantt(){
   // 日付レンジ（折りたたまれていても全タスク対象）
   let minD=new Date(todayD),maxD=new Date(todayD);
   allT.forEach(t=>{
-    if(t.startAt){const d=new Date(t.startAt);if(d<minD)minD=new Date(d);}
+    if(t.plannedStartAt||t.startAt){const d=new Date(t.plannedStartAt||t.startAt);if(d<minD)minD=new Date(d);}
     if(t.dueAt){const d=new Date(t.dueAt);if(d>maxD)maxD=new Date(d);}
     if(t.completedAt){const d=new Date(t.completedAt.slice(0,10));if(d>maxD)maxD=new Date(d);}
   });
@@ -4017,6 +4017,7 @@ function renderGantt(){
   if(scale==='week') minD.setDate(minD.getDate()-((minD.getDay()+6)%7));
   else if(scale==='month') minD.setDate(1);
   else if(scale==='year'){minD.setDate(1);minD.setMonth(0);}
+  S._ganttMinD=minD.toISOString().slice(0,10);
   const timelineW=Math.max(Math.ceil((maxD-minD)/86400000*pxPerDay),400);
   const d2px=d=>(new Date(d)-minD)/86400000*pxPerDay;
   const todayX=d2px(todayD);
@@ -4083,14 +4084,19 @@ function renderGantt(){
         +doneBadge
         +'</div>';
       let barHtml='';
-      if(t.startAt&&t.dueAt){
-        const bx=d2px(t.startAt),bw=Math.max(d2px(t.dueAt)+pxPerDay-bx,8);
+      const planStart=t.plannedStartAt||t.startAt;
+      if(planStart&&t.dueAt){
+        const bx=d2px(planStart),bw=Math.max(d2px(t.dueAt)+pxPerDay-bx,8);
         const bh=isP?14:16,bt=(ROW_H-bh)/2;
         const proj=S.projects.find(p=>p.id===t.projectId);
         const barCol=done?'#9ca3af':(proj?.color||'var(--accent)');
         const op=done?'0.5':'1';
-        barHtml=`<div style="position:absolute;left:${bx}px;width:${bw}px;height:${bh}px;top:${bt}px;background:${barCol};opacity:${op};border-radius:3px;overflow:hidden${done?';background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.15) 0,rgba(255,255,255,.15) 4px,transparent 4px,transparent 8px)':''}" title="${esc(t.title)}">`
+        barHtml=`<div class="gantt-bar-wrap" data-task-id="${t.id}" style="position:absolute;left:${bx}px;width:${bw}px;height:${ROW_H}px;top:0;z-index:1">`
+          +`<div style="position:absolute;left:0;right:0;height:${bh}px;top:${bt}px;background:${barCol};opacity:${op};border-radius:3px;overflow:hidden${done?';background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.15) 0,rgba(255,255,255,.15) 4px,transparent 4px,transparent 8px)':''}" title="${esc(t.title)}">`
           +`<span class="gantt-bar-label">${done?'✓ ':''} ${esc(t.title)}</span>`
+          +'</div>'
+          +(!done?`<div class="gantt-bar-drag-handle gantt-bar-drag-left" data-task-id="${t.id}" data-field="plannedStartAt" title="計画開始日をドラッグ" style="position:absolute;left:0;top:0;width:10px;height:${ROW_H}px;cursor:ew-resize;z-index:3;display:flex;align-items:center;justify-content:center"><div style="width:3px;height:14px;background:rgba(255,255,255,.7);border-radius:2px;pointer-events:none"></div></div>`:'')
+          +(!done?`<div class="gantt-bar-drag-handle gantt-bar-drag-right" data-task-id="${t.id}" data-field="dueAt" title="期限日をドラッグ" style="position:absolute;right:0;top:0;width:10px;height:${ROW_H}px;cursor:ew-resize;z-index:3;display:flex;align-items:center;justify-content:center"><div style="width:3px;height:14px;background:rgba(255,255,255,.7);border-radius:2px;pointer-events:none"></div></div>`:'')
           +'</div>';
         // 完了日マーカー
         if(done&&t.completedAt){
@@ -4100,6 +4106,12 @@ function renderGantt(){
           barHtml+=`<div style="position:absolute;left:${cx}px;top:0;width:3px;height:${ROW_H}px;background:#10b981;opacity:.9;z-index:2;border-radius:1px" title="完了日: ${cdLabel}"></div>`;
           barHtml+=`<div style="position:absolute;left:${cx+5}px;top:50%;transform:translateY(-50%);font-size:10px;color:#10b981;font-weight:700;z-index:2;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.15)" title="完了日">✓${cdLabel}</div>`;
         }
+      } else if(t.dueAt){
+        // plannedStartAtもstartAtもない場合：期限日のみをひし形マーカーで表示
+        const cx=d2px(t.dueAt)+pxPerDay/2;
+        const proj=S.projects.find(p=>p.id===t.projectId);
+        const col=proj?.color||'var(--accent)';
+        barHtml=`<div style="position:absolute;left:${cx-8}px;top:${(ROW_H-16)/2}px;width:16px;height:16px;background:${col};transform:rotate(45deg);border-radius:2px;opacity:.8" title="${esc(t.title)}（期限のみ）"></div>`;
       }
       barRows+=`<div style="position:relative;height:${r.h}px;border-bottom:1px solid var(--border)${done?';background:rgba(0,0,0,.02)':''}">${barHtml}</div>`;
     }
@@ -4182,6 +4194,7 @@ function renderContent(){
     const _prevScrollTop=_ganttArea?_ganttArea.scrollTop:0;
     el.innerHTML=renderGantt();
     setupGanttDrag();
+    setupGanttBarDrag();
     requestAnimationFrame(()=>{
       const a=document.getElementById('gantt-area');
       if(!a)return;
@@ -4349,6 +4362,113 @@ function _clearGanttInd(){
   document.querySelectorAll('.drop-before,.drop-after,.dragging').forEach(el=>{
     el.classList.remove('drop-before','drop-after','dragging');
   });
+}
+
+// ===== GANTT バードラッグ（計画開始日・期限日変更）=====
+function setupGanttBarDrag(){
+  const barsArea=document.querySelector('.gantt-bars-area');
+  if(!barsArea)return;
+
+  const scale=S.ganttScale||'week';
+  const PX_MAP={day:40,week:24,month:8,year:3};
+  const pxPerDay=PX_MAP[scale];
+
+  // gantt-areaのスクロール位置とNAMES_Wを考慮してX座標→日付変換
+  const ganttArea=document.querySelector('.gantt-area');
+  const NAMES_W=250;
+
+  function xToDate(clientX){
+    const scrollLeft=ganttArea?ganttArea.scrollLeft:0;
+    const areaRect=ganttArea?ganttArea.getBoundingClientRect():{left:0};
+    const xInTimeline=clientX-areaRect.left+scrollLeft-NAMES_W;
+    const days=Math.round(xInTimeline/pxPerDay);
+    // minDはガントのminD（renderGanttで計算されたもの）を参照できないのでbarsAreaのleft基準で計算
+    const barsRect=barsArea.getBoundingClientRect();
+    const xInBars=clientX-barsRect.left+barsArea.parentElement?.scrollLeft||0;
+    const daysFromStart=Math.round((clientX-(areaRect.left+NAMES_W)+scrollLeft)/pxPerDay);
+    // S._ganttMinDに保存したminDを使う
+    const minD=S._ganttMinD;
+    if(!minD)return null;
+    const d=new Date(minD);
+    d.setDate(d.getDate()+daysFromStart);
+    return d.toISOString().slice(0,10);
+  }
+
+  let dragState=null;
+  let tooltip=null;
+
+  function showTooltip(clientX,clientY,text){
+    if(!tooltip){tooltip=document.createElement('div');Object.assign(tooltip.style,{position:'fixed',zIndex:'9999',background:'rgba(0,0,0,.75)',color:'#fff',fontSize:'12px',fontWeight:'700',padding:'4px 8px',borderRadius:'6px',pointerEvents:'none',whiteSpace:'nowrap'});document.body.appendChild(tooltip);}
+    tooltip.textContent=text;tooltip.style.left=(clientX+12)+'px';tooltip.style.top=(clientY-28)+'px';
+  }
+  function hideTooltip(){if(tooltip){tooltip.remove();tooltip=null;}}
+
+  function onDown(e){
+    const handle=e.target.closest('.gantt-bar-drag-handle');
+    if(!handle)return;
+    e.stopPropagation();
+    e.preventDefault();
+    const taskId=handle.dataset.taskId;
+    const field=handle.dataset.field;
+    const task=S.tasks.find(t=>t.id===taskId);
+    if(!task)return;
+    dragState={taskId,field,task,startX:e.clientX||e.touches?.[0]?.clientX};
+    document.body.style.cursor='ew-resize';
+    document.body.style.userSelect='none';
+  }
+  async function onMove(e){
+    if(!dragState)return;
+    e.preventDefault();
+    const clientX=e.clientX||e.touches?.[0]?.clientX;
+    const clientY=e.clientY||e.touches?.[0]?.clientY;
+    const dateStr=xToDate(clientX);
+    if(!dateStr)return;
+    showTooltip(clientX,clientY,(dragState.field==='plannedStartAt'?'計画開始: ':'期限: ')+dateStr);
+    // バーをプレビュー更新
+    const wrap=barsArea.querySelector(`.gantt-bar-wrap[data-task-id="${dragState.taskId}"]`);
+    if(wrap&&S._ganttMinD){
+      const minD=S._ganttMinD;
+      const task=dragState.task;
+      const planStart=dragState.field==='plannedStartAt'?dateStr:(task.plannedStartAt||task.startAt);
+      const due=dragState.field==='dueAt'?dateStr:task.dueAt;
+      if(planStart&&due&&planStart<=due){
+        const d2px=d=>(new Date(d)-new Date(minD))/86400000*pxPerDay;
+        const bx=d2px(planStart),bw=Math.max(d2px(due)+pxPerDay-bx,8);
+        wrap.style.left=bx+'px';wrap.style.width=bw+'px';
+      }
+    }
+  }
+  async function onUp(e){
+    if(!dragState)return;
+    const clientX=e.clientX||e.changedTouches?.[0]?.clientX;
+    const dateStr=xToDate(clientX);
+    hideTooltip();
+    document.body.style.cursor='';document.body.style.userSelect='';
+    if(dateStr){
+      const task=S.tasks.find(t=>t.id===dragState.taskId);
+      if(task){
+        const field=dragState.field;
+        if(field==='plannedStartAt'){
+          if(!task.dueAt||dateStr<=task.dueAt){task.plannedStartAt=dateStr;await saveTask(task);toast('計画開始日を更新しました');render();}
+          else toast('計画開始日は期限より前にしてください');
+        } else if(field==='dueAt'){
+          const ps=task.plannedStartAt||task.startAt;
+          if(!ps||dateStr>=ps){task.dueAt=dateStr;await saveTask(task);toast('期限日を更新しました');render();}
+          else toast('期限日は計画開始日より後にしてください');
+        }
+      }
+    }
+    dragState=null;
+  }
+
+  // PC
+  barsArea.addEventListener('mousedown',onDown);
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+  // タッチ
+  barsArea.addEventListener('touchstart',onDown,{passive:false});
+  document.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('touchend',onUp,{passive:true});
 }
 
 async function _applyGanttDrop(dragId,targetId,pos,projId){
@@ -5317,9 +5437,10 @@ function renderDrawer(){
       +'</div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">'
-        +'<div><label class="flabel">開始日</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="'+dateInputStyle(task.startAt)+'"><span id="dt-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.startAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button></div></div>'
+        +'<div><label class="flabel">開始日 <span style="font-size:10px;color:var(--text3)">(スヌーズ)</span></label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-start" value="'+esc(task.startAt||'')+'" style="'+dateInputStyle(task.startAt)+'"><span id="dt-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.startAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.startAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="start" data-months="-1">-1月</button></div></div>'
         +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="'+dateInputStyle(task.dueAt)+'"><span id="dt-due-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.dueAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.dueAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="-1">-1月</button></div></div>'
       +'</div>'
+      +'<div style="margin-bottom:8px"><label class="flabel">計画開始日 <span style="font-size:10px;color:var(--text3)">(ガント用)</span></label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-planned-start" value="'+esc(task.plannedStartAt||'')+'" style="'+dateInputStyle(task.plannedStartAt)+'"><span id="dt-planned-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.plannedStartAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.plannedStartAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="planned-start" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-top:3px"><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-months="1">+1月</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-months="-1">-1月</button></div></div>'
       +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:flex;gap:3px;align-items:center;margin-bottom:3px"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button><button class="date-adj-btn" data-a="start-time-adj-min" data-mins="10">+10m</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button><button class="date-adj-btn" data-a="start-time-zero-min">分00</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px"><button class="date-adj-btn" data-a="start-time-set" data-hhmm="09:00">9:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="12:00">12:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="15:00">15:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="18:00">18:00</button></div></div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
@@ -5496,6 +5617,7 @@ function renderDrawer(){
       t2.notes=document.getElementById('dt-notes')?.value||'';
       t2.dueAt=document.getElementById('dt-due')?.value||null;
       t2.startAt=document.getElementById('dt-start')?.value||null;
+      t2.plannedStartAt=document.getElementById('dt-planned-start')?.value||null;
       t2.startTime=document.getElementById('dt-start-time')?.value||null;
       t2.projectId=document.getElementById('dt-proj')?.value||null;
       t2.repeatRule=getRepeatRule();
@@ -6812,7 +6934,7 @@ else if(a==='scroll-to-comments'){
     const field=el.dataset.field;
     const days=parseInt(el.dataset.days||'0');
     const months=parseInt(el.dataset.months||'0');
-    const inputId=field==='start'?'dt-start':'dt-due';
+    const inputId=field==='start'?'dt-start':field==='planned-start'?'dt-planned-start':'dt-due';
     const input=el.closest('.expand-modal')?.querySelector('#'+inputId)||document.getElementById(inputId);
     if(!input)return;
     let base;
@@ -6822,38 +6944,39 @@ else if(a==='scroll-to-comments'){
       if(days)base.setUTCDate(base.getUTCDate()+days);
       if(months)base.setUTCMonth(base.getUTCMonth()+months);
     }else{
-      // 空欄の場合は「今日」を初期値にする（+1日は次のクリックから）
       const n=new Date();
       base=new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
-      // 月単位の調整は空欄からでも適用
       if(months)base.setUTCMonth(base.getUTCMonth()+months);
     }
     const newVal=base.toISOString().slice(0,10);
     input.value=newVal;
     applyDateInputStyle(input,newVal);
-    document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
+    const wdKey=field==='start'?'start':field==='planned-start'?'planned-start':'due';
+    document.querySelectorAll('#dt-'+wdKey+'-wd').forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
       if(field==='start'){
         task.startAt=newVal;
-        // 開始日変更時は開始時間をクリア
         task.startTime=null;
         const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
         if(sti)sti.value='';
       }
+      else if(field==='planned-start') task.plannedStartAt=newVal;
       else task.dueAt=newVal;
       await saveTask(task);
     }
   }
   else if(a==='date-clear'){
     const field=el.dataset.field;
-    const inputId=field==='start'?'dt-start':'dt-due';
+    const inputId=field==='start'?'dt-start':field==='planned-start'?'dt-planned-start':'dt-due';
     const input=el.closest('.expand-modal')?.querySelector('#'+inputId)||document.getElementById(inputId);
     if(input){input.value='';applyDateInputStyle(input,'');}
-    document.querySelectorAll('#dt-'+field+'-wd').forEach(s=>s.textContent='');
+    const wdKey=field==='start'?'start':field==='planned-start'?'planned-start':'due';
+    document.querySelectorAll('#dt-'+wdKey+'-wd').forEach(s=>s.textContent='');
     const task=S.tasks.find(t=>t.id===S.taskId);
     if(task){
       if(field==='start'){task.startAt=null;task.startTime=null;const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';}
+      else if(field==='planned-start') task.plannedStartAt=null;
       else task.dueAt=null;
       await saveTask(task);
     }
@@ -10043,7 +10166,7 @@ async function setupSB(){
     window._SB=SB;
 
     // カラム名マッピング（JS camelCase ↔ DB snake_case）
-    const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order',workspaceId:'workspace_id'};
+    const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',plannedStartAt:'planned_start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order',workspaceId:'workspace_id'};
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_'))continue;r[TO[k]||k]=v;}return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
