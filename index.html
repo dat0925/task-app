@@ -1482,8 +1482,7 @@ const ADMIN_EMAILS=['masamune.endo@gmail.com','mstd0520@gmail.com'];
 window._userPlan='free'; // Supabase読み込み前のデフォルト
 
 async function loadUserPlan(){
-  const ov=localStorage.getItem('_plan');
-  if(ov&&PLAN_DEFS[ov]){window._userPlan=ov;return;}
+  // localStorageキャッシュは使わず常にDBから取得（プラン変更を即時反映するため）
   if(!window._currentUser||!window._SB){window._userPlan='free';return;}
   try{
     const{data}=await window._SB.from('user_plans').select('plan').eq('email',window._currentUser.email).maybeSingle();
