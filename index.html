@@ -4095,8 +4095,8 @@ function renderGantt(){
           +`<div style="position:absolute;left:0;right:0;height:${bh}px;top:${bt}px;background:${barCol};opacity:${op};border-radius:3px;overflow:hidden${done?';background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.15) 0,rgba(255,255,255,.15) 4px,transparent 4px,transparent 8px)':''}" title="${esc(t.title)}">`
           +`<span class="gantt-bar-label">${done?'✓ ':''} ${esc(t.title)}</span>`
           +'</div>'
-          +(!done?`<div class="gantt-bar-drag-handle gantt-bar-drag-left" data-task-id="${t.id}" data-field="plannedStartAt" title="計画開始日をドラッグ" style="position:absolute;left:0;top:0;width:10px;height:${ROW_H}px;cursor:ew-resize;z-index:3;display:flex;align-items:center;justify-content:center"><div style="width:3px;height:14px;background:rgba(255,255,255,.7);border-radius:2px;pointer-events:none"></div></div>`:'')
-          +(!done?`<div class="gantt-bar-drag-handle gantt-bar-drag-right" data-task-id="${t.id}" data-field="dueAt" title="期限日をドラッグ" style="position:absolute;right:0;top:0;width:10px;height:${ROW_H}px;cursor:ew-resize;z-index:3;display:flex;align-items:center;justify-content:center"><div style="width:3px;height:14px;background:rgba(255,255,255,.7);border-radius:2px;pointer-events:none"></div></div>`:'')
+          
+          
           +'</div>';
         // 完了日マーカー
         if(done&&t.completedAt){
@@ -4194,7 +4194,6 @@ function renderContent(){
     const _prevScrollTop=_ganttArea?_ganttArea.scrollTop:0;
     el.innerHTML=renderGantt();
     setupGanttDrag();
-    setupGanttBarDrag();
     requestAnimationFrame(()=>{
       const a=document.getElementById('gantt-area');
       if(!a)return;
@@ -4366,116 +4365,6 @@ function _clearGanttInd(){
 
 // ===== GANTT バードラッグ（計画開始日・期限日変更）=====
 // ガントバードラッグ用グローバルAbortController（render()のたびに累積しないよう管理）
-if(!window._ganttBarDragAC) window._ganttBarDragAC=null;
-
-function setupGanttBarDrag(){
-  // 前回のリスナーを全て破棄
-  if(window._ganttBarDragAC){window._ganttBarDragAC.abort();window._ganttBarDragAC=null;}
-
-  const barsArea=document.querySelector('.gantt-bars-area');
-  if(!barsArea)return;
-
-  const ac=new AbortController();
-  window._ganttBarDragAC=ac;
-  const sig=ac.signal;
-
-  const scale=S.ganttScale||'week';
-  const PX_MAP={day:40,week:24,month:8,year:3};
-  const pxPerDay=PX_MAP[scale];
-
-  // gantt-areaのスクロール位置とNAMES_Wを考慮してX座標→日付変換
-  const ganttArea=document.querySelector('.gantt-area');
-  const NAMES_W=250;
-
-  function xToDate(clientX){
-    const scrollLeft=ganttArea?ganttArea.scrollLeft:0;
-    const areaRect=ganttArea?ganttArea.getBoundingClientRect():{left:0};
-    const daysFromStart=Math.round((clientX-(areaRect.left+NAMES_W)+scrollLeft)/pxPerDay);
-    const minD=S._ganttMinD;
-    if(!minD)return null;
-    const d=new Date(minD);
-    d.setDate(d.getDate()+daysFromStart);
-    return d.toISOString().slice(0,10);
-  }
-
-  let dragState=null;
-  let tooltip=null;
-
-  function showTooltip(clientX,clientY,text){
-    if(!tooltip){tooltip=document.createElement('div');Object.assign(tooltip.style,{position:'fixed',zIndex:'9999',background:'rgba(0,0,0,.75)',color:'#fff',fontSize:'12px',fontWeight:'700',padding:'4px 8px',borderRadius:'6px',pointerEvents:'none',whiteSpace:'nowrap'});document.body.appendChild(tooltip);}
-    tooltip.textContent=text;tooltip.style.left=(clientX+12)+'px';tooltip.style.top=(clientY-28)+'px';
-  }
-  function hideTooltip(){if(tooltip){tooltip.remove();tooltip=null;}}
-
-  function onDown(e){
-    const handle=e.target.closest('.gantt-bar-drag-handle');
-    if(!handle)return;
-    e.stopPropagation();
-    e.preventDefault();
-    const taskId=handle.dataset.taskId;
-    const field=handle.dataset.field;
-    const task=S.tasks.find(t=>t.id===taskId);
-    if(!task)return;
-    dragState={taskId,field,task,startX:e.clientX||e.touches?.[0]?.clientX};
-    document.body.style.cursor='ew-resize';
-    document.body.style.userSelect='none';
-  }
-  function onMove(e){
-    if(!dragState)return;
-    e.preventDefault();
-    const clientX=e.clientX||e.touches?.[0]?.clientX;
-    const clientY=e.clientY||e.touches?.[0]?.clientY;
-    const dateStr=xToDate(clientX);
-    if(!dateStr)return;
-    showTooltip(clientX,clientY,(dragState.field==='plannedStartAt'?'計画開始: ':'期限: ')+dateStr);
-    // バーをプレビュー更新（現在のDOMを参照）
-    const currentBarsArea=document.querySelector('.gantt-bars-area');
-    const wrap=currentBarsArea&&currentBarsArea.querySelector(`.gantt-bar-wrap[data-task-id="${dragState.taskId}"]`);
-    if(wrap&&S._ganttMinD){
-      const minD=S._ganttMinD;
-      const task=dragState.task;
-      const planStart=dragState.field==='plannedStartAt'?dateStr:(task.plannedStartAt||task.startAt);
-      const due=dragState.field==='dueAt'?dateStr:task.dueAt;
-      if(planStart&&due&&planStart<=due){
-        const d2px=d=>(new Date(d)-new Date(minD))/86400000*pxPerDay;
-        const bx=d2px(planStart),bw=Math.max(d2px(due)+pxPerDay-bx,8);
-        wrap.style.left=bx+'px';wrap.style.width=bw+'px';
-      }
-    }
-  }
-  async function onUp(e){
-    if(!dragState)return;
-    const clientX=e.clientX||e.changedTouches?.[0]?.clientX;
-    const dateStr=xToDate(clientX);
-    hideTooltip();
-    document.body.style.cursor='';document.body.style.userSelect='';
-    const savedState={...dragState};
-    dragState=null;
-    if(dateStr){
-      const task=S.tasks.find(t=>t.id===savedState.taskId);
-      if(task){
-        const field=savedState.field;
-        if(field==='plannedStartAt'){
-          if(!task.dueAt||dateStr<=task.dueAt){task.plannedStartAt=dateStr;await saveTask(task);toast('計画開始日を更新しました');render();}
-          else toast('計画開始日は期限より前にしてください');
-        } else if(field==='dueAt'){
-          const ps=task.plannedStartAt||task.startAt;
-          if(!ps||dateStr>=ps){task.dueAt=dateStr;await saveTask(task);toast('期限日を更新しました');render();}
-          else toast('期限日は計画開始日より後にしてください');
-        }
-      }
-    }
-  }
-
-  // PC（signal指定で自動cleanup可能）
-  barsArea.addEventListener('mousedown',onDown,{signal:sig});
-  document.addEventListener('mousemove',onMove,{signal:sig});
-  document.addEventListener('mouseup',onUp,{signal:sig});
-  // タッチ（passive:falseはsignalと併用可）
-  barsArea.addEventListener('touchstart',onDown,{passive:false,signal:sig});
-  document.addEventListener('touchmove',onMove,{passive:false,signal:sig});
-  document.addEventListener('touchend',onUp,{passive:true,signal:sig});
-}
 
 async function _applyGanttDrop(dragId,targetId,pos,projId){
   _clearGanttInd();
