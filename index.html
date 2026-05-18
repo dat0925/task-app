@@ -4388,13 +4388,13 @@ function setupGanttBarDrag(){
   const ganttArea=document.querySelector('.gantt-area');
 
   function xToDate(clientX){
-    // barsAreaを毎回取得（DOMが更新されている場合に備える）
+    // barsAreaはgantt-area(overflow:auto)内でスクロールするため、
+    // getBoundingClientRect().leftにはスクロール量が既に反映されている。
+    // clientX - barsRect.left だけでバー先頭からの絶対px位置が求まる（scrollLeft加算不要）
     const currentBarsArea=document.querySelector('.gantt-bars-area');
     if(!currentBarsArea)return null;
     const barsRect=currentBarsArea.getBoundingClientRect();
-    const scrollLeft=ganttArea?ganttArea.scrollLeft:0;
-    // clientXからbarsArea左端を引き、スクロール量を加算してバー内のX座標を求める
-    const xInBars=clientX-barsRect.left+scrollLeft;
+    const xInBars=clientX-barsRect.left;
     const daysFromStart=Math.round(xInBars/pxPerDay);
     // S._ganttMinDに保存したminDを使う
     const minD=S._ganttMinD;
