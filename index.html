@@ -10169,7 +10169,16 @@ async function setupSB(){
         hideLogin();
         if(typeof loadUserPlan==='function')loadUserPlan().then(()=>{if(typeof renderSidebar==='function')renderSidebar();}).catch(()=>{});
         if(typeof loadAll==='function'&&typeof render==='function'){
-          loadAll().then(()=>render()).catch(()=>{});
+          loadAll().then(async()=>{
+            // 招待リンク経由でログインした場合はワークスペースに参加
+            if(window._pendingInviteToken){
+              const t=window._pendingInviteToken;
+              window._pendingInviteToken=null;
+              await joinWorkspaceByToken(t);
+            } else {
+              render();
+            }
+          }).catch(()=>{});
         }
       } else if(event==='SIGNED_OUT'){
         window._currentUser=null;
