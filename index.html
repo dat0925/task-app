@@ -5086,7 +5086,18 @@ function renderNextView(){
   }
   if(rows.length===0)return'<div class="empty"><div class="empty-ico">✅</div><div class="empty-t">すべてのプロジェクトは完了しています</div></div>';
 
-  let h='<div class="tlist">';
+  // サブタスクを持つタスクIDを収集
+  const nvTasksWithSubs=rows.filter(({task})=>S.tasks.some(t=>t.parentTaskId===task.id)).map(({task})=>task.id);
+  const hasAnySubs=nvTasksWithSubs.length>0;
+
+  let h='';
+  if(hasAnySubs){
+    h+='<div style="display:flex;gap:4px;padding:6px 0 2px;justify-content:flex-end">'
+      +'<button class="gantt-scale-btn" data-a="next-expand-all" title="全て展開">全開</button>'
+      +'<button class="gantt-scale-btn" data-a="next-collapse-all" title="全て折りたたむ">全閉</button>'
+      +'</div>';
+  }
+  h+='<div class="tlist">';
   for(const{proj,task} of rows){
     const done=task.status==='completed';
     const notStarted=!done&&isNotStartedTask(task);
@@ -7250,6 +7261,22 @@ else if(a==='scroll-to-comments'){
     if(rows)rows.classList.toggle('open',!!S.openSubs[id]);
     const chev=el.querySelector('.sub-chev');
     if(chev)chev.classList.toggle('open',!!S.openSubs[id]);
+  }
+  else if(a==='next-expand-all'){
+    // Nextビューに表示中のサブタスク持ちタスクを全展開
+    const projs=getSortedProjects('active');
+    for(const proj of projs){
+      const tasks=S.tasks.filter(t=>t.projectId===proj.id&&!t.parentTaskId&&(S.showCompleted||t.status!=='completed'));
+      if(tasks.length===0)continue;
+      const task=tasks.sort((a,b)=>(a.order||0)-(b.order||0))[0];
+      const hasSubs=S.tasks.some(t=>t.parentTaskId===task.id);
+      if(hasSubs)S.openSubs[task.id]=true;
+    }
+    renderContent();
+  }
+  else if(a==='next-collapse-all'){
+    S.openSubs={};
+    renderContent();
   }
   else if(a==='bulk-edit'){await handleBulkEdit(el.dataset.field);}
   else if(a==='bulk-cancel'){
