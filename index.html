@@ -4383,14 +4383,19 @@ function setupGanttBarDrag(){
   const PX_MAP={day:40,week:24,month:8,year:3};
   const pxPerDay=PX_MAP[scale];
 
-  // gantt-areaのスクロール位置とNAMES_Wを考慮してX座標→日付変換
+  // gantt-areaのスクロール位置を考慮してX座標→日付変換
+  // barsAreaのBoundingRectを毎回取得することでスクロール・サイドバー幅に依存しない正確な計算を行う
   const ganttArea=document.querySelector('.gantt-area');
-  const NAMES_W=250;
 
   function xToDate(clientX){
+    // barsAreaを毎回取得（DOMが更新されている場合に備える）
+    const currentBarsArea=document.querySelector('.gantt-bars-area');
+    if(!currentBarsArea)return null;
+    const barsRect=currentBarsArea.getBoundingClientRect();
     const scrollLeft=ganttArea?ganttArea.scrollLeft:0;
-    const areaRect=ganttArea?ganttArea.getBoundingClientRect():{left:0};
-    const daysFromStart=Math.round((clientX-(areaRect.left+NAMES_W)+scrollLeft)/pxPerDay);
+    // clientXからbarsArea左端を引き、スクロール量を加算してバー内のX座標を求める
+    const xInBars=clientX-barsRect.left+scrollLeft;
+    const daysFromStart=Math.round(xInBars/pxPerDay);
     // S._ganttMinDに保存したminDを使う
     const minD=S._ganttMinD;
     if(!minD)return null;
