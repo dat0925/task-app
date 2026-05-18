@@ -4185,7 +4185,7 @@ function renderContent(){
   if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();
     const nc=document.getElementById('note-list-items');if(nc)initNoteSwipe(nc);
     return}
-  if(S.view==='nextview'){el.innerHTML=renderNextView();return}
+  if(S.view==='nextview'){el.innerHTML=renderNextView();renderTaskFilters();return}
   if(S.view==='gantt'){
     // スクロール位置を保持してGantt再描画（初回のみ今日へスクロール）
     const _ganttArea=document.getElementById('gantt-area');
@@ -4653,7 +4653,8 @@ function renderTaskFilters(){
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="toggle-completed-btn'+(S.sort==='priority'?' active':'')+'" data-a="quick-sort-priority" title="優先度順に並び替え">優先</button>':'')
     +(S.view==='project'&&S.projId?'<button class="toggle-completed-btn" data-a="proj-to-gantt" title="このプロジェクトのGanttを表示">'+ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')+'</button>':'')
-    +(!isForecast&&!isNotes&&!isSearch&&!isGantt?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
+    +(isNextView&&window._nvHasSubs?'<button class="gantt-scale-btn" data-a="next-expand-all" title="全て展開" style="margin-left:auto">全開</button><button class="gantt-scale-btn" data-a="next-collapse-all" title="全て折りたたむ">全閉</button>':'')
+    +(!isForecast&&!isNotes&&!isSearch&&!isGantt?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode"'+(isNextView&&window._nvHasSubs?'':' style="margin-left:auto"')+'>一括</button>':'');
 }
 
 function _closeTfPopups(){document.querySelectorAll('.tf-popup,.tf-backdrop').forEach(p=>p.remove());}
@@ -5089,14 +5090,9 @@ function renderNextView(){
   // サブタスクを持つタスクIDを収集
   const nvTasksWithSubs=rows.filter(({task})=>S.tasks.some(t=>t.parentTaskId===task.id)).map(({task})=>task.id);
   const hasAnySubs=nvTasksWithSubs.length>0;
+  window._nvHasSubs=hasAnySubs; // フィルターバーの全開/全閉ボタン表示用
 
   let h='';
-  if(hasAnySubs){
-    h+='<div style="display:flex;gap:4px;padding:6px 0 2px;justify-content:flex-end">'
-      +'<button class="gantt-scale-btn" data-a="next-expand-all" title="全て展開">全開</button>'
-      +'<button class="gantt-scale-btn" data-a="next-collapse-all" title="全て折りたたむ">全閉</button>'
-      +'</div>';
-  }
   h+='<div class="tlist">';
   for(const{proj,task} of rows){
     const done=task.status==='completed';
