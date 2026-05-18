@@ -6327,7 +6327,7 @@ document.addEventListener('click',async e=>{
   const a=el.dataset.a;
 
   if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}if(el.dataset.v==='search'&&window.innerWidth<=768){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
-  else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
+  else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(a==='proj'&&_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='proj-toggle'){S.projsOpen=!S.projsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
