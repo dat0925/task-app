@@ -561,7 +561,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .tag-item:hover .tag-actions{display:flex}
 @media(max-width:768px){.tag-item .tag-actions{display:flex}}
 @media(max-width:768px){.trow-edit-btn{display:flex !important}}
-.proj-action-btn{width:24px;height:24px;border-radius:4px;font-size:13px;color:var(--text3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,color .15s;background:none;border:none;cursor:pointer;padding:0}
+.proj-action-btn{width:24px;height:24px;border-radius:4px;font-size:13px;color:var(--text3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,color .15s;background:none;border:none;cursor:pointer;padding:0;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .proj-action-btn:hover{background:var(--bg2);color:var(--text)}
 .proj-drag-handle{cursor:grab;color:var(--text3);font-size:15px;padding:0 2px;user-select:none;display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex-shrink:0;touch-action:none;-webkit-user-select:none}
 .proj-drag-handle:active{cursor:grabbing;color:var(--text)}
@@ -3649,7 +3649,7 @@ function renderSidebar(){
     h+='<div class="nav-label-row'+(wsOpen?'':' collapsed')+'" data-a="ws-toggle" data-wsid="'+ws.id+'" style="margin-top:8px">'
       +'<span style="font-size:9px;color:var(--accent);margin-right:2px">👥</span>'
       +'<span class="nav-label" style="color:var(--accent)">'+esc(ws.name)+'</span>'
-      +'<button class="proj-action-btn" data-a="ws-settings" data-wsid="'+ws.id+'" style="margin-left:auto;opacity:.6" title="設定">⋯</button>'
+      +'<button class="proj-action-btn" data-a="ws-settings" data-wsid="'+ws.id+'" style="margin-left:auto;opacity:.7;width:32px;height:32px;font-size:16px" title="設定">⋯</button>'
       +'<span class="toggle-chevron" style="margin-left:2px">▼</span>'
     +'</div>';
     h+='<div class="proj-section-wrap'+(wsOpen?'':' collapsed')+'">';
