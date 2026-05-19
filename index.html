@@ -10026,8 +10026,9 @@ async function init(){
       botnav.addEventListener('touchstart',e=>{
         const isPrev=e.target.closest('.bnav-prev');
         const isNext=e.target.closest('.bnav-next');
-        if(!isPrev&&!isNext)return;
-        _lptarget=isPrev?'prev':'next';
+        const isBnav=!isPrev&&!isNext&&e.target.closest('.bnav');
+        if(!isPrev&&!isNext&&!isBnav)return;
+        _lptarget=isPrev?'prev':isNext?'next':'bnav';
         _lpmoved=false;_lpsx=e.touches[0].clientX;_lpsy=e.touches[0].clientY;
         lockSel();
         _lpt=setTimeout(()=>{
@@ -10035,6 +10036,12 @@ async function init(){
           _lpt=null;unlockSel();
           playSE('toggle');
           if(_lptarget==='prev'){S.sidebarOpen=true;render();}
+          else if(_lptarget==='next'){
+            // ナビnext長押し：現在フィルタ ON/OFF
+            S.hideNotStarted=!S.hideNotStarted;
+            renderTaskFilters();renderContent();
+            toast(S.hideNotStarted?'現在フィルタ ON（開始前を除外）':'現在フィルタ OFF');
+          }
           else{openNavEdit();}
         },500);
       },{passive:true});
