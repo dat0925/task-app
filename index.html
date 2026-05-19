@@ -4201,7 +4201,7 @@ function renderContent(){
   if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();
     const nc=document.getElementById('note-list-items');if(nc)initNoteSwipe(nc);
     return}
-  if(S.view==='nextview'){el.innerHTML=renderNextView();renderTaskFilters();return}
+  if(S.view==='nextview'){el.innerHTML=renderNextView();renderTaskFilters();initTaskSwipe(el);return}
   if(S.view==='gantt'){
     // スクロール位置を保持してGantt再描画（初回のみ今日へスクロール）
     const _ganttArea=document.getElementById('gantt-area');
