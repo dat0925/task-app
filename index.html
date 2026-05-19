@@ -2229,9 +2229,8 @@ function showSaveStatus(state){
 
 // ===== STORE =====
 async function loadAll(){
-  [S.tasks,S.projects,S.tags,S.notes]=await Promise.all([
-    dbAll('tasks'),dbAll('projects'),dbAll('tags'),dbAll('notes')
-  ]);
+  [S.tags,S.notes]=await Promise.all([dbAll('tags'),dbAll('notes')]);
+  [S.tasks,S.projects]=await Promise.all([dbAllNoFilter('tasks'),dbAllNoFilter('projects')]);
   // ワークスペースは専用関数で取得（user_idフィルタではなくRLS任せ）
   await loadWorkspaces();
 }
@@ -2770,7 +2769,6 @@ function openWsSettings(wsId){
     +'</div></div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
   const _closeOv=()=>ov.classList.contains('open')&&(ov.classList.remove('open'),setTimeout(()=>ov.remove(),200));
-  ov.querySelector('#ws-settings-close')?.addEventListener('touchend',e2=>{e2.preventDefault();_closeOv();},{passive:false});
   ov.querySelector('#ws-settings-close')?.addEventListener('click',e2=>{e2.preventDefault();_closeOv();});
   const _handleBtn=async e2=>{
     e2.preventDefault();e2.stopPropagation();
@@ -2810,7 +2808,6 @@ function openWsSettings(wsId){
       toast('招待リンクをコピーしました 🔗');
     }
   };
-  ov.addEventListener('touchend',_handleBtn,{passive:false});
   ov.addEventListener('click',_handleBtn);
 }
 
@@ -10135,6 +10132,12 @@ async function setupSB(){
       if(!uid)return[];
       const{data,error}=await SB.from(s).select('*').eq('user_id',uid);
       if(error){console.error('SB.dbAll',s,error);return[]}
+      return(data||[]).map(frDB);
+    };
+    window.dbAllNoFilter=async s=>{
+      if(!window._currentUser?.id)return[];
+      const{data,error}=await SB.from(s).select('*');
+      if(error){console.error('SB.dbAllNoFilter',s,error);return[]}
       return(data||[]).map(frDB);
     };
     window.dbPut=async(s,i)=>{
