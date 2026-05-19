@@ -10026,9 +10026,8 @@ async function init(){
       botnav.addEventListener('touchstart',e=>{
         const isPrev=e.target.closest('.bnav-prev');
         const isNext=e.target.closest('.bnav-next');
-        const isBnav=!isPrev&&!isNext&&e.target.closest('.bnav');
-        if(!isPrev&&!isNext&&!isBnav)return;
-        _lptarget=isPrev?'prev':isNext?'next':'bnav';
+        if(!isPrev&&!isNext)return;
+        _lptarget=isPrev?'prev':'next';
         _lpmoved=false;_lpsx=e.touches[0].clientX;_lpsy=e.touches[0].clientY;
         lockSel();
         _lpt=setTimeout(()=>{
@@ -10036,13 +10035,6 @@ async function init(){
           _lpt=null;unlockSel();
           playSE('toggle');
           if(_lptarget==='prev'){S.sidebarOpen=true;render();}
-          else if(_lptarget==='next'){
-            // ナビnext長押し：現在フィルタ ON/OFF
-            S.hideNotStarted=!S.hideNotStarted;
-            renderTaskFilters();renderContent();
-            toast(S.hideNotStarted?'現在フィルタ ON（開始前を除外）':'現在フィルタ OFF');
-          }
-          else{openNavEdit();}
         },500);
       },{passive:true});
       botnav.addEventListener('touchmove',e=>{
@@ -10077,7 +10069,35 @@ async function init(){
       const prevBtn=botnav.querySelector('.bnav-prev');
       const nextBtn=botnav.querySelector('.bnav-next');
       attachLongPressRepeat(prevBtn, ()=>doNavStep('prev'));
-      attachLongPressRepeat(nextBtn, ()=>doNavStep('next'));
+      // ナビnext長押し：ナビ編集を開く
+      attachLongPressRepeat(nextBtn, ()=>{playSE('toggle');openNavEdit();});
+    })();
+
+    // ===== BNAV アイコン長押し：現在フィルタ ON/OFF =====
+    (()=>{
+      let _lt=null,_lmoved=false,_lsx=0,_lsy=0;
+      botnav.addEventListener('touchstart',e=>{
+        const btn=e.target.closest('.bnav');
+        if(!btn||e.target.closest('.bnav-prev')||e.target.closest('.bnav-next'))return;
+        _lmoved=false;_lsx=e.touches[0].clientX;_lsy=e.touches[0].clientY;
+        _lt=setTimeout(()=>{
+          if(_lmoved)return;
+          _lt=null;
+          playSE('toggle');
+          S.hideNotStarted=!S.hideNotStarted;
+          renderTaskFilters();renderContent();
+          toast(S.hideNotStarted?'現在フィルタ ON（開始前を除外）':'現在フィルタ OFF');
+        },500);
+      },{passive:true});
+      botnav.addEventListener('touchmove',e=>{
+        if(_lt==null)return;
+        if(Math.abs(e.touches[0].clientX-_lsx)>8||Math.abs(e.touches[0].clientY-_lsy)>8){
+          _lmoved=true;clearTimeout(_lt);_lt=null;
+        }
+      },{passive:true});
+      const _end=()=>{if(_lt!=null){clearTimeout(_lt);_lt=null;}};
+      botnav.addEventListener('touchend',_end,{passive:true});
+      botnav.addEventListener('touchcancel',_end,{passive:true});
     })();
   }catch(err){
     console.error(err);
