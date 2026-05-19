@@ -2779,13 +2779,23 @@ function openWsSettings(wsId){
     } else if(ba==='ws-leave'){
       if(!confirm('このチームから脱退しますか？'))return;
       const uid2=window._currentUser?.id;
-      await window._SB.from('workspace_members').delete().eq('workspace_id',wsId).eq('user_id',uid2);
-      await loadWorkspaces();ov.remove();render();toast('チームから脱退しました');
+      const{error:leaveErr}=await window._SB.from('workspace_members').delete().eq('workspace_id',wsId).eq('user_id',uid2);
+      if(leaveErr){toast('エラー: '+leaveErr.message);return;}
+      S.workspaces=S.workspaces.filter(w=>w.id!==wsId);
+      delete S.wsMembers[wsId];
+      ov.remove();render();toast('チームから脱退しました');
+      loadWorkspaces();
     } else if(ba==='ws-delete'){
       if(!confirm('チームを削除します。共有プロジェクトは個人プロジェクトに戻ります。よろしいですか？'))return;
-      await window._SB.from('projects').update({workspace_id:null}).eq('workspace_id',wsId);
-      await window._SB.from('workspaces').delete().eq('id',wsId);
-      await loadAll();ov.remove();render();toast('チームを削除しました');
+      const{error:delErr1}=await window._SB.from('workspace_members').delete().eq('workspace_id',wsId);
+      const{error:delErr2}=await window._SB.from('projects').update({workspace_id:null}).eq('workspace_id',wsId);
+      const{error:delErr3}=await window._SB.from('workspaces').delete().eq('id',wsId);
+      if(delErr1||delErr2||delErr3){toast('エラー: '+((delErr1||delErr2||delErr3).message));return;}
+      S.workspaces=S.workspaces.filter(w=>w.id!==wsId);
+      delete S.wsMembers[wsId];
+      S.projects.forEach(p=>{if(p.workspaceId===wsId)p.workspaceId=null;});
+      ov.remove();render();toast('チームを削除しました');
+      loadWorkspaces();
     } else if(ba==='ws-invite'){
       const url=getInviteUrl(ws);
       try{await navigator.clipboard.writeText(url);toast('招待リンクをコピーしました 🔗');}
