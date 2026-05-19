@@ -2770,7 +2770,7 @@ function openWsSettings(wsId){
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
   const _closeOv=()=>ov.classList.contains('open')&&(ov.classList.remove('open'),setTimeout(()=>ov.remove(),200));
   ov.querySelector('#ws-settings-close')?.addEventListener('touchend',e2=>{e2.preventDefault();_closeOv();},{passive:false});
-  ov.querySelector('#ws-settings-close')?.addEventListener('click',e2=>e2.preventDefault());
+  ov.querySelector('#ws-settings-close')?.addEventListener('click',e2=>{e2.preventDefault();_closeOv();});
   const _handleBtn=async e2=>{
     e2.preventDefault();e2.stopPropagation();
     if(e2.target===ov){_closeOv();return;}
@@ -2810,7 +2810,7 @@ function openWsSettings(wsId){
     }
   };
   ov.addEventListener('touchend',_handleBtn,{passive:false});
-  ov.addEventListener('click',e2=>{if(e2.target===ov)_closeOv();});
+  ov.addEventListener('click',_handleBtn);
 }
 
 function attachProjRenameListeners(){
