@@ -2795,6 +2795,7 @@ function openWsSettings(wsId){
       S.projects.forEach(p=>{if(p.workspaceId===wsId)p.workspaceId=null;});
       ov.remove();render();toast('チームを削除しました');
     } else if(ba==='ws-invite'){
+      if(btn._inviteBusy)return;btn._inviteBusy=true;setTimeout(()=>btn._inviteBusy=false,1000);
       const url=getInviteUrl(ws);
       try{await navigator.clipboard.writeText(url);toast('招待リンクをコピーしました 🔗');}
       catch{const inp2=document.createElement('input');inp2.value=url;document.body.appendChild(inp2);inp2.select();document.execCommand('copy');inp2.remove();toast('招待リンクをコピーしました 🔗');}
