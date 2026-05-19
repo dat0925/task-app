@@ -2734,13 +2734,83 @@ function startProjRename(span){
   input.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
 }
 
+function openWsSettings(wsId){
+  const ws=S.workspaces.find(w=>w.id===wsId);
+  if(!ws)return;
+  const isOwner=ws.owner_id===window._currentUser?.id;
+  const members=S.wsMembers[wsId]||[];
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal" style="max-width:400px">'
+    +'<div class="modal-title">'+esc(ws.name)+'</div>'
+    +'<div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:8px">メンバー ('+members.length+'人)</div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">'
+    +members.map(m=>{
+      const av=m.user_avatar
+        ?`<img src="${esc(m.user_avatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        :(m.user_name||'?').charAt(0).toUpperCase();
+      const badge=m.role==='owner'?'<span style="font-size:10px;color:var(--accent);background:var(--accent-bg);border-radius:4px;padding:1px 5px;margin-left:4px">Owner</span>':'';
+      const delBtn=(isOwner&&m.user_id!==window._currentUser?.id)
+        ?`<button data-a="ws-kick" data-wsid="${wsId}" data-memberid="${m.id}" style="font-size:11px;color:var(--p1);background:none;border:none;cursor:pointer;padding:2px 6px;flex-shrink:0">除名</button>`:'';
+      return `<div style="display:flex;align-items:center;gap:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${av}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600">${esc(m.user_name||'ユーザー')}${badge}</div>
+          <div style="font-size:11px;color:var(--text3)">${esc(m.user_email)}</div>
+        </div>${delBtn}
+      </div>`;
+    }).join('')
+    +'</div>'
+    +(isOwner?'<div style="margin-bottom:12px"><button class="btn btn-ghost" data-a="ws-invite" data-wsid="'+wsId+'" style="font-size:13px;width:100%">🔗 招待リンクをコピー</button></div>':'')
+    +'<div class="modal-foot">'
+    +(!isOwner?'<button class="btn" style="color:var(--p1);border-color:var(--p1)" data-a="ws-leave" data-wsid="'+wsId+'">脱退する</button>':'')
+    +(isOwner?'<button class="btn" style="color:var(--p1);border-color:var(--p1)" data-a="ws-delete" data-wsid="'+wsId+'">チームを削除</button>':'')
+    +'<button class="btn btn-ghost" id="ws-settings-close">閉じる</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#ws-settings-close')?.addEventListener('click',()=>ov.remove());
+  ov.addEventListener('click',async e2=>{
+    const btn=e2.target.closest('[data-a]');if(!btn)return;
+    const ba=btn.dataset.a;
+    if(ba==='ws-kick'){
+      const mid=btn.dataset.memberid;
+      if(!confirm('このメンバーを除名しますか？'))return;
+      await window._SB.from('workspace_members').delete().eq('id',mid);
+      await loadWorkspaces();ov.remove();render();
+    } else if(ba==='ws-leave'){
+      if(!confirm('このチームから脱退しますか？'))return;
+      const uid2=window._currentUser?.id;
+      await window._SB.from('workspace_members').delete().eq('workspace_id',wsId).eq('user_id',uid2);
+      await loadWorkspaces();ov.remove();render();toast('チームから脱退しました');
+    } else if(ba==='ws-delete'){
+      if(!confirm('チームを削除します。共有プロジェクトは個人プロジェクトに戻ります。よろしいですか？'))return;
+      await window._SB.from('projects').update({workspace_id:null}).eq('workspace_id',wsId);
+      await window._SB.from('workspaces').delete().eq('id',wsId);
+      await loadAll();ov.remove();render();toast('チームを削除しました');
+    } else if(ba==='ws-invite'){
+      const url=getInviteUrl(ws);
+      try{await navigator.clipboard.writeText(url);toast('招待リンクをコピーしました 🔗');}
+      catch{const inp2=document.createElement('input');inp2.value=url;document.body.appendChild(inp2);inp2.select();document.execCommand('copy');inp2.remove();toast('招待リンクをコピーしました 🔗');}
+    }
+  });
+  ov.addEventListener('click',e2=>{if(e2.target===ov)ov.remove();});
+}
+
 function attachProjRenameListeners(){
   document.querySelectorAll('.proj-name-label[data-proj-id]').forEach(span=>{
-    // PC: ダブルクリック
     span.addEventListener('dblclick',e=>{
       e.stopPropagation();
       startProjRename(span);
     });
+  });
+  // チーム設定ボタン：touchend で確実に発火（clickが親のws-toggleに取られる問題を回避）
+  document.querySelectorAll('[data-a="ws-settings"]').forEach(btn=>{
+    if(btn._wsSettingsBound)return;
+    btn._wsSettingsBound=true;
+    btn.addEventListener('touchend',e=>{
+      e.stopPropagation();
+      e.preventDefault();
+      openWsSettings(btn.dataset.wsid);
+    },{passive:false});
   });
 }
 
@@ -6349,68 +6419,7 @@ document.addEventListener('click',async e=>{
   }
   else if(a==='ws-settings'){
     e.stopPropagation();
-    const wsId=el.dataset.wsid;
-    const ws=S.workspaces.find(w=>w.id===wsId);
-    if(!ws)return;
-    const isOwner=ws.owner_id===window._currentUser?.id;
-    const members=S.wsMembers[wsId]||[];
-    const ov=document.createElement('div');ov.className='overlay';
-    ov.innerHTML='<div class="modal" style="max-width:400px">'
-      +'<div class="modal-title">'+esc(ws.name)+'</div>'
-      +'<div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:8px">メンバー ('+members.length+'人)</div>'
-      +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">'
-        +members.map(m=>{
-          const av=m.user_avatar
-            ?`<img src="${esc(m.user_avatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-            :(m.user_name||'?').charAt(0).toUpperCase();
-          const badge=m.role==='owner'?'<span style="font-size:10px;color:var(--accent);background:var(--accent-bg);border-radius:4px;padding:1px 5px;margin-left:4px">Owner</span>':'';
-          const delBtn=(isOwner&&m.user_id!==window._currentUser?.id)
-            ?`<button data-a="ws-kick" data-wsid="${wsId}" data-memberid="${m.id}" style="font-size:11px;color:var(--p1);background:none;border:none;cursor:pointer;padding:2px 6px;flex-shrink:0">除名</button>`:'';
-          return `<div style="display:flex;align-items:center;gap:8px">
-            <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${av}</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:600">${esc(m.user_name||'ユーザー')}${badge}</div>
-              <div style="font-size:11px;color:var(--text3)">${esc(m.user_email)}</div>
-            </div>${delBtn}
-          </div>`;
-        }).join('')
-      +'</div>'
-      +(isOwner?'<div style="margin-bottom:12px"><button class="btn btn-ghost" data-a="ws-invite" data-wsid="'+wsId+'" style="font-size:13px;width:100%">🔗 招待リンクをコピー</button></div>':'')
-      +'<div class="modal-foot">'
-        +(!isOwner?'<button class="btn" style="color:var(--p1);border-color:var(--p1)" data-a="ws-leave" data-wsid="'+wsId+'">脱退する</button>':'')
-        +(isOwner?'<button class="btn" style="color:var(--p1);border-color:var(--p1)" data-a="ws-delete" data-wsid="'+wsId+'">チームを削除</button>':'')
-        +'<button class="btn btn-ghost" id="ws-settings-close">閉じる</button>'
-      +'</div></div>';
-    document.body.appendChild(ov);
-    ov.querySelector('#ws-settings-close')?.addEventListener('click',()=>ov.remove());
-    ov.addEventListener('click',async e2=>{
-      const btn=e2.target.closest('[data-a]');if(!btn)return;
-      const ba=btn.dataset.a;
-      if(ba==='ws-kick'){
-        const mid=btn.dataset.memberid;
-        if(!confirm('このメンバーを除名しますか？'))return;
-        const SB=window._SB;
-        await SB.from('workspace_members').delete().eq('id',mid);
-        await loadWorkspaces();ov.remove();render();
-      } else if(ba==='ws-leave'){
-        if(!confirm('このチームから脱退しますか？'))return;
-        const SB=window._SB;const uid2=window._currentUser?.id;
-        await SB.from('workspace_members').delete().eq('workspace_id',wsId).eq('user_id',uid2);
-        await loadWorkspaces();ov.remove();render();toast('チームから脱退しました');
-      } else if(ba==='ws-delete'){
-        if(!confirm('チームを削除します。共有プロジェクトは個人プロジェクトに戻ります。よろしいですか？'))return;
-        const SB=window._SB;
-        // プロジェクトのworkspace_idをnullに
-        await SB.from('projects').update({workspace_id:null}).eq('workspace_id',wsId);
-        await SB.from('workspaces').delete().eq('id',wsId);
-        await loadAll();ov.remove();render();toast('チームを削除しました');
-      } else if(ba==='ws-invite'){
-        const url=getInviteUrl(ws);
-        try{await navigator.clipboard.writeText(url);toast('招待リンクをコピーしました 🔗');}
-        catch{const inp2=document.createElement('input');inp2.value=url;document.body.appendChild(inp2);inp2.select();document.execCommand('copy');inp2.remove();toast('招待リンクをコピーしました 🔗');}
-      }
-    });
-    ov.addEventListener('click',e2=>{if(e2.target===ov)ov.remove();});
+    openWsSettings(el.dataset.wsid);
   }
   else if(a==='ws-add-proj'){
     // ワークスペースに新しいプロジェクトを追加
