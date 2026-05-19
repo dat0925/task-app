@@ -2766,7 +2766,7 @@ function openWsSettings(wsId){
     +(isOwner?'<button class="btn" style="color:var(--p1);border-color:var(--p1)" data-a="ws-delete" data-wsid="'+wsId+'">チームを削除</button>':'')
     +'<button class="btn btn-ghost" id="ws-settings-close">閉じる</button>'
     +'</div></div>';
-  document.body.appendChild(ov);
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
   ov.querySelector('#ws-settings-close')?.addEventListener('click',()=>ov.remove());
   ov.addEventListener('click',async e2=>{
     const btn=e2.target.closest('[data-a]');if(!btn)return;
