@@ -2784,7 +2784,6 @@ function openWsSettings(wsId){
       S.workspaces=S.workspaces.filter(w=>w.id!==wsId);
       delete S.wsMembers[wsId];
       ov.remove();render();toast('チームから脱退しました');
-      loadWorkspaces();
     } else if(ba==='ws-delete'){
       if(!confirm('チームを削除します。共有プロジェクトは個人プロジェクトに戻ります。よろしいですか？'))return;
       const{error:delErr1}=await window._SB.from('workspace_members').delete().eq('workspace_id',wsId);
@@ -2795,7 +2794,6 @@ function openWsSettings(wsId){
       delete S.wsMembers[wsId];
       S.projects.forEach(p=>{if(p.workspaceId===wsId)p.workspaceId=null;});
       ov.remove();render();toast('チームを削除しました');
-      loadWorkspaces();
     } else if(ba==='ws-invite'){
       const url=getInviteUrl(ws);
       try{await navigator.clipboard.writeText(url);toast('招待リンクをコピーしました 🔗');}
