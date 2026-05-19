@@ -2294,8 +2294,9 @@ async function createWorkspace(name){
 async function joinWorkspaceByToken(token){
   const SB=window._SB;const user=window._currentUser;
   if(!SB||!user)return false;
-  // トークンからワークスペース検索
-  const{data:ws}=await SB.from('workspaces').select('*').eq('invite_token',token).maybeSingle();
+  // トークンからワークスペース検索（RLS回避のためRPC関数を使用）
+  const{data:wsList}=await SB.rpc('get_workspace_by_invite_token',{p_token:token});
+  const ws=wsList?.[0]||null;
   if(!ws){toast('招待リンクが無効です');return false;}
   // 既にメンバーか確認
   const{data:existing}=await SB.from('workspace_members').select('id')
