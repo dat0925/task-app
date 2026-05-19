@@ -3725,7 +3725,7 @@ function renderSidebar(){
       +'<span class="nav-label" style="color:var(--accent)">'+ esc(ws.name)+'</span>'
       +'<span class="toggle-chevron" style="margin-left:auto">▼</span>'
       +'</div>'
-      +'<button class="proj-action-btn" data-a="ws-settings" data-wsid="'+ws.id+'" style="opacity:.7;width:36px;height:36px;font-size:18px;flex-shrink:0" title="設定">⋯</button>'
+      +'<button class="proj-action-btn" style="opacity:.7;width:36px;height:36px;font-size:18px;flex-shrink:0;touch-action:manipulation" title="設定" onclick="event.stopPropagation();openWsSettings(\''+ws.id+'\')" ontouchend="event.stopPropagation();event.preventDefault();openWsSettings(\''+ws.id+'\')" >⋯</button>'
     +'</div>';
     h+='<div class="proj-section-wrap'+(wsOpen?'':' collapsed')+'">';
     h+='<div class="proj-section-inner">';
