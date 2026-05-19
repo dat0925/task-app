@@ -2802,16 +2802,7 @@ function attachProjRenameListeners(){
       startProjRename(span);
     });
   });
-  // チーム設定ボタン：touchend で確実に発火（clickが親のws-toggleに取られる問題を回避）
-  document.querySelectorAll('[data-a="ws-settings"]').forEach(btn=>{
-    if(btn._wsSettingsBound)return;
-    btn._wsSettingsBound=true;
-    btn.addEventListener('touchend',e=>{
-      e.stopPropagation();
-      e.preventDefault();
-      openWsSettings(btn.dataset.wsid);
-    },{passive:false});
-  });
+
 }
 
 // ===== PROJ EDIT POPUP =====
@@ -3658,6 +3649,18 @@ function closeViewHelp(){
 document.addEventListener('DOMContentLoaded',()=>{
   const ov=document.getElementById('view-help-ov');
   if(ov)ov.addEventListener('click',closeViewHelp);
+
+  // チーム⋯ボタン：サイドバーに委譲してDOM再生成に関係なく動作
+  const sidebar=document.getElementById('sidebar');
+  if(sidebar){
+    sidebar.addEventListener('touchend',e=>{
+      const btn=e.target.closest('[data-a="ws-settings"]');
+      if(!btn)return;
+      e.stopPropagation();
+      e.preventDefault();
+      openWsSettings(btn.dataset.wsid);
+    },{passive:false});
+  }
 });
 
 function renderSidebar(){
