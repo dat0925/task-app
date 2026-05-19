@@ -2767,41 +2767,48 @@ function openWsSettings(wsId){
     +'<button class="btn btn-ghost" id="ws-settings-close">閉じる</button>'
     +'</div></div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
-  ov.querySelector('#ws-settings-close')?.addEventListener('click',()=>ov.remove());
-  ov.addEventListener('click',async e2=>{
+  const _closeOv=()=>ov.classList.contains('open')&&(ov.classList.remove('open'),setTimeout(()=>ov.remove(),200));
+  ov.querySelector('#ws-settings-close')?.addEventListener('click',_closeOv);
+  const _handleBtn=async e2=>{
+    e2.preventDefault();e2.stopPropagation();
+    if(e2.target===ov){_closeOv();return;}
     const btn=e2.target.closest('[data-a]');if(!btn)return;
+    if(btn._wsBusy)return;btn._wsBusy=true;setTimeout(()=>btn._wsBusy=false,1500);
     const ba=btn.dataset.a;
     if(ba==='ws-kick'){
       const mid=btn.dataset.memberid;
       if(!confirm('このメンバーを除名しますか？'))return;
-      await window._SB.from('workspace_members').delete().eq('id',mid);
-      await loadWorkspaces();ov.remove();render();
+      const{error}=await window._SB.from('workspace_members').delete().eq('id',mid);
+      if(error){toast('エラー: '+error.message);return;}
+      await loadWorkspaces();_closeOv();render();
     } else if(ba==='ws-leave'){
       if(!confirm('このチームから脱退しますか？'))return;
       const uid2=window._currentUser?.id;
-      const{error:leaveErr}=await window._SB.from('workspace_members').delete().eq('workspace_id',wsId).eq('user_id',uid2);
-      if(leaveErr){toast('エラー: '+leaveErr.message);return;}
+      const{error}=await window._SB.from('workspace_members').delete().eq('workspace_id',wsId).eq('user_id',uid2);
+      if(error){toast('エラー: '+error.message);return;}
       S.workspaces=S.workspaces.filter(w=>w.id!==wsId);
       delete S.wsMembers[wsId];
-      ov.remove();render();toast('チームから脱退しました');
+      _closeOv();render();toast('チームから脱退しました');
     } else if(ba==='ws-delete'){
       if(!confirm('チームを削除します。共有プロジェクトは個人プロジェクトに戻ります。よろしいですか？'))return;
-      const{error:delErr1}=await window._SB.from('workspace_members').delete().eq('workspace_id',wsId);
-      const{error:delErr2}=await window._SB.from('projects').update({workspace_id:null}).eq('workspace_id',wsId);
-      const{error:delErr3}=await window._SB.from('workspaces').delete().eq('id',wsId);
-      if(delErr1||delErr2||delErr3){toast('エラー: '+((delErr1||delErr2||delErr3).message));return;}
+      const r1=await window._SB.from('workspace_members').delete().eq('workspace_id',wsId);
+      const r2=await window._SB.from('projects').update({workspace_id:null}).eq('workspace_id',wsId);
+      const r3=await window._SB.from('workspaces').delete().eq('id',wsId);
+      const err=r1.error||r2.error||r3.error;
+      if(err){toast('削除エラー: '+err.message);return;}
       S.workspaces=S.workspaces.filter(w=>w.id!==wsId);
       delete S.wsMembers[wsId];
       S.projects.forEach(p=>{if(p.workspaceId===wsId)p.workspaceId=null;});
-      ov.remove();render();toast('チームを削除しました');
+      _closeOv();render();toast('チームを削除しました');
     } else if(ba==='ws-invite'){
-      if(btn._inviteBusy)return;btn._inviteBusy=true;setTimeout(()=>btn._inviteBusy=false,1000);
       const url=getInviteUrl(ws);
-      try{await navigator.clipboard.writeText(url);toast('招待リンクをコピーしました 🔗');}
-      catch{const inp2=document.createElement('input');inp2.value=url;document.body.appendChild(inp2);inp2.select();document.execCommand('copy');inp2.remove();toast('招待リンクをコピーしました 🔗');}
+      try{await navigator.clipboard.writeText(url);}
+      catch{const inp2=document.createElement('input');inp2.value=url;document.body.appendChild(inp2);inp2.select();document.execCommand('copy');inp2.remove();}
+      toast('招待リンクをコピーしました 🔗');
     }
-  });
-  ov.addEventListener('click',e2=>{if(e2.target===ov)ov.remove();});
+  };
+  ov.addEventListener('touchend',_handleBtn,{passive:false});
+  ov.addEventListener('click',e2=>{if(e2.target===ov)_closeOv();});
 }
 
 function attachProjRenameListeners(){
