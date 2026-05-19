@@ -2241,7 +2241,18 @@ async function loadWorkspaces(){
   const SB=window._SB;
   if(!SB)return;
   try{
-    const{data:wsList,error}=await SB.from('workspaces').select('*');
+    // 自分が所属しているworkspace_membersから取得（脱退後に復活しないよう）
+    const uid=window._currentUser?.id;
+    if(!uid)return;
+    const{data:myMemberships,error:meErr}=await SB.from('workspace_members').select('workspace_id').eq('user_id',uid);
+    if(meErr){console.error('loadWorkspaces memberships error',meErr);return;}
+    const myWsIds=(myMemberships||[]).map(m=>m.workspace_id);
+    // オーナーのワークスペースも取得
+    const{data:ownedWs,error:ownerErr}=await SB.from('workspaces').select('*').eq('owner_id',uid);
+    const ownedIds=(ownedWs||[]).map(w=>w.id);
+    const allWsIds=[...new Set([...myWsIds,...ownedIds])];
+    if(allWsIds.length===0){S.workspaces=[];S.wsMembers={};return;}
+    const{data:wsList,error}=await SB.from('workspaces').select('*').in('id',allWsIds);
     if(error){console.error('loadWorkspaces select error',error);toast('WS取得エラー: '+(error.message||''));return;}
     S.workspaces=(wsList||[]).map(w=>({
       id:w.id,name:w.name,ownerId:w.owner_id,
@@ -2768,7 +2779,8 @@ function openWsSettings(wsId){
     +'</div></div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
   const _closeOv=()=>ov.classList.contains('open')&&(ov.classList.remove('open'),setTimeout(()=>ov.remove(),200));
-  ov.querySelector('#ws-settings-close')?.addEventListener('click',_closeOv);
+  ov.querySelector('#ws-settings-close')?.addEventListener('touchend',e2=>{e2.preventDefault();_closeOv();},{passive:false});
+  ov.querySelector('#ws-settings-close')?.addEventListener('click',e2=>e2.preventDefault());
   const _handleBtn=async e2=>{
     e2.preventDefault();e2.stopPropagation();
     if(e2.target===ov){_closeOv();return;}
