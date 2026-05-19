@@ -2334,11 +2334,11 @@ function checkInviteToken(){
   if(hash.startsWith('#invite/')){
     const token=hash.slice(8);
     history.replaceState(null,'',location.pathname);
-    // ログイン後に処理
     if(window._currentUser){
       joinWorkspaceByToken(token);
     }else{
-      window._pendingInviteToken=token;
+      // OAuthリダイレクトでページがリロードされてもトークンを保持するためlocalStorageに保存
+      localStorage.setItem('pendingInviteToken',token);
     }
   }
 }
@@ -9972,11 +9972,12 @@ async function init(){
     await seed();
     await loadAll();
     await loadNavOrder();
-    // 招待トークンチェック
+    // 招待トークンチェック（ログイン済みの場合はここで即処理）
     checkInviteToken();
-    if(window._pendingInviteToken){
-      await joinWorkspaceByToken(window._pendingInviteToken);
-      window._pendingInviteToken=null;
+    const _storedToken=localStorage.getItem('pendingInviteToken');
+    if(_storedToken){
+      localStorage.removeItem('pendingInviteToken');
+      await joinWorkspaceByToken(_storedToken);
     }
     // 保存済みビューの有効性を検証（削除済みプロジェクト/タグへの参照を除去）
     if(S.view==='project'&&!S.projects.find(p=>p.id===S.projId)){S.view='inbox';S.projId=null;}
@@ -10172,11 +10173,11 @@ async function setupSB(){
         if(typeof loadUserPlan==='function')loadUserPlan().then(()=>{if(typeof renderSidebar==='function')renderSidebar();}).catch(()=>{});
         if(typeof loadAll==='function'&&typeof render==='function'){
           loadAll().then(async()=>{
-            // 招待リンク経由でログインした場合はワークスペースに参加
-            if(window._pendingInviteToken){
-              const t=window._pendingInviteToken;
-              window._pendingInviteToken=null;
-              await joinWorkspaceByToken(t);
+            // 招待リンク経由でOAuth後にリロードされた場合はlocalStorageから復元して参加
+            const _pt=localStorage.getItem('pendingInviteToken');
+            if(_pt){
+              localStorage.removeItem('pendingInviteToken');
+              await joinWorkspaceByToken(_pt);
             } else {
               render();
             }
