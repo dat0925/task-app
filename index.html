@@ -2241,18 +2241,8 @@ async function loadWorkspaces(){
   const SB=window._SB;
   if(!SB)return;
   try{
-    // 自分が所属しているworkspace_membersから取得（脱退後に復活しないよう）
-    const uid=window._currentUser?.id;
-    if(!uid)return;
-    const{data:myMemberships,error:meErr}=await SB.from('workspace_members').select('workspace_id').eq('user_id',uid);
-    if(meErr){console.error('loadWorkspaces memberships error',meErr);return;}
-    const myWsIds=(myMemberships||[]).map(m=>m.workspace_id);
-    // オーナーのワークスペースも取得
-    const{data:ownedWs,error:ownerErr}=await SB.from('workspaces').select('*').eq('owner_id',uid);
-    const ownedIds=(ownedWs||[]).map(w=>w.id);
-    const allWsIds=[...new Set([...myWsIds,...ownedIds])];
-    if(allWsIds.length===0){S.workspaces=[];S.wsMembers={};return;}
-    const{data:wsList,error}=await SB.from('workspaces').select('*').in('id',allWsIds);
+    // RLSが設定済みなのでそのまま全件取得（自分が見えるものだけ返る）
+    const{data:wsList,error}=await SB.from('workspaces').select('*');
     if(error){console.error('loadWorkspaces select error',error);toast('WS取得エラー: '+(error.message||''));return;}
     S.workspaces=(wsList||[]).map(w=>({
       id:w.id,name:w.name,ownerId:w.owner_id,
