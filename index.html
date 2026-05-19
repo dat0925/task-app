@@ -9470,6 +9470,7 @@ async function aiExecuteActions(actions){
             status:parent.status==='inbox'?'inbox':'active',
             dueAt:a.dueAt||parent.dueAt,
             priority:a.priority||parent.priority,
+            notes:a.notes||'',
           });
           await saveTask(sub);done.push({...a,label:a.title+'（'+parent.title+'のサブタスク）'});
         } else {
@@ -9556,7 +9557,8 @@ ${JSON.stringify(context,null,2)}
 - start_time/due_timeはHH:MM形式（24時間）
 - 【重要】「ノートを追加」「Note追加」「メモを作って」→ 必ず add_note ツールを使う。add_task は絶対に使わない
 - 【重要】add_note の body フィールドには必ずユーザーが指定した内容を入れる。省略しない
-- タスクのメモ（notes）への追記は append_note フィールドを使う。ノート（Note機能）とは別物`;
+- タスクのメモ（notes）への追記は append_note フィールドを使う。ノート（Note機能）とは別物
+- 【重要】サブタスク作成時、内容の説明・コツ・参考情報・URLなどを求められた場合は notes フィールドに詳細を記載する。Web検索はできないが、知識の範囲で有用な情報を入れること`;
 
   // ── ツール定義 ──────────────────────────────────────────
   const tools=[
@@ -9650,6 +9652,7 @@ ${JSON.stringify(context,null,2)}
           title:{type:'string',description:'サブタスクのタイトル'},
           due_at:{type:'string',description:'期日 YYYY-MM-DD'},
           priority:{type:'number',description:'優先度 1-4'},
+          notes:{type:'string',description:'メモ・詳細情報・コツ・参考URLなど。サブタスクの説明や補足情報を入れる'},
         },
         required:['title'],
       },
@@ -9789,6 +9792,7 @@ ${JSON.stringify(context,null,2)}
             title:inp.title,
             dueAt:inp.due_at||null,
             priority:inp.priority||4,
+            notes:inp.notes||'',
           });
         } else if(block.name==='add_tag'){
           actions.push({type:'addTag',name:inp.name,color:inp.color||'#7c3aed'});
