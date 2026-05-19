@@ -2418,6 +2418,20 @@ function toast(msg,undoFn){
   c.appendChild(el);
   setTimeout(()=>el.remove(),3150);
 }
+function toastTop(msg){
+  let c=document.getElementById('toasts-top');
+  if(!c){
+    c=document.createElement('div');
+    c.id='toasts-top';
+    c.style.cssText='position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;transform:translateX(-50%);z-index:900;display:flex;flex-direction:column;gap:7px;pointer-events:none';
+    document.body.appendChild(c);
+  }
+  const el=document.createElement('div');
+  el.className='toast';
+  el.innerHTML='<span>'+esc(msg)+'</span>';
+  c.appendChild(el);
+  setTimeout(()=>el.remove(),2200);
+}
 
 // ===== SE SOUNDS =====
 (function(){
@@ -10086,7 +10100,7 @@ async function init(){
           playSE('toggle');
           S.hideNotStarted=!S.hideNotStarted;
           renderTaskFilters();renderContent();
-          toast(S.hideNotStarted?'現在フィルタ ON（開始前を除外）':'現在フィルタ OFF');
+          toastTop(S.hideNotStarted?'現在フィルタ ON（開始前を除外）':'現在フィルタ OFF');
         },500);
       },{passive:true});
       botnav.addEventListener('touchmove',e=>{
