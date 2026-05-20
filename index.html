@@ -3086,6 +3086,16 @@ function startProjRename(span){
 function openWsSettings(wsId){
   const ws=S.workspaces.find(w=>w.id===wsId);
   if(!ws)return;
+  // メンバー情報を最新化してから表示
+  loadWorkspaces().then(()=>{
+    const wsLatest=S.workspaces.find(w=>w.id===wsId);
+    if(!wsLatest)return;
+    _openWsSettingsModal(wsId);
+  });
+}
+function _openWsSettingsModal(wsId){
+  const ws=S.workspaces.find(w=>w.id===wsId);
+  if(!ws)return;
   const isOwner=ws.owner_id===window._currentUser?.id;
   const members=S.wsMembers[wsId]||[];
   const ov=document.createElement('div');ov.className='overlay';
@@ -4102,7 +4112,7 @@ function renderSidebar(){
       h+=`<div title="${esc(m.user_email)}" style="width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${av}</div>`;
     });
     if(wsMembers.length>5)h+=`<span style="font-size:10px;color:var(--text3)">+${wsMembers.length-5}</span>`;
-    h+='<button class="proj-action-btn" data-a="ws-invite" data-wsid="'+ws.id+'" style="margin-left:auto;font-size:11px;color:var(--accent);padding:2px 6px" title="招待リンクをコピー">＋招待</button>';
+    h+='<div style="margin-left:auto;display:flex;gap:4px">'+'<button class="proj-action-btn" data-a="ws-refresh" data-wsid="'+ws.id+'" style="font-size:13px;color:var(--text3);padding:2px 4px" title="メンバーを更新">🔄</button>'+'<button class="proj-action-btn" data-a="ws-invite" data-wsid="'+ws.id+'" style="font-size:11px;color:var(--accent);padding:2px 6px" title="招待リンクをコピー">＋招待</button>'+'</div>';
     h+='</div>';
     // ワークスペースのプロジェクト
     wsProjects.forEach(p=>{
@@ -6862,6 +6872,14 @@ document.addEventListener('click',async e=>{
     };
     inp.addEventListener('keydown',e2=>{if(e2.key==='Enter')ov.querySelector('#ws-create-ok').click();if(e2.key==='Escape')ov.remove();});
     ov.addEventListener('click',e2=>{if(e2.target===ov)ov.remove();});
+  }
+  else if(a==='ws-refresh'){
+    e.stopPropagation();
+    const wsId=el.dataset.wsid;
+    el.textContent='⏳';
+    await loadWorkspaces();
+    renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();
+    toast('メンバー情報を更新しました');
   }
   else if(a==='ws-invite'){
     e.stopPropagation();
