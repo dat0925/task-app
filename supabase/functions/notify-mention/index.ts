@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
           'Authorization': `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from:    'Taskra <noreply@taskra.jp>',
+          from:    'Taskra <onboarding@resend.dev>',
           to:      [member.user_email],
           subject: `${senderName} さんがコメントであなたをメンションしました`,
           html:    buildHtml(senderName, taskTitle || taskId, commentBody, appUrl),
