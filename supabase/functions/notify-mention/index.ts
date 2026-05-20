@@ -1,8 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import webpush from 'https://esm.sh/web-push@3.6.7';
 
 const RESEND_API_KEY       = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SB_SERVICE_ROLE_KEY')!;
+const VAPID_PUBLIC_KEY     = Deno.env.get('VAPID_PUBLIC_KEY') || '';
+const VAPID_PRIVATE_KEY    = Deno.env.get('VAPID_PRIVATE_KEY') || '';
+const VAPID_SUBJECT        = Deno.env.get('VAPID_SUBJECT') || 'mailto:support@taskra.jp';
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
@@ -75,7 +83,54 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ ok: true, sent });
+    // ── 5. Web Push 通知も配信（設定でONにしている人のみ） ────
+    let pushSent = 0;
+    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+      try {
+        const { data: settings } = await sb
+          .from('notification_settings')
+          .select('user_id')
+          .in('user_id', mentionedUserIds)
+          .eq('push_enabled', true)
+          .eq('mention_notify', true);
+        const enabledIds = (settings || []).map(s => s.user_id);
+        if (enabledIds.length) {
+          const { data: subs } = await sb
+            .from('push_subscriptions')
+            .select('id, user_id, endpoint, p256dh, auth')
+            .in('user_id', enabledIds);
+          const dead: string[] = [];
+          const pushPayload = JSON.stringify({
+            title: `💬 ${senderName} さんからメンション`,
+            body: (commentBody || '').slice(0, 120),
+            url: appUrl,
+            tag: 'mention-' + taskId,
+            taskId,
+            kind: 'mention',
+          });
+          for (const s of (subs || [])) {
+            try {
+              await webpush.sendNotification(
+                { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+                pushPayload
+              );
+              pushSent++;
+            } catch (err: any) {
+              const code = err?.statusCode;
+              if (code === 410 || code === 404) dead.push(s.id);
+              console.warn('push fail', code, err?.message?.slice?.(0, 80));
+            }
+          }
+          if (dead.length) {
+            await sb.from('push_subscriptions').delete().in('id', dead);
+          }
+        }
+      } catch (pushErr) {
+        console.error('push notification error (non-fatal):', pushErr);
+      }
+    }
+
+    return json({ ok: true, sent, pushSent });
 
   } catch (e) {
     console.error('notify-mention error:', e);

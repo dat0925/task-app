@@ -1413,6 +1413,231 @@ function showQRShareModal(){
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
 }
 
+// ===== Web Push 通知 関連 =====
+// VAPID公開鍵（VAPID_PUBLIC_KEY のbase64url を埋め込む）
+const VAPID_PUBLIC_KEY = '__VAPID_PUBLIC_KEY_PLACEHOLDER__';
+const PUSH_FN_URL = 'https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/send-push';
+
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4 - base64String.length % 4) % 4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);
+  const out=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
+  return out;
+}
+
+function isPushSupported(){
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+// iOSはホーム画面PWAのみpush対応
+function isIosTabWithoutPush(){
+  const ua=navigator.userAgent||'';
+  const isIos=/iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isStandalone=window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  return isIos && !isStandalone;
+}
+
+async function getNotifSettings(){
+  const v=await window.sbGetSetting?.('notif_settings');
+  return v||{push_enabled:false,due_reminder:true,due_minutes_before:30,mention_notify:true,repeat_start:true,quiet_start:'',quiet_end:''};
+}
+async function saveNotifSettings(s){
+  await window.sbSetSetting?.('notif_settings',s);
+  // notification_settings テーブルにも書く（cronから参照される）
+  try{
+    if(!window._currentUser)return;
+    await window._SB.from('notification_settings').upsert({
+      user_id:window._currentUser.id,
+      push_enabled:!!s.push_enabled,
+      due_reminder:!!s.due_reminder,
+      due_minutes_before:Number(s.due_minutes_before)||30,
+      mention_notify:!!s.mention_notify,
+      repeat_start:!!s.repeat_start,
+      quiet_start:s.quiet_start||null,
+      quiet_end:s.quiet_end||null,
+      updated_at:new Date().toISOString(),
+    },{onConflict:'user_id'});
+  }catch(e){console.warn('notification_settings upsert',e);}
+}
+
+async function subscribeToPush(){
+  if(!isPushSupported())throw new Error('このブラウザはプッシュ通知に対応していません');
+  if(isIosTabWithoutPush())throw new Error('iOSではホーム画面に追加したPWAでのみプッシュ通知が利用できます');
+  if(!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.startsWith('__'))throw new Error('VAPID公開鍵が未設定です');
+
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub){
+    sub=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+  }
+  // Supabaseへ保存
+  if(!window._currentUser)throw new Error('ログインが必要です');
+  const subJson=sub.toJSON();
+  await window._SB.from('push_subscriptions').upsert({
+    user_id:window._currentUser.id,
+    endpoint:subJson.endpoint,
+    p256dh:subJson.keys.p256dh,
+    auth:subJson.keys.auth,
+    user_agent:(navigator.userAgent||'').slice(0,200),
+    last_used_at:new Date().toISOString(),
+  },{onConflict:'endpoint'});
+  return sub;
+}
+
+async function unsubscribeFromPush(){
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    if(sub){
+      const endpoint=sub.endpoint;
+      await sub.unsubscribe();
+      if(window._currentUser){
+        await window._SB.from('push_subscriptions').delete().eq('endpoint',endpoint);
+      }
+    }
+  }catch(e){console.warn('unsubscribe',e);}
+}
+
+// プッシュ通知の設定モーダル
+async function openPushSettingsModal(){
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal" style="max-width:420px;width:95vw;max-height:90vh;overflow-y:auto">'
+    +'<div class="modal-title">🔔 プッシュ通知の設定</div>'
+    +'<div id="push-modal-body" style="font-size:13px;color:var(--text2);text-align:center;padding:20px">読み込み中...</div>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" id="push-close">閉じる</button></div>'
+  +'</div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+  document.getElementById('push-close').onclick=()=>ov.remove();
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+
+  const body=document.getElementById('push-modal-body');
+
+  // 互換性チェック
+  if(!isPushSupported()){
+    body.innerHTML='<div style="color:var(--p1);padding:20px 0">このブラウザはプッシュ通知に対応していません。<br>Chrome / Edge / Firefox / iOS Safari (16.4+) をご利用ください。</div>';
+    return;
+  }
+  if(isIosTabWithoutPush()){
+    body.innerHTML='<div style="padding:14px;background:var(--bg2);border-radius:8px;line-height:1.7">'
+      +'<div style="font-weight:600;margin-bottom:8px">📱 iOSではホーム画面追加が必須です</div>'
+      +'<div style="font-size:12px;color:var(--text2)">iOSのSafariタブ上ではプッシュ通知を有効化できません。<br>左上のQRコードボタンから「ホーム画面に追加」の手順を確認し、<br>ホーム画面のTaskraアイコンから開き直してください。</div>'
+    +'</div>';
+    return;
+  }
+  if(!window._currentUser){
+    body.innerHTML='<div style="padding:20px">ログインが必要です</div>';
+    return;
+  }
+
+  const settings=await getNotifSettings();
+  const perm=Notification.permission;
+
+  body.innerHTML=''
+    +(perm==='denied'?'<div style="background:#fee;border:1px solid #fcc;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#900">ブラウザの通知設定でブロックされています。ブラウザ側で許可してください。</div>':'')
+    +'<div class="settings-row"><div><div class="settings-label">通知を有効にする</div><div class="settings-sub">この端末で通知を受信</div></div><button class="tog'+(settings.push_enabled?' on':'')+'" id="pm-enable"></button></div>'
+    +'<div id="pm-detail" style="'+(settings.push_enabled?'':'display:none')+'">'
+      +'<div class="settings-row"><div><div class="settings-label">⏰ 期限リマインダー</div><div class="settings-sub">期限当日の朝に通知</div></div><button class="tog'+(settings.due_reminder?' on':'')+'" id="pm-due"></button></div>'
+      +'<div class="settings-row"><div><div class="settings-label">💬 メンション通知</div><div class="settings-sub">コメントでメンションされた時</div></div><button class="tog'+(settings.mention_notify?' on':'')+'" id="pm-mention"></button></div>'
+      +'<div class="settings-row"><div><div class="settings-label">🔁 繰り返しタスク開始</div><div class="settings-sub">今日が実施日のとき通知</div></div><button class="tog'+(settings.repeat_start?' on':'')+'" id="pm-repeat"></button></div>'
+      +'<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px"><div><div class="settings-label">🌙 通知しない時間帯</div><div class="settings-sub">この時間帯は通知をスキップ（空欄で無効）</div></div>'
+        +'<div style="display:flex;align-items:center;gap:8px">'
+          +'<input type="time" id="pm-quiet-s" value="'+(settings.quiet_start||'')+'" style="flex:1;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-family:var(--font)">'
+          +'<span style="font-size:12px;color:var(--text3)">〜</span>'
+          +'<input type="time" id="pm-quiet-e" value="'+(settings.quiet_end||'')+'" style="flex:1;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-family:var(--font)">'
+        +'</div>'
+      +'</div>'
+      +'<div style="margin-top:14px;display:flex;gap:6px">'
+        +'<button class="btn btn-ghost" id="pm-test" style="flex:1;font-size:12px">🧪 テスト送信</button>'
+      +'</div>'
+    +'</div>';
+
+  async function refresh(){ov.remove();openPushSettingsModal();}
+
+  const togEnable=document.getElementById('pm-enable');
+  togEnable.onclick=async()=>{
+    if(!settings.push_enabled){
+      // 有効化フロー
+      try{
+        if(Notification.permission==='default'){
+          const p=await Notification.requestPermission();
+          if(p!=='granted'){toast('通知が許可されませんでした');return;}
+        } else if(Notification.permission==='denied'){
+          toast('ブラウザの通知設定で許可してください');return;
+        }
+        await subscribeToPush();
+        settings.push_enabled=true;
+        await saveNotifSettings(settings);
+        toast('プッシュ通知を有効にしました 🔔');
+        refresh();
+      }catch(e){
+        console.error('enable push',e);
+        toast('有効化に失敗: '+(e.message||'').slice(0,60));
+      }
+    } else {
+      // 無効化
+      await unsubscribeFromPush();
+      settings.push_enabled=false;
+      await saveNotifSettings(settings);
+      toast('プッシュ通知を無効にしました');
+      refresh();
+    }
+  };
+
+  const bind=(id,key)=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.onclick=async()=>{
+      settings[key]=!settings[key];
+      el.classList.toggle('on',settings[key]);
+      await saveNotifSettings(settings);
+    };
+  };
+  bind('pm-due','due_reminder');
+  bind('pm-mention','mention_notify');
+  bind('pm-repeat','repeat_start');
+
+  const qs=document.getElementById('pm-quiet-s'),qe=document.getElementById('pm-quiet-e');
+  if(qs)qs.onchange=async()=>{settings.quiet_start=qs.value;await saveNotifSettings(settings);};
+  if(qe)qe.onchange=async()=>{settings.quiet_end=qe.value;await saveNotifSettings(settings);};
+
+  const test=document.getElementById('pm-test');
+  if(test)test.onclick=async()=>{
+    try{
+      const{data:{session}}=await window._SB.auth.getSession();
+      const tok=session?.access_token;
+      if(!tok){toast('セッション切れ');return;}
+      const r=await fetch(PUSH_FN_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+        body:JSON.stringify({title:'🧪 Taskra テスト通知',body:'プッシュ通知が正常に動作しています！',url:'https://app.taskra.jp'}),
+      });
+      const j=await r.json();
+      if(r.ok && j.sent>0){toast('テスト通知を送信しました ✓');}
+      else{toast('送信失敗: '+(j.error||'購読端末がありません').slice(0,80));}
+    }catch(e){toast('エラー: '+(e.message||'').slice(0,60));}
+  };
+}
+
+// service worker からのメッセージを受けてタスクを開く
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message',e=>{
+    if(e.data&&e.data.type==='OPEN_TASK'&&e.data.taskId){
+      const tid=e.data.taskId;
+      // タスクが存在すればドロワーで開く
+      setTimeout(()=>{
+        const t=(window.S?.tasks||[]).find(x=>x.id===tid);
+        if(t&&typeof render==='function'){
+          window.S.taskId=tid;window.S.drawerOpen=true;render();
+        }
+      },300);
+    }
+  });
+}
+
 function showUpgradeModal(feature){
   const pd=getPlanDef();
   const cfg={
@@ -9038,6 +9263,13 @@ function openSettingsModal(){
       +'<div style="display:flex;align-items:center;gap:4px"><span style="font-size:12px;color:var(--text3);white-space:nowrap">$1 =</span><input type="number" id="s-fx-rate" value="'+getSetting('fxRate',160)+'" min="1" max="99999" step="0.01" style="width:64px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);text-align:center;font-family:var(--font)"><span style="font-size:13px;color:var(--text2)">円</span></div>'
     +'</div>'
 
+    +'<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;width:100%">'
+        +'<div><div class="settings-label">🔔 プッシュ通知</div><div class="settings-sub" id="s-push-status">未設定</div></div>'
+        +'<button class="pbtn" id="s-push-open" style="font-size:12px">設定</button>'
+      +'</div>'
+    +'</div>'
+
     +'<div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">'
       +'<div class="settings-label">📊 タスク CSV</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;width:100%">'
@@ -9089,6 +9321,27 @@ function openSettingsModal(){
   });
   addFastHandler('s-nav-edit',()=>{ov.remove();openNavEdit();});
   addFastHandler('s-backup',()=>{ov.remove();openBackupModal()});
+  // プッシュ通知設定モーダルを開く
+  addFastHandler('s-push-open',()=>{ov.remove();openPushSettingsModal();});
+  // ステータス表示を非同期で更新
+  (async()=>{
+    try{
+      const stEl=document.getElementById('s-push-status');
+      if(!stEl)return;
+      if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)){
+        stEl.textContent='このブラウザは未対応';
+        return;
+      }
+      const perm=Notification.permission;
+      const settings=window._currentUser?await window.sbGetSetting('notif_settings'):null;
+      if(perm==='denied'){stEl.textContent='ブラウザでブロック中';return;}
+      if(settings&&settings.push_enabled){
+        stEl.textContent='有効';stEl.style.color='var(--accent)';
+      } else {
+        stEl.textContent='無効';
+      }
+    }catch(e){}
+  })();
   addFastHandler('s-logout',async()=>{
     if(!window._currentUser)return;
     if(!confirm('ログアウトしますか？'))return;
@@ -10184,6 +10437,15 @@ async function init(){
       setTimeout(()=>renderNoteDrawer(),150);
       if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
       return;
+    }
+    // ?task= URLパラメータからタスクを開く（プッシュ通知から起動した場合）
+    const taskP=urlP.get('task');
+    if(taskP){
+      const found=S.tasks.find(t=>t.id===taskP);
+      if(found){S.taskId=taskP;S.drawerOpen=true;}
+      // ?view=today などと併用可能。historyだけ綺麗にする
+      const _u=new URL(location.href);_u.searchParams.delete('task');
+      history.replaceState(null,'',_u.pathname+(_u.search?'?'+_u.searchParams.toString():''));
     }
     // URLハッシュからタスクを開く
     const hash=location.hash.match(/^#task\/(.+)$/);
