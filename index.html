@@ -5886,7 +5886,6 @@ async function initComments(taskId){
   const{data,error}=await SB.from('task_comments')
     .select('*')
     .eq('task_id',taskId)
-    .eq('user_id',uid)
     .order('created_at',{ascending:true});
   if(error){console.error('cm load',error);return;}
   const comments=data||[];
