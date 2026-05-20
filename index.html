@@ -1439,23 +1439,42 @@ function isIosTabWithoutPush(){
 }
 
 async function getNotifSettings(){
-  const v=await window.sbGetSetting?.('notif_settings');
-  return v||{push_enabled:false,due_reminder:true,due_minutes_before:30,mention_notify:true,repeat_start:true,quiet_start:'',quiet_end:''};
+  const DEFAULTS={push_enabled:false,due_reminder:true,due_minutes_before:30,mention_notify:true,repeat_start:true,quiet_start:'',quiet_end:''};
+  let v=null;
+  try{ v=await window.sbGetSetting?.('notif_settings'); }catch(e){ v=null; }
+  // 必ず新しいプレーンオブジェクトにコピー（Supabaseから返るJSONBがfrozenな場合があるため）
+  const out={...DEFAULTS};
+  if(v&&typeof v==='object'){
+    for(const k of Object.keys(DEFAULTS)){
+      if(v[k]!==undefined)out[k]=v[k];
+    }
+  }
+  return out;
 }
 async function saveNotifSettings(s){
-  await window.sbSetSetting?.('notif_settings',s);
+  // 防御的コピー（読み取り専用オブジェクトが渡ってきても破壊しない）
+  const data={
+    push_enabled:!!s.push_enabled,
+    due_reminder:!!s.due_reminder,
+    due_minutes_before:Number(s.due_minutes_before)||30,
+    mention_notify:!!s.mention_notify,
+    repeat_start:!!s.repeat_start,
+    quiet_start:s.quiet_start||'',
+    quiet_end:s.quiet_end||'',
+  };
+  try{ await window.sbSetSetting?.('notif_settings',data); }catch(e){ console.warn('sbSetSetting',e); }
   // notification_settings テーブルにも書く（cronから参照される）
   try{
     if(!window._currentUser)return;
     await window._SB.from('notification_settings').upsert({
       user_id:window._currentUser.id,
-      push_enabled:!!s.push_enabled,
-      due_reminder:!!s.due_reminder,
-      due_minutes_before:Number(s.due_minutes_before)||30,
-      mention_notify:!!s.mention_notify,
-      repeat_start:!!s.repeat_start,
-      quiet_start:s.quiet_start||null,
-      quiet_end:s.quiet_end||null,
+      push_enabled:data.push_enabled,
+      due_reminder:data.due_reminder,
+      due_minutes_before:data.due_minutes_before,
+      mention_notify:data.mention_notify,
+      repeat_start:data.repeat_start,
+      quiet_start:data.quiet_start||null,
+      quiet_end:data.quiet_end||null,
       updated_at:new Date().toISOString(),
     },{onConflict:'user_id'});
   }catch(e){console.warn('notification_settings upsert',e);}
