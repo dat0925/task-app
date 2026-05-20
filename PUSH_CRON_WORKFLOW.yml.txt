@@ -1,0 +1,27 @@
+name: Push Notification Cron
+
+on:
+  schedule:
+    # GitHub Actions のcronはUTC。15分粒度（実態は5-15分の遅延あり）
+    - cron: '*/15 * * * *'
+  workflow_dispatch:  # 手動実行用
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Invoke cron-task-reminders
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${{ secrets.SB_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/cron-task-reminders" \
+            || echo "task-reminders failed (non-fatal)"
+      - name: Invoke cron-repeat-start
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${{ secrets.SB_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/cron-repeat-start" \
+            || echo "repeat-start failed (non-fatal)"
