@@ -50,8 +50,8 @@ Deno.serve(async (req) => {
     let sent = 0;
 
     for (const member of members) {
-      // 自分自身 or メールアドレスなし はスキップ
-      if (!member.user_email || member.user_id === user.id) continue;
+      // メールアドレスなし はスキップ（自己メンションは送信する）
+      if (!member.user_email) continue;
 
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
