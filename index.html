@@ -2596,11 +2596,12 @@ async function loadWorkspaces(){
       owner_id:w.owner_id,invite_token:w.invite_token,
       createdAt:w.created_at,updatedAt:w.updated_at
     }));
+    S.wsMembers={};
     if(S.workspaces.length){
       const wsIds=S.workspaces.map(w=>w.id);
       const{data:members,error:e2}=await SB.from('workspace_members').select('*').in('workspace_id',wsIds);
+      console.log('[Taskra] workspace_members raw:',JSON.stringify(members),'error:',e2);
       if(e2){console.error('loadWorkspaces members error',e2);return;}
-      S.wsMembers={};
       (members||[]).forEach(m=>{
         if(!S.wsMembers[m.workspace_id])S.wsMembers[m.workspace_id]=[];
         S.wsMembers[m.workspace_id].push({
@@ -2611,7 +2612,7 @@ async function loadWorkspaces(){
         });
       });
     }
-    console.log('loadWorkspaces ok',S.workspaces.length,'件');
+    console.log('[Taskra] loadWorkspaces ok',S.workspaces.length,'件, wsMembers:',JSON.stringify(S.wsMembers));
   }catch(e){console.error('loadWorkspaces',e);}
 }
 
