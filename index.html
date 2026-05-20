@@ -982,7 +982,8 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
     <div class="sidebar-head">
       <div class="logo"><img src="icon-192.png" alt="Taskra"></div>
       <span class="app-name">Taskra</span>
-      <a href="https://taskra.jp" target="_blank" class="icon-btn" style="margin-left:auto;text-decoration:none;color:var(--text2)" title="Taskraサービスサイト"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></a>
+      <button class="icon-btn" data-a="qr-share" style="margin-left:auto" title="スマホで開く（QRコード）"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="17"/><line x1="14" y1="20" x2="14" y2="21"/><line x1="17" y1="14" x2="21" y2="14"/><line x1="17" y1="17" x2="17" y2="21"/><line x1="20" y1="17" x2="21" y2="17"/><line x1="20" y1="20" x2="21" y2="20"/></svg></button>
+      <a href="https://taskra.jp" target="_blank" class="icon-btn" style="text-decoration:none;color:var(--text2)" title="Taskraサービスサイト"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></a>
       <button class="icon-btn" data-a="dark" title="ダーク">☾</button>
       <button class="icon-btn" data-a="settings" title="設定">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -1318,6 +1319,99 @@ function getActiveTaskCount(){return S.tasks.filter(t=>t.status!=='archived'&&t.
 function getActiveProjectCount(){return S.projects.filter(p=>p.status!=='archived').length;}
 function getNoteCount(){return(S.notes||[]).length;}
 function isAdmin(){return ADMIN_EMAILS.includes(window._currentUser?.email);}
+
+// ===== QRコード共有モーダル（スマホで開く） =====
+function showQRShareModal(){
+  const url='https://app.taskra.jp';
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal" style="max-width:440px;width:95vw;max-height:92vh;overflow-y:auto">'
+    +'<div class="modal-title" style="display:flex;align-items:center;gap:8px">📱 スマホで開く</div>'
+    +'<div style="font-size:12px;color:var(--text2);margin-bottom:12px">スマホのカメラでQRコードを読み取ると、Taskraをすぐに開けます。</div>'
+    +'<div style="display:flex;justify-content:center;margin-bottom:14px"><div id="qr-share-canvas" style="background:#fff;padding:12px;border-radius:10px;border:1px solid var(--border);line-height:0"></div></div>'
+    +'<div style="font-size:11px;text-align:center;color:var(--text3);margin-bottom:18px;word-break:break-all">'+url+'</div>'
+    +'<div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:10px"><div style="font-size:13px;font-weight:600;margin-bottom:8px">ホーム画面に追加（PWAとして使う）</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-bottom:10px">アプリのようにフルスクリーンで快適に利用できます。</div>'
+      +'<div style="display:flex;gap:6px;margin-bottom:10px">'
+        +'<button class="btn btn-ghost" id="qr-tab-ios" style="flex:1;font-size:12px;padding:6px 8px">🍎 iOS（Safari）</button>'
+        +'<button class="btn btn-ghost" id="qr-tab-and" style="flex:1;font-size:12px;padding:6px 8px">🤖 Android（Chrome）</button>'
+      +'</div>'
+      +'<div id="qr-steps-ios" style="font-size:12px;color:var(--text2);line-height:1.7;background:var(--bg2);padding:10px 12px;border-radius:8px">'
+        +'<div style="font-weight:600;color:var(--text);margin-bottom:6px">iOS の手順</div>'
+        +'<div>1. <b>Safari</b> で <span style="color:var(--text)">app.taskra.jp</span> を開く</div>'
+        +'<div>2. 画面下の <b>共有ボタン</b>（□に↑のアイコン）をタップ</div>'
+        +'<div>3. メニューから <b>「ホーム画面に追加」</b> を選択</div>'
+        +'<div>4. 右上の <b>「追加」</b> をタップで完了</div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-top:6px">※ Chromeアプリでは追加できません。必ずSafariで開いてください。</div>'
+      +'</div>'
+      +'<div id="qr-steps-and" style="display:none;font-size:12px;color:var(--text2);line-height:1.7;background:var(--bg2);padding:10px 12px;border-radius:8px">'
+        +'<div style="font-weight:600;color:var(--text);margin-bottom:6px">Android の手順</div>'
+        +'<div>1. <b>Chrome</b> で <span style="color:var(--text)">app.taskra.jp</span> を開く</div>'
+        +'<div>2. 画面下に「ホーム画面に追加」のバナーが出たらタップ</div>'
+        +'<div>　 出ない場合は、右上の <b>︙メニュー</b> をタップ</div>'
+        +'<div>3. <b>「ホーム画面に追加」</b>または<b>「アプリをインストール」</b>を選択</div>'
+        +'<div>4. <b>「インストール」</b>または<b>「追加」</b>をタップで完了</div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="modal-foot" style="margin-top:10px">'
+      +'<button class="btn btn-ghost" id="qr-copy-url">URLをコピー</button>'
+      +'<button class="btn btn-primary" id="qr-close">閉じる</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+
+  // QRコード描画
+  try{
+    if(typeof qrcode==='function'){
+      const qr=qrcode(0,'M');
+      qr.addData(url);qr.make();
+      const cellSize=6;
+      const margin=0;
+      document.getElementById('qr-share-canvas').innerHTML=qr.createSvgTag({cellSize,margin,scalable:true});
+      const svg=document.querySelector('#qr-share-canvas svg');
+      if(svg){svg.style.width='200px';svg.style.height='200px';svg.style.display='block';}
+    } else {
+      // フォールバック: 外部API（CDN障害時の保険）
+      document.getElementById('qr-share-canvas').innerHTML='<img alt="QR" style="width:200px;height:200px;display:block" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(url)+'">';
+    }
+  }catch(err){
+    console.warn('QR生成失敗',err);
+    document.getElementById('qr-share-canvas').innerHTML='<div style="width:200px;padding:20px;color:#666;font-size:12px;text-align:center">QRコードの生成に失敗しました。URLを直接コピーしてください。</div>';
+  }
+
+  // タブ切替
+  const tabIos=document.getElementById('qr-tab-ios');
+  const tabAnd=document.getElementById('qr-tab-and');
+  const stepIos=document.getElementById('qr-steps-ios');
+  const stepAnd=document.getElementById('qr-steps-and');
+  function setTab(t){
+    if(t==='ios'){
+      stepIos.style.display='';stepAnd.style.display='none';
+      tabIos.style.background='var(--accent-bg)';tabIos.style.color='var(--accent)';tabIos.style.fontWeight='600';
+      tabAnd.style.background='';tabAnd.style.color='';tabAnd.style.fontWeight='';
+    } else {
+      stepIos.style.display='none';stepAnd.style.display='';
+      tabAnd.style.background='var(--accent-bg)';tabAnd.style.color='var(--accent)';tabAnd.style.fontWeight='600';
+      tabIos.style.background='';tabIos.style.color='';tabIos.style.fontWeight='';
+    }
+  }
+  tabIos.onclick=()=>setTab('ios');
+  tabAnd.onclick=()=>setTab('and');
+  // OS自動判定で初期タブを選択
+  const ua=navigator.userAgent||'';
+  setTab(/Android/i.test(ua)?'and':'ios');
+
+  // URLコピー
+  document.getElementById('qr-copy-url').onclick=async()=>{
+    try{
+      await navigator.clipboard.writeText(url);
+      if(typeof toast==='function')toast('URLをコピーしました 🔗');
+    }catch(e){
+      if(typeof toast==='function')toast('コピーに失敗しました');
+    }
+  };
+  document.getElementById('qr-close').onclick=()=>ov.remove();
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
 
 function showUpgradeModal(feature){
   const pd=getPlanDef();
@@ -6620,6 +6714,7 @@ document.addEventListener('click',async e=>{
     document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
     document.getElementById('gantt-help-close').onclick=()=>ov.remove();
   }
+  else if(a==='qr-share'){showQRShareModal()}
   else if(a==='dark'){S.dark=!S.dark;localStorage.setItem('dark',S.dark?'1':'0');render()}
   else if(a==='newtask'){
     if(S.view==='notes'){S.view='inbox';S.noteOpen=false;}
@@ -10206,6 +10301,7 @@ init();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script>
 (function(){
 async function setupSB(){
