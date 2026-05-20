@@ -1441,7 +1441,11 @@ function isIosTabWithoutPush(){
 async function getNotifSettings(){
   const DEFAULTS={push_enabled:false,due_reminder:true,due_minutes_before:30,mention_notify:true,repeat_start:true,quiet_start:'',quiet_end:''};
   let v=null;
-  try{ v=await window.sbGetSetting?.('notif_settings'); }catch(e){ v=null; }
+  try{
+    const raw=await window.sbGetSetting?.('notif_settings');
+    if(raw&&typeof raw==='string'){try{v=JSON.parse(raw);}catch(e){v=null;}}
+    else{v=raw;}
+  }catch(e){ v=null; }
   // 必ず新しいプレーンオブジェクトにコピー（Supabaseから返るJSONBがfrozenな場合があるため）
   const out={...DEFAULTS};
   if(v&&typeof v==='object'){
@@ -1462,7 +1466,7 @@ async function saveNotifSettings(s){
     quiet_start:s.quiet_start||'',
     quiet_end:s.quiet_end||'',
   };
-  try{ await window.sbSetSetting?.('notif_settings',data); }catch(e){ console.warn('sbSetSetting',e); }
+  try{ await window.sbSetSetting?.('notif_settings',JSON.stringify(data)); }catch(e){ console.warn('sbSetSetting',e); }
   // notification_settings テーブルにも書く（cronから参照される）
   try{
     if(!window._currentUser)return;
