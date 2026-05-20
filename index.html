@@ -1257,6 +1257,7 @@ let S={
   dark:localStorage.getItem('dark')==='1',
   search:'',layout:'list',
   showCompleted:false,
+  showShared:true,
   sort:'order',
   hideNotStarted:false,
   sidebarOpen:window.innerWidth>768,
@@ -2393,6 +2394,7 @@ function getTasks(){
   else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
   if(S.hideNotStarted){tasks=tasks.filter(x=>!isNotStartedTask(x))}
+  if(!S.showShared&&(S.view==='today')){const spids=new Set(S.projects.filter(p=>p.workspaceId).map(p=>p.id));tasks=tasks.filter(x=>!spids.has(x.projectId));}
   if(S.filterTagIds&&S.filterTagIds.length&&S.view!=='tag')tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   if(S.sort==='startAt') return tasks.sort((a,b)=>{if(!a.startAt&&!b.startAt)return 0;if(!a.startAt)return 1;if(!b.startAt)return -1;return a.startAt.localeCompare(b.startAt);});
@@ -4743,7 +4745,7 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-cancel" style="margin-left:auto;border-color:var(--p1);color:var(--p1)">✕ 終了</button>';
     return;
   }
-  const filterOn=S.hideNotStarted||S.showCompleted||!!(S.filterTagIds&&S.filterTagIds.length);
+  const filterOn=S.hideNotStarted||S.showCompleted||!!(S.filterTagIds&&S.filterTagIds.length)||!S.showShared;
   const sortOn=S.sort!=='order';
   const ICON_FILTER='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
   const ICON_SORT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 6h13M8 12h9M8 18h5"/><polyline points="3 6 3 3 6 3"/><polyline points="3 18 3 21 6 21"/></svg>';
@@ -4753,10 +4755,13 @@ function renderTaskFilters(){
   const isNextView=S.view==='nextview';
   const isGantt=S.view==='gantt';
   const showStatusBtns=!isForecast&&!isNotes&&!isSearch;
+  const hasSharedProjs=S.projects.some(p=>p.workspaceId);
+  const showSharedBtn=hasSharedProjs&&(S.view==='today'||S.view==='nextview');
   tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
     +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
+    +(showSharedBtn?'<button class="toggle-completed-btn'+(S.showShared?' active':'')+'" data-a="quick-filter" data-key="showShared" title="共有プロジェクトのタスクを表示/非表示">共有</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="toggle-completed-btn'+(S.sort==='priority'?' active':'')+'" data-a="quick-sort-priority" title="優先度順に並び替え">優先</button>':'')
     +(S.view==='project'&&S.projId?'<button class="toggle-completed-btn" data-a="proj-to-gantt" title="このプロジェクトのGanttを表示">'+ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')+'</button>':'')
@@ -5173,7 +5178,7 @@ function renderNoteDrawer(){
 
 function renderNextView(){
   // プロジェクト毎に最初の未完了タスクを1件ずつ取得
-  const projs=getSortedProjects('active');
+  const projs=getSortedProjects('active').filter(p=>S.showShared||!p.workspaceId);
   const rows=[];
   for(const proj of projs){
     const tasks=S.tasks
@@ -7183,7 +7188,7 @@ else if(a==='scroll-to-comments'){
   else if(a==='tog-sort-start'){S.sort=S.sort==='startAt'?'order':'startAt';renderContent()}
   else if(a==='tog-filter-btn'){openFilterPopup(el);}
   else if(a==='tog-sort-btn'){openSortPopup(el);}
-  else if(a==='clear-filters'){S.hideNotStarted=false;S.showCompleted=false;S.filterTagIds=[];renderTaskFilters();renderContent();}
+  else if(a==='clear-filters'){S.hideNotStarted=false;S.showCompleted=false;S.showShared=true;S.filterTagIds=[];renderTaskFilters();renderContent();}
   else if(a==='bulk-sel-all'){
     if(S.view==='nextview'){
       const projs=getSortedProjects('active');
@@ -7203,6 +7208,7 @@ else if(a==='scroll-to-comments'){
     const key=el.dataset.key;
     if(key==='hideNotStarted')S.hideNotStarted=!S.hideNotStarted;
     else if(key==='showCompleted')S.showCompleted=!S.showCompleted;
+    else if(key==='showShared')S.showShared=!S.showShared;
     renderTaskFilters();renderContent();
   }
   else if(a==='quick-sort-priority'){
