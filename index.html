@@ -6006,17 +6006,20 @@ async function _cmSend(taskId){
   const user=window._currentUser;
   if(!SB||!user)return;
 
-  // @mention 抽出（テキストパターン ＋ ポップアップで選択済みのID）
+  // @mention 抽出（ポップアップ選択ID優先 ＋ テキストパターンで補完）
   const wsMembers=_cmGetWsMembers(taskId);
   const mentionedIds=[];
+  // ① ポップアップで選択済みのID（スペース入り名前でも確実に捕捉）
+  if(inp._mentionedIds){for(const id of inp._mentionedIds){if(!mentionedIds.includes(id))mentionedIds.push(id);}}
+  // ② テキスト内の @name を全メンバー名と照合（includes でスペース対応）
   if(wsMembers.length){
-    const reg=/@([^\s]+)/g;let mm;
-    while((mm=reg.exec(body))!==null){
-      const name=mm[1];
-      const found=wsMembers.find(m=>m.user_name===name||m.user_email===name);
-      if(found){const fid=found.userId||found.user_id;if(!mentionedIds.includes(fid))mentionedIds.push(fid);}
-    }
-    if(inp._mentionedIds){for(const id of inp._mentionedIds){if(!mentionedIds.includes(id))mentionedIds.push(id);}}
+    wsMembers.forEach(m=>{
+      const name=m.user_name||m.user_email||'';
+      if(name&&body.includes('@'+name)){
+        const fid=m.userId||m.user_id;
+        if(fid&&!mentionedIds.includes(fid))mentionedIds.push(fid);
+      }
+    });
   }
 
   btn.disabled=true;
