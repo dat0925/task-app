@@ -3086,11 +3086,14 @@ function startProjRename(span){
 function openWsSettings(wsId){
   const ws=S.workspaces.find(w=>w.id===wsId);
   if(!ws)return;
+  if(openWsSettings._busy)return;
+  openWsSettings._busy=true;
   // メンバー情報を最新化してから表示
   loadWorkspaces().then(()=>{
     const wsLatest=S.workspaces.find(w=>w.id===wsId);
-    if(!wsLatest)return;
+    if(!wsLatest){openWsSettings._busy=false;return;}
     _openWsSettingsModal(wsId);
+    setTimeout(()=>{openWsSettings._busy=false;},500);
   });
 }
 function _openWsSettingsModal(wsId){
