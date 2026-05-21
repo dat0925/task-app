@@ -4106,14 +4106,21 @@ function renderSidebar(){
   h+='<div class="proj-drop-line" data-drop-after="last"></div>';
   h+='</div></div>';
 
-  // ワークスペース（チーム）セクション ※プロジェクトセクションの外に配置
+  // プロジェクト（共有）セクション
   if(S.workspaces&&S.workspaces.length){
+    const sharedOpen=S.sharedProjsOpen!==false;
+    h+='<div class="nav-label-row'+(sharedOpen?'':' collapsed')+'" data-a="shared-projs-toggle">'
+      +'<span class="nav-label">プロジェクト（共有）</span>'
+      +'<span class="toggle-chevron">▼</span>'
+      +'</div>';
+    h+='<div class="proj-section-wrap'+(sharedOpen?'':' collapsed')+'" id="shared-projs-section-wrap">';
+    h+='<div class="proj-section-inner">';
     S.workspaces.forEach(ws=>{
     const wsMembers=S.wsMembers[ws.id]||[];
     const wsProjects=getSortedProjects('active').filter(p=>p.workspaceId===ws.id);
     const wsOpen=S.wsOpen?.[ws.id]!==false;
     h+='<div style="display:flex;align-items:center;margin-top:8px">'
-      +'<div class="nav-label-row'+(wsOpen?'':' collapsed')+'" data-a="ws-toggle" data-wsid="'+ws.id+'" style="flex:1;margin-top:0;background:var(--bg3);border-radius:6px">'
+      +'<div class="nav-label-row'+(wsOpen?'':' collapsed')+'" data-a="ws-toggle" data-wsid="'+ws.id+'" style="flex:1;margin-top:0;background:var(--bg2);border-radius:6px">'
       +'<span style="font-size:9px;color:var(--accent);margin-right:2px">👥</span>'
       +'<span class="nav-label" style="color:var(--accent)">'+ esc(ws.name)+'</span>'
       +'<span class="toggle-chevron" style="margin-left:auto">▼</span>'
@@ -4147,6 +4154,7 @@ function renderSidebar(){
     h+='<button class="nav-item" data-a="ws-add-proj" data-wsid="'+ws.id+'" style="font-size:12px;color:var(--text3);gap:4px;padding:5px 8px;width:100%;text-align:left">＋ プロジェクトを追加</button>';
     h+='</div></div>';
   });
+  h+='</div></div>'; // shared-projs-section-wrap閉じ
   } // end if workspaces.length
   // ワークスペース新規作成ボタンは常時表示
   h+='<button class="nav-item" data-a="ws-create" style="font-size:12px;color:var(--text3);gap:4px;padding:5px 8px;margin-top:2px;width:100%;text-align:left">＋ チームを作成</button>';
@@ -7134,6 +7142,7 @@ document.addEventListener('click',async e=>{
   else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(a==='proj'&&_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
+  else if(a==='shared-projs-toggle'){S.sharedProjsOpen=!S.sharedProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='views-toggle'){S.viewsOpen=!S.viewsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='proj-toggle'){S.projsOpen=!S.projsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='hidden-proj-toggle'){S.hiddenProjsOpen=!S.hiddenProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
