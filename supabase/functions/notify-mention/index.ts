@@ -9,32 +9,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function uid(): string {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // ── 1. JWT認証 ────────────────────────────────────────────
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return json({ error: '認証が必要です' }, 401);
 
-    const sbAnon = createClient(
-      SUPABASE_URL,
-      Deno.env.get('SB_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const sbAnon = createClient(SUPABASE_URL, Deno.env.get('SB_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } }
+    });
     const { data: { user }, error: authError } = await sbAnon.auth.getUser();
     if (authError || !user) return json({ error: 'ログインが必要です' }, 401);
 
-    // ── 2. リクエストボディ ──────────────────────────────────
     const { taskId, taskTitle, commentBody, mentionedUserIds } = await req.json();
     if (!Array.isArray(mentionedUserIds) || !mentionedUserIds.length) {
       return json({ ok: true, sent: 0 });
     }
 
-    // ── 3. service_role で対象ユーザーのメールを取得 ─────────
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+    // メンション対象のメンバー取得
     const { data: members, error: membersError } = await sb
       .from('workspace_members')
       .select('user_id, user_email, user_name')
@@ -43,14 +42,30 @@ Deno.serve(async (req) => {
     if (membersError) throw membersError;
     if (!members?.length) return json({ ok: true, sent: 0 });
 
-    // ── 4. Resend でメール送信 ────────────────────────────────
-    const senderName = user.user_metadata?.full_name || user.email || 'メンバー';
-    const appUrl     = 'https://app.taskra.jp';
+    const senderName   = user.user_metadata?.full_name || user.email || 'メンバー';
+    const senderAvatar = user.user_metadata?.avatar_url || '';
+    const appUrl       = `https://app.taskra.jp?task=${taskId}`;
     let sent = 0;
 
     for (const member of members) {
       if (!member.user_email) continue;
 
+      // ① 通知ログをDBに保存
+      await sb.from('notifications').insert({
+        id:               uid(),
+        user_id:          member.user_id,
+        type:             'mention',
+        task_id:          taskId,
+        task_title:       taskTitle || '',
+        from_user_id:     user.id,
+        from_user_name:   senderName,
+        from_user_avatar: senderAvatar,
+        body:             commentBody || '',
+        read:             false,
+        created_at:       new Date().toISOString(),
+      });
+
+      // ② メール送信
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -58,7 +73,7 @@ Deno.serve(async (req) => {
           'Authorization': `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from:    'Taskra <onboarding@resend.dev>',
+          from:    'Taskra <noreply@taskra.jp>',
           to:      [member.user_email],
           subject: `${senderName} さんがコメントであなたをメンションしました`,
           html:    buildHtml(senderName, taskTitle || taskId, commentBody, appUrl),
@@ -84,14 +99,9 @@ Deno.serve(async (req) => {
 
 function buildHtml(senderName: string, taskTitle: string, commentBody: string, appUrl: string): string {
   const escaped = commentBody
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
-
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
   return `<!DOCTYPE html>
-<html lang="ja">
-<head><meta charset="UTF-8"></head>
+<html lang="ja"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
   <div style="max-width:480px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
     <div style="background:#6366f1;padding:24px 28px">
@@ -107,11 +117,10 @@ function buildHtml(senderName: string, taskTitle: string, commentBody: string, a
       </div>
     </div>
     <div style="padding:16px 28px;border-top:1px solid #eee;color:#aaa;font-size:12px;text-align:center">
-      このメールは <a href="${appUrl}" style="color:#6366f1;text-decoration:none">Taskra</a> からの自動通知です。
+      このメールは <a href="https://app.taskra.jp" style="color:#6366f1;text-decoration:none">Taskra</a> からの自動通知です。
     </div>
   </div>
-</body>
-</html>`;
+</body></html>`;
 }
 
 function json(data: unknown, status = 200) {

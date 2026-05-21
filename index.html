@@ -2580,6 +2580,8 @@ async function loadAll(){
   [S.tasks,S.projects]=await Promise.all([dbAllNoFilter('tasks'),dbAllNoFilter('projects')]);
   // ワークスペースは専用関数で取得（user_idフィルタではなくRLS任せ）
   await loadWorkspaces();
+  // 通知キャッシュをリセット（次回ダッシュボード表示時に再取得）
+  _notifCache=null;
 }
 
 // ===== WORKSPACE =====
@@ -5289,109 +5291,113 @@ function renderEmpty(){
 
 
 // ===== DASHBOARD =====
-function renderDashboard(){
-  const today=new Date().toISOString().slice(0,10);
-  const uid=window._currentUser?.id;
+// 通知キャッシュ
+let _notifCache = null;
+
+async function loadNotifications() {
+  const SB = window._SB;
+  const uid = window._currentUser?.id;
+  if (!SB || !uid) return [];
+  const { data, error } = await SB
+    .from('notifications')
+    .select('*')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) { console.error('loadNotifications', error); return []; }
+  _notifCache = data || [];
+  return _notifCache;
+}
+
+async function markNotifRead(id) {
+  const SB = window._SB;
+  if (!SB) return;
+  await SB.from('notifications').update({ read: true }).eq('id', id);
+  if (_notifCache) {
+    const n = _notifCache.find(x => x.id === id);
+    if (n) n.read = true;
+  }
+}
+
+function renderDashboard() {
+  const today = new Date().toISOString().slice(0, 10);
+  const uid = window._currentUser?.id;
 
   // 期限切れ
-  const overdue=S.tasks.filter(t=>t.status!=='completed'&&t.dueAt&&t.dueAt<today)
-    .sort((a,b)=>a.dueAt>b.dueAt?1:-1);
+  const overdue = S.tasks.filter(t => t.status !== 'completed' && t.dueAt && t.dueAt < today)
+    .sort((a, b) => a.dueAt > b.dueAt ? 1 : -1);
 
   // 今日
-  const todayTasks=S.tasks.filter(t=>t.status!=='completed'&&t.dueAt===today)
-    .sort((a,b)=>(a.order||0)-(b.order||0));
+  const todayTasks = S.tasks.filter(t => t.status !== 'completed' && t.dueAt === today)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  // 自分宛てメンション（コメントキャッシュから）
-  const myName=window._currentUser?.user_metadata?.full_name||window._currentUser?.email||'';
-  const mentions=[];
-  Object.entries(S._commentCache||{}).forEach(([taskId,comments])=>{
-    (comments||[]).forEach(c=>{
-      if(c.user_id!==uid&&c.body&&c.body.includes('@'+myName)){
-        const task=S.tasks.find(t=>t.id===taskId);
-        mentions.push({comment:c,task,taskId});
-      }
-    });
-  });
-  mentions.sort((a,b)=>b.comment.created_at>a.comment.created_at?1:-1);
-
-  // 自分が担当のチームタスク
-  const myTasks=uid?S.tasks.filter(t=>t.status!=='completed'&&t.assigneeId===uid)
-    .sort((a,b)=>(a.dueAt||'9')>(b.dueAt||'9')?1:-1):[];
+  // 自分が担当のタスク
+  const myTasks = uid ? S.tasks.filter(t => t.status !== 'completed' && t.assigneeId === uid)
+    .sort((a, b) => (a.dueAt || '9') > (b.dueAt || '9') ? 1 : -1) : [];
 
   // Flagged
-  const flagged=S.tasks.filter(t=>t.status!=='completed'&&t.flagged)
-    .sort((a,b)=>(a.order||0)-(b.order||0));
+  const flagged = S.tasks.filter(t => t.status !== 'completed' && t.flagged)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  function taskChip(t){
-    const proj=S.projects.find(p=>p.id===t.projectId);
-    const isOv=t.dueAt&&t.dueAt<today;
+  function taskChip(t) {
+    const proj = S.projects.find(p => p.id === t.projectId);
+    const isOv = t.dueAt && t.dueAt < today;
     return `<div class="db-task-row" data-a="db-open" data-id="${t.id}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title||'無題')}</div>
-        ${proj?`<span style="font-size:11px;color:${proj.color};background:${proj.color}1a;border-radius:4px;padding:1px 5px">${esc(proj.name)}</span>`:''}
-        ${t.dueAt?`<span style="font-size:11px;color:${isOv?'var(--p1)':'var(--text3)'}">⏰ ${t.dueAt}</span>`:''}
+        <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title || '無題')}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">
+          ${proj ? `<span style="font-size:11px;color:${proj.color};background:${proj.color}1a;border-radius:4px;padding:1px 5px">${esc(proj.name)}</span>` : ''}
+          ${t.dueAt ? `<span style="font-size:11px;color:${isOv ? 'var(--p1)' : 'var(--text3)'}">⏰ ${t.dueAt}</span>` : ''}
+        </div>
       </div>
     </div>`;
   }
 
-  function section(icon,title,color,items,maxShow,viewName,emptyMsg){
-    const shown=items.slice(0,maxShow);
-    const more=items.length-maxShow;
+  function section(icon, title, color, items, maxShow, viewName, emptyMsg) {
+    const shown = items.slice(0, maxShow);
+    const more = items.length - maxShow;
     return `<div class="db-section" style="background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:16px">${icon}</span>
-          <span style="font-weight:700;font-size:14px;color:${color||'var(--text)'}">${title}</span>
-          ${items.length?`<span style="font-size:11px;background:${color||'var(--accent)'};color:#fff;border-radius:10px;padding:1px 7px;font-weight:700">${items.length}</span>`:''}
+          <span style="font-weight:700;font-size:14px;color:${color || 'var(--text)'}">${title}</span>
+          ${items.length ? `<span style="font-size:11px;background:${color || 'var(--accent)'};color:#fff;border-radius:10px;padding:1px 7px;font-weight:700">${items.length}</span>` : ''}
         </div>
-        ${viewName?`<button class="db-more-btn" data-view="${viewName}" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 6px">もっと見る →</button>`:''}
+        ${viewName ? `<button class="db-more-btn" data-view="${viewName}" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 6px">もっと見る →</button>` : ''}
       </div>
-      ${shown.length?shown.map(taskChip).join(''):`<div style="font-size:13px;color:var(--text3);padding:6px 0">${emptyMsg}</div>`}
-      ${more>0?`<div style="font-size:12px;color:var(--text3);padding-top:6px;text-align:center">他 ${more} 件</div>`:''}
+      ${shown.length ? shown.map(taskChip).join('') : `<div style="font-size:13px;color:var(--text3);padding:6px 0">${emptyMsg}</div>`}
+      ${more > 0 ? `<div style="font-size:12px;color:var(--text3);padding-top:6px;text-align:center">他 ${more} 件</div>` : ''}
     </div>`;
   }
 
-  let h=`<div style="padding:12px 12px 80px">`;
-
-  // 期限切れ
-  if(overdue.length){
-    h+=section('🔴','期限切れ','var(--p1)',overdue,3,'today','なし');
-  }
-
-  // 今日
-  h+=section('📅','今日','var(--text)',todayTasks,3,'today',
-    overdue.length?'期限切れ以外のタスクはありません':'今日のタスクはありません');
-
-  // 自分宛てメンション
-  h+=`<div class="db-section" style="background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+  // 通知セクション（DBキャッシュ or ロード中）
+  const notifs = _notifCache || [];
+  const notifHtml = `<div class="db-section" style="background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:12px">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
       <span style="font-size:16px">💬</span>
-      <span style="font-weight:700;font-size:14px">メンション</span>
-      ${mentions.length?`<span style="font-size:11px;background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-weight:700">${mentions.length}</span>`:''}
+      <span style="font-weight:700;font-size:14px">メンション通知</span>
+      ${notifs.filter(n => !n.read).length ? `<span style="font-size:11px;background:var(--p1);color:#fff;border-radius:10px;padding:1px 7px;font-weight:700">${notifs.filter(n => !n.read).length}</span>` : ''}
     </div>
-    ${mentions.length?mentions.slice(0,3).map(({comment:c,task:t,taskId})=>`
-      <div class="db-task-row" data-a="db-open" data-id="${taskId}" style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start">
-        ${c.user_avatar?`<img src="${esc(c.user_avatar)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc((c.user_name||'?').charAt(0))}</div>`}
+    ${notifs.length ? notifs.slice(0, 10).map(n => `
+      <div class="db-notif-row" data-notif-id="${n.id}" data-task-id="${n.task_id || ''}" style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start;opacity:${n.read ? '0.5' : '1'}">
+        ${n.from_user_avatar ? `<img src="${esc(n.from_user_avatar)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">` : `<div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc((n.from_user_name || '?').charAt(0))}</div>`}
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600">${esc(c.user_name||'')}</div>
-          <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.body||'')}</div>
-          ${t?`<div style="font-size:11px;color:var(--text3)">→ ${esc(t.title||'無題')}</div>`:''}
+          <div style="font-size:12px;font-weight:600">${esc(n.from_user_name || '')} ${n.read ? '' : '<span style="font-size:9px;background:var(--p1);color:#fff;border-radius:4px;padding:1px 4px">NEW</span>'}</div>
+          <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.body || '')}</div>
+          ${n.task_title ? `<div style="font-size:11px;color:var(--text3)">→ ${esc(n.task_title)}</div>` : ''}
+          <div style="font-size:10px;color:var(--text3)">${new Date(n.created_at).toLocaleString('ja-JP')}</div>
         </div>
       </div>`).join('')
-    :`<div style="font-size:13px;color:var(--text3);padding:6px 0">メンションはありません</div>`}
+    : `<div style="font-size:13px;color:var(--text3);padding:6px 0" id="db-notif-loading">読み込み中…</div>`}
   </div>`;
 
-  // 自分が担当のタスク
-  if(myTasks.length){
-    h+=section('👤','自分の担当','var(--text)',myTasks,3,'','');
-  }
-
-  // Flagged
-  if(flagged.length){
-    h+=section('🚩','フラグ付き','var(--text)',flagged,3,'flagged','');
-  }
-
-  h+='</div>';
+  let h = `<div style="padding:12px 12px 80px">`;
+  if (overdue.length) h += section('🔴', '期限切れ', 'var(--p1)', overdue, 3, 'today', 'なし');
+  h += section('📅', '今日', 'var(--text)', todayTasks, 3, 'today', overdue.length ? '期限切れ以外のタスクはありません' : '今日のタスクはありません');
+  h += notifHtml;
+  if (myTasks.length) h += section('👤', '自分の担当', 'var(--text)', myTasks, 3, '', '');
+  if (flagged.length) h += section('🚩', 'フラグ付き', 'var(--text)', flagged, 3, 'flagged', '');
+  h += '</div>';
   return h;
 }
 
@@ -5400,7 +5406,41 @@ function attachDashboardEvents(){
   document.querySelectorAll('.db-more-btn').forEach(btn=>{
     btn.onclick=e=>{e.stopPropagation();S.view=btn.dataset.view;renderSidebar();renderContent();};
   });
-  // db-task-row: グローバルハンドラに任せる（data-a="sel-edit"で処理される）
+  // 通知行クリック: 既読化してタスクを開く
+  document.querySelectorAll('.db-notif-row').forEach(row=>{
+    row.onclick=async e=>{
+      e.stopPropagation();
+      const nid=row.dataset.notifId;
+      const tid=row.dataset.taskId;
+      if(nid)await markNotifRead(nid);
+      if(tid){
+        const task=S.tasks.find(t=>t.id===tid);
+        if(task){
+          S.taskId=tid;S.drawerOpen=true;
+          if(window.innerWidth<=768){
+            if(task.projectId){S.view='project';S.projId=task.projectId;}
+            else{S.view='inbox';}
+            S.sidebarOpen=false;
+          }
+          playSE('open');
+          renderContent();renderSidebar();renderDrawer();
+          return;
+        }
+      }
+      // タスクが見つからなければ再描画のみ
+      renderContent();
+    };
+  });
+  // DBから通知を非同期ロード
+  if(_notifCache===null){
+    loadNotifications().then(()=>{
+      if(S.view==='dashboard'){
+        const el=document.getElementById('content');
+        if(el)el.innerHTML=renderDashboard();
+        attachDashboardEvents();
+      }
+    });
+  }
 }
 
 function renderForecast(){
