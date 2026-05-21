@@ -5372,23 +5372,35 @@ function renderDashboard() {
 
   // 通知セクション（DBキャッシュ or ロード中）
   const notifs = _notifCache || [];
+  // 通知行のHTMLを生成する関数（attachDashboardEventsからも参照）
+  window._buildNotifRow=function buildNotifRow(n){
+    return `<div class="db-notif-row" data-notif-id="${n.id}" data-task-id="${n.task_id||''}" style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start;opacity:${n.read?'0.5':'1'}">
+      ${n.from_user_avatar?`<img src="${esc(n.from_user_avatar)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc((n.from_user_name||'?').charAt(0))}</div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600">${esc(n.from_user_name||'')} ${n.read?'':'<span style="font-size:9px;background:var(--p1);color:#fff;border-radius:4px;padding:1px 4px">NEW</span>'}</div>
+        <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.body||'')}</div>
+        ${n.task_title?`<div style="font-size:11px;color:var(--text3)">→ ${esc(n.task_title)}</div>`:''}
+        <div style="font-size:10px;color:var(--text3)">${new Date(n.created_at).toLocaleString('ja-JP')}</div>
+      </div>
+    </div>`;
+  }
+  const _notifInitShow=3;
+  const _notifStep=10;
+  const unreadCount=notifs.filter(n=>!n.read).length;
   const notifHtml = `<div class="db-section" style="background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:12px">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
       <span style="font-size:16px">💬</span>
       <span style="font-weight:700;font-size:14px">メンション通知</span>
-      ${notifs.filter(n => !n.read).length ? `<span style="font-size:11px;background:var(--p1);color:#fff;border-radius:10px;padding:1px 7px;font-weight:700">${notifs.filter(n => !n.read).length}</span>` : ''}
+      ${unreadCount?`<span style="font-size:11px;background:var(--p1);color:#fff;border-radius:10px;padding:1px 7px;font-weight:700">${unreadCount}</span>`:''}
     </div>
-    ${notifs.length ? notifs.slice(0, 10).map(n => `
-      <div class="db-notif-row" data-notif-id="${n.id}" data-task-id="${n.task_id || ''}" style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start;opacity:${n.read ? '0.5' : '1'}">
-        ${n.from_user_avatar ? `<img src="${esc(n.from_user_avatar)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">` : `<div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc((n.from_user_name || '?').charAt(0))}</div>`}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:600">${esc(n.from_user_name || '')} ${n.read ? '' : '<span style="font-size:9px;background:var(--p1);color:#fff;border-radius:4px;padding:1px 4px">NEW</span>'}</div>
-          <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.body || '')}</div>
-          ${n.task_title ? `<div style="font-size:11px;color:var(--text3)">→ ${esc(n.task_title)}</div>` : ''}
-          <div style="font-size:10px;color:var(--text3)">${new Date(n.created_at).toLocaleString('ja-JP')}</div>
-        </div>
-      </div>`).join('')
-    : `<div style="font-size:13px;color:var(--text3);padding:6px 0" id="db-notif-loading">読み込み中…</div>`}
+    <div id="db-notif-list">
+      ${notifs.length
+        ? notifs.slice(0,_notifInitShow).map(window._buildNotifRow).join('')
+        : `<div style="font-size:13px;color:var(--text3);padding:6px 0" id="db-notif-loading">読み込み中…</div>`}
+    </div>
+    ${notifs.length>_notifInitShow
+      ? `<button id="db-notif-more" data-shown="${_notifInitShow}" style="width:100%;margin-top:8px;padding:7px 0;font-size:12px;color:var(--accent);background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer">もっと見る（残り ${notifs.length-_notifInitShow} 件）</button>`
+      : ''}
   </div>`;
 
   let h = `<div style="padding:12px 12px 80px">`;
@@ -5406,31 +5418,65 @@ function attachDashboardEvents(){
   document.querySelectorAll('.db-more-btn').forEach(btn=>{
     btn.onclick=e=>{e.stopPropagation();S.view=btn.dataset.view;renderSidebar();renderContent();};
   });
-  // 通知行クリック: 既読化してタスクを開く
-  document.querySelectorAll('.db-notif-row').forEach(row=>{
-    row.onclick=async e=>{
+  // 「もっと見る」ボタン
+  const moreBtn=document.getElementById('db-notif-more');
+  if(moreBtn){
+    moreBtn.onclick=e=>{
       e.stopPropagation();
-      const nid=row.dataset.notifId;
-      const tid=row.dataset.taskId;
-      if(nid)await markNotifRead(nid);
-      if(tid){
-        const task=S.tasks.find(t=>t.id===tid);
-        if(task){
-          S.taskId=tid;S.drawerOpen=true;
-          if(window.innerWidth<=768){
-            if(task.projectId){S.view='project';S.projId=task.projectId;}
-            else{S.view='inbox';}
-            S.sidebarOpen=false;
-          }
-          playSE('open');
-          renderContent();renderSidebar();renderDrawer();
-          return;
-        }
+      const notifs=_notifCache||[];
+      const shown=parseInt(moreBtn.dataset.shown)||3;
+      const next=Math.min(shown+10,notifs.length);
+      const list=document.getElementById('db-notif-list');
+      if(list){
+        // 追加分をDOMに挿入
+        const frag=document.createDocumentFragment();
+        notifs.slice(shown,next).forEach(n=>{
+          const div=document.createElement('div');
+          div.innerHTML=window._buildNotifRow(n);
+          const row=div.firstElementChild;
+          // ハンドラはquerySelectorAllで一括アタッチ
+          frag.appendChild(row);
+        });
+        list.appendChild(frag);
+        _attachNotifHandlers();
       }
-      // タスクが見つからなければ再描画のみ
-      renderContent();
+      if(next>=notifs.length){
+        moreBtn.remove();
+      } else {
+        moreBtn.dataset.shown=next;
+        moreBtn.textContent=`もっと見る（残り ${notifs.length-next} 件）`;
+      }
     };
-  });
+  }
+  // 通知行クリックハンドラをアタッチ（初回＋もっと見る後も呼ばれる）
+  function _attachNotifHandlers(){
+    document.querySelectorAll('.db-notif-row').forEach(row=>{
+      if(row._notifHandlerAttached)return;
+      row._notifHandlerAttached=true;
+      row.onclick=async e=>{
+        e.stopPropagation();
+        const nid=row.dataset.notifId;
+        const tid=row.dataset.taskId;
+        if(nid)await markNotifRead(nid);
+        if(tid){
+          const task=S.tasks.find(t=>t.id===tid);
+          if(task){
+            S.taskId=tid;S.drawerOpen=true;
+            if(window.innerWidth<=768){
+              if(task.projectId){S.view='project';S.projId=task.projectId;}
+              else{S.view='inbox';}
+              S.sidebarOpen=false;
+            }
+            playSE('open');
+            renderContent();renderSidebar();renderDrawer();
+            return;
+          }
+        }
+        renderContent();
+      };
+    });
+  }
+  _attachNotifHandlers();
   // DBから通知を非同期ロード
   if(_notifCache===null){
     loadNotifications().then(()=>{
