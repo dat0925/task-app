@@ -2605,8 +2605,6 @@ async function loadWorkspaces(){
       if(e2){console.error('loadWorkspaces members error',e2);return;}
       (members||[]).forEach(m=>{
         if(!S.wsMembers[m.workspace_id])S.wsMembers[m.workspace_id]=[];
-        // user_idで重複チェック
-        if(S.wsMembers[m.workspace_id].some(x=>x.user_id===m.user_id))return;
         S.wsMembers[m.workspace_id].push({
           id:m.id,workspaceId:m.workspace_id,workspace_id:m.workspace_id,
           userId:m.user_id,user_id:m.user_id,
@@ -4079,7 +4077,11 @@ function renderSidebar(){
   h+='<div class="proj-section-wrap'+(viewsOpen?'':' collapsed')+'" id="views-section-wrap">'
     +'<div class="proj-section-inner">';
   navItems.forEach(n=>{
-    h+='<div class="nav-item'+(S.view===n.v?' on':'')+'" data-a="view" data-v="'+n.v+'">'\n      +n.icon+'<span>'+n.label+'</span>'\n      +(n.cnt?'<span class="badge">'+n.cnt+'</span>':'')+\n    '</div>';\n  });
+    h+='<div class="nav-item'+(S.view===n.v?' on':'')+'" data-a="view" data-v="'+n.v+'">'
+      +n.icon+'<span>'+n.label+'</span>'
+      +(n.cnt?'<span class="badge">'+n.cnt+'</span>':'')+
+    '</div>';
+  });
   h+='</div></div>';
   // Projects section with accordion
   const projsOpen=S.projsOpen!==false;
@@ -6000,7 +6002,7 @@ function renderDrawer(){
         +'<div><label class="flabel">期限</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-due" value="'+esc(task.dueAt||'')+'" style="'+dateInputStyle(task.dueAt)+'"><span id="dt-due-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.dueAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.dueAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="due" title="クリア">✕</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:3px;align-items:center"><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="due" data-months="-1">-1月</button></div></div>'
       +'</div>'
       +'<div style="margin-bottom:8px"><label class="flabel">計画開始日 <span style="font-size:10px;color:var(--text3)">(ガント用)</span></label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:start"><div><div style="display:flex;gap:4px;align-items:center"><input class="finput" type="date" id="dt-planned-start" value="'+esc(task.plannedStartAt||'')+'" style="'+dateInputStyle(task.plannedStartAt)+'"><span id="dt-planned-start-wd" style="font-size:13px;font-weight:800;color:'+wdColor(task.plannedStartAt)+';white-space:nowrap;flex-shrink:0">('+(wdStr(task.plannedStartAt).replace('曜','')||'　')+')</span><button class="date-clr-btn" data-a="date-clear" data-field="planned-start" title="クリア">✕</button></div></div><div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-bottom:3px"><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="1">+1日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="7">+7日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-months="1">+1月</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px"><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="-1">-1日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-days="-7">-7日</button><button class="date-adj-btn" data-a="date-adj" data-field="planned-start" data-months="-1">-1月</button></div></div></div></div>'
-      +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:flex;gap:3px;align-items:center;margin-bottom:3px"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button><button class="date-adj-btn" data-a="start-time-adj-min" data-mins="10">+10m</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:3px"><button class="date-adj-btn" data-a="start-time-zero-min">分00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="09:00">9:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="12:00">12:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="15:00">15:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="18:00">18:00</button></div></div>'
+      +'<div style="margin-bottom:12px"><label class="flabel">開始時間</label><div style="display:flex;gap:3px;align-items:center;margin-bottom:3px"><input class="finput" type="time" id="dt-start-time" value="'+esc(task.startTime||'')+'" style="font-size:14px;min-height:34px;min-width:0;flex:1"><button class="date-clr-btn" data-a="start-time-clear" title="クリア">✕</button><button class="date-adj-btn" data-a="start-time-adj-min" data-mins="10">+10m</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="1">+1h</button><button class="date-adj-btn" data-a="start-time-adj" data-hours="3">+3h</button><button class="date-adj-btn" data-a="start-time-zero-min">分00</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px"><button class="date-adj-btn" data-a="start-time-set" data-hhmm="09:00">9:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="12:00">12:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="15:00">15:00</button><button class="date-adj-btn" data-a="start-time-set" data-hhmm="18:00">18:00</button></div></div>'
       +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
           +[1,2,3,4].map(p=>'<button class="pbtn'+(task.priority===p?' on':'')+'" data-a="pri" data-p="'+p+'" data-id="'+task.id+'">'+pLabels[p]+'</button>').join('')
@@ -6022,10 +6024,7 @@ function renderDrawer(){
       +((()=>{
         const _proj=S.projects.find(p=>p.id===task.projectId);
         const _wsId=_proj?.workspaceId;
-        const _wsRaw=_wsId?(S.wsMembers[_wsId]||[]):[];
-        // user_idで重複排除
-        const _seen=new Set();
-        const _wsMembers=_wsRaw.filter(m=>{if(_seen.has(m.user_id))return false;_seen.add(m.user_id);return true;});
+        const _wsMembers=_wsId?(S.wsMembers[_wsId]||[]):[];
         if(!_wsMembers.length)return '';
         return '<div class="fg"><label class="flabel">担当者</label>'
           +'<select class="finput fselect" id="dt-assignee">'
