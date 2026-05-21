@@ -576,8 +576,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .proj-section-inner{overflow:hidden;min-height:0}
 /* Nav label toggle button */
 .nav-label-row{display:flex;align-items:center;padding:6px 10px;cursor:pointer;user-select:none;border-radius:8px;margin:1px 0;transition:background .15s ease;background:var(--bg2)}
-.nav-label-row:hover{background:var(--border)}
-.nav-label-row:active{background:var(--border)}
+.nav-label-row:hover,.nav-label-row:active{filter:brightness(.95)}
 .nav-label-row .nav-label{padding:0;flex:1;font-size:11px;font-weight:700;color:var(--text2)}
 .nav-label-row .toggle-chevron{font-size:11px;color:var(--text2);transition:transform .25s ease;display:inline-block;line-height:1;margin-right:7px}
 .nav-label-row.collapsed .toggle-chevron{transform:rotate(-90deg)}
@@ -4122,7 +4121,7 @@ function renderSidebar(){
       +'</div>'
       +'<button class="proj-action-btn" data-a="ws-settings" data-wsid="'+ws.id+'" style="opacity:.7;width:36px;height:36px;font-size:18px;flex-shrink:0;touch-action:manipulation" title="設定" onclick="event.stopPropagation();openWsSettings(\''+ws.id+'\')" ontouchend="event.stopPropagation();event.preventDefault();openWsSettings(\''+ws.id+'\')" >⋯</button>'
     +'</div>';
-    h+='<div class="proj-section-inner">';
+    h+='<div class="proj-section-wrap'+(wsOpen?'':' collapsed')+'">';
     // メンバーアバター小表示
     h+='<div style="display:flex;gap:3px;padding:2px 8px 6px;align-items:center">';
     wsMembers.slice(0,5).forEach(m=>{
