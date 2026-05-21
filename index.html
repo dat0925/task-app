@@ -2605,6 +2605,8 @@ async function loadWorkspaces(){
       if(e2){console.error('loadWorkspaces members error',e2);return;}
       (members||[]).forEach(m=>{
         if(!S.wsMembers[m.workspace_id])S.wsMembers[m.workspace_id]=[];
+        // user_idで重複チェック
+        if(S.wsMembers[m.workspace_id].some(x=>x.user_id===m.user_id))return;
         S.wsMembers[m.workspace_id].push({
           id:m.id,workspaceId:m.workspace_id,workspace_id:m.workspace_id,
           userId:m.user_id,user_id:m.user_id,
@@ -6020,7 +6022,10 @@ function renderDrawer(){
       +((()=>{
         const _proj=S.projects.find(p=>p.id===task.projectId);
         const _wsId=_proj?.workspaceId;
-        const _wsMembers=_wsId?(S.wsMembers[_wsId]||[]):[];
+        const _wsRaw=_wsId?(S.wsMembers[_wsId]||[]):[];
+        // user_idで重複排除
+        const _seen=new Set();
+        const _wsMembers=_wsRaw.filter(m=>{if(_seen.has(m.user_id))return false;_seen.add(m.user_id);return true;});
         if(!_wsMembers.length)return '';
         return '<div class="fg"><label class="flabel">担当者</label>'
           +'<select class="finput fselect" id="dt-assignee">'
