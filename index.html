@@ -983,7 +983,6 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
       <div class="logo"><img src="icon-192.png" alt="Taskra"></div>
       <span class="app-name">Taskra</span>
       <button class="icon-btn" data-a="qr-share" style="margin-left:auto" title="スマホで開く（QRコード）"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="17"/><line x1="14" y1="20" x2="14" y2="21"/><line x1="17" y1="14" x2="21" y2="14"/><line x1="17" y1="17" x2="17" y2="21"/><line x1="20" y1="17" x2="21" y2="17"/><line x1="20" y1="20" x2="21" y2="20"/></svg></button>
-      <a href="https://taskra.jp" target="_blank" class="icon-btn" style="text-decoration:none;color:var(--text2)" title="Taskraサービスサイト"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></a>
       <button class="icon-btn" data-a="dark" title="ダーク">☾</button>
       <button class="icon-btn" data-a="settings" title="設定">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -4059,9 +4058,13 @@ function renderSidebar(){
   ];
   const SYS_VIEWS=ALL_SYS.map(x=>x.v);
   const bnavOrder=getNavOrder().filter(v=>SYS_VIEWS.includes(v));
+  // dashboardは常に先頭に固定、残りはbnavOrder順
+  const _dbItem=ALL_SYS.find(x=>x.v==='dashboard');
+  const _restOrder=bnavOrder.filter(v=>v!=='dashboard');
   const navItems=[
-    ...bnavOrder.map(v=>ALL_SYS.find(x=>x.v===v)).filter(Boolean),
-    ...ALL_SYS.filter(x=>!bnavOrder.includes(x.v)),
+    ...(_dbItem?[_dbItem]:[]),
+    ..._restOrder.map(v=>ALL_SYS.find(x=>x.v===v)).filter(Boolean),
+    ...ALL_SYS.filter(x=>x.v!=='dashboard'&&!bnavOrder.includes(x.v)),
   ];
   let h='';
   navItems.forEach(n=>{
