@@ -923,7 +923,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .cm-textarea:focus{outline:none;border-color:var(--accent)}
 .cm-send-btn{height:36px;padding:0 14px;border-radius:9px;background:var(--accent);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;transition:opacity .15s}
 /* @mention popover */
-#cm-mention-pop{position:fixed;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:600;min-width:180px;max-height:200px;overflow-y:auto;padding:4px 0}
+#cm-mention-pop{position:fixed;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:9998;min-width:180px;max-height:200px;overflow-y:auto;padding:4px 0}
 .cm-mention-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--text)}
 .cm-mention-item:hover{background:var(--hover)}
 .cm-send-btn:disabled{opacity:.4;cursor:default}
@@ -6345,14 +6345,15 @@ function _cmShowMentionPop(inp,taskId,query,atPos){
     pop.appendChild(item);
   });
   document.body.appendChild(pop);
+  // getBoundingClientRect()はviewport座標なのでposition:fixedにそのまま使える
   const rect=inp.getBoundingClientRect();
-  const popH=pop.offsetHeight||120;
-  const popW=pop.offsetWidth||200;
+  // offsetHeightはDOMに追加後に取得
+  const popH=pop.getBoundingClientRect().height||120;
+  const popW=pop.getBoundingClientRect().width||200;
   // 上に出す（上が足りなければ下に出す）
   const topAbove=rect.top-popH-6;
   const topBelow=rect.bottom+6;
   const top=topAbove>=8?topAbove:topBelow;
-  // 左端が画面外にならないよう調整
   const left=Math.max(8,Math.min(rect.left,window.innerWidth-popW-8));
   pop.style.left=left+'px';
   pop.style.top=top+'px';
