@@ -2854,6 +2854,7 @@ const ICONS={
   review:ico('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
   search:ico('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
   nextview:ico('<polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/>'),
+  dashboard:ico('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
   check:ico('<polyline points="20,6 9,17 4,12"/>'),
   x:ico('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
   trash:ico('<polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>'),
@@ -3980,7 +3981,7 @@ function openViewHelp(triggerEl){
   const ov=document.getElementById('view-help-ov');
   if(!popup)return;
   // icon from ICONS map
-  const iconSvg=({inbox:ICONS.inbox,today:ICONS.today,upcoming:ICONS.upcoming,
+  const iconSvg=({dashboard:ICONS.dashboard,inbox:ICONS.inbox,today:ICONS.today,upcoming:ICONS.upcoming,
     forecast:ICONS.forecast,flagged:ICONS.flag,review:ICONS.review,
     nextview:ICONS.nextview,
     search:ICONS.search,notes:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
@@ -4043,6 +4044,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 function renderSidebar(){
   const c=counts();
   const ALL_SYS=[
+    {v:'dashboard',label:'Dashboard',icon:ICONS.dashboard},
     {v:'inbox',label:'Inbox',icon:ICONS.inbox,cnt:c.inbox},
     {v:'today',label:'Today',icon:ICONS.today,cnt:c.today},
     {v:'upcoming',label:'Upcoming',icon:ICONS.upcoming},
@@ -4244,6 +4246,7 @@ function renderSidebar(){
 
 // ===== RENDER BOTTOM NAV =====
 const ALL_NAV_ITEMS=[
+  {v:'dashboard',label:'Dashboard',icon:()=>ICONS.dashboard},
   {v:'inbox',label:'Inbox',icon:()=>ICONS.inbox},
   {v:'today',label:'Today',icon:()=>ICONS.today},
   {v:'upcoming',label:'Upcoming',icon:()=>ICONS.upcoming},
@@ -4617,7 +4620,7 @@ function scrollGanttToToday(){
 // ===== RENDER CONTENT =====
 function renderContent(){
   const el=document.getElementById('content');
-  const titles={inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'Search',completed:'Completed',notes:'Notes',nextview:'Next',gantt:'Gantt',
+  const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'Search',completed:'Completed',notes:'Notes',nextview:'Next',gantt:'Gantt',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||''};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
@@ -4637,7 +4640,7 @@ function renderContent(){
   // qabarを表示/非表示
   const qabar=document.getElementById('qabar');
   if(qabar){
-    const qaHidden=['search','forecast','review','completed','notes','gantt'];
+    const qaHidden=['dashboard','search','forecast','review','completed','notes','gantt'];
     if(qaHidden.includes(S.view)){qabar.style.display='none';}
     else if(window.innerWidth<=768){qabar.style.display='';}
     else{qabar.style.display='';}
@@ -4647,6 +4650,7 @@ function renderContent(){
   if(S.view!=='notes'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.style.display='none';dr.classList.remove('open')}}
 
   renderTaskFilters();
+  if(S.view==='dashboard'){el.innerHTML=renderDashboard();attachDashboardEvents();return}
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
   if(S.view==='search'){el.innerHTML=renderSearch();return}
@@ -5277,6 +5281,129 @@ function renderEmpty(){
     search:{ico:'🔍',t:'検索結果なし',d:'別のキーワードで検索してみてください'},
   }[S.view]||{ico:'📋',t:'タスクがありません',d:''};
   return'<div class="empty"><div class="empty-ico">'+e.ico+'</div><div class="empty-t">'+e.t+'</div><div class="empty-d">'+e.d+'</div></div>';
+}
+
+
+// ===== DASHBOARD =====
+function renderDashboard(){
+  const today=new Date().toISOString().slice(0,10);
+  const uid=window._currentUser?.id;
+
+  // 期限切れ
+  const overdue=S.tasks.filter(t=>t.status!=='completed'&&t.dueAt&&t.dueAt<today)
+    .sort((a,b)=>a.dueAt>b.dueAt?1:-1);
+
+  // 今日
+  const todayTasks=S.tasks.filter(t=>t.status!=='completed'&&t.dueAt===today)
+    .sort((a,b)=>(a.order||0)-(b.order||0));
+
+  // 自分宛てメンション（コメントキャッシュから）
+  const myName=window._currentUser?.user_metadata?.full_name||window._currentUser?.email||'';
+  const mentions=[];
+  Object.entries(S._commentCache||{}).forEach(([taskId,comments])=>{
+    (comments||[]).forEach(c=>{
+      if(c.user_id!==uid&&c.body&&c.body.includes('@'+myName)){
+        const task=S.tasks.find(t=>t.id===taskId);
+        mentions.push({comment:c,task,taskId});
+      }
+    });
+  });
+  mentions.sort((a,b)=>b.comment.created_at>a.comment.created_at?1:-1);
+
+  // 自分が担当のチームタスク
+  const myTasks=uid?S.tasks.filter(t=>t.status!=='completed'&&t.assigneeId===uid)
+    .sort((a,b)=>(a.dueAt||'9')>(b.dueAt||'9')?1:-1):[];
+
+  // Flagged
+  const flagged=S.tasks.filter(t=>t.status!=='completed'&&t.flagged)
+    .sort((a,b)=>(a.order||0)-(b.order||0));
+
+  function taskChip(t){
+    const proj=S.projects.find(p=>p.id===t.projectId);
+    const isOv=t.dueAt&&t.dueAt<today;
+    return `<div class="db-task-row" data-a="sel-edit" data-id="${t.id}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title||'無題')}</div>
+        ${proj?`<span style="font-size:11px;color:${proj.color};background:${proj.color}1a;border-radius:4px;padding:1px 5px">${esc(proj.name)}</span>`:''}
+        ${t.dueAt?`<span style="font-size:11px;color:${isOv?'var(--p1)':'var(--text3)'}">⏰ ${t.dueAt}</span>`:''}
+      </div>
+    </div>`;
+  }
+
+  function section(icon,title,color,items,maxShow,viewName,emptyMsg){
+    const shown=items.slice(0,maxShow);
+    const more=items.length-maxShow;
+    return `<div class="db-section" style="background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:16px">${icon}</span>
+          <span style="font-weight:700;font-size:14px;color:${color||'var(--text)'}">${title}</span>
+          ${items.length?`<span style="font-size:11px;background:${color||'var(--accent)'};color:#fff;border-radius:10px;padding:1px 7px;font-weight:700">${items.length}</span>`:''}
+        </div>
+        ${viewName?`<button class="db-more-btn" data-view="${viewName}" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 6px">もっと見る →</button>`:''}
+      </div>
+      ${shown.length?shown.map(taskChip).join(''):`<div style="font-size:13px;color:var(--text3);padding:6px 0">${emptyMsg}</div>`}
+      ${more>0?`<div style="font-size:12px;color:var(--text3);padding-top:6px;text-align:center">他 ${more} 件</div>`:''}
+    </div>`;
+  }
+
+  let h=`<div style="padding:12px 12px 80px">`;
+
+  // 期限切れ
+  if(overdue.length){
+    h+=section('🔴','期限切れ','var(--p1)',overdue,3,'today','なし');
+  }
+
+  // 今日
+  h+=section('📅','今日','var(--text)',todayTasks,3,'today',
+    overdue.length?'期限切れ以外のタスクはありません':'今日のタスクはありません');
+
+  // 自分宛てメンション
+  h+=`<div class="db-section" style="background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <span style="font-size:16px">💬</span>
+      <span style="font-weight:700;font-size:14px">メンション</span>
+      ${mentions.length?`<span style="font-size:11px;background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-weight:700">${mentions.length}</span>`:''}
+    </div>
+    ${mentions.length?mentions.slice(0,3).map(({comment:c,task:t,taskId})=>`
+      <div class="db-task-row" data-a="sel-edit" data-id="${taskId}" style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start">
+        ${c.user_avatar?`<img src="${esc(c.user_avatar)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc((c.user_name||'?').charAt(0))}</div>`}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600">${esc(c.user_name||'')}</div>
+          <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.body||'')}</div>
+          ${t?`<div style="font-size:11px;color:var(--text3)">→ ${esc(t.title||'無題')}</div>`:''}
+        </div>
+      </div>`).join('')
+    :`<div style="font-size:13px;color:var(--text3);padding:6px 0">メンションはありません</div>`}
+  </div>`;
+
+  // 自分が担当のタスク
+  if(myTasks.length){
+    h+=section('👤','自分の担当','var(--text)',myTasks,3,'','');
+  }
+
+  // Flagged
+  if(flagged.length){
+    h+=section('🚩','フラグ付き','var(--text)',flagged,3,'flagged','');
+  }
+
+  h+='</div>';
+  return h;
+}
+
+function attachDashboardEvents(){
+  document.querySelectorAll('.db-more-btn').forEach(btn=>{
+    btn.onclick=()=>{S.view=btn.dataset.view;renderSidebar();renderContent();};
+  });
+  document.querySelectorAll('.db-task-row[data-a="sel-edit"]').forEach(row=>{
+    row.onclick=()=>{
+      const id=row.dataset.id;
+      const task=S.tasks.find(t=>t.id===id);
+      if(!task)return;
+      S.taskId=id;S.drawerOpen=true;
+      renderDrawer();renderContent();
+    };
+  });
 }
 
 function renderForecast(){
