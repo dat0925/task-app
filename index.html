@@ -575,10 +575,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .proj-section-wrap.collapsed{grid-template-rows:0fr}
 .proj-section-inner{overflow:hidden;min-height:0}
 /* Nav label toggle button */
-.nav-label-row{display:flex;align-items:center;padding:5px 8px;cursor:pointer;user-select:none;border-radius:7px;margin:2px 0;transition:background .15s ease}
-.nav-label-row:hover{background:var(--hover)}
-.nav-label-row .nav-label{padding:0;flex:1}
-.nav-label-row .toggle-chevron{font-size:10px;color:var(--text3);transition:transform .25s ease;display:inline-block;line-height:1;margin-right:6px;opacity:.7}
+.nav-label-row{display:flex;align-items:center;padding:6px 10px;cursor:pointer;user-select:none;border-radius:8px;margin:1px 0;transition:background .15s ease;background:var(--bg2)}
+.nav-label-row:hover{background:var(--border)}
+.nav-label-row:active{background:var(--border)}
+.nav-label-row .nav-label{padding:0;flex:1;font-size:11px;font-weight:700;color:var(--text2)}
+.nav-label-row .toggle-chevron{font-size:10px;color:var(--text2);transition:transform .25s ease;display:inline-block;line-height:1;margin-right:7px}
 .nav-label-row.collapsed .toggle-chevron{transform:rotate(-90deg)}
 .proj-edit-popup{position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:4px;min-width:130px}
 .proj-edit-popup button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 11px;border-radius:6px;font-size:13px;text-align:left;background:none;border:none;cursor:pointer;color:var(--text);transition:background .12s;font-family:var(--font);touch-action:manipulation}
