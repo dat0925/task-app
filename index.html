@@ -5325,7 +5325,7 @@ function renderDashboard(){
   function taskChip(t){
     const proj=S.projects.find(p=>p.id===t.projectId);
     const isOv=t.dueAt&&t.dueAt<today;
-    return `<div class="db-task-row" data-a="sel-edit" data-id="${t.id}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
+    return `<div class="db-task-row" data-a="db-open" data-id="${t.id}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title||'無題')}</div>
         ${proj?`<span style="font-size:11px;color:${proj.color};background:${proj.color}1a;border-radius:4px;padding:1px 5px">${esc(proj.name)}</span>`:''}
@@ -5370,7 +5370,7 @@ function renderDashboard(){
       ${mentions.length?`<span style="font-size:11px;background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-weight:700">${mentions.length}</span>`:''}
     </div>
     ${mentions.length?mentions.slice(0,3).map(({comment:c,task:t,taskId})=>`
-      <div class="db-task-row" data-a="sel-edit" data-id="${taskId}" style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start">
+      <div class="db-task-row" data-a="db-open" data-id="${taskId}" style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start">
         ${c.user_avatar?`<img src="${esc(c.user_avatar)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc((c.user_name||'?').charAt(0))}</div>`}
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600">${esc(c.user_name||'')}</div>
@@ -5396,18 +5396,11 @@ function renderDashboard(){
 }
 
 function attachDashboardEvents(){
+  // db-more-btn: ビュー切替
   document.querySelectorAll('.db-more-btn').forEach(btn=>{
-    btn.onclick=()=>{S.view=btn.dataset.view;renderSidebar();renderContent();};
+    btn.onclick=e=>{e.stopPropagation();S.view=btn.dataset.view;renderSidebar();renderContent();};
   });
-  document.querySelectorAll('.db-task-row[data-a="sel-edit"]').forEach(row=>{
-    row.onclick=()=>{
-      const id=row.dataset.id;
-      const task=S.tasks.find(t=>t.id===id);
-      if(!task)return;
-      S.taskId=id;S.drawerOpen=true;
-      renderDrawer();renderContent();
-    };
-  });
+  // db-task-row: グローバルハンドラに任せる（data-a="sel-edit"で処理される）
 }
 
 function renderForecast(){
@@ -7182,6 +7175,22 @@ else if(a==='sel'){
   const id=el.dataset.id;
   if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
   else{S.taskId=id;S.drawerOpen=true;playSE('open');}
+  renderContent();renderSidebar();renderDrawer();
+}
+else if(a==='db-open'){
+  e.stopPropagation();
+  if(_touchMoved)return;
+  const id=el.dataset.id;
+  const task=S.tasks.find(t=>t.id===id);
+  if(!task)return;
+  S.taskId=id;S.drawerOpen=true;
+  // スマホはプロジェクトビューに遷移してドロワーを開く
+  if(window.innerWidth<=768){
+    if(task.projectId){S.view='project';S.projId=task.projectId;}
+    else{S.view='inbox';}
+    S.sidebarOpen=false;
+  }
+  playSE('open');
   renderContent();renderSidebar();renderDrawer();
 }
 else if(a==='sel-edit'){
