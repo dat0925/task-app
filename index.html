@@ -4046,17 +4046,17 @@ document.addEventListener('DOMContentLoaded',()=>{
 function renderSidebar(){
   const c=counts();
   const ALL_SYS=[
-    {v:'dashboard',label:'Dashboard',icon:ICONS.dashboard},
-    {v:'inbox',label:'Inbox',icon:ICONS.inbox,cnt:c.inbox},
-    {v:'today',label:'Today',icon:ICONS.today,cnt:c.today},
-    {v:'upcoming',label:'Upcoming',icon:ICONS.upcoming},
-    {v:'forecast',label:'Forecast',icon:ICONS.forecast},
-    {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged},
-    {v:'review',label:'Review',icon:ICONS.review},
+    {v:'dashboard',label:'Dashboard',icon:ICONS.dashboard,sub:'今日・通知・担当タスク'},
+    {v:'inbox',label:'Inbox',icon:ICONS.inbox,cnt:c.inbox,sub:'プロジェクト未設定のタスク'},
+    {v:'today',label:'Today',icon:ICONS.today,cnt:c.today,sub:'期限が今日のタスク'},
+    {v:'upcoming',label:'Upcoming',icon:ICONS.upcoming,sub:'期限付きタスクのカレンダー'},
+    {v:'forecast',label:'Forecast',icon:ICONS.forecast,sub:'2週間先までのタスク一覧'},
+    {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged,sub:'フラグを付けたタスク'},
+    {v:'review',label:'Review',icon:ICONS.review,sub:'停滞・期限切れを定期チェック'},
     {v:'nextview',label:'Next',icon:ICONS.nextview,sub:'各PJの次のアクション'},
-    {v:'search',label:'Search',icon:ICONS.search},
-    {v:'notes',label:'Note',icon:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
-    {v:'gantt',label:'Gantt',icon:ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')},
+    {v:'search',label:'Search',icon:ICONS.search,sub:'タスク・メモを横断検索'},
+    {v:'notes',label:'Note',sub:'自由記述のメモ帳',icon:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
+    {v:'gantt',label:'Gantt',sub:'プロジェクトのスケジュール管理',icon:ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')},
   ];
   const SYS_VIEWS=ALL_SYS.map(x=>x.v);
   const bnavOrder=getNavOrder().filter(v=>SYS_VIEWS.includes(v));
@@ -5287,12 +5287,13 @@ function renderRow(task){
 function renderEmpty(){
   const e={
     inbox:{ico:'📥',t:'Inboxは空です',d:'上の入力欄からタスクを追加'},
-    today:{ico:'☀️',t:'今日のタスクはありません',d:'期限が今日のタスクがここに表示されます'},
-    upcoming:{ico:'📅',t:'今後のタスクはありません',d:'期限を設定したタスクがここに表示されます'},
-    flagged:{ico:'🚩',t:'フラグ付きタスクはありません',d:'タスクにフラグを付けると表示されます'},
+    today:{ico:'☀️',t:'今日のタスクはありません',d:'期限を「今日」に設定したタスクがここに表示されます。タスク追加時に「明日」「今日」などと入力すると自動設定されます。'},
+    upcoming:{ico:'📅',t:'期限付きタスクはありません',d:'タスクに期限を設定すると、カレンダー形式でここに表示されます。'},
+    flagged:{ico:'🚩',t:'フラグ付きタスクはありません',d:'特に重要なタスクに🚩フラグを付けると、ここで一覧できます。タスク一覧の旗アイコンでフラグを設定できます。'},
     completed:{ico:'✅',t:'完了済みタスクはありません',d:''},
-    project:{ico:'📁',t:'タスクがありません',d:'上の入力欄からタスクを追加'},
-    search:{ico:'🔍',t:'検索結果なし',d:'別のキーワードで検索してみてください'},
+    project:{ico:'📁',t:'タスクがありません',d:'上の入力欄からタスクを追加してみましょう。'},
+    search:{ico:'🔍',t:'検索結果なし',d:'別のキーワードで検索してみてください。'},
+    inbox:{ico:'📥',t:'Inboxは空です',d:'プロジェクト未設定のタスクがここに入ります。タスクを追加したらプロジェクトに振り分けましょう。'},
   }[S.view]||{ico:'📋',t:'タスクがありません',d:''};
   return'<div class="empty"><div class="empty-ico">'+e.ico+'</div><div class="empty-t">'+e.t+'</div><div class="empty-d">'+e.d+'</div></div>';
 }
