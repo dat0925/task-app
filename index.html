@@ -575,7 +575,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .proj-section-wrap.collapsed{grid-template-rows:0fr}
 .proj-section-inner{overflow:hidden;min-height:0}
 /* Nav label toggle button */
-.nav-label-row{display:flex;align-items:center;padding:6px 8px;cursor:pointer;user-select:none;background:var(--bg2);border-radius:6px;margin-bottom:2px}
+.nav-label-row{display:flex;align-items:center;padding:6px 8px;cursor:pointer;user-select:none;background:var(--bg3);border-radius:6px;margin-bottom:2px}
 .nav-label-row .nav-label{padding:0;flex:1}
 .nav-label-row .toggle-chevron{font-size:11px;color:var(--text2);transition:transform .25s ease;display:inline-block;line-height:1}
 .nav-label-row.collapsed .toggle-chevron{transform:rotate(-90deg)}
@@ -4113,7 +4113,7 @@ function renderSidebar(){
     const wsProjects=getSortedProjects('active').filter(p=>p.workspaceId===ws.id);
     const wsOpen=S.wsOpen?.[ws.id]!==false;
     h+='<div style="display:flex;align-items:center;margin-top:8px">'
-      +'<div class="nav-label-row'+(wsOpen?'':' collapsed')+'" data-a="ws-toggle" data-wsid="'+ws.id+'" style="flex:1;margin-top:0">'
+      +'<div class="nav-label-row'+(wsOpen?'':' collapsed')+'" data-a="ws-toggle" data-wsid="'+ws.id+'" style="flex:1;margin-top:0;background:var(--bg3);border-radius:6px">'
       +'<span style="font-size:9px;color:var(--accent);margin-right:2px">👥</span>'
       +'<span class="nav-label" style="color:var(--accent)">'+ esc(ws.name)+'</span>'
       +'<span class="toggle-chevron" style="margin-left:auto">▼</span>'
