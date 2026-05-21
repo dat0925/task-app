@@ -4654,7 +4654,7 @@ function renderContent(){
   // qabarを表示/非表示
   const qabar=document.getElementById('qabar');
   if(qabar){
-    const qaHidden=['dashboard','search','forecast','review','completed','notes','gantt'];
+    const qaHidden=['search','forecast','review','completed','notes','gantt'];
     if(qaHidden.includes(S.view)){qabar.style.display='none';}
     else if(window.innerWidth<=768){qabar.style.display='';}
     else{qabar.style.display='';}
@@ -5382,13 +5382,20 @@ function renderDashboard() {
   const notifs = _notifCache || [];
   // 通知行のHTMLを生成する関数（attachDashboardEventsからも参照）
   window._buildNotifRow=function buildNotifRow(n){
-    return `<div class="db-notif-row" data-notif-id="${n.id}" data-task-id="${n.task_id||''}" style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:flex-start;opacity:${n.read?'0.5':'1'}">
-      ${n.from_user_avatar?`<img src="${esc(n.from_user_avatar)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc((n.from_user_name||'?').charAt(0))}</div>`}
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600">${esc(n.from_user_name||'')} ${n.read?'':'<span style="font-size:9px;background:var(--p1);color:#fff;border-radius:4px;padding:1px 4px">NEW</span>'}</div>
+    const dt=new Date(n.created_at);
+    const dtStr=dt.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'})+' '+dt.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+    return `<div class="db-notif-row" data-notif-id="${n.id}" data-task-id="${n.task_id||''}" style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;align-items:center;opacity:${n.read?'0.5':'1'}">
+      ${n.from_user_avatar?`<img src="${esc(n.from_user_avatar)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div style="width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc((n.from_user_name||'?').charAt(0))}</div>`}
+      <div style="min-width:0">
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-size:12px;font-weight:600">${esc(n.from_user_name||'')}</span>
+          ${n.read?'':'<span style="font-size:9px;background:var(--p1);color:#fff;border-radius:4px;padding:1px 4px">NEW</span>'}
+        </div>
         <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n.body||'')}</div>
-        ${n.task_title?`<div style="font-size:11px;color:var(--text3)">→ ${esc(n.task_title)}</div>`:''}
-        <div style="font-size:10px;color:var(--text3)">${new Date(n.created_at).toLocaleString('ja-JP')}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;min-width:0">
+        <div style="font-size:10px;color:var(--text3);white-space:nowrap">${dtStr}</div>
+        ${n.task_title?`<div style="font-size:11px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">→ ${esc(n.task_title)}</div>`:''}
       </div>
     </div>`;
   }
