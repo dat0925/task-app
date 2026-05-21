@@ -4112,11 +4112,13 @@ function renderSidebar(){
     const wsMembers=S.wsMembers[ws.id]||[];
     const wsProjects=getSortedProjects('active').filter(p=>p.workspaceId===ws.id);
     const wsOpen=S.wsOpen?.[ws.id]!==false;
-    h+='<div style="display:flex;align-items:center;margin-top:8px;cursor:pointer" data-a="ws-toggle" data-wsid="'+ws.id+'">'
-      +'<span style="font-size:9px;color:var(--accent);margin-right:2px;pointer-events:none">👥</span>'
-      +'<span class="nav-label" style="color:var(--accent);flex:1;pointer-events:none">'+ esc(ws.name)+'</span>'
-      +'<button class="proj-action-btn" data-a="ws-settings" data-wsid="'+ws.id+'" style="opacity:.7;width:32px;height:32px;font-size:16px;flex-shrink:0;touch-action:manipulation" title="設定" onclick="event.stopPropagation();openWsSettings(\''+ws.id+'\')" ontouchend="event.stopPropagation();event.preventDefault();openWsSettings(\''+ws.id+'\')" >⋯</button>'
-      +'<span style="font-size:11px;color:var(--text2);transition:transform .25s ease;display:inline-block;pointer-events:none;'+(wsOpen?'':'transform:rotate(-90deg);')+'">▼</span>'
+    h+='<div style="display:flex;align-items:center;margin-top:8px">'
+      +'<div class="nav-label-row'+(wsOpen?'':' collapsed')+'" data-a="ws-toggle" data-wsid="'+ws.id+'" style="flex:1;margin-top:0">'
+      +'<span style="font-size:9px;color:var(--accent);margin-right:2px">👥</span>'
+      +'<span class="nav-label" style="color:var(--accent)">'+ esc(ws.name)+'</span>'
+      +'<span class="toggle-chevron" style="margin-left:auto">▼</span>'
+      +'</div>'
+      +'<button class="proj-action-btn" data-a="ws-settings" data-wsid="'+ws.id+'" style="opacity:.7;width:36px;height:36px;font-size:18px;flex-shrink:0;touch-action:manipulation" title="設定" onclick="event.stopPropagation();openWsSettings(\''+ws.id+'\')" ontouchend="event.stopPropagation();event.preventDefault();openWsSettings(\''+ws.id+'\')" >⋯</button>'
     +'</div>';
     h+='<div class="proj-section-wrap'+(wsOpen?'':' collapsed')+'">';
     h+='<div class="proj-section-inner">';
