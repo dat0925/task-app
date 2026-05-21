@@ -5221,6 +5221,17 @@ function renderRow(task){
     meta+='<span class="mc" title="'+_rlLabel+'">↻ '+_rlLabel+'</span>';
   }
   if(task.flagged)meta+='<span>🚩</span>';
+  if(task.assigneeId){
+    const _aProj=S.projects.find(p=>p.id===task.projectId);
+    const _aWsId=_aProj?.workspaceId;
+    const _aMember=_aWsId?(S.wsMembers[_aWsId]||[]).find(m=>m.user_id===task.assigneeId):null;
+    if(_aMember){
+      const _aAv=_aMember.user_avatar
+        ?`<img src="${esc(_aMember.user_avatar)}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;vertical-align:middle">`
+        :`<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--accent);color:#fff;font-size:9px;font-weight:700">${esc((_aMember.user_name||'?').charAt(0).toUpperCase())}</span>`;
+      meta+=`<span class="mc" title="担当: ${esc(_aMember.user_name||_aMember.user_email)}" style="display:inline-flex;align-items:center;gap:3px;padding:1px 5px">${_aAv}<span style="font-size:11px">${esc(_aMember.user_name?.split(' ')[0]||'')}</span></span>`;
+    }
+  }
   if(subs.length){
     const dc=subs.filter(s=>s.status==='completed').length;
     meta+='<button class="mc sub-toggle-btn" data-a="tog-subs" data-id="'+task.id+'" title="サブタスクを展開"><span class="sub-chev'+(subsOpen?' open':'')+'">▶</span>'+dc+'/'+subs.length+'</button>';
@@ -5792,6 +5803,30 @@ function renderDrawer(){
             })())
         +'</div>'
       +'</div>'
+      +((()=>{
+        const _proj=S.projects.find(p=>p.id===task.projectId);
+        const _wsId=_proj?.workspaceId;
+        const _wsMembers=_wsId?(S.wsMembers[_wsId]||[]):[];
+        if(!_wsMembers.length)return '';
+        return '<div class="fg"><label class="flabel">担当者</label>'
+          +'<select class="finput fselect" id="dt-assignee">'
+          +'<option value="">未割り当て</option>'
+          +_wsMembers.map(m=>'<option value="'+esc(m.user_id)+'"'+(task.assigneeId===m.user_id?' selected':'')+'>'+esc(m.user_name||m.user_email)+'</option>').join('')
+          +'</select>'
+          +'</div>';
+      })())
+      +((()=>{
+        const _proj=S.projects.find(p=>p.id===task.projectId);
+        const _wsId=_proj?.workspaceId;
+        const _wsMembers=_wsId?(S.wsMembers[_wsId]||[]):[];
+        if(!_wsMembers.length)return '';
+        return '<div class="fg"><label class="flabel">担当者</label>'
+          +'<select class="finput fselect" id="dt-assignee">'
+          +'<option value="">未割り当て</option>'
+          +_wsMembers.map(m=>'<option value="'+esc(m.user_id)+'"'+(task.assigneeId===m.user_id?' selected':'')+'>'+esc(m.user_name||m.user_email)+'</option>').join('')
+          +'</select>'
+          +'</div>';
+      })())
       +'<div class="fg"><label class="flabel">タグ</label>'
         +'<div class="tag-wrap">'
           +S.tags.map(t=>'<span class="topt'+(task.tagIds&&task.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-task="'+task.id+'" data-tag="'+t.id+'" style="'+(task.tagIds&&task.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
@@ -5952,6 +5987,7 @@ function renderDrawer(){
       t2.plannedStartAt=document.getElementById('dt-planned-start')?.value||null;
       t2.startTime=document.getElementById('dt-start-time')?.value||null;
       t2.projectId=document.getElementById('dt-proj')?.value||null;
+      t2.assigneeId=document.getElementById('dt-assignee')?.value||null;
       t2.repeatRule=getRepeatRule();
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
 
@@ -5964,7 +6000,7 @@ function renderDrawer(){
       }
       setInd('saved');
 
-      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
+      const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-assignee','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
       if(t2.status!==prevStatus||(!drawerInputIds.includes(activeId)&&!activeInDrawer)){
         renderSidebar();renderContent();
       }
@@ -6092,7 +6128,7 @@ function renderDrawer(){
     el.addEventListener('input',()=>{autosave();});
   });
   // 日付・セレクトはcomposition不要
-  ['dt-due','dt-start','dt-start-time','dt-proj','dt-repeat'].forEach(id=>{
+  ['dt-due','dt-start','dt-start-time','dt-proj','dt-assignee','dt-repeat'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('change',()=>{
       if(id==='dt-repeat'&&el.value&&isPlanFree()){
@@ -8786,7 +8822,7 @@ function reattachModalEvents(modal, type, onClose){
       el.addEventListener('compositionend',()=>{_c=false;save(true);});
       el.addEventListener('input',()=>save());
     });
-    ['dt-due','dt-start','dt-start-time','dt-proj','dt-repeat'].forEach(id=>{
+    ['dt-due','dt-start','dt-start-time','dt-proj','dt-assignee','dt-repeat'].forEach(id=>{
       const el=modal.querySelector('#'+id);
       if(el)el.addEventListener('change',()=>{
         // 開始日を直接変更した場合は開始時間をクリア
@@ -10636,7 +10672,7 @@ async function setupSB(){
     window._SB=SB;
 
     // カラム名マッピング（JS camelCase ↔ DB snake_case）
-    const TO={projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',plannedStartAt:'planned_start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order',workspaceId:'workspace_id'};
+    const TO={assigneeId:'assignee_id',projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',plannedStartAt:'planned_start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order',workspaceId:'workspace_id'};
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_'))continue;r[TO[k]||k]=v;}return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
