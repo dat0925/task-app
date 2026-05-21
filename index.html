@@ -5754,14 +5754,14 @@ function renderDrawer(){
         +(task.notes?'<span id="memo-preview-badge" style="font-size:10px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 6px">プレビュー</span>':'')
         +'<span id="memo-toggle-chev" style="font-size:10px;color:var(--text3);margin-left:auto;transition:transform .2s">'+(task.notes?'▼':'▶')+'</span>'
       +'</div>'
+      +'<div class="note-stamp-bar" style="margin-bottom:6px">'
+        +'<button class="note-stamp-btn" data-a="stamp" data-type="datetimeweek">📅 日時</button>'
+        +'<button class="note-stamp-btn" data-a="clear-task-notes">クリア</button>'
+        +'<button class="note-stamp-btn" data-a="copy-task-notes" title="メモ内容をコピー">コピー</button>'
+        +'<button class="note-stamp-btn" id="dt-link-btn">Link</button>'
+        +'<button class="note-stamp-btn" id="dt-preview-btn">編集</button>'
+      +'</div>'
       +'<div id="memo-collapse" style="'+(task.notes?'':'display:none')+'">'
-        +'<div class="note-stamp-bar" style="margin-bottom:6px">'
-          +'<button class="note-stamp-btn" data-a="stamp" data-type="datetimeweek">📅 日時</button>'
-          +'<button class="note-stamp-btn" data-a="clear-task-notes">クリア</button>'
-          +'<button class="note-stamp-btn" data-a="copy-task-notes" title="メモ内容をコピー">コピー</button>'
-          +'<button class="note-stamp-btn" id="dt-link-btn">Link</button>'
-          +'<button class="note-stamp-btn" id="dt-preview-btn">編集</button>'
-        +'</div>'
         +'<textarea class="finput ftextarea" id="dt-notes" rows="6" style="resize:vertical;font-size:14px;line-height:1.7;display:none" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'
         +'<div id="dt-preview-area" style="font-size:14px;color:var(--text);line-height:1.8;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);word-break:break-word;max-height:160px;overflow:hidden;position:relative"></div>'
         +'<button id="memo-expand-btn" style="display:none;width:100%;margin-top:4px;font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">▼ もっと見る</button>'
@@ -5976,7 +5976,13 @@ function renderDrawer(){
   makeResizable(_dtNotesTA);
   if(_dtNotesTA){_dtNotesTA._stampFocused=false;_dtNotesTA.addEventListener('focus',()=>{_dtNotesTA._stampFocused=true;});}
   const dtLinkBtnEl=document.getElementById('dt-link-btn');
-  if(dtLinkBtnEl)dtLinkBtnEl.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(dtLinkBtnEl,'dt-notes',!(_dtNotesTA&&_dtNotesTA._stampFocused));});
+  if(dtLinkBtnEl)dtLinkBtnEl.addEventListener('click',e=>{
+    e.stopPropagation();
+    const _mc2=document.getElementById('memo-collapse');
+    const _mchev2=document.getElementById('memo-toggle-chev');
+    if(_mc2&&_mc2.style.display==='none'){_mc2.style.display='';if(_mchev2)_mchev2.style.transform='rotate(0deg)';}
+    showLinkPopover(dtLinkBtnEl,'dt-notes',!(_dtNotesTA&&_dtNotesTA._stampFocused));
+  });
   // プレビュー切替
   const dtPreviewBtn=document.getElementById('dt-preview-btn');
   const dtPreviewArea=document.getElementById('dt-preview-area');
@@ -6015,7 +6021,12 @@ function renderDrawer(){
     const expandBtn=document.getElementById('memo-expand-btn');
     if(expandBtn)expandBtn.style.display='none';
   }
-  if(dtPreviewBtn){dtPreviewBtn.addEventListener('click',()=>{dtPrevMode?dtExitPreview():dtEnterPreview();});}
+  if(dtPreviewBtn){dtPreviewBtn.addEventListener('click',()=>{
+    const _mc3=document.getElementById('memo-collapse');
+    const _mchev3=document.getElementById('memo-toggle-chev');
+    if(_mc3&&_mc3.style.display==='none'){_mc3.style.display='';if(_mchev3)_mchev3.style.transform='rotate(0deg)';}
+    dtPrevMode?dtExitPreview():dtEnterPreview();
+  });}
 
   // メモ折りたたみトグル
   const memoToggleRow=document.getElementById('memo-toggle-row');
@@ -7603,6 +7614,16 @@ else if(a==='scroll-to-comments'){
     const timeStr=pad(now2.getHours())+':'+pad(now2.getMinutes());
     const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+' ',sep:'\n---\n'};
     const ins=map[el.dataset.type]||'';
+    // メモエリアが閉じていたら開く
+    const _mc=document.getElementById('memo-collapse');
+    const _mchev=document.getElementById('memo-toggle-chev');
+    if(_mc&&_mc.style.display==='none'){
+      _mc.style.display='';
+      if(_mchev)_mchev.style.transform='rotate(0deg)';
+    }
+    // 編集モードに切替（プレビュー→編集）
+    const _pvBtn=document.getElementById('dt-preview-btn');
+    if(_pvBtn&&_pvBtn.textContent.trim()==='プレビュー')_pvBtn.click();
     if(!ta._stampFocused){
       ta.value=ins+'\n'+ta.value;
       ta.selectionStart=ta.selectionEnd=ins.length+1;
