@@ -4289,7 +4289,7 @@ async function loadNavOrder(){
 }
 // ===== PREV/NEXT ナビゲーション =====
 function getNavSequence(){
-  const SYS_VIEWS=['inbox','today','upcoming','forecast','flagged','review','nextview','search','notes'];
+  const SYS_VIEWS=['dashboard','inbox','today','upcoming','forecast','flagged','review','nextview','search','notes'];
   const bnavOrder=getNavOrder().filter(v=>SYS_VIEWS.includes(v));
   const orderedSys=[...bnavOrder,...SYS_VIEWS.filter(v=>!bnavOrder.includes(v))];
   const views=orderedSys.map(v=>({type:'view',v}));
@@ -9502,7 +9502,7 @@ function openSettingsModal(){
         +'<button class="pbtn" id="s-csv-note-export">Export</button>'
       +'</div>'
     +'</div>'
-    +'<div class="modal-foot"><button class="btn btn-ghost" id="s-nav-edit">🗂 メニュー編集</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" id="s-nav-edit">🗂 ナビ編集</button><button class="btn btn-ghost" id="s-backup">📦 バックアップ</button></div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
 
