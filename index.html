@@ -4053,7 +4053,7 @@ function renderSidebar(){
     {v:'forecast',label:'Forecast',icon:ICONS.forecast},
     {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged},
     {v:'review',label:'Review',icon:ICONS.review},
-    {v:'nextview',label:'Next',icon:ICONS.nextview},
+    {v:'nextview',label:'Next',icon:ICONS.nextview,sub:'各PJの次のアクション'},
     {v:'search',label:'Search',icon:ICONS.search},
     {v:'notes',label:'Note',icon:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
     {v:'gantt',label:'Gantt',icon:ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')},
@@ -4078,7 +4078,7 @@ function renderSidebar(){
     +'<div class="proj-section-inner">';
   navItems.forEach(n=>{
     h+='<div class="nav-item'+(S.view===n.v?' on':'')+'" data-a="view" data-v="'+n.v+'">'
-      +n.icon+'<span>'+n.label+'</span>'
+      +n.icon+'<div style="display:flex;flex-direction:column;gap:0px"><span>'+n.label+'</span>'+(n.sub?'<span style="font-size:10px;color:var(--text3);font-weight:400;line-height:1.2">'+n.sub+'</span>':'')+' </div>'
       +(n.cnt?'<span class="badge">'+n.cnt+'</span>':'')+
     '</div>';
   });
@@ -5814,7 +5814,20 @@ function renderNextView(){
     if(tasks.length===0)continue;
     rows.push({proj,task:tasks[0]});
   }
-  if(rows.length===0)return'<div class="empty"><div class="empty-ico">✅</div><div class="empty-t">すべてのプロジェクトは完了しています</div></div>';
+  if(rows.length===0){
+    const hasProjs=getSortedProjects('active').length>0;
+    if(!hasProjs){
+      return `<div class="empty">
+        <div class="empty-ico">📂</div>
+        <div class="empty-t">Nextビューへようこそ</div>
+        <div class="empty-sub" style="font-size:13px;color:var(--text3);margin-top:8px;line-height:1.7;max-width:280px;text-align:center">
+          各プロジェクトの<b>次にやるべきタスク（先頭の1件）</b>がここに集まります。<br>
+          プロジェクトを作ってタスクを追加すると、自動的に表示されます。
+        </div>
+      </div>`;
+    }
+    return '<div class="empty"><div class="empty-ico">✅</div><div class="empty-t">すべてのプロジェクトは完了しています</div></div>';
+  }
 
   // サブタスクを持つタスクIDを収集
   const nvTasksWithSubs=rows.filter(({task})=>S.tasks.some(t=>t.parentTaskId===task.id)).map(({task})=>task.id);
