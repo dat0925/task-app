@@ -5815,18 +5815,6 @@ function renderDrawer(){
           +'</select>'
           +'</div>';
       })())
-      +((()=>{
-        const _proj=S.projects.find(p=>p.id===task.projectId);
-        const _wsId=_proj?.workspaceId;
-        const _wsMembers=_wsId?(S.wsMembers[_wsId]||[]):[];
-        if(!_wsMembers.length)return '';
-        return '<div class="fg"><label class="flabel">担当者</label>'
-          +'<select class="finput fselect" id="dt-assignee">'
-          +'<option value="">未割り当て</option>'
-          +_wsMembers.map(m=>'<option value="'+esc(m.user_id)+'"'+(task.assigneeId===m.user_id?' selected':'')+'>'+esc(m.user_name||m.user_email)+'</option>').join('')
-          +'</select>'
-          +'</div>';
-      })())
       +'<div class="fg"><label class="flabel">タグ</label>'
         +'<div class="tag-wrap">'
           +S.tags.map(t=>'<span class="topt'+(task.tagIds&&task.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-task="'+task.id+'" data-tag="'+t.id+'" style="'+(task.tagIds&&task.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
