@@ -8772,8 +8772,7 @@ function openSettingsModal(){
     const{data:linked}=await SB.from('line_users').select('id').eq('taskra_user_id',user.id).eq('linked',true).single();
     if(linked){toast('すでにLINEと連携済みです ✅');return;}
     // モーダルでコードを表示
-    const msg=`LINEで「Taskra AI」に以下を送ってください：\n\n連携:${code}\n\n※30分以内に送信してください`;
-    ov.remove();
+    document.querySelectorAll('.overlay').forEach(o=>o.remove());
     const ov2=document.createElement('div');ov2.className='overlay active';
     ov2.innerHTML='<div class="modal" style="max-width:340px;text-align:center">'
       +'<div class="modal-title">LINE連携コード</div>'
