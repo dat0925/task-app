@@ -8695,6 +8695,12 @@ function openSettingsModal(){
       +'</div>'
     +'</div>'
 
+    +'<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">'
+      +'<div><div class="settings-label">💬 LINE連携</div><div class="settings-sub" id="s-line-status">未連携</div></div>'
+      +'<div style="display:grid;grid-template-columns:1fr;gap:6px;width:100%">'
+        +'<button class="pbtn" id="s-line-link">連携コードを発行</button>'
+      +'</div>'
+    +'</div>'
     +'<div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px">'
       +'<div class="settings-label">📊 タスク CSV</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;width:100%">'
@@ -8748,6 +8754,37 @@ function openSettingsModal(){
   addFastHandler('s-backup',()=>{ov.remove();openBackupModal()});
   // プッシュ通知設定モーダルを開く
   addFastHandler('s-push-open',()=>{ov.remove();openPushSettingsModal();});
+  addFastHandler('s-line-link',async()=>{
+    const SB=window._SB;
+    const user=window._currentUser;
+    if(!SB||!user)return;
+    // 既存の未使用コードを無効化
+    await SB.from('line_link_codes').update({used:true}).eq('user_id',user.id).eq('used',false);
+    // 新しいコードを発行（6桁英数字）
+    const code=Math.random().toString(36).slice(2,8).toUpperCase();
+    const expiresAt=new Date(Date.now()+30*60*1000).toISOString(); // 30分有効
+    const{error}=await SB.from('line_link_codes').insert({
+      id:Math.random().toString(36).slice(2)+Date.now().toString(36),
+      user_id:user.id,code,used:false,expires_at:expiresAt
+    });
+    if(error){toast('コード発行に失敗しました');return;}
+    // チェック：既に連携済みか
+    const{data:linked}=await SB.from('line_users').select('id').eq('taskra_user_id',user.id).eq('linked',true).single();
+    if(linked){toast('すでにLINEと連携済みです ✅');return;}
+    // モーダルでコードを表示
+    const msg=`LINEで「Taskra AI」に以下を送ってください：\n\n連携:${code}\n\n※30分以内に送信してください`;
+    ov.remove();
+    const ov2=document.createElement('div');ov2.className='overlay active';
+    ov2.innerHTML='<div class="modal" style="max-width:340px;text-align:center">'
+      +'<div class="modal-title">LINE連携コード</div>'
+      +'<div style="font-size:32px;font-weight:800;letter-spacing:6px;color:var(--accent);margin:20px 0">'+code+'</div>'
+      +'<div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px">LINEで「Taskra AI」に<br><b>連携:'+code+'</b><br>と送ってください</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-bottom:16px">※30分以内に送信してください</div>'
+      +'<button class="btn btn-primary" onclick="navigator.clipboard?.writeText(\'連携:'+code+'\');toast(\'コピーしました\')">コピー</button>'
+      +'<button class="btn btn-ghost" style="margin-top:8px" onclick="this.closest(\'.overlay\').remove()">閉じる</button>'
+    +'</div>';
+    document.body.appendChild(ov2);
+  });
   // ステータス表示を非同期で更新
   (async()=>{
     try{
