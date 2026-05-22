@@ -5356,38 +5356,36 @@ function attachDashboardEvents(){
     moreBtn.onclick=e=>{
       e.stopPropagation();
       const notifs=_notifCache||[];
-      const shown=parseInt(moreBtn.dataset.shown)||3;
-      const next=Math.min(shown+10,notifs.length);
       const list=document.getElementById('db-notif-list');
+      // 「閉じる」状態のとき
+      if(moreBtn.dataset.state==='open'){
+        if(list){
+          const rows=[...list.querySelectorAll('.db-notif-row')];
+          rows.slice(_notifInitShow).forEach(r=>r.remove());
+        }
+        moreBtn.dataset.shown=_notifInitShow;
+        moreBtn.dataset.state='';
+        moreBtn.textContent=`もっと見る（残り ${notifs.length-_notifInitShow} 件）`;
+        return;
+      }
+      // 「もっと見る」状態のとき
+      const shown=parseInt(moreBtn.dataset.shown)||_notifInitShow;
+      const next=Math.min(shown+10,notifs.length);
       if(list){
-        // 追加分をDOMに挿入
         const frag=document.createDocumentFragment();
         notifs.slice(shown,next).forEach(n=>{
           const div=document.createElement('div');
           div.innerHTML=window._buildNotifRow(n);
           const row=div.firstElementChild;
-          // ハンドラはquerySelectorAllで一括アタッチ
           frag.appendChild(row);
         });
         list.appendChild(frag);
         _attachNotifHandlers();
       }
       if(next>=notifs.length){
-        moreBtn.textContent='閉じる ▲';
+        moreBtn.dataset.state='open';
         moreBtn.dataset.shown=next;
-        moreBtn.onclick=e=>{
-          e.stopPropagation();
-          const list=document.getElementById('db-notif-list');
-          if(list){
-            const rows=[...list.querySelectorAll('.db-notif-row')];
-            rows.slice(_notifInitShow).forEach(r=>r.remove());
-          }
-          moreBtn.dataset.shown=_notifInitShow;
-          moreBtn.textContent=`もっと見る（残り ${notifs.length-_notifInitShow} 件）`;
-          moreBtn.onclick=null;
-          // 再登録
-          if(moreBtn.parentNode) attachDashboardEvents();
-        };
+        moreBtn.textContent='閉じる ▲';
       } else {
         moreBtn.dataset.shown=next;
         moreBtn.textContent=`もっと見る（残り ${notifs.length-next} 件）`;
