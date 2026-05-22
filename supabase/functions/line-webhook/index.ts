@@ -63,13 +63,26 @@ async function parseTaskWithAI(message: string) {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 400,
       system: `今日:${today} 明日:${tomorrow} 3日後:${in3days}
-メッセージを解析しJSONのみ返す。
-action: add_task/add_tasks/list_today/complete_task/list_next/unknown
-- add_task: 1件のタスク追加。title(必須),dueAt(YYYY-MM-DD、明示指定のみ、なければnull),priority(high/medium/low/null)
-- add_tasks: 複数タスク追加。tasks配列で各要素にtitle,dueAt,priorityを含む
-- complete_task: keyword
-- 「〇〇と△△の2つ」「〇〇、△△を追加」などはadd_tasksを使う
-JSONのみ、余分なテキスト不要。`,
+あなたはタスク管理AIです。ユーザーのメッセージを解析してJSONのみ返してください。
+
+actionの種類:
+- add_task: タスクを1件追加
+- add_tasks: タスクを複数追加（「〇〇と△△」「〇〇、△△を追加」など）
+- list_today: 今日のタスク一覧を見たい
+- complete_task: タスクを完了にしたい
+- list_next: 次のアクションを確認したい
+- unknown: 上記以外
+
+add_taskの場合: {"action":"add_task","title":"タスク名","dueAt":"YYYY-MM-DD or null","priority":"high/medium/low/null"}
+add_tasksの場合: {"action":"add_tasks","tasks":[{"title":"タスク名","dueAt":null,"priority":null},...]}
+complete_taskの場合: {"action":"complete_task","keyword":"キーワード"}
+
+重要なルール:
+- タスクのtitleは行動として自然な日本語にする（例:「ハンチョウ最終巻を借りる」「ハンチョウ最終巻を返す」）
+- 「借りる、と返す」→「〇〇を借りる」と「〇〇を返す」の2タスク
+- 対象物が明確な場合はtitleに含める
+- dueAtは明示的に日付が指定された場合のみ設定、なければnull
+JSONのみ返す。説明不要。`,
       messages: [{ role: 'user', content: message }],
     }),
   });
