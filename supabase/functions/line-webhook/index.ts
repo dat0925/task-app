@@ -61,12 +61,14 @@ async function parseTaskWithAI(message: string) {
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
+      max_tokens: 400,
       system: `今日:${today} 明日:${tomorrow} 3日後:${in3days}
 メッセージを解析しJSONのみ返す。
-action: add_task/list_today/complete_task/list_next/unknown
-add_taskならtitle(必須),dueAt(YYYY-MM-DD、明示的に指定された場合のみ、なければnull),priority(high/medium/low/null)
-complete_taskならkeyword
+action: add_task/add_tasks/list_today/complete_task/list_next/unknown
+- add_task: 1件のタスク追加。title(必須),dueAt(YYYY-MM-DD、明示指定のみ、なければnull),priority(high/medium/low/null)
+- add_tasks: 複数タスク追加。tasks配列で各要素にtitle,dueAt,priorityを含む
+- complete_task: keyword
+- 「〇〇と△△の2つ」「〇〇、△△を追加」などはadd_tasksを使う
 JSONのみ、余分なテキスト不要。`,
       messages: [{ role: 'user', content: message }],
     }),
@@ -148,6 +150,34 @@ Deno.serve(async (req) => {
       } else {
         const list = tasks.map((t: any, i: number) => `${i + 1}. ${t.title}`).join('\n');
         await replyMessage(replyToken, [{ type: 'text', text: `📅 今日のタスク（${tasks.length}件）\n\n${list}` }]);
+      }
+
+    } else if (parsed.action === 'add_tasks' && parsed.tasks?.length) {
+      // 複数タスク追加
+      const today2 = getJstDate(0);
+      const in3days2 = getJstDate(3);
+      const results = [];
+      for (const t of parsed.tasks.slice(0, 5)) {
+        const newTask = {
+          id: uid(), user_id: taskraUserId,
+          title: t.title, status: 'inbox',
+          start_at: today2, due_at: t.dueAt || in3days2,
+          priority: t.priority || null, project_id: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          sort_order: Date.now() + results.length,
+        };
+        const { error } = await sb.from('tasks').insert(newTask);
+        if (!error) results.push(newTask.title);
+      }
+      if (!results.length) {
+        await replyMessage(replyToken, [{ type: 'text', text: '❌ タスクの追加に失敗しました。' }]);
+      } else {
+        const list = results.map((t, i) => `${i+1}. ${t}`).join('\n');
+        await replyMessage(replyToken, [{
+          type: 'text',
+          text: `✅ ${results.length}件のタスクを追加しました！\n\n${list}\n\nhttps://app.taskra.jp で確認できます。`,
+        }]);
       }
 
     } else if (parsed.action === 'add_task') {
