@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
         const dueStr = `\n📅 期限: ${newTask.due_at}`;
         await replyMessage(replyToken, [{
           type: 'text',
-          text: `✅ タスクを追加しました！\n\n📝 ${newTask.title}${dueStr}\n\nhttps://app.taskra.jp で確認できます。`,
+          text: `✅ タスクを追加しました！\n\n📝 ${newTask.title}${dueStr}\n\nhttps://app.taskra.jp/#task/${newTask.id} で確認できます。`,
         }]);
       }
 
