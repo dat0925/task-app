@@ -9922,6 +9922,26 @@ async function init(){
     renderInstant();
     applySettings();
     if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+    // ===== アプリ起動中に #task/{id} ハッシュが変わったときの処理 =====
+    // （LINEリンクなどでアプリが既に開いている場合に対応）
+    window.addEventListener('hashchange',()=>{
+      const h=location.hash.match(/^#task\/(.+)$/);
+      if(h){
+        const id=h[1];
+        const t=(S.tasks||[]).find(x=>x.id===id);
+        if(t){
+          if(S.view==='notes'){S.noteOpen=false;}
+          S.taskId=id;S.drawerOpen=true;
+          history.replaceState(null,'',location.pathname);
+          render();
+        } else {
+          history.replaceState(null,'',location.pathname);
+          toast('タスクが見つかりませんでした');
+        }
+      }
+    });
+
     // ===== BNAV 左右ボタン 長押し → 特殊アクション =====
     (()=>{
       const botnav=document.getElementById('botnav');
