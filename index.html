@@ -4022,7 +4022,7 @@ function renderSidebar(){
       +'<div class="nav-label-row'+(wsOpen?'':' collapsed')+'" data-a="ws-toggle" data-wsid="'+ws.id+'" style="flex:1;margin-top:0;background:var(--bg2);border-radius:6px">'
       +'<span style="font-size:9px;color:var(--accent);margin-right:2px">👥</span>'
       +'<span class="nav-label" style="color:var(--accent)">'+ esc(ws.name)+'</span>'
-      +'<span class="toggle-chevron" style="margin-left:auto">▼</span>'
+      +'<span class="toggle-chevron" style="margin-left:auto;color:var(--accent);opacity:.8">▼</span>'
       +'</div>'
       +'<button class="proj-action-btn" data-a="ws-settings" data-wsid="'+ws.id+'" style="opacity:.7;width:36px;height:36px;font-size:18px;flex-shrink:0;touch-action:manipulation" title="設定" onclick="event.stopPropagation();openWsSettings(\''+ws.id+'\')" ontouchend="event.stopPropagation();event.preventDefault();openWsSettings(\''+ws.id+'\')" >⋯</button>'
     +'</div>';
