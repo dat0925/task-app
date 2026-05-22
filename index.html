@@ -8695,7 +8695,10 @@ function openSettingsModal(){
     +'</div>'
 
     +'<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">'
-      +'<div><div class="settings-label">💬 LINE連携</div><div class="settings-sub" id="s-line-status">未連携</div></div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between">'
+        +'<div><div class="settings-label">💬 LINE連携</div><div class="settings-sub" id="s-line-status">確認中...</div></div>'
+        +'<button id="s-line-qr-btn" class="btn btn-ghost" style="font-size:12px;padding:4px 10px">QR / 友だち追加</button>'
+      +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr;gap:6px;width:100%">'
         +'<button class="pbtn" id="s-line-link">連携コードを発行</button>'
       +'</div>'
@@ -8753,6 +8756,36 @@ function openSettingsModal(){
   addFastHandler('s-backup',()=>{ov.remove();openBackupModal()});
   // プッシュ通知設定モーダルを開く
   addFastHandler('s-push-open',()=>{ov.remove();openPushSettingsModal();});
+  // LINE連携ステータスを非同期チェック
+  (async()=>{
+    const SB=window._SB;const user=window._currentUser;
+    if(!SB||!user)return;
+    const{data}=await SB.from('line_users').select('id').eq('taskra_user_id',user.id).eq('linked',true).maybeSingle();
+    const el=document.getElementById('s-line-status');
+    if(el)el.textContent=data?'✅ 連携済み':'未連携';
+    const btn=document.getElementById('s-line-link');
+    if(btn&&data)btn.textContent='連携コードを再発行';
+  })();
+
+  // QR / 友だち追加ボタン
+  document.getElementById('s-line-qr-btn')?.addEventListener('click',()=>{
+    const isMobile=/iPhone|iPad|Android/i.test(navigator.userAgent);
+    const ov2=document.createElement('div');ov2.className='overlay active';
+    ov2.innerHTML='<div class="modal" style="max-width:340px;text-align:center">'
+      +'<div class="modal-title">Taskra AI をLINEで使う</div>'
+      +(isMobile
+        ?'<div style="margin:16px 0"><a href="https://lin.ee/ZDTcdMO" target="_blank" rel="noopener"><img src="https://scdn.line-apps.com/n/line_add_friends/btn/ja.png" alt="友だち追加" height="44" border="0" style="max-width:180px"></a></div>'
+        +'<div style="font-size:12px;color:var(--text3)">タップして友だち追加</div>'
+        :'<div style="margin:16px auto;max-width:200px"><img src="https://qr-official.line.me/gs/M_155atqpm_GW.png" alt="LINE QRコード" style="width:100%;border-radius:8px"></div>'
+        +'<div style="font-size:12px;color:var(--text3);margin-bottom:8px">LINEアプリでQRコードを読み取ってください</div>'
+      )
+      +'<div style="font-size:12px;color:var(--text2);margin:12px 0">友だち追加後、設定から<b>連携コードを発行</b>して連携してください。</div>'
+      +'<button class="btn btn-ghost" onclick="this.closest(\'.overlay\').remove()">閉じる</button>'
+    +'</div>';
+    document.body.appendChild(ov2);
+    ov2.addEventListener('click',e=>{if(e.target===ov2)ov2.remove();});
+  });
+
   addFastHandler('s-line-link',async()=>{
     const SB=window._SB;
     const user=window._currentUser;
