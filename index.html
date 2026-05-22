@@ -4559,7 +4559,7 @@ function renderContent(){
   // qabarを表示/非表示
   const qabar=document.getElementById('qabar');
   if(qabar){
-    const qaHidden=['dashboard','search','forecast','review','completed','notes','gantt'];
+    const qaHidden=['search','forecast','review','completed','notes','gantt'];
     if(qaHidden.includes(S.view)){qabar.style.display='none';}
     else if(window.innerWidth<=768){qabar.style.display='';}
     else{qabar.style.display='';}
