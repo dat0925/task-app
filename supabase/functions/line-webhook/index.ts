@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { createHmac } from 'https://deno.land/std@0.177.0/node/crypto.ts';
 
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SB_SERVICE_ROLE_KEY')!;
@@ -10,11 +9,20 @@ const ANTHROPIC_API_KEY    = Deno.env.get('ANTHROPIC_API_KEY') || '';
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 // LINE署名検証
-function verifySignature(body: string, signature: string): boolean {
-  const hmac = createHmac('sha256', LINE_CHANNEL_SECRET);
-  hmac.update(body);
-  const digest = hmac.digest('base64');
-  return digest === signature;
+async function verifySignature(body: string, signature: string): Promise<boolean> {
+  try {
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(LINE_CHANNEL_SECRET);
+    const key = await crypto.subtle.importKey(
+      'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const bodyData = encoder.encode(body);
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, bodyData);
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+    return base64 === signature;
+  } catch {
+    return false;
+  }
 }
 
 // LINEにメッセージ返信
@@ -29,19 +37,7 @@ async function replyMessage(replyToken: string, messages: object[]) {
   });
 }
 
-// LINEにプッシュメッセージ送信
-async function pushMessage(lineUserId: string, messages: object[]) {
-  await fetch('https://api.line.me/v2/bot/message/push', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${LINE_ACCESS_TOKEN}`,
-    },
-    body: JSON.stringify({ to: lineUserId, messages }),
-  });
-}
-
-// ユーザー情報取得（LINE user_id → Taskra user）
+// ユーザー情報取得
 async function getLinkedUser(lineUserId: string) {
   const { data } = await sb
     .from('line_users')
@@ -51,7 +47,7 @@ async function getLinkedUser(lineUserId: string) {
   return data;
 }
 
-// タスク一覧取得
+// 今日のタスク取得
 async function getTodayTasks(taskraUserId: string) {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await sb
@@ -65,14 +61,8 @@ async function getTodayTasks(taskraUserId: string) {
   return data || [];
 }
 
-// AIでメッセージを解釈してタスク情報を抽出
-async function parseTaskWithAI(message: string, taskraUserId: string): Promise<{
-  action: 'add_task' | 'list_today' | 'complete_task' | 'list_next' | 'unknown';
-  title?: string;
-  dueAt?: string;
-  priority?: string;
-  keyword?: string;
-}> {
+// AIでメッセージ解釈
+async function parseTaskWithAI(message: string) {
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
@@ -84,20 +74,14 @@ async function parseTaskWithAI(message: string, taskraUserId: string): Promise<{
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 300,
-      system: `今日の日付: ${today}、明日: ${tomorrow}
-ユーザーのメッセージを解析してJSONのみ返してください。
-actionは以下のいずれか:
-- add_task: タスクを追加したい
-- list_today: 今日のタスク一覧を見たい
-- complete_task: タスクを完了にしたい
-- list_next: 次にやることを見たい
-- unknown: 不明
-
-add_taskの場合はtitle(必須), dueAt(YYYY-MM-DD形式、なければnull), priority(high/medium/low/null)も返す
-complete_taskの場合はkeyword(完了にするタスクのキーワード)も返す
-JSONのみ、説明不要。`,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      system: `今日:${today} 明日:${tomorrow}
+メッセージを解析しJSONのみ返す。
+action: add_task/list_today/complete_task/list_next/unknown
+add_taskならtitle(必須),dueAt(YYYY-MM-DD or null),priority(high/medium/low/null)
+complete_taskならkeyword
+JSONのみ、余分なテキスト不要。`,
       messages: [{ role: 'user', content: message }],
     }),
   });
@@ -111,23 +95,33 @@ JSONのみ、説明不要。`,
   }
 }
 
-// uid生成
 function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-// メインハンドラ
 Deno.serve(async (req) => {
+  // GETはverify用に200を返す
   if (req.method === 'GET') {
-    return new Response('Taskra LINE Bot is running!', { status: 200 });
+    return new Response('OK', { status: 200 });
   }
 
   const body = await req.text();
   const signature = req.headers.get('x-line-signature') || '';
 
+  // bodyが空の場合（Verifyリクエスト）はそのまま200を返す
+  if (!body || body === '{}') {
+    return new Response('OK', { status: 200 });
+  }
+
   // 署名検証
-  if (!verifySignature(body, signature)) {
+  const valid = await verifySignature(body, signature);
+  if (!valid) {
     console.error('Invalid signature');
+    // 署名なしのVerifyリクエストも通す
+    const payload = JSON.parse(body);
+    if (!payload.events || payload.events.length === 0) {
+      return new Response('OK', { status: 200 });
+    }
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -141,15 +135,12 @@ Deno.serve(async (req) => {
     const replyToken = event.replyToken;
     const userMessage = event.message.text.trim();
 
-    // LINE連携ユーザー確認
     const linkedUser = await getLinkedUser(lineUserId);
 
     // 未連携の場合
     if (!linkedUser || !linkedUser.linked) {
-      // 連携コードが送られてきた場合
       if (userMessage.startsWith('連携:')) {
         const code = userMessage.replace('連携:', '').trim();
-        // コードからTaskraユーザーを検索
         const { data: linkData } = await sb
           .from('line_link_codes')
           .select('*')
@@ -159,7 +150,6 @@ Deno.serve(async (req) => {
           .single();
 
         if (linkData) {
-          // 連携完了
           await sb.from('line_users').upsert({
             id: uid(),
             line_user_id: lineUserId,
@@ -170,7 +160,7 @@ Deno.serve(async (req) => {
           await sb.from('line_link_codes').update({ used: true }).eq('code', code);
           await replyMessage(replyToken, [{
             type: 'text',
-            text: '✅ Taskraと連携しました！\n\n使い方：\n・「今日のタスクは？」→ 今日のタスク一覧\n・「〇〇をする」→ タスク追加\n・「〇〇完了」→ タスクを完了に',
+            text: '✅ Taskraと連携しました！\n\n使い方：\n・「今日のタスクは？」→ 今日のタスク一覧\n・「〇〇をする」→ タスク追加\n・「〇〇完了」→ タスクを完了に\n・「次は？」→ 次のタスク確認',
           }]);
         } else {
           await replyMessage(replyToken, [{
@@ -181,22 +171,18 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // 未連携の場合の案内
       await replyMessage(replyToken, [{
         type: 'text',
-        text: '👋 Taskra AIです！\n\nまずTaskraアカウントと連携してください。\n\napp.taskra.jp の設定→LINE連携 から連携コードを発行して、\n「連携:コード」と送ってください。',
+        text: '👋 Taskra AIです！\n\nTaskraアカウントと連携が必要です。\n\nhttps://app.taskra.jp の設定→LINE連携 から連携コードを発行して、\n「連携:コード」と送ってください。',
       }]);
       continue;
     }
 
     const taskraUserId = linkedUser.taskra_user_id;
-
-    // AIでメッセージを解釈
-    const parsed = await parseTaskWithAI(userMessage, taskraUserId);
-    console.log('parsed:', JSON.stringify(parsed));
+    const parsed = await parseTaskWithAI(userMessage);
+    console.log('action:', parsed.action, 'message:', userMessage);
 
     if (parsed.action === 'list_today') {
-      // 今日のタスク一覧
       const tasks = await getTodayTasks(taskraUserId);
       if (!tasks.length) {
         await replyMessage(replyToken, [{ type: 'text', text: '📅 今日のタスクはありません。' }]);
@@ -209,7 +195,6 @@ Deno.serve(async (req) => {
       }
 
     } else if (parsed.action === 'add_task') {
-      // タスク追加
       const newTask = {
         id: uid(),
         user_id: taskraUserId,
@@ -234,7 +219,6 @@ Deno.serve(async (req) => {
       }
 
     } else if (parsed.action === 'complete_task') {
-      // タスク完了
       const keyword = parsed.keyword || userMessage.replace(/完了|した|しました/g, '').trim();
       const { data: tasks } = await sb
         .from('tasks')
@@ -257,11 +241,44 @@ Deno.serve(async (req) => {
         }]);
       }
 
+    } else if (parsed.action === 'list_next') {
+      const { data: projects } = await sb
+        .from('projects')
+        .select('id, name')
+        .eq('user_id', taskraUserId)
+        .neq('status', 'archived')
+        .limit(20);
+
+      if (!projects?.length) {
+        await replyMessage(replyToken, [{ type: 'text', text: 'プロジェクトがありません。' }]);
+      } else {
+        const nextTasks = [];
+        for (const proj of projects) {
+          const { data: task } = await sb
+            .from('tasks')
+            .select('title')
+            .eq('user_id', taskraUserId)
+            .eq('project_id', proj.id)
+            .neq('status', 'completed')
+            .order('sort_order', { ascending: true })
+            .limit(1)
+            .single();
+          if (task) nextTasks.push(`📁 ${proj.name}\n   → ${task.title}`);
+        }
+        if (!nextTasks.length) {
+          await replyMessage(replyToken, [{ type: 'text', text: '✅ 全プロジェクトのタスクが完了しています！' }]);
+        } else {
+          await replyMessage(replyToken, [{
+            type: 'text',
+            text: `📋 各プロジェクトの次のアクション\n\n${nextTasks.slice(0, 8).join('\n\n')}`,
+          }]);
+        }
+      }
+
     } else {
-      // 不明な場合はAIが自由回答
       await replyMessage(replyToken, [{
         type: 'text',
-        text: '使い方：\n・「今日のタスクは？」→ 今日のタスク一覧\n・「〇〇をする」→ タスク追加\n・「〇〇完了」→ タスクを完了に\n・「次は？」→ 次のタスク確認',
+        text: '使い方：\n・「今日のタスクは？」→ 今日のタスク一覧\n・「〇〇をする」→ タスク追加\n・「〇〇完了」→ タスクを完了に\n・「次は？」→ 各PJの次のアクション',
       }]);
     }
   }
