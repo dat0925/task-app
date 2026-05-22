@@ -8771,17 +8771,14 @@ function openSettingsModal(){
     // チェック：既に連携済みか
     const{data:linked}=await SB.from('line_users').select('id').eq('taskra_user_id',user.id).eq('linked',true).single();
     if(linked){toast('すでにLINEと連携済みです ✅');return;}
-    // モーダルでコードを表示
+    // コードをトーストで表示しつつクリップボードにコピー
     const copyText='連携:'+code;
-    openConfirmModal(
-      'LINE連携コード',
-      'LINEで「Taskra AI」に以下を送ってください\n\n'+copyText+'\n\n※30分以内に送信してください',
-      ()=>{
-        try{navigator.clipboard?.writeText(copyText);}catch(e){}
-        toast('コピーしました');
-      },
-      'コピー'
-    );
+    try{
+      await navigator.clipboard.writeText(copyText);
+      toast('連携コード「'+code+'」をコピーしました！LINEのTaskra AIに貼り付けて送信してください（30分有効）');
+    }catch(e){
+      toast('連携コード: '+code+' ← LINEのTaskra AIに「連携:'+code+'」と送信してください（30分有効）');
+    }
   });
   // ステータス表示を非同期で更新
   (async()=>{
