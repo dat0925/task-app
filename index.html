@@ -5245,8 +5245,8 @@ function renderDashboard() {
   const todayTasks = S.tasks.filter(t => t.status !== 'completed' && t.dueAt === today)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  // Inbox（プロジェクト未設定）
-  const inboxTasks = S.tasks.filter(t => t.status !== 'completed' && !t.projectId)
+  // Inbox（status='inbox' かつ サブタスクでないもの）
+  const inboxTasks = S.tasks.filter(t => t.status === 'inbox' && !t.parentTaskId)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   // 自分が担当のタスク
