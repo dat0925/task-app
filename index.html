@@ -5245,6 +5245,10 @@ function renderDashboard() {
   const todayTasks = S.tasks.filter(t => t.status !== 'completed' && t.dueAt === today)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
+  // Inbox（プロジェクト未設定）
+  const inboxTasks = S.tasks.filter(t => t.status !== 'completed' && !t.projectId)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
   // 自分が担当のタスク
   const myTasks = uid ? S.tasks.filter(t => t.status !== 'completed' && t.assigneeId === uid)
     .sort((a, b) => (a.dueAt || '9') > (b.dueAt || '9') ? 1 : -1) : [];
@@ -5329,6 +5333,7 @@ function renderDashboard() {
   h += section('📅', '今日', 'var(--text)', todayTasks, 3, 'today', overdue.length ? '期限切れ以外のタスクはありません' : '今日のタスクはありません');
   h += notifHtml;
   if (myTasks.length) h += section('👤', '自分の担当', 'var(--text)', myTasks, 3, '', '');
+  if (inboxTasks.length) h += section('📥', 'Inbox', 'var(--text)', inboxTasks, 3, 'inbox', 'Inboxにタスクはありません');
   if (flagged.length) h += section('🚩', 'フラグ付き', 'var(--text)', flagged, 3, 'flagged', '');
   h += '</div>';
   return h;
