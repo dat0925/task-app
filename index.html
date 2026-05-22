@@ -8770,7 +8770,7 @@ function openSettingsModal(){
   // QR / 友だち追加ボタン
   addFastHandler('s-line-qr-btn',()=>{
     const isMobile=/iPhone|iPad|Android/i.test(navigator.userAgent);
-    const ov2=document.createElement('div');ov2.className='overlay active';
+    const ov2=document.createElement('div');ov2.className='overlay active';ov2.style.cssText='opacity:1;pointer-events:auto;z-index:9999';
     ov2.innerHTML='<div class="modal" style="max-width:340px;text-align:center">'
       +'<div class="modal-title">Taskra AI をLINEで使う</div>'
       +(isMobile
