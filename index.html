@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#4f46e5">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://sfhtvtcmgueystyuhzvd.supabase.co" crossorigin>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Taskra">
 <link rel="manifest" href="manifest.json">
@@ -10245,19 +10247,25 @@ document.getElementById('ai-input').addEventListener('input',function(){
 async function init(){
   try{
     renderBotNav(); // ボトムナビを即時描画（データロード前）
-    // Supabaseの準備を最大5秒待つ
-    await new Promise(res=>{
+    // openDB と Supabase待機を並列で開始（どちらも独立して実行可能）
+    const dbPromise = openDB();
+    const sbPromise = new Promise(res=>{
       if(window._sbReady)return res();
       const t=Date.now();
       const iv=setInterval(()=>{
         if(window._sbReady||Date.now()-t>5000){clearInterval(iv);res()}
       },50);
     });
-    await openDB();
-    await loadUserPlan();
-    await seed();
-    await loadAll();
-    await loadNavOrder();
+    await Promise.all([dbPromise, sbPromise]);
+    // loadUserPlan・loadAll・loadNavOrder を並列実行（互いに依存しない）
+    // seed は新規ユーザー用の初期データ挿入で軽量のため先行チェックのみ並列化
+    await Promise.all([
+      loadUserPlan(),
+      loadAll(),
+      loadNavOrder(),
+    ]);
+    // seed は loadAll 後（タスク存在確認が必要なため）、ただし非ブロッキング
+    seed().catch(()=>{});
     // 招待トークンチェック（ログイン済みの場合はここで即処理）
     checkInviteToken();
     const _storedToken=localStorage.getItem('pendingInviteToken');
