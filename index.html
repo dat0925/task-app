@@ -5739,6 +5739,8 @@ function renderNoteDrawer(){
   // コメントセクションを非同期ロード
   initNoteComments(note.id);
 }
+
+function renderNextView(){
   // プロジェクト毎に最初の未完了タスクを1件ずつ取得
   const projs=getSortedProjects('active').filter(p=>S.showShared||!p.workspaceId);
   const rows=[];
