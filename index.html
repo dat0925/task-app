@@ -2486,35 +2486,48 @@ async function loadAll(){
 
 // ===== WORKSPACE =====
 async function loadWorkspaces(){
-  const SB=window._SB;
-  if(!SB)return;
-  try{
-    // RLSが設定済みなのでそのまま全件取得（自分が見えるものだけ返る）
-    const{data:wsList,error}=await SB.from('workspaces').select('*');
-    if(error){console.error('loadWorkspaces select error',error);toast('WS取得エラー: '+(error.message||''));return;}
-    S.workspaces=(wsList||[]).map(w=>({
-      id:w.id,name:w.name,ownerId:w.owner_id,
-      inviteToken:w.invite_token,
-      owner_id:w.owner_id,invite_token:w.invite_token,
-      createdAt:w.created_at,updatedAt:w.updated_at
-    }));
-    S.wsMembers={};
-    if(S.workspaces.length){
-      const wsIds=S.workspaces.map(w=>w.id);
-      const{data:members,error:e2}=await SB.from('workspace_members').select('*').in('workspace_id',wsIds);
-      if(e2){console.error('loadWorkspaces members error',e2);return;}
-      (members||[]).forEach(m=>{
-        if(!S.wsMembers[m.workspace_id])S.wsMembers[m.workspace_id]=[];
-        S.wsMembers[m.workspace_id].push({
-          id:m.id,workspaceId:m.workspace_id,workspace_id:m.workspace_id,
-          userId:m.user_id,user_id:m.user_id,
-          user_name:m.user_name,user_avatar:m.user_avatar,
-          user_email:m.user_email,role:m.role,joinedAt:m.joined_at
+  // 同時実行防止：並列呼び出し時は同じPromiseを返す（重複push防止）
+  if(loadWorkspaces._running){
+    return loadWorkspaces._running;
+  }
+  loadWorkspaces._running=(async()=>{
+    const SB=window._SB;
+    if(!SB)return;
+    try{
+      // RLSが設定済みなのでそのまま全件取得（自分が見えるものだけ返る）
+      const{data:wsList,error}=await SB.from('workspaces').select('*');
+      if(error){console.error('loadWorkspaces select error',error);toast('WS取得エラー: '+(error.message||''));return;}
+      S.workspaces=(wsList||[]).map(w=>({
+        id:w.id,name:w.name,ownerId:w.owner_id,
+        inviteToken:w.invite_token,
+        owner_id:w.owner_id,invite_token:w.invite_token,
+        createdAt:w.created_at,updatedAt:w.updated_at
+      }));
+      S.wsMembers={};
+      if(S.workspaces.length){
+        const wsIds=S.workspaces.map(w=>w.id);
+        const{data:members,error:e2}=await SB.from('workspace_members').select('*').in('workspace_id',wsIds);
+        if(e2){console.error('loadWorkspaces members error',e2);return;}
+        (members||[]).forEach(m=>{
+          if(!S.wsMembers[m.workspace_id])S.wsMembers[m.workspace_id]=[];
+          // 同一user_idの重複追加を防ぐ（二重fetch対策）
+          if(S.wsMembers[m.workspace_id].some(x=>x.user_id===m.user_id))return;
+          S.wsMembers[m.workspace_id].push({
+            id:m.id,workspaceId:m.workspace_id,workspace_id:m.workspace_id,
+            userId:m.user_id,user_id:m.user_id,
+            user_name:m.user_name,user_avatar:m.user_avatar,
+            user_email:m.user_email,role:m.role,joinedAt:m.joined_at
+          });
         });
-      });
-    }
-    console.log('loadWorkspaces ok',S.workspaces.length,'件');
-  }catch(e){console.error('loadWorkspaces',e);}
+      }
+      console.log('loadWorkspaces ok',S.workspaces.length,'件');
+    }catch(e){console.error('loadWorkspaces',e);}
+  })();
+  try{
+    await loadWorkspaces._running;
+  }finally{
+    loadWorkspaces._running=null;
+  }
 }
 
 async function createWorkspace(name){
