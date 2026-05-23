@@ -767,6 +767,30 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .plan-banner-std{background:transparent;border:none;cursor:default;padding:4px 10px;margin:4px 6px 0}
 [data-dark] .plan-banner-std{background:transparent;border:none}
 .plan-banner-std .plan-banner-title{color:var(--text3);font-weight:500;font-size:10.5px}
+/* ===== SIDEBAR FOOT USER MENU ===== */
+.sidebar-foot{padding:0;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg2)}
+.sidebar-user-btn{display:flex;align-items:center;gap:9px;padding:10px 12px;width:100%;background:none;border:none;cursor:pointer;transition:background .15s;text-align:left}
+.sidebar-user-btn:hover{background:var(--bg3)}
+.sidebar-user-info{flex:1;min-width:0}
+.sidebar-user-name{font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar-user-plan{font-size:10px;color:var(--text3);margin-top:1px}
+.sidebar-user-plan.premium{color:var(--accent)}
+.sidebar-user-chevron{font-size:10px;color:var(--text3);flex-shrink:0;transition:transform .2s}
+.sidebar-user-btn.open .sidebar-user-chevron{transform:rotate(180deg)}
+/* ユーザーメニューポップアップ */
+.user-menu-popup{position:fixed;bottom:0;left:0;width:240px;background:var(--bg2);border:1px solid var(--border);border-radius:12px 12px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.12);z-index:3000;padding:6px 0 calc(8px + env(safe-area-inset-bottom));animation:slideUpPop .18s ease}
+@keyframes slideUpPop{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.user-menu-popup.above{bottom:auto;top:auto;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.14);animation:fadeInPop .15s ease}
+@keyframes fadeInPop{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.user-menu-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;font-size:13px;color:var(--text);transition:background .12s;user-select:none;border:none;background:none;width:100%;text-align:left}
+.user-menu-item:hover{background:var(--bg3)}
+.user-menu-item.danger{color:var(--p1)}
+.user-menu-item svg{flex-shrink:0;opacity:.75}
+.user-menu-sep{height:1px;background:var(--border);margin:4px 0}
+.user-menu-label{font-size:10px;color:var(--text3);padding:6px 16px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.user-menu-toggle-row{display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:13px;color:var(--text)}
+.user-menu-toggle-row svg{flex-shrink:0;opacity:.75}
+.user-menu-overlay{position:fixed;inset:0;z-index:2999;background:transparent}
 /* ===== UPGRADE MODAL ===== */
 .upgrade-modal{text-align:center;max-width:340px}
 .upgrade-badge{display:inline-block;background:linear-gradient(135deg,#3b82f6,#60a5fa);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px;margin-bottom:12px}
@@ -895,23 +919,17 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
     <div class="sidebar-head">
       <div class="logo"><img src="icon-192.png" alt="Taskra"></div>
       <span class="app-name">Taskra</span>
-      <button class="icon-btn" data-a="qr-share" style="margin-left:auto" title="スマホで開く（QRコード）"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="17"/><line x1="14" y1="20" x2="14" y2="21"/><line x1="17" y1="14" x2="21" y2="14"/><line x1="17" y1="17" x2="17" y2="21"/><line x1="20" y1="17" x2="21" y2="17"/><line x1="20" y1="20" x2="21" y2="20"/></svg></button>
-      <button class="icon-btn" data-a="dark" title="ダーク">☾</button>
-      <button class="icon-btn" data-a="settings" title="設定">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      </button>
     </div>
     <div class="sidebar-body" id="sidenav"></div>
     <div class="sidebar-foot" id="sidebar-foot">
-      <div class="sidebar-account" id="sidebar-account-wrap">
+      <button class="sidebar-user-btn" id="sidebar-user-btn" aria-label="ユーザーメニュー">
         <div class="sidebar-avatar" id="sidebar-avatar">?</div>
-        <div class="sidebar-account-info">
-          <div class="sidebar-account-email" id="sidebar-account-email">未サインイン</div>
-          <div class="sidebar-account-status" id="sidebar-account-status"></div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebar-account-email">未サインイン</div>
+          <div class="sidebar-user-plan" id="sidebar-user-plan">ログイン中</div>
         </div>
-        <button class="sidebar-auth-btn logout" id="sidebar-logout-btn" style="display:none">ログアウト</button>
-        <button class="sidebar-auth-btn" id="sidebar-login-btn" style="display:none">ログイン</button>
-      </div>
+        <span class="sidebar-user-chevron">▲</span>
+      </button>
     </div>
   </div>
 
@@ -4119,45 +4137,13 @@ function renderSidebar(){
   });
   h+='<div class="tag-drop-line" data-tdrop-after="last" style="height:2px;background:var(--accent);border-radius:2px;margin:0 4px;pointer-events:none;display:none"></div>';
   h+='</div></div>';
-  // ===== PLAN BANNER =====
-  const _plan=getUserPlan();const _pd=getPlanDef();
-  if(_plan==='free'){
-    const _tc=getActiveTaskCount();const _pct=Math.min(100,Math.round(_tc/_pd.taskLimit*100));
-    h+='<div class="plan-banner" data-a="upgrade-banner">'
-      +'<div class="plan-banner-title">フリープラン</div>'
-      +'<div class="plan-banner-sub">タスク '+_tc+' / '+(_pd.taskLimit===Infinity?'∞':_pd.taskLimit)+' 件 · ノート '+getNoteCount()+' / '+(_pd.noteLimit===Infinity?'∞':_pd.noteLimit)+' 件</div>'
-      +'<div class="plan-banner-progress"><div class="plan-banner-progress-bar" style="width:'+_pct+'%"></div></div>'
-      +'<div class="plan-banner-cta">スタンダードにアップグレード →</div>'
-      +'</div>';
-  }else{
-    h+='<div class="plan-banner plan-banner-std">'
-      +'<div class="plan-banner-title">'+_pd.label+'プラン</div>'
-      +'</div>';
-  }
-  if(isAdmin()||window._currentUser){
-    h+='<div style="height:1px;background:var(--border);margin:8px 10px 4px;opacity:.5"></div>';
-  }
-  if(isAdmin()){
-    h+='<div class="nav-item" data-a="open-plan-admin" style="font-size:11.5px;color:var(--text3);margin:0 4px 2px;gap:7px">'
-      +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.7"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
-      +'<span>プラン管理</span>'
-      +'</div>';
-  }
-  if(window._currentUser){
-    h+='<div class="nav-item" data-a="open-my-plan" style="font-size:11.5px;color:var(--text3);margin:0 4px 2px;gap:7px">'
-      +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.7"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/></svg>'
-      +'<span>マイプラン</span>'
-      +'</div>';
-  }
   document.getElementById('sidenav').innerHTML=h;
   // サイドバーフッター アカウント情報を更新
   (function(){
     const user=window._currentUser;
     const avatarEl=document.getElementById('sidebar-avatar');
     const emailEl=document.getElementById('sidebar-account-email');
-    const statusEl=document.getElementById('sidebar-account-status');
-    const logoutBtn=document.getElementById('sidebar-logout-btn');
-    const loginBtn=document.getElementById('sidebar-login-btn');
+    const planEl=document.getElementById('sidebar-user-plan');
     if(!avatarEl)return;
     if(user){
       const email=user.email||'';
@@ -4170,18 +4156,134 @@ function renderSidebar(){
       } else {
         avatarEl.textContent=initials;
       }
-      if(emailEl)emailEl.textContent=email;
-      if(statusEl)statusEl.textContent='ログイン中';
-      if(logoutBtn){logoutBtn.style.display='';logoutBtn.onclick=async function(){if(!confirm('ログアウトしますか？'))return;await window._SB.auth.signOut();renderSidebar();};}
-      if(loginBtn)loginBtn.style.display='none';
+      if(emailEl)emailEl.textContent=name||email;
+      if(planEl){
+        const _pd=getPlanDef();
+        planEl.textContent=_pd.label+'プラン';
+        planEl.className='sidebar-user-plan'+(getUserPlan()!=='free'?' premium':'');
+      }
     } else {
       avatarEl.textContent='?';
       if(emailEl)emailEl.textContent='未サインイン';
-      if(statusEl)statusEl.textContent='';
-      if(logoutBtn)logoutBtn.style.display='none';
-      if(loginBtn){loginBtn.style.display='';loginBtn.onclick=function(){document.getElementById('login-overlay')?.classList.add('open');};}
+      if(planEl){planEl.textContent='';planEl.className='sidebar-user-plan';}
     }
   })();
+  // ユーザーメニューボタン セットアップ
+  const userBtn=document.getElementById('sidebar-user-btn');
+  if(userBtn)userBtn.onclick=e=>{e.stopPropagation();showUserMenu();};
+}
+
+function showUserMenu(){
+  // 既存を閉じる
+  document.getElementById('user-menu-popup')?.remove();
+  document.getElementById('user-menu-overlay')?.remove();
+
+  const user=window._currentUser;
+  const isDark=S.dark;
+  const _pd=getPlanDef();
+  const plan=getUserPlan();
+  const _tc=getActiveTaskCount();
+
+  // オーバーレイ
+  const ov=document.createElement('div');
+  ov.id='user-menu-overlay';
+  ov.className='user-menu-overlay';
+  ov.onclick=closeUserMenu;
+  document.body.appendChild(ov);
+
+  // メニュー本体
+  const menu=document.createElement('div');
+  menu.id='user-menu-popup';
+  menu.className='user-menu-popup';
+
+  // プランバナー
+  let planHtml='';
+  if(plan==='free'){
+    const pct=Math.min(100,Math.round(_tc/(_pd.taskLimit)*100));
+    planHtml=`<div style="padding:10px 16px 8px;border-bottom:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:3px">📋 フリープラン</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:5px">タスク ${_tc} / ${_pd.taskLimit} 件</div>
+      <div style="height:3px;background:var(--bg3);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:2px"></div></div>
+      <button class="user-menu-item" style="margin-top:8px;padding:7px 0;font-size:12px;font-weight:700;color:var(--accent);justify-content:center" id="um-upgrade">✦ アップグレード →</button>
+    </div>`;
+  } else {
+    planHtml=`<div style="padding:8px 16px;border-bottom:1px solid var(--border);font-size:11px;color:var(--accent);font-weight:600">✦ ${_pd.label}プラン</div>`;
+  }
+
+  // メールアドレス
+  const emailHtml=user?`<div style="padding:4px 16px 0;font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(user.email||'')}</div>`:'';
+
+  menu.innerHTML=planHtml+emailHtml+`
+    <div class="user-menu-sep" style="margin-top:6px"></div>
+    <div class="user-menu-toggle-row">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <span style="flex:1">ダークモード</span>
+      <button id="um-dark-tog" class="tog${isDark?' on':''}" style="flex-shrink:0"></button>
+    </div>
+    <div class="user-menu-sep"></div>
+    <button class="user-menu-item" id="um-qr">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><line x1="14" y1="14" x2="14" y2="17"/><line x1="17" y1="14" x2="21" y2="14"/><line x1="17" y1="17" x2="17" y2="21"/><line x1="20" y1="20" x2="21" y2="20"/></svg>
+      スマホで開く
+    </button>
+    <button class="user-menu-item" id="um-settings">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      設定
+    </button>
+    <button class="user-menu-item" id="um-myplan">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/></svg>
+      マイプラン
+    </button>
+    ${isAdmin()?`<button class="user-menu-item" id="um-admin">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      プラン管理（管理者）
+    </button>`:''}
+    <div class="user-menu-sep"></div>
+    ${user
+      ?`<button class="user-menu-item danger" id="um-logout"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>ログアウト</button>`
+      :`<button class="user-menu-item" id="um-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>ログイン</button>`}
+  `;
+
+  // メニューの位置（サイドバーフッターの上）
+  const foot=document.getElementById('sidebar-foot');
+  if(foot){
+    const r=foot.getBoundingClientRect();
+    menu.style.left=r.left+'px';
+    menu.style.width=r.width+'px';
+    menu.style.bottom=(window.innerHeight-r.top)+'px';
+    menu.style.borderRadius='12px';
+    menu.style.boxShadow='0 -2px 16px rgba(0,0,0,.13)';
+  }
+  document.body.appendChild(menu);
+
+  // ボタンイベント
+  menu.querySelector('#um-dark-tog')?.addEventListener('click',e=>{
+    e.stopPropagation();
+    S.dark=!S.dark;localStorage.setItem('dark',S.dark?'1':'0');render();
+    closeUserMenu();setTimeout(showUserMenu,50);
+  });
+  menu.querySelector('#um-qr')?.addEventListener('click',()=>{closeUserMenu();showQRShareModal();});
+  menu.querySelector('#um-settings')?.addEventListener('click',()=>{closeUserMenu();openSettingsModal();});
+  menu.querySelector('#um-myplan')?.addEventListener('click',()=>{closeUserMenu();openMyPlan();});
+  menu.querySelector('#um-admin')?.addEventListener('click',()=>{closeUserMenu();openPlanAdmin();});
+  menu.querySelector('#um-upgrade')?.addEventListener('click',()=>{closeUserMenu();showUpgradeModal('banner');});
+  menu.querySelector('#um-logout')?.addEventListener('click',async()=>{
+    if(!confirm('ログアウトしますか？'))return;
+    closeUserMenu();
+    await window._SB.auth.signOut();renderSidebar();
+  });
+  menu.querySelector('#um-login')?.addEventListener('click',()=>{
+    closeUserMenu();
+    document.getElementById('login-overlay')?.classList.add('open');
+  });
+
+  // ユーザーボタンをopen状態に
+  document.getElementById('sidebar-user-btn')?.classList.add('open');
+}
+
+function closeUserMenu(){
+  document.getElementById('user-menu-popup')?.remove();
+  document.getElementById('user-menu-overlay')?.remove();
+  document.getElementById('sidebar-user-btn')?.classList.remove('open');
 }
 
 // ===== RENDER BOTTOM NAV =====
