@@ -1174,6 +1174,7 @@ let S={
   workspaces:[],      // 自分が属するワークスペース一覧
   wsMembers:{},       // {workspaceId: [members]}
   _commentCache:{},
+  _noteCommentCache:{},
 };
 
 // ===== PLAN SYSTEM =====
@@ -5612,6 +5613,21 @@ function renderNoteDrawer(){
       +(S.tags.length?'<div><div class="dt-label">タグ</div><div class="tag-wrap">'
         +S.tags.map(t=>'<span class="topt'+(note.tagIds&&note.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-note="'+note.id+'" data-tag="'+t.id+'" style="'+(note.tagIds&&note.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
         +'</div></div>':'')
+      +'<div class="cm-section" id="ncm-section" data-note-id="'+note.id+'">'
+        +'<div class="cm-section-head">'
+          +'<span class="cm-section-label">コメント</span>'
+          +'<span class="cm-count" id="ncm-count">…</span>'
+        +'</div>'
+        +'<div class="cm-list" id="ncm-list"><div class="cm-loading">読み込み中…</div></div>'
+        +'<div style="display:flex;gap:4px;margin-bottom:5px">'
+          +'<button class="note-stamp-btn" data-a="ncm-stamp" data-type="datetimeweek">📅 日時</button>'
+          +'<button class="note-stamp-btn" id="ncm-link-btn">🔗 Link</button>'
+        +'</div>'
+        +'<div class="cm-input-row">'
+          +'<textarea class="cm-textarea" id="ncm-input" placeholder="コメントを追加… (Cmd+Enterで送信)" rows="1"></textarea>'
+          +'<button class="cm-send-btn" id="ncm-send" disabled>送信</button>'
+        +'</div>'
+      +'</div>'
     +'</div>'
     +'<div class="drawer-foot drawer-foot-desktop">'
       +'<button class="btn btn-ghost" data-a="note-nav-prev" title="前のノート">↑ 前へ</button>'
@@ -5720,9 +5736,9 @@ function renderNoteDrawer(){
     });
   });
   renderNtPreview();
+  // コメントセクションを非同期ロード
+  initNoteComments(note.id);
 }
-
-function renderNextView(){
   // プロジェクト毎に最初の未完了タスクを1件ずつ取得
   const projs=getSortedProjects('active').filter(p=>S.showShared||!p.workspaceId);
   const rows=[];
@@ -6702,6 +6718,179 @@ function _cmStartEdit(cmId,taskId){
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,200)+'px';});
 }
 
+// ===== NOTE COMMENTS =====
+function _ncmRenderList(comments){
+  const list=document.getElementById('ncm-list');
+  const count=document.getElementById('ncm-count');
+  if(!list)return;
+  const n=comments.length;
+  if(count)count.textContent=n||'0';
+  if(!n){list.innerHTML='<div class="cm-loading" style="font-size:12px;color:var(--text3);padding:6px 0">コメントなし</div>';return;}
+  const uid=window._currentUser?.id;
+  list.innerHTML=comments.map(c=>{
+    const initial=(c.user_name||'?').charAt(0).toUpperCase();
+    const avatar=c.user_avatar
+      ?`<img src="${c.user_avatar}" onerror="this.style.display='none'">`
+      :initial;
+    const isOwn=(c.user_id)===uid;
+    const createdAt=c.created_at;
+    const updatedAt=c.updated_at;
+    const wasEdited=updatedAt&&createdAt&&(new Date(updatedAt)-new Date(createdAt))>2000;
+    const editedLabel=wasEdited?`<span style="font-size:10px;color:var(--text3);margin-top:3px;display:block">編集済み ${_cmTimeStr(updatedAt)}</span>`:'';
+    return `<div class="cm-item" data-ncmid="${c.id}">
+      <div class="cm-avatar">${typeof avatar==='string'&&avatar.startsWith('<')?avatar:initial}</div>
+      <div class="cm-bubble">
+        <div class="cm-meta">
+          <span class="cm-name">${esc(c.user_name||'ユーザー')}</span>
+          <span class="cm-time">${_cmTimeStr(createdAt)}</span>
+          ${isOwn?`<button class="cm-del" data-a="ncm-edit" data-ncmid="${c.id}" title="編集">編集</button>`:''}
+          ${isOwn?`<button class="cm-del" data-a="ncm-del" data-ncmid="${c.id}" title="削除">✕</button>`:''}
+        </div>
+        <div class="cm-body" id="ncm-body-${c.id}">${_cmLinkify(esc(c.body))}</div>
+        ${editedLabel}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function initNoteComments(noteId){
+  if(S._noteCommentCache[noteId]){
+    _ncmRenderList(S._noteCommentCache[noteId]);
+    _ncmSetupInput(noteId);
+    return;
+  }
+  const SB=window._SB;
+  if(!SB){const list=document.getElementById('ncm-list');if(list)list.innerHTML='';_ncmSetupInput(noteId);return;}
+  const uid=window._currentUser?.id;
+  if(!uid)return;
+  const{data,error}=await SB.from('note_comments')
+    .select('*')
+    .eq('note_id',noteId)
+    .order('created_at',{ascending:true});
+  if(error){console.error('ncm load',error);return;}
+  const comments=data||[];
+  S._noteCommentCache[noteId]=comments;
+  if(S.noteId===noteId&&S.noteOpen){
+    _ncmRenderList(comments);
+    _ncmSetupInput(noteId);
+  }
+}
+
+function _ncmSetupInput(noteId){
+  const inp=document.getElementById('ncm-input');
+  const btn=document.getElementById('ncm-send');
+  if(!inp||!btn)return;
+  if(inp._ncmNoteId===noteId)return;
+  inp._ncmNoteId=noteId;
+  const ncmLinkBtn=document.getElementById('ncm-link-btn');
+  if(ncmLinkBtn)ncmLinkBtn.onclick=e=>{e.stopPropagation();showLinkPopover(ncmLinkBtn,'ncm-input',false);};
+  inp.onfocus=()=>{
+    requestAnimationFrame(()=>{
+      setTimeout(()=>{
+        const drBody=document.getElementById('drawer')?.querySelector('.drawer-body');
+        if(!drBody)return;
+        const inputRect=inp.getBoundingClientRect();
+        const bodyRect=drBody.getBoundingClientRect();
+        if(inputRect.bottom>bodyRect.bottom-10){drBody.scrollTop+=inputRect.bottom-bodyRect.bottom+24;}
+      },350);
+    });
+  };
+  inp.oninput=()=>{
+    btn.disabled=!inp.value.trim();
+    inp.style.height='auto';
+    inp.style.height=Math.min(inp.scrollHeight,120)+'px';
+  };
+  inp.onkeydown=e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();if(!btn.disabled)_ncmSend(noteId);}};
+  btn.onclick=()=>_ncmSend(noteId);
+}
+
+async function _ncmSend(noteId){
+  const inp=document.getElementById('ncm-input');
+  const btn=document.getElementById('ncm-send');
+  if(!inp||!btn)return;
+  const body=inp.value.trim();
+  if(!body)return;
+  const SB=window._SB;
+  const user=window._currentUser;
+  if(!SB||!user)return;
+  btn.disabled=true;
+  const comment={
+    id:uid(),
+    note_id:noteId,
+    user_id:user.id,
+    user_name:user.user_metadata?.full_name||user.email||'',
+    user_avatar:user.user_metadata?.avatar_url||'',
+    body,
+    created_at:new Date().toISOString(),
+    updated_at:new Date().toISOString()
+  };
+  const{error}=await SB.from('note_comments').insert(comment);
+  if(error){console.error('ncm send',error);toast('コメントの送信に失敗しました');btn.disabled=false;return;}
+  if(!S._noteCommentCache[noteId])S._noteCommentCache[noteId]=[];
+  S._noteCommentCache[noteId]=[...S._noteCommentCache[noteId],comment];
+  _ncmRenderList(S._noteCommentCache[noteId]);
+  inp.value='';inp.style.height='auto';btn.disabled=true;
+  const list=document.getElementById('ncm-list');
+  if(list)list.scrollTop=list.scrollHeight;
+}
+
+async function _ncmDelete(ncmId,noteId){
+  const SB=window._SB;if(!SB)return;
+  const{error}=await SB.from('note_comments').delete().eq('id',ncmId);
+  if(error){toast('削除に失敗しました');return;}
+  if(S._noteCommentCache[noteId]){
+    S._noteCommentCache[noteId]=S._noteCommentCache[noteId].filter(c=>c.id!==ncmId);
+    _ncmRenderList(S._noteCommentCache[noteId]);
+  }
+}
+
+function _ncmStartEdit(ncmId,noteId){
+  const cache=S._noteCommentCache[noteId];
+  if(!cache)return;
+  const c=cache.find(x=>x.id===ncmId);
+  if(!c)return;
+  const bodyEl=document.getElementById('ncm-body-'+ncmId);
+  if(!bodyEl||bodyEl.querySelector('textarea'))return;
+  const origHtml=bodyEl.innerHTML;
+  const origText=c.body;
+  bodyEl.innerHTML='';
+  const ta=document.createElement('textarea');
+  ta.className='cm-textarea';
+  ta.value=origText;
+  ta.style.cssText='width:100%;margin-bottom:6px;display:block';
+  ta.rows=Math.max(2,origText.split('\n').length);
+  const btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:6px';
+  const saveBtn=document.createElement('button');
+  saveBtn.className='cm-send-btn';
+  saveBtn.style.cssText='height:30px;padding:0 12px;font-size:12px';
+  saveBtn.textContent='保存';
+  const cancelBtn=document.createElement('button');
+  cancelBtn.className='note-stamp-btn';
+  cancelBtn.style.cssText='height:30px';
+  cancelBtn.textContent='キャンセル';
+  btnRow.append(saveBtn,cancelBtn);
+  bodyEl.append(ta,btnRow);
+  ta.focus();
+  ta.selectionStart=ta.selectionEnd=ta.value.length;
+  cancelBtn.onclick=()=>{bodyEl.innerHTML=origHtml;};
+  saveBtn.onclick=async()=>{
+    const newBody=ta.value.trim();
+    if(!newBody){toast('本文を入力してください');return;}
+    if(newBody===origText){bodyEl.innerHTML=origHtml;return;}
+    saveBtn.disabled=true;saveBtn.textContent='保存中…';
+    const SB=window._SB;
+    const now=new Date().toISOString();
+    const{error}=await SB.from('note_comments').update({body:newBody,updated_at:now}).eq('id',ncmId);
+    if(error){toast('更新に失敗しました');saveBtn.disabled=false;saveBtn.textContent='保存';return;}
+    const idx=cache.findIndex(x=>x.id===ncmId);
+    if(idx>=0){cache[idx]={...cache[idx],body:newBody,updated_at:now};}
+    _ncmRenderList(cache);
+  };
+  ta.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();saveBtn.click();}});
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,200)+'px';});
+}
+
 // ===== BULK EDIT =====
 async function handleBulkEdit(field){
   const tasks=S.tasks.filter(t=>S.selectedIds.includes(t.id));
@@ -7398,6 +7587,18 @@ else if(a==='scroll-to-comments'){
     const cmId=el.dataset.cmid;
     if(cmId&&S.taskId)_cmStartEdit(cmId,S.taskId);
   }
+  else if(a==='ncm-del'){
+    const ncmId=el.dataset.ncmid;
+    if(ncmId&&S.noteId){
+      openConfirmModal('コメントを削除','このコメントを削除しますか？',async()=>{
+        await _ncmDelete(ncmId,S.noteId);
+      },'削除',true);
+    }
+  }
+  else if(a==='ncm-edit'){
+    const ncmId=el.dataset.ncmid;
+    if(ncmId&&S.noteId)_ncmStartEdit(ncmId,S.noteId);
+  }
   else if(a==='task-nav-prev'||a==='task-nav-next'){
     const visibleTasks=getTasks().filter(t=>!t.parentTaskId);
     const idx=visibleTasks.findIndex(t=>t.id===S.taskId);
@@ -7865,6 +8066,22 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='cm-stamp'){
     const ta=document.getElementById('cm-input');
+    if(!ta)return;
+    const now2=new Date();
+    const pad=n=>String(n).padStart(2,'0');
+    const days2=['日','月','火','水','木','金','土'];
+    const dateStr=now2.getFullYear()+'/'+(pad(now2.getMonth()+1))+'/'+pad(now2.getDate());
+    const timeStr=pad(now2.getHours())+':'+pad(now2.getMinutes());
+    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+' ',sep:'\n---\n'};
+    const ins=map[el.dataset.type]||'';
+    const s=ta.selectionStart,en=ta.selectionEnd;
+    ta.value=ta.value.slice(0,s)+ins+ta.value.slice(en);
+    ta.selectionStart=ta.selectionEnd=s+ins.length;
+    ta.focus();
+    ta.dispatchEvent(new Event('input'));
+  }
+  else if(a==='ncm-stamp'){
+    const ta=document.getElementById('ncm-input');
     if(!ta)return;
     const now2=new Date();
     const pad=n=>String(n).padStart(2,'0');
