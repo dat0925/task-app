@@ -4269,11 +4269,13 @@ function showUserMenu(){
   // ボタンイベント
   menu.querySelector('#um-dark-tog')?.addEventListener('click',e=>{
     e.stopPropagation();
+    playSE('toggle');
     S.dark=!S.dark;localStorage.setItem('dark',S.dark?'1':'0');render();
     closeUserMenu();setTimeout(showUserMenu,50);
   });
-  menu.querySelector('#um-qr')?.addEventListener('click',()=>{closeUserMenu();showQRShareModal();});
+  menu.querySelector('#um-qr')?.addEventListener('click',()=>{playSE('toggle');closeUserMenu();showQRShareModal();});
   menu.querySelector('#um-line-add')?.addEventListener('click',()=>{
+    playSE('toggle');
     closeUserMenu();
     const isMobile=/iPhone|iPad|Android/i.test(navigator.userAgent);
     const ov2=document.createElement('div');ov2.className='overlay active';ov2.style.cssText='opacity:1;pointer-events:auto;z-index:9999';
@@ -4291,20 +4293,21 @@ function showUserMenu(){
     document.body.appendChild(ov2);
     ov2.addEventListener('click',e=>{if(e.target===ov2)ov2.remove();});
   });
-  menu.querySelector('#um-settings')?.addEventListener('click',()=>{closeUserMenu();openSettingsModal();});
-  menu.querySelector('#um-myplan')?.addEventListener('click',()=>{closeUserMenu();openMyPlan();});
-  menu.querySelector('#um-admin')?.addEventListener('click',()=>{closeUserMenu();openPlanAdmin();});
-  menu.querySelector('#um-upgrade')?.addEventListener('click',()=>{closeUserMenu();showUpgradeModal('banner');});
+  menu.querySelector('#um-settings')?.addEventListener('click',()=>{playSE('toggle');closeUserMenu();openSettingsModal();});
+  menu.querySelector('#um-myplan')?.addEventListener('click',()=>{playSE('toggle');closeUserMenu();openMyPlan();});
+  menu.querySelector('#um-admin')?.addEventListener('click',()=>{playSE('toggle');closeUserMenu();openPlanAdmin();});
+  menu.querySelector('#um-upgrade')?.addEventListener('click',()=>{playSE('toggle');closeUserMenu();showUpgradeModal('banner');});
   menu.querySelector('#um-logout')?.addEventListener('click',async()=>{
     if(!confirm('ログアウトしますか？'))return;
+    playSE('delete');
     closeUserMenu();
     await window._SB.auth.signOut();renderSidebar();
   });
   menu.querySelector('#um-login')?.addEventListener('click',()=>{
+    playSE('toggle');
     closeUserMenu();
     document.getElementById('login-overlay')?.classList.add('open');
   });
-
   // ユーザーボタンをopen状態に
   document.getElementById('sidebar-user-btn')?.classList.add('open');
 }
