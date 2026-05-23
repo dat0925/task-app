@@ -10215,7 +10215,11 @@ async function init(){
         const id=h[1];
         const t=(S.tasks||[]).find(x=>x.id===id);
         if(t){
-          if(S.view==='notes'){S.noteOpen=false;}
+          if(S.view==='notes'||S.view==='gantt'||S.view==='dashboard'||S.view==='forecast'||S.view==='review'||S.view==='search'){
+            S.noteOpen=false;
+            if(t.projectId){S.view='project';S.projId=t.projectId;}
+            else{S.view='inbox';}
+          }
           S.taskId=id;S.drawerOpen=true;
           history.replaceState(null,'',location.pathname);
           render();
