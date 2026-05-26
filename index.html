@@ -8199,9 +8199,9 @@ else if(a==='scroll-to-comments'){
       _mc.style.display='';
       if(_mchev)_mchev.style.transform='rotate(0deg)';
     }
-    // 編集モードに切替（プレビュー→編集）
+    // 編集モードに切替（プレビューモードの場合のみ）
     const _pvBtn=document.getElementById('dt-preview-btn');
-    if(_pvBtn&&_pvBtn.textContent.trim()==='プレビュー')_pvBtn.click();
+    if(_pvBtn&&_pvBtn.textContent.trim()==='編集'){_pvBtn.click();}
     if(!ta._stampFocused){
       ta.value=ins+'\n'+ta.value;
       ta.selectionStart=ta.selectionEnd=ins.length+1;
@@ -8211,7 +8211,7 @@ else if(a==='scroll-to-comments'){
       ta.selectionStart=ta.selectionEnd=s+ins.length;
     }
     ta.focus();
-    ta.dispatchEvent(new Event('input'));
+    setTimeout(()=>ta.dispatchEvent(new Event('input')),50);
   }
   else if(a==='cm-stamp'){
     const ta=document.getElementById('cm-input');
