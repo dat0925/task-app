@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>開発プロダクト一覧 | Taskra</title>
+<link rel="icon" href="https://taskra.jp/icon.png">
+<style>
+  :root {
+    --navy: #1e1b4b;
+    --indigo: #4f46e5;
+    --indigo-light: #6366f1;
+    --indigo-pale: #eef2ff;
+    --text: #1e293b;
+    --text2: #475569;
+    --text3: #94a3b8;
+    --border: #e2e8f0;
+    --surface: #ffffff;
+    --bg: #f8fafc;
+    --green: #10b981;
+    --amber: #f59e0b;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ヘッダー */
+  header {
+    background: var(--navy);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: white;
+    font-weight: 700;
+    font-size: 18px;
+  }
+  header img { width: 32px; height: 32px; border-radius: 8px; }
+  header .sep { color: rgba(255,255,255,.3); margin: 0 4px; }
+  header .page-title { color: rgba(255,255,255,.7); font-size: 14px; font-weight: 400; }
+
+  /* ヒーロー */
+  .hero {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4f46e5 100%);
+    padding: 64px 24px 48px;
+    text-align: center;
+    color: white;
+  }
+  .hero h1 {
+    font-size: clamp(24px, 5vw, 40px);
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin-bottom: 12px;
+  }
+  .hero p {
+    font-size: 16px;
+    color: rgba(255,255,255,.7);
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* セクション */
+  .section {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 24px;
+  }
+
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--indigo);
+    background: var(--indigo-pale);
+    border-radius: 20px;
+    padding: 4px 12px;
+    margin-bottom: 32px;
+  }
+
+  .section-title {
+    font-size: clamp(20px, 4vw, 28px);
+    font-weight: 800;
+    color: var(--navy);
+    margin-bottom: 8px;
+    letter-spacing: -.3px;
+  }
+  .section-sub {
+    font-size: 14px;
+    color: var(--text2);
+    margin-bottom: 32px;
+  }
+
+  /* プロダクトカード */
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .product-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: box-shadow .2s, transform .2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .product-card:hover {
+    box-shadow: 0 8px 32px rgba(79,70,229,.12);
+    transform: translateY(-2px);
+  }
+
+  .card-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .card-meta { flex: 1; min-width: 0; }
+  .card-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 2px;
+  }
+  .card-audience {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-block;
+  }
+  .audience-personal { background: #eff6ff; color: #3b82f6; }
+  .audience-business { background: #f0fdf4; color: #16a34a; }
+
+  .card-body { padding: 16px 20px; flex: 1; }
+  .card-desc {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.65;
+    margin-bottom: 16px;
+  }
+
+  /* リンクグループ */
+  .link-group { display: flex; flex-direction: column; gap: 8px; }
+  .link-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .link-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+  .link-item a {
+    color: var(--indigo);
+    text-decoration: none;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    display: block;
+  }
+  .link-item a:hover { text-decoration: underline; }
+
+  .link-type-app .link-label::before { content: '🌐 '; }
+  .link-type-lp .link-label::before { content: '📄 '; }
+  .link-type-repo .link-label::before { content: '🗂 '; }
+
+  /* リポジトリセクション（技術者向け） */
+  .dev-section {
+    background: var(--navy);
+    padding: 48px 24px;
+    color: white;
+  }
+  .dev-inner { max-width: 960px; margin: 0 auto; }
+  .dev-section .section-label {
+    background: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.8);
+  }
+  .dev-section .section-title { color: white; }
+  .dev-section .section-sub { color: rgba(255,255,255,.6); }
+
+  .repo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .repo-card {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: background .2s;
+  }
+  .repo-card:hover { background: rgba(255,255,255,.1); }
+  .repo-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .repo-name span { font-size: 14px; }
+  .repo-links { display: flex; flex-direction: column; gap: 4px; }
+  .repo-link {
+    font-size: 11px;
+    color: rgba(255,255,255,.5);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color .2s;
+  }
+  .repo-link:hover { color: #a5b4fc; }
+  .repo-link-type {
+    font-size: 10px;
+    color: rgba(255,255,255,.3);
+    min-width: 28px;
+  }
+
+  /* フッター */
+  footer {
+    background: #0f0d2b;
+    padding: 24px;
+    text-align: center;
+    color: rgba(255,255,255,.3);
+    font-size: 12px;
+  }
+  footer a { color: rgba(255,255,255,.5); text-decoration: none; }
+  footer a:hover { color: white; }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    max-width: 960px;
+    margin: 0 auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<header>
+  <a href="https://taskra.jp">
+    <img src="https://taskra.jp/icon.png" alt="Taskra">
+    Taskra
+  </a>
+  <span class="sep">/</span>
+  <span class="page-title">開発プロダクト一覧</span>
+</header>
+
+<!-- ヒーロー -->
+<div class="hero">
+  <h1>開発プロダクト一覧</h1>
+  <p>iFLAGが開発・運営するWebアプリケーションの一覧です。<br>各プロダクトのURL・リポジトリをまとめています。</p>
+</div>
+
+<!-- プロダクト一覧 -->
+<div class="section">
+  <div class="section-label">📦 Products</div>
+  <div class="section-title">プロダクト一覧</div>
+  <div class="section-sub">個人向け・法人向けのWebアプリケーション</div>
+
+  <div class="products-grid">
+
+    <!-- Taskra -->
+    <div class="product-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#eef2ff">
+          <img src="https://taskra.jp/icon.png" style="width:32px;height:32px;border-radius:6px">
+        </div>
+        <div class="card-meta">
+          <div class="card-name">Taskra</div>
+          <span class="card-audience audience-personal">個人・チーム向け</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="card-desc">ダッシュボード・ガントチャート・コメント・LINE連携を備えたタスク管理アプリ。個人からチームまで対応。</p>
+        <div class="link-group">
+          <div class="link-item link-type-app">
+            <span class="link-label">アプリ</span>
+            <a href="https://app.taskra.jp" target="_blank" rel="noopener">app.taskra.jp</a>
+          </div>
+          <div class="link-item link-type-lp">
+            <span class="link-label">LP</span>
+            <a href="https://taskra.jp" target="_blank" rel="noopener">taskra.jp</a>
+          </div>
+          <div class="link-item link-type-repo">
+            <span class="link-label">リポジトリ</span>
+            <a href="https://github.com/dat0925/task-app" target="_blank" rel="noopener">dat0925/task-app</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEOエージェント -->
+    <div class="product-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f0fdf4; font-size:26px">🗺️</div>
+        <div class="card-meta">
+          <div class="card-name">MEOエージェント</div>
+          <span class="card-audience audience-business">法人向け</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="card-desc">Googleビジネスプロフィールの管理・MEO対策を効率化するエージェントアプリ。</p>
+        <div class="link-group">
+          <div class="link-item link-type-app">
+            <span class="link-label">アプリ</span>
+            <a href="https://agt.taskra.jp" target="_blank" rel="noopener">agt.taskra.jp</a>
+          </div>
+          <div class="link-item link-type-lp">
+            <span class="link-label">LP</span>
+            <a href="https://agt-lp.taskra.jp/" target="_blank" rel="noopener">agt-lp.taskra.jp</a>
+          </div>
+          <div class="link-item link-type-repo">
+            <span class="link-label">アプリ</span>
+            <a href="https://github.com/dat0925/meo-agent" target="_blank" rel="noopener">dat0925/meo-agent</a>
+          </div>
+          <div class="link-item link-type-repo">
+            <span class="link-label">LP</span>
+            <a href="https://github.com/dat0925/meo-agent-lp" target="_blank" rel="noopener">dat0925/meo-agent-lp</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RINO -->
+    <div class="product-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fdf4ff; font-size:26px">💡</div>
+        <div class="card-meta">
+          <div class="card-name">RINO</div>
+          <span class="card-audience audience-business">法人向け</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="card-desc">業務効率化・情報管理を支援する法人向けWebアプリケーション。</p>
+        <div class="link-group">
+          <div class="link-item link-type-app">
+            <span class="link-label">アプリ</span>
+            <a href="https://reno.taskra.jp" target="_blank" rel="noopener">reno.taskra.jp</a>
+          </div>
+          <div class="link-item link-type-lp">
+            <span class="link-label">LP</span>
+            <a href="https://reno.taskra.jp/lp.html" target="_blank" rel="noopener">reno.taskra.jp/lp.html</a>
+          </div>
+          <div class="link-item link-type-repo">
+            <span class="link-label">リポジトリ</span>
+            <a href="https://github.com/dat0925/reno" target="_blank" rel="noopener">dat0925/reno</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flowra -->
+    <div class="product-card">
+      <div class="card-header">
+        <div class="card-icon" style="background:#fff7ed; font-size:26px">🌊</div>
+        <div class="card-meta">
+          <div class="card-name">Flowra</div>
+          <span class="card-audience audience-personal">個人向け</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="card-desc">個人のワークフロー・日常タスクを管理するための軽量アプリ。</p>
+        <div class="link-group">
+          <div class="link-item link-type-app">
+            <span class="link-label">アプリ</span>
+            <a href="https://flowra.taskra.jp/" target="_blank" rel="noopener">flowra.taskra.jp</a>
+          </div>
+          <div class="link-item link-type-repo">
+            <span class="link-label">リポジトリ</span>
+            <a href="https://github.com/dat0925/flowra" target="_blank" rel="noopener">dat0925/flowra</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- 技術者向けリポジトリ一覧 -->
+<div class="dev-section">
+  <div class="dev-inner">
+    <div class="section-label">🔧 For Developers</div>
+    <div class="section-title">リポジトリ一覧</div>
+    <div class="section-sub">技術引き継ぎ・開発者向けのリポジトリまとめ</div>
+
+    <div class="repo-grid">
+
+      <div class="repo-card">
+        <div class="repo-name"><span>📋</span> Taskra</div>
+        <div class="repo-links">
+          <a class="repo-link" href="https://github.com/dat0925/task-app" target="_blank" rel="noopener">
+            <span class="repo-link-type">App</span>dat0925/task-app
+          </a>
+        </div>
+      </div>
+
+      <div class="repo-card">
+        <div class="repo-name"><span>🗺️</span> MEOエージェント</div>
+        <div class="repo-links">
+          <a class="repo-link" href="https://github.com/dat0925/meo-agent" target="_blank" rel="noopener">
+            <span class="repo-link-type">App</span>dat0925/meo-agent
+          </a>
+          <a class="repo-link" href="https://github.com/dat0925/meo-agent-lp" target="_blank" rel="noopener">
+            <span class="repo-link-type">LP</span>dat0925/meo-agent-lp
+          </a>
+        </div>
+      </div>
+
+      <div class="repo-card">
+        <div class="repo-name"><span>💡</span> RINO</div>
+        <div class="repo-links">
+          <a class="repo-link" href="https://github.com/dat0925/reno" target="_blank" rel="noopener">
+            <span class="repo-link-type">App</span>dat0925/reno
+          </a>
+        </div>
+      </div>
+
+      <div class="repo-card">
+        <div class="repo-name"><span>🌊</span> Flowra</div>
+        <div class="repo-links">
+          <a class="repo-link" href="https://github.com/dat0925/flowra" target="_blank" rel="noopener">
+            <span class="repo-link-type">App</span>dat0925/flowra
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- フッター -->
+<footer>
+  <p>© 2026 <a href="https://taskra.jp">Taskra</a> / iFLAG Inc. &nbsp;|&nbsp; <a href="https://taskra.jp">taskra.jp</a></p>
+</footer>
+
+</body>
+</html>
