@@ -1,6 +1,6 @@
-// Taskra - Service Worker v32 (stale-while-revalidate)
-const CACHE_NAME = 'taskra-v32';
-const CDN_CACHE  = 'taskra-cdn-v32';
+// Taskra - Service Worker v33 (stale-while-revalidate)
+const CACHE_NAME = 'taskra-v33';
+const CDN_CACHE  = 'taskra-cdn-v33';
 
 // キャッシュするアセット
 const APP_ASSETS = ['./', './index.html', './icon-192.png', './icon-512.png'];
