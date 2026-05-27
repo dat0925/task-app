@@ -2513,6 +2513,23 @@ function showSaveStatus(state){
 }
 
 // ===== STORE =====
+
+// ===== 最近使ったプロジェクト =====
+function getRecentProjects(limit=5){
+  try{
+    const ids=JSON.parse(localStorage.getItem('recentProjects')||'[]');
+    return ids.slice(0,limit);
+  }catch{return[];}
+}
+function addRecentProject(projectId){
+  if(!projectId)return;
+  try{
+    const ids=JSON.parse(localStorage.getItem('recentProjects')||'[]');
+    const filtered=ids.filter(id=>id!==projectId);
+    localStorage.setItem('recentProjects',JSON.stringify([projectId,...filtered].slice(0,10)));
+  }catch{}
+}
+
 async function loadAll(){
   [S.tags,S.notes]=await Promise.all([dbAll('tags'),dbAll('notes')]);
   [S.tasks,S.projects]=await Promise.all([dbAllNoFilter('tasks'),dbAllNoFilter('projects')]);
@@ -5668,7 +5685,22 @@ function renderReview(){
     rvProjs.forEach(p=>{h+='<div class="rv-item"><span class="pdot" style="background:'+esc(p.color)+'"></span><span style="flex:1;cursor:pointer" data-a="goto-proj" data-id="'+p.id+'">'+esc(p.name)+'</span><button class="act-btn" data-a="rv-proj" data-id="'+p.id+'">完了</button></div>'});
     h+='</div>';
   }
-  if(!overdue.length&&!stale.length&&!rvProjs.length)h+='<div class="empty"><div class="empty-ico">🎉</div><div class="empty-t">完璧です！</div><div class="empty-d">期限切れも停滞タスクもありません</div></div>';
+  // 完了タスクが多いプロジェクトをアーカイブ候補として提案
+  const archiveCandidates=S.projects.filter(p=>{
+    if(p.status!=='active')return false;
+    const tasks=S.tasks.filter(t=>t.projectId===p.id&&t.status!=='archived');
+    const completed=tasks.filter(t=>t.status==='completed');
+    return tasks.length>0&&completed.length===tasks.length;
+  });
+  if(archiveCandidates.length){
+    h+='<div class="rv-card"><div class="rv-card-head"><span class="rv-card-title">💡 アーカイブ候補</span><span class="rv-badge" style="background:#e0f2fe;color:#0369a1">'+archiveCandidates.length+'件</span></div>';
+    h+='<div style="font-size:12px;color:var(--text3);padding:0 12px 8px">全タスクが完了しています。アーカイブするとプロジェクト選択が整理されます。</div>';
+    archiveCandidates.forEach(p=>{
+      h+='<div class="rv-item"><span class="pdot" style="background:'+esc(p.color)+'"></span><span style="flex:1">'+esc(p.name)+'</span><button class="act-btn" data-a="proj-archive" data-id="'+p.id+'">アーカイブ</button></div>';
+    });
+    h+='</div>';
+  }
+  if(!overdue.length&&!stale.length&&!rvProjs.length&&!archiveCandidates.length)h+='<div class="empty"><div class="empty-ico">🎉</div><div class="empty-t">完璧です！</div><div class="empty-d">期限切れも停滞タスクもありません</div></div>';
   return h+'</div>';
 }
 
@@ -6160,9 +6192,25 @@ function renderDrawer(){
       +'</div>'
       +'<div class="fg"><label class="flabel">プロジェクト</label>'
         +'<div style="display:flex;gap:6px;align-items:center">'
-          +'<select class="finput fselect" id="dt-proj" style="flex:1;min-width:0'+(task.parentTaskId?';background:var(--bg2);color:var(--text3)':'')+'"'+(task.parentTaskId?' disabled title="サブタスクのプロジェクトは親タスクに連動します"':'')+' >'
-            +'<option value="">なし</option>'
-            +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'"'+(task.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('')
+          +'<select class="finput fselect" id="dt-proj" style="flex:1;min-width:0'+(task.parentTaskId?';background:var(--bg2);color:var(--text3)':'')+'"'+(task.parentTaskId?' disabled title="サブタスクのプロジェクトは親タスクに連動します"':'')+' >'+(()=>{
+            const allProjs=S.projects.filter(p=>p.status==='active');
+            const recentIds=getRecentProjects();
+            const recentProjs=recentIds.map(id=>allProjs.find(p=>p.id===id)).filter(Boolean);
+            const otherProjs=allProjs.filter(p=>!recentIds.includes(p.id));
+            const opt=p=>'<option value="'+p.id+'"'+(task.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>';
+            let html='<option value="">なし</option>';
+            if(recentProjs.length){
+              html+='<optgroup label="最近使ったプロジェクト">';
+              html+=recentProjs.map(opt).join('');
+              html+='</optgroup>';
+              html+='<optgroup label="すべてのプロジェクト">';
+              html+=otherProjs.map(opt).join('');
+              html+='</optgroup>';
+            } else {
+              html+=allProjs.map(opt).join('');
+            }
+            return html;
+          })()
           +'</select>'
           +((()=>{
               const _prj=task.projectId?S.projects.find(p=>p.id===task.projectId):null;
@@ -6343,6 +6391,7 @@ function renderDrawer(){
       t2.plannedStartAt=document.getElementById('dt-planned-start')?.value||null;
       t2.startTime=document.getElementById('dt-start-time')?.value||null;
       t2.projectId=document.getElementById('dt-proj')?.value||null;
+      if(t2.projectId)addRecentProject(t2.projectId);
       t2.assigneeId=document.getElementById('dt-assignee')?.value||null;
       t2.repeatRule=getRepeatRule();
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
@@ -8267,6 +8316,17 @@ else if(a==='scroll-to-comments'){
     ta.selectionStart=ta.selectionEnd=s+ins.length;
     ta.focus();
     ta.dispatchEvent(new Event('input'));
+  }
+  else if(a==='proj-archive'){
+    const pid=el.dataset.id;
+    const proj=S.projects.find(p=>p.id===pid);
+    if(!proj)return;
+    openConfirmModal('プロジェクトをアーカイブ','「'+proj.name+'」をアーカイブしますか？プロジェクト選択から非表示になります。',async()=>{
+      proj.status='archived';
+      await saveProject(proj);
+      toast(proj.name+' をアーカイブしました');
+      render();
+    },'アーカイブ',false);
   }
   else if(a==='rv-proj'){
     const p=S.projects.find(x=>x.id===el.dataset.id);
