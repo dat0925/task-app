@@ -6134,6 +6134,8 @@ function renderDrawer(){
   const _scrollY=_drBody?_drBody.scrollTop:0;
   const task=S.tasks.find(t=>t.id===S.taskId);
   if(!task){dr.style.display='none';dr.classList.remove('open');const _mr=document.querySelector('.main');if(_mr)_mr.style.maxWidth='';return}
+  // タスクのプロジェクトをrecentに記録
+  if(task.projectId)addRecentProject(task.projectId);
   dr.style.display='flex';
   const _mainEl=document.querySelector('.main');if(_mainEl&&window.innerWidth>768){const _sbW=document.getElementById('sidebar')?.getBoundingClientRect().width||0;_mainEl.style.maxWidth=(window.innerWidth-_sbW-373)+'px';}
   dr.classList.add('open');
