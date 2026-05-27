@@ -1,0 +1,12 @@
+{
+  "name": "プロダクト一覧",
+  "short_name": "Products",
+  "start_url": "/devs.html",
+  "display": "standalone",
+  "background_color": "#1e1b4b",
+  "theme_color": "#1e1b4b",
+  "icons": [
+    { "src": "devs-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "devs-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
