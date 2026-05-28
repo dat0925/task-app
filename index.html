@@ -2706,6 +2706,7 @@ function getTasks(){
   else if(S.view==='today')tasks=tasks.filter(x=>(isToday(x.dueAt)||x.flagged)&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='upcoming')tasks=tasks.filter(x=>x.dueAt&&x.dueAt>t&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='flagged')tasks=tasks.filter(x=>x.flagged&&(S.showCompleted||x.status!=='completed'));
+  else if(S.view==='assigned'){const _auid=window._currentUser?.id;tasks=_auid?tasks.filter(x=>x.assigneeId===_auid&&(S.showCompleted||x.status!=='completed')):[];}
   else if(S.view==='completed')tasks=tasks.filter(x=>x.status==='completed');
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
@@ -2721,10 +2722,12 @@ function getTasks(){
 }
 function counts(){
   const t=today();
+  const _uid=window._currentUser?.id;
   return{
     inbox:S.tasks.filter(x=>x.status==='inbox'&&!x.parentTaskId).length,
     today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
     flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged).length,
+    assigned:_uid?S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.assigneeId===_uid).length:0,
   };
 }
 
