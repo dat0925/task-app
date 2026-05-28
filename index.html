@@ -5547,7 +5547,7 @@ function attachDashboardEvents(){
   // 「もっと見る」ボタン
   const moreBtn=document.getElementById('db-notif-more');
   if(moreBtn){
-    const _moreBtnHandler=e=>{
+    window._moreBtnHandler=e=>{
       e.stopPropagation();
       e.preventDefault();
       const notifs=_notifCache||[];
@@ -5586,8 +5586,8 @@ function attachDashboardEvents(){
         moreBtn.textContent=`もっと見る（残り ${notifs.length-next} 件）`;
       }
     };
-    moreBtn.addEventListener('click',_moreBtnHandler);
-    moreBtn.addEventListener('touchend',_moreBtnHandler,{passive:false});
+    moreBtn.addEventListener('click',window._moreBtnHandler);
+    moreBtn.addEventListener('touchend',window._moreBtnHandler,{passive:false});
   }
   // 通知行クリックハンドラをアタッチ（初回＋もっと見る後も呼ばれる）
   function _attachNotifHandlers(){
@@ -5648,6 +5648,14 @@ function attachDashboardEvents(){
         }
       }
       _attachNotifHandlers();
+      // moreBtnのハンドラを再設定（DB読み込み後にDOMが差し替わるため）
+      const _mbtn=document.getElementById('db-notif-more');
+      if(_mbtn&&window._moreBtnHandler){
+        _mbtn.removeEventListener('click',window._moreBtnHandler);
+        _mbtn.removeEventListener('touchend',window._moreBtnHandler);
+        _mbtn.addEventListener('click',window._moreBtnHandler);
+        _mbtn.addEventListener('touchend',window._moreBtnHandler,{passive:false});
+      }
     });
   }
 }
