@@ -5451,8 +5451,9 @@ function renderDashboard() {
   function taskChip(t) {
     const proj = S.projects.find(p => p.id === t.projectId);
     const isOv = t.dueAt && t.dueAt < today;
-    return `<div class="db-task-row" data-a="db-open" data-id="${t.id}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
-      <div style="flex:1;min-width:0">
+    return `<div class="db-task-row" data-id="${t.id}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <button class="chk" data-a="db-complete" data-id="${t.id}" style="flex-shrink:0;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;touch-action:manipulation"></button>
+      <div style="flex:1;min-width:0;cursor:pointer" data-a="db-open" data-id="${t.id}">
         <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title || '無題')}</div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">
           ${proj ? `<span style="font-size:11px;color:${proj.color};background:${proj.color}1a;border-radius:4px;padding:1px 5px">${esc(proj.name)}</span>` : ''}
@@ -7629,7 +7630,24 @@ else if(a==='sel'){
   else{S.taskId=id;S.drawerOpen=true;playSE('open');}
   renderContent();renderSidebar();renderDrawer();
 }
-else if(a==='db-open'){
+else if(a==='db-complete'){
+    e.stopPropagation();
+    const tid=el.dataset.id;
+    const task=S.tasks.find(t=>t.id===tid);
+    if(!task)return;
+    el.style.background='var(--green)';
+    el.style.borderColor='var(--green)';
+    el.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+    const row=el.closest('.db-task-row');
+    if(row){row.style.transition='opacity .35s,transform .35s';row.style.opacity='0';row.style.transform='translateX(8px)';}
+    setTimeout(async()=>{
+      task.status='completed';
+      task.completedAt=new Date().toISOString();
+      await saveTask(task);
+      render();
+    },350);
+  }
+  else if(a==='db-open'){
   e.stopPropagation();
   if(_touchMoved)return;
   const id=el.dataset.id;
