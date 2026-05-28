@@ -6208,7 +6208,7 @@ function renderDrawer(){
             const recentIds=getRecentProjects();
             const recentProjs=recentIds.map(id=>allProjs.find(p=>p.id===id)).filter(Boolean);
             const otherProjs=allProjs.filter(p=>!recentIds.includes(p.id));
-            const opt=p=>'<option value="'+p.id+'"'+(task.projectId===p.id?' selected':'')+'>'+esc(p.name)+'</option>';
+            const opt=p=>'<option value="'+p.id+'"'+(task.projectId===p.id?' selected':'')+'>'+(p.workspaceId?'👥 ':'')+esc(p.name)+'</option>';
             let html='<option value="">なし</option>';
             if(recentProjs.length){
               html+='<optgroup label="最近使ったプロジェクト">';
@@ -7288,7 +7288,7 @@ async function handleBulkEdit(field){
     const ov=document.createElement('div');ov.className='overlay';
     ov.innerHTML='<div class="modal"><div class="modal-title">プロジェクトを一括設定</div>'
       +'<select id="bulk-proj-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
-      +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('')
+      +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'">'+(p.workspaceId?'👥 ':'')+esc(p.name)+'</option>').join('')
       +'</select>'
       +'<div style="display:flex;gap:8px">'
         +'<button class="btn btn-primary" id="bulk-proj-ok">設定する</button>'
