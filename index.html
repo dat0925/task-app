@@ -3948,6 +3948,12 @@ const VIEW_HELP={
     desc:'各プロジェクトの「次にやるべきタスク」を1件ずつ抽出して一覧表示します。全プロジェクトの進捗を俯瞰しながら、今どこに着手すべきかを把握できます。',
     conds:['アクティブなプロジェクトごとに先頭の未完了タスクを1件表示','プロジェクト名をタップするとそのプロジェクトへ移動','「現在」フィルタで開始済みのタスクのみ表示可能']
   },
+  assigned:{
+    name:'Assigned',
+    colorBg:'var(--blue-bg)',colorFg:'var(--blue)',
+    desc:'自分が担当者としてアサインされたタスクを一覧表示します。チームプロジェクトの中で自分に割り当てられた仕事を一か所で把握できます。',
+    conds:['担当者（Assignee）が自分になっているタスクのみ表示','チームプロジェクトのタスクが対象','完了済みは非表示（設定で変更可）']
+  },
 };
 function openViewHelp(triggerEl){
   const info=VIEW_HELP[S.view];
@@ -3957,7 +3963,7 @@ function openViewHelp(triggerEl){
   if(!popup)return;
   // icon from ICONS map
   const iconSvg=({dashboard:ICONS.dashboard,inbox:ICONS.inbox,today:ICONS.today,upcoming:ICONS.upcoming,
-    forecast:ICONS.forecast,flagged:ICONS.flag,review:ICONS.review,
+    forecast:ICONS.forecast,flagged:ICONS.flag,assigned:ICONS.assigned,review:ICONS.review,
     nextview:ICONS.nextview,
     search:ICONS.search,notes:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
     project:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>',
@@ -4735,7 +4741,7 @@ function scrollGanttToToday(){
 // ===== RENDER CONTENT =====
 function renderContent(){
   const el=document.getElementById('content');
-  const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',review:'Review',search:'Search',completed:'Completed',notes:'Notes',nextview:'Next',gantt:'Gantt',
+  const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Completed',notes:'Notes',nextview:'Next',gantt:'Gantt',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||''};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
