@@ -2822,6 +2822,7 @@ const ICONS={
   upcoming:ico('<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><line x1="12" y1="3" x2="12" y2="1"/><line x1="21" y1="12" x2="23" y2="12"/>'),
   forecast:ico('<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'),
   flag:ico('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>'),
+  assigned:ico('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
   review:ico('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
   search:ico('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
   nextview:ico('<polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/>'),
@@ -4021,6 +4022,7 @@ function renderSidebar(){
     {v:'upcoming',label:'Upcoming',icon:ICONS.upcoming,sub:'期限付きタスクのカレンダー'},
     {v:'forecast',label:'Forecast',icon:ICONS.forecast,sub:'2週間先までのタスク一覧'},
     {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged,sub:'フラグを付けたタスク'},
+    {v:'assigned',label:'Assigned',icon:ICONS.assigned,cnt:c.assigned,sub:'自分が担当のタスク'},
     {v:'review',label:'Review',icon:ICONS.review,sub:'停滞・期限切れを定期チェック'},
     {v:'nextview',label:'Next',icon:ICONS.nextview,sub:'各PJの次のアクション'},
     {v:'search',label:'Search',icon:ICONS.search,sub:'タスク・メモを横断検索'},
@@ -5390,6 +5392,7 @@ function renderEmpty(){
     project:{ico:'📁',t:'タスクがありません',d:'上の入力欄からタスクを追加してみましょう。'},
     search:{ico:'🔍',t:'検索結果なし',d:'別のキーワードで検索してみてください。'},
     inbox:{ico:'📥',t:'Inboxは空です',d:'プロジェクト未設定のタスクがここに入ります。タスクを追加したらプロジェクトに振り分けましょう。'},
+    assigned:{ico:'👤',t:'担当タスクはありません',d:'チームプロジェクトで自分がアサインされたタスクがここに表示されます。'},
   }[S.view]||{ico:'📋',t:'タスクがありません',d:''};
   return'<div class="empty"><div class="empty-ico">'+e.ico+'</div><div class="empty-t">'+e.t+'</div><div class="empty-d">'+e.d+'</div></div>';
 }
@@ -5529,7 +5532,7 @@ function renderDashboard() {
   if (overdue.length) h += section('🔴', '期限切れ', 'var(--p1)', overdue, 3, 'today', 'なし');
   h += section('📅', '今日', 'var(--text)', todayTasks, 3, 'today', overdue.length ? '期限切れ以外のタスクはありません' : '今日のタスクはありません');
   h += notifHtml;
-  if (myTasks.length) h += section('👤', '自分の担当', 'var(--text)', myTasks, 3, '', '');
+  if (myTasks.length) h += section('👤', '自分の担当', 'var(--text)', myTasks, 3, 'assigned', '');
   if (inboxTasks.length) h += section('📥', 'Inbox', 'var(--text)', inboxTasks, 3, 'inbox', 'Inboxにタスクはありません');
   if (flagged.length) h += section('🚩', 'フラグ付き', 'var(--text)', flagged, 3, 'flagged', '');
   h += '</div>';
