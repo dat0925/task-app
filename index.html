@@ -5547,8 +5547,9 @@ function attachDashboardEvents(){
   // 「もっと見る」ボタン
   const moreBtn=document.getElementById('db-notif-more');
   if(moreBtn){
-    moreBtn.onclick=e=>{
+    const _moreBtnHandler=e=>{
       e.stopPropagation();
+      e.preventDefault();
       const notifs=_notifCache||[];
       const list=document.getElementById('db-notif-list');
       // 「閉じる」状態のとき
@@ -5585,6 +5586,8 @@ function attachDashboardEvents(){
         moreBtn.textContent=`もっと見る（残り ${notifs.length-next} 件）`;
       }
     };
+    moreBtn.addEventListener('click',_moreBtnHandler);
+    moreBtn.addEventListener('touchend',_moreBtnHandler,{passive:false});
   }
   // 通知行クリックハンドラをアタッチ（初回＋もっと見る後も呼ばれる）
   function _attachNotifHandlers(){
