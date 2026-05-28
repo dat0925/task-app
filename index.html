@@ -5553,21 +5553,24 @@ function attachDashboardEvents(){
     window._moreBtnHandler=e=>{
       e.stopPropagation();
       e.preventDefault();
+      const _initShow=3;
       const notifs=_notifCache||[];
       const list=document.getElementById('db-notif-list');
+      const moreBtn=document.getElementById('db-notif-more');
+      if(!moreBtn)return;
       // 「閉じる」状態のとき
       if(moreBtn.dataset.state==='open'){
         if(list){
           const rows=[...list.querySelectorAll('.db-notif-row')];
-          rows.slice(_notifInitShow).forEach(r=>r.remove());
+          rows.slice(_initShow).forEach(r=>r.remove());
         }
-        moreBtn.dataset.shown=_notifInitShow;
+        moreBtn.dataset.shown=_initShow;
         moreBtn.dataset.state='';
-        moreBtn.textContent=`もっと見る（残り ${notifs.length-_notifInitShow} 件）`;
+        moreBtn.textContent=`もっと見る（残り ${notifs.length-_initShow} 件）`;
         return;
       }
       // 「もっと見る」状態のとき
-      const shown=parseInt(moreBtn.dataset.shown)||_notifInitShow;
+      const shown=parseInt(moreBtn.dataset.shown)||_initShow;
       const next=Math.min(shown+10,notifs.length);
       if(list){
         const frag=document.createDocumentFragment();
@@ -5589,8 +5592,9 @@ function attachDashboardEvents(){
         moreBtn.textContent=`もっと見る（残り ${notifs.length-next} 件）`;
       }
     };
-    moreBtn.addEventListener('click',window._moreBtnHandler);
-    moreBtn.addEventListener('touchend',window._moreBtnHandler,{passive:false});
+    const _mb=document.getElementById('db-notif-more');
+    if(_mb){_mb.addEventListener('click',window._moreBtnHandler);
+    _mb.addEventListener('touchend',window._moreBtnHandler,{passive:false});}
   }
   // 通知行クリックハンドラをアタッチ（初回＋もっと見る後も呼ばれる）
   function _attachNotifHandlers(){
