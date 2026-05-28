@@ -5451,13 +5451,18 @@ function renderDashboard() {
   function taskChip(t) {
     const proj = S.projects.find(p => p.id === t.projectId);
     const isOv = t.dueAt && t.dueAt < today;
+    const subs = S.tasks.filter(s => s.parentTaskId === t.id);
+    const subsTotal = subs.length;
+    const subsDone = subs.filter(s => s.status === 'completed').length;
+    const isParent = subsTotal > 0;
     return `<div class="db-task-row" data-id="${t.id}" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
       <button class="chk" data-a="db-complete" data-id="${t.id}" style="flex-shrink:0;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;touch-action:manipulation"></button>
       <div style="flex:1;min-width:0;cursor:pointer" data-a="db-open" data-id="${t.id}">
-        <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title || '無題')}</div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">
+        <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${isParent ? 'font-weight:700' : ''}">${esc(t.title || '無題')}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:2px">
           ${proj ? `<span style="font-size:11px;color:${proj.color};background:${proj.color}1a;border-radius:4px;padding:1px 5px">${esc(proj.name)}</span>` : ''}
           ${t.dueAt ? `<span style="font-size:11px;color:${isOv ? 'var(--p1)' : 'var(--text3)'}">⏰ ${t.dueAt}</span>` : ''}
+          ${isParent ? `<span style="font-size:11px;color:${subsDone===subsTotal?'var(--green)':'var(--text3)'};font-weight:600">▶ ${subsDone}/${subsTotal}</span>` : ''}
         </div>
       </div>
     </div>`;
