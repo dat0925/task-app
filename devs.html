@@ -235,6 +235,37 @@
     transition: background .2s;
   }
   .repo-card:hover { background: rgba(255,255,255,.1); }
+  /* 開発サービスセクション専用 */
+  .services-section { background: #0f1117; }
+  .svc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .svc-card {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    padding: 16px;
+    text-decoration: none;
+    display: block;
+    transition: background .2s, border-color .2s;
+  }
+  .svc-card:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.25); }
+  .svc-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .svc-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,.5);
+    line-height: 1.6;
+  }
   .repo-name {
     font-size: 13px;
     font-weight: 700;
@@ -530,43 +561,43 @@
 </div>
 
 <!-- 開発サービス一覧 -->
-<div class="section">
-  <div class="section-inner">
+<div class="services-section">
+  <div class="section">
     <div class="section-tag">🛠 DEV SERVICES</div>
     <h2 class="section-title">開発サービス一覧</h2>
     <p class="section-desc">プロダクト開発で使用している外部サービス</p>
-    <div class="repo-grid">
+    <div class="svc-grid">
 
-      <a class="repo-card" href="https://supabase.com" target="_blank" rel="noopener" style="text-decoration:none;display:block">
-        <div class="repo-name">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M11.9 3L3 14.1h7.6L9.1 21l9.9-11.1h-7.6L11.9 3z" fill="#3ECF8E"/></svg>
+      <a class="svc-card" href="https://supabase.com" target="_blank" rel="noopener">
+        <div class="svc-name">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M11.9 3L3 14.1h7.6L9.1 21l9.9-11.1h-7.6L11.9 3z" fill="#3ECF8E"/></svg>
           Supabase
         </div>
-        <div style="font-size:12px;color:var(--repo-link-color,#8892b0);margin-top:6px;line-height:1.5">DB・認証・Edge Functions。全プロダクトのバックエンド基盤</div>
+        <div class="svc-desc">DB・認証・Edge Functions。全プロダクトのバックエンド基盤</div>
       </a>
 
-      <a class="repo-card" href="https://github.com" target="_blank" rel="noopener" style="text-decoration:none;display:block">
-        <div class="repo-name">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;color:#e6edf3"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.483 0-.237-.009-.868-.013-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+      <a class="svc-card" href="https://github.com" target="_blank" rel="noopener">
+        <div class="svc-name">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.483 0-.237-.009-.868-.013-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
           GitHub
         </div>
-        <div style="font-size:12px;color:var(--repo-link-color,#8892b0);margin-top:6px;line-height:1.5">全リポジトリのソースコード管理・バージョン管理</div>
+        <div class="svc-desc">全リポジトリのソースコード管理・バージョン管理</div>
       </a>
 
-      <a class="repo-card" href="https://vercel.com" target="_blank" rel="noopener" style="text-decoration:none;display:block">
-        <div class="repo-name">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;color:#e6edf3"><path d="M12 2L2 19.5h20L12 2z"/></svg>
+      <a class="svc-card" href="https://vercel.com" target="_blank" rel="noopener">
+        <div class="svc-name">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 2L2 19.5h20L12 2z"/></svg>
           Vercel
         </div>
-        <div style="font-size:12px;color:var(--repo-link-color,#8892b0);margin-top:6px;line-height:1.5">フロントエンドのホスティング・デプロイ。GitHubと連携して自動公開</div>
+        <div class="svc-desc">フロントエンドのホスティング・デプロイ。GitHubと連携して自動公開</div>
       </a>
 
-      <a class="repo-card" href="https://muumuu-domain.com" target="_blank" rel="noopener" style="text-decoration:none;display:block">
-        <div class="repo-name">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:#e6edf3"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/></svg>
+      <a class="svc-card" href="https://muumuu-domain.com" target="_blank" rel="noopener">
+        <div class="svc-name">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/></svg>
           ムームードメイン
         </div>
-        <div style="font-size:12px;color:var(--repo-link-color,#8892b0);margin-top:6px;line-height:1.5">ドメイン取得・管理。taskra.jp をはじめ全ドメインを管理</div>
+        <div class="svc-desc">ドメイン取得・管理。taskra.jp をはじめ全ドメインを管理</div>
       </a>
 
     </div>
