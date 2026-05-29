@@ -7479,10 +7479,10 @@ document.addEventListener('click',async e=>{
   else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='shared-projs-toggle'){playSE('toggle');S.sharedProjsOpen=!S.sharedProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
-  else if(a==='views-toggle'){playSE('toggle');S.viewsOpen=!S.viewsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
-  else if(a==='proj-toggle'){playSE('toggle');S.projsOpen=!S.projsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
-  else if(a==='hidden-proj-toggle'){playSE('toggle');S.hiddenProjsOpen=!S.hiddenProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
-  else if(a==='tags-toggle'){playSE('toggle');S.tagsOpen=!S.tagsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
+  else if(a==='views-toggle'){if(_touchMoved)return;playSE('toggle');S.viewsOpen=!S.viewsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
+  else if(a==='proj-toggle'){if(_touchMoved)return;playSE('toggle');S.projsOpen=!S.projsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
+  else if(a==='hidden-proj-toggle'){if(_touchMoved)return;playSE('toggle');S.hiddenProjsOpen=!S.hiddenProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
+  else if(a==='tags-toggle'){if(_touchMoved)return;playSE('toggle');S.tagsOpen=!S.tagsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='hidden-proj-edit'){e.stopPropagation();showHiddenProjEditPopup(el,el.dataset.id,el.dataset.name);}
 
   // ===== WORKSPACE HANDLERS =====
@@ -7984,6 +7984,7 @@ else if(a==='scroll-to-comments'){
     if(typeof _dtMemoToggle==='function')_dtMemoToggle();
   }
   else if(el.id==='subs-done-toggle'){
+    if(_touchMoved)return;
     const doneList=document.getElementById('subs-done-list');
     if(doneList){
       const open=doneList.style.display==='none';
@@ -7991,31 +7992,40 @@ else if(a==='scroll-to-comments'){
       el.textContent=open?'▲ 完了済みを閉じる':'✓ 完了済み '+doneList.children.length+'件を表示';
     }
   }
+  else if(a==='dt-memo-toggle'){
+    if(_touchMoved)return;
+    if(typeof _dtMemoToggle==='function')_dtMemoToggle();
+  }
   else if(a==='dt-detail-toggle'){
+    if(_touchMoved)return;
     const body=document.getElementById('dt-detail-body');
     const chev=document.getElementById('dt-detail-chev');
     const head=el.closest('.dt-section-head')||el;
     if(body){const open=body.style.display==='none';body.style.display=open?'':'none';chev?.classList.toggle('closed',!open);head.classList.toggle('closed',!open);}
   }
   else if(a==='dt-subs-toggle'){
+    if(_touchMoved)return;
     const body=document.getElementById('dt-subs-body');
     const chev=document.getElementById('dt-subs-chev');
     const head=el.closest('.dt-section-head')||el;
     if(body){const open=body.style.display==='none';body.style.display=open?'':'none';chev?.classList.toggle('closed',!open);head.classList.toggle('closed',!open);}
   }
   else if(a==='dt-cm-toggle'){
+    if(_touchMoved)return;
     const body=document.getElementById('dt-cm-body');
     const chev=document.getElementById('dt-cm-chev');
     const head=el.closest('.dt-section-head')||el;
     if(body){const open=body.style.display==='none';body.style.display=open?'':'none';chev?.classList.toggle('closed',!open);head.classList.toggle('closed',!open);}
   }
   else if(a==='dt-sched-toggle'){
+    if(_touchMoved)return;
     const body=document.getElementById('dt-sched-body');
     const chev=document.getElementById('dt-sched-chev');
     const head=el.closest('.dt-section-head')||el;
     if(body){body.classList.toggle('hidden');const nowClosed=body.classList.contains('hidden');chev?.classList.toggle('closed',nowClosed);head.classList.toggle('closed',nowClosed);}
   }
   else if(a==='dt-gantt-toggle'){
+    if(_touchMoved)return;
     const body=document.getElementById('dt-gantt-body');
     const chev=document.getElementById('dt-gantt-chev');
     if(body){body.classList.toggle('hidden');chev?.classList.toggle('closed');}
