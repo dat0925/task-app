@@ -183,10 +183,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .dt-section-head{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:linear-gradient(135deg,#1e1b4b 0%,#312e81 30%,#4f46e5 70%,#6366f1 100%);border:none;cursor:pointer;font-size:12px;font-weight:700;color:#fff;text-align:left;transition:background .2s,color .2s,box-shadow .2s;box-shadow:0 1px 4px rgba(79,70,229,.2)}
 .dt-section-head.closed{background:var(--bg3);color:var(--text2);box-shadow:none}
 .dt-section-head.closed .dt-section-chev{color:var(--text2)}
-.dt-section-head:hover{filter:brightness(1.1)}
-.dt-section-head.closed{background:#64748b;box-shadow:none;filter:none}
-.dt-section-label{display:flex;align-items:center;gap:5px;color:#fff}
-.dt-section-chev{transition:transform .2s ease;display:inline-block;font-size:10px;color:rgba(255,255,255,.8)}
+.dt-section-head.closed .dt-section-label{color:var(--text2)}
+.dt-section-head:hover{filter:brightness(1.05)}
+.dt-section-head.closed:hover{filter:brightness(0.95)}
+.dt-section-label{display:flex;align-items:center;gap:5px;color:inherit}
+.dt-section-chev{transition:transform .2s ease;display:inline-block;font-size:10px;color:inherit;opacity:.8}
 .dt-section-chev.closed{transform:rotate(-90deg)}
 .dt-section-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .dt-section-body.hidden{display:none}
