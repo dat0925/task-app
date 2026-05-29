@@ -192,7 +192,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .dt-section-body.hidden{display:none}
 .dt-subsection-head{width:100%;display:flex;align-items:center;justify-content:space-between;padding:5px 0 4px;background:none;border:none;border-top:1px solid var(--border);cursor:pointer;text-align:left;margin-top:2px}
 .dt-field-row{display:flex;flex-direction:column;gap:0}
-.dt-divider{height:1px;background:var(--border);margin:2px 0}
+.cm-show-all-btn{display:block;width:100%;padding:6px 0;font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;text-align:center;border-top:1px solid var(--border);margin-top:4px}
+.cm-show-all-btn:hover{text-decoration:underline}
 .date-adj-btn:hover{background:var(--bg3);color:var(--text)}
 .date-clr-btn{font-size:13px;padding:2px 7px;border-radius:4px;background:var(--bg);border:1px solid var(--border);color:var(--text3);cursor:pointer;flex-shrink:0;line-height:1.4;touch-action:manipulation;transition:background .15s,color .15s}
 .date-clr-btn:hover{background:var(--bg2);color:var(--text)}
@@ -6305,7 +6306,7 @@ function renderDrawer(){
           })()
         +'</div>';
       })()
-            +'</div>'    +'</div>'+(!task.parentTaskId?'<div class="dt-schedule-block" style="margin-bottom:10px">'      +'<div class="dt-section-head" data-a="dt-subs-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'          +' サブタスク'          +(subs.length?'<span style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">'+subs.length+'件</span>':'')        +'</span>'        +'<span class="dt-section-chev" id="dt-subs-chev">▼</span>'      +'</div>'      +'<div id="dt-subs-body" class="dt-section-body">'        +'<div id="subs">'+subs.sort((a,b)=>a.order-b.order).map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">' +esc(s.title)+'</button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('')+'</div>'        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;margin-bottom:4px"><button class="note-stamp-btn" id="sub-parent-btn" title="親タスクのタイトルを入力欄に挿入">📌 親タスクのタイトル</button></div>'        +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…">'      +'</div>'    +'</div>':'')
+            +'</div>'    +'</div>'+(!task.parentTaskId?'<div class="dt-schedule-block" style="margin-bottom:10px">'      +'<div class="dt-section-head" data-a="dt-subs-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'          +' サブタスク'          +(subs.length?'<span style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">'+subs.length+'件</span>':'')        +'</span>'        +'<span class="dt-section-chev" id="dt-subs-chev">▼</span>'      +'</div>'      +'<div id="dt-subs-body" class="dt-section-body">'        +'<div id="subs">'+(()=>{const actSubs=subs.sort((a,b)=>a.order-b.order).filter(s=>s.status!=='completed');const doneSubs=subs.filter(s=>s.status==='completed');const rs=s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">' +esc(s.title)+'</button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>';let h=actSubs.map(rs).join('');if(doneSubs.length){h+='<button class="cm-show-all-btn" id="subs-done-toggle" style="margin-top:4px">✓ 完了済み '+doneSubs.length+'件を表示</button>';h+='<div id="subs-done-list" style="display:none">'+doneSubs.map(rs).join('')+'</div>';}return h;})()+'</div>'        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;margin-bottom:4px"><button class="note-stamp-btn" id="sub-parent-btn" title="親タスクのタイトルを入力欄に挿入">📌 親タスクのタイトル</button></div>'        +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…">'      +'</div>'    +'</div>':'')
       +'<div class="dt-schedule-block" id="cm-section" data-task-id="'+task.id+'" style="margin-bottom:10px">'      +'<div class="dt-section-head" data-a="dt-cm-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'          +' コメント'          +'<span class="cm-count" id="cm-count" style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">…</span>'        +'</span>'        +'<span class="dt-section-chev" id="dt-cm-chev">▼</span>'      +'</div>'      +'<div id="dt-cm-body" class="dt-section-body">'        +'<div class="cm-list" id="cm-list"><div class="cm-loading">読み込み中…</div></div>'        +'<div style="display:flex;gap:4px;margin-bottom:5px">'          +'<button class="note-stamp-btn" data-a="cm-stamp" data-type="datetimeweek">📅 日時</button>'          +'<button class="note-stamp-btn" id="cm-link-btn">🔗 Link</button>'        +'</div>'        +'<div id="cm-mention-bar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>'        +'<div class="cm-input-row">'          +'<textarea class="cm-textarea" id="cm-input" placeholder="コメントを追加… (Cmd+Enterで送信)" rows="1"></textarea>'          +'<button class="cm-send-btn" id="cm-send" disabled>送信</button>'        +'</div>'      +'</div>'    +'</div>'    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'      +'<div class="muted xs" style="line-height:2">'
           +'<div>作成: '+new Date(task.createdAt).toLocaleString('ja-JP')+' </div>'
           +'<div>更新: '+new Date(task.updatedAt).toLocaleString('ja-JP')+' </div>'
@@ -6652,7 +6653,17 @@ function _cmRenderList(comments){
   if(jumpCount)jumpCount.textContent=n;
   if(!n){list.innerHTML='<div class="cm-loading" style="font-size:12px;color:var(--text3);padding:6px 0">コメントなし</div>';return;}
   const uid=window._currentUser?.id;
-  list.innerHTML=comments.map(c=>{
+  const PREVIEW=3; // デフォルト表示件数
+  const expanded=list._cmExpanded||false;
+  const displayComments=(!expanded&&n>PREVIEW)?comments.slice(-PREVIEW):comments;
+  const hiddenCount=n-PREVIEW;
+
+  let html='';
+  // 折りたたみ中の場合「以前のX件を見る」ボタン
+  if(!expanded&&n>PREVIEW){
+    html+=`<button class="cm-show-all-btn" id="cm-show-all">以前の${hiddenCount}件を見る</button>`;
+  }
+  html+=displayComments.map(c=>{
     const initial=(c.user_name||c.userName||'?').charAt(0).toUpperCase();
     const avatar=c.user_avatar||c.userAvatar
       ?`<img src="${c.user_avatar||c.userAvatar}" onerror="this.style.display='none'">`
@@ -6676,6 +6687,15 @@ function _cmRenderList(comments){
       </div>
     </div>`;
   }).join('');
+  list.innerHTML=html;
+  // 「以前のX件を見る」ボタンのイベント
+  const showAllBtn=list.querySelector('#cm-show-all');
+  if(showAllBtn){
+    showAllBtn.addEventListener('click',()=>{
+      list._cmExpanded=true;
+      _cmRenderList(comments);
+    });
+  }
 }
 
 async function initComments(taskId){
@@ -7962,6 +7982,14 @@ else if(a==='scroll-to-comments'){
   else if(a==='dt-memo-toggle'){
     // _memoSetOpen は renderDrawer 内で定義。グローバルに橋渡し
     if(typeof _dtMemoToggle==='function')_dtMemoToggle();
+  }
+  else if(el.id==='subs-done-toggle'){
+    const doneList=document.getElementById('subs-done-list');
+    if(doneList){
+      const open=doneList.style.display==='none';
+      doneList.style.display=open?'':'none';
+      el.textContent=open?'▲ 完了済みを閉じる':'✓ 完了済み '+doneList.children.length+'件を表示';
+    }
   }
   else if(a==='dt-detail-toggle'){
     const body=document.getElementById('dt-detail-body');
