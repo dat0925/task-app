@@ -5243,12 +5243,13 @@ function renderTaskFilters(){
   const isNextView=S.view==='nextview';
   const isGantt=S.view==='gantt';
   const showStatusBtns=!isForecast&&!isNotes&&!isSearch;
+  const showCompletedBtn=showStatusBtns||isSearch;
   const hasSharedProjs=S.projects.some(p=>p.workspaceId);
   const showSharedBtn=hasSharedProjs&&(S.view==='today'||S.view==='nextview');
   tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
     +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
     +(showStatusBtns?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
-    +(showStatusBtns?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
+    +(showCompletedBtn?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
     +(showSharedBtn?'<button class="toggle-completed-btn'+(S.showShared?' active':'')+'" data-a="quick-filter" data-key="showShared" title="共有プロジェクトのタスクを表示/非表示">共有</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="toggle-completed-btn'+(S.sort==='priority'?' active':'')+'" data-a="quick-sort-priority" title="優先度順に並び替え">優先</button>':'')
@@ -6036,7 +6037,7 @@ function renderSearch(){
 function renderSearchResults(q){
   if(!q)return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
   const ql=q.toLowerCase();
-  let tasks=S.tasks.filter(t=>t.status!=='archived'&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql)));
+  let tasks=S.tasks.filter(t=>t.status!=='archived'&&(S.showCompleted||t.status!=='completed')&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql)));
   if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(t=>S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)));
   let notes=S.notes.filter(n=>(n.title+n.body).toLowerCase().includes(ql));
   if(S.filterTagIds&&S.filterTagIds.length){
