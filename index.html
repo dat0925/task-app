@@ -5254,7 +5254,7 @@ function renderTaskFilters(){
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="toggle-completed-btn'+(S.sort==='priority'?' active':'')+'" data-a="quick-sort-priority" title="優先度順に並び替え">優先</button>':'')
     +(S.view==='project'&&S.projId?'<button class="toggle-completed-btn" data-a="proj-to-gantt" title="このプロジェクトのGanttを表示">'+ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')+'</button>':'')
     +(isNextView&&window._nvHasSubs?'<button class="gantt-scale-btn" data-a="next-expand-all" title="全て展開" style="margin-left:auto">全開</button><button class="gantt-scale-btn" data-a="next-collapse-all" title="全て折りたたむ">全閉</button>':'')
-    +(!isForecast&&!isNotes&&!isSearch&&!isGantt?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode"'+(isNextView&&window._nvHasSubs?'':' style="margin-left:auto"')+'>一括</button>':'');
+    +(!isForecast&&!isNotes&&!isGantt?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode"'+(isNextView&&window._nvHasSubs?'':(isSearch?' style="margin-left:auto"':' style="margin-left:auto"'))+'>一括</button>':'');
 }
 
 function _closeTfPopups(){document.querySelectorAll('.tf-popup,.tf-backdrop').forEach(p=>p.remove());}
@@ -8420,6 +8420,13 @@ else if(a==='scroll-to-comments'){
         if(tasks.length)ids.push(tasks[0].id);
       }
       S.selectedIds=ids;
+    }else if(S.view==='search'){
+      const ql=(S.search||'').toLowerCase();
+      if(ql){
+        S.selectedIds=S.tasks.filter(t=>t.status!=='archived'&&!t.parentTaskId&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql))).map(t=>t.id);
+      }else{
+        S.selectedIds=[];
+      }
     }else{
       S.selectedIds=getTasks().filter(t=>!t.parentTaskId).map(t=>t.id);
     }
