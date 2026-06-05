@@ -5293,6 +5293,10 @@ function openFilterPopup(btn){
         +'<div class="tf-popup-item" data-a="fpop-tag" data-id="">'
           +'<span>すべて（解除）</span><span class="tf-popup-check'+((!S.filterTagIds||!S.filterTagIds.length)?' on':'')+'">✓</span>'
         +'</div>'
+        +(_isNotesOrSearch?'<div class="tf-popup-item" data-a="fpop-tag" data-id="__none__">'
+          +'<span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;display:inline-block"></span>タグなし</span>'
+          +'<span class="tf-popup-check'+(S.filterTagIds&&S.filterTagIds.includes('__none__')?' on':'')+'">✓</span>'
+        +'</div>':'')
         +tags.map(t=>'<div class="tf-popup-item" data-a="fpop-tag" data-id="'+t.id+'">'
           +'<span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:'+t.color+';flex-shrink:0;display:inline-block"></span>'+esc(t.name)+'</span>'
           +'<span class="tf-popup-check'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' on':'')+'">✓</span>'
