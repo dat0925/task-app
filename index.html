@@ -1024,6 +1024,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 let _touchStartY = 0;
 let _drawerClosedAt = 0;
 let _touchMoved = false;
+let _lastFilterClickAt = 0; // フィルタ連打防止
 const SCROLL_THRESHOLD = 8; // px
 
 // ===== LONG PRESS ON TASK/NOTE ROWS =====
@@ -8439,6 +8440,8 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='bulk-desel-all'){S.selectedIds=[];renderTaskFilters();renderContent();}
   else if(a==='quick-filter'){
+    if(_touchMoved)return;
+    const now=Date.now();if(now-_lastFilterClickAt<400)return;_lastFilterClickAt=now;
     const key=el.dataset.key;
     if(key==='hideNotStarted')S.hideNotStarted=!S.hideNotStarted;
     else if(key==='showCompleted')S.showCompleted=!S.showCompleted;
@@ -8446,10 +8449,14 @@ else if(a==='scroll-to-comments'){
     renderTaskFilters();renderContent();
   }
   else if(a==='quick-sort-priority'){
+    if(_touchMoved)return;
+    const now=Date.now();if(now-_lastFilterClickAt<400)return;_lastFilterClickAt=now;
     S.sort=S.sort==='priority'?'order':'priority';
     renderTaskFilters();renderContent();
   }
   else if(a==='quick-sort-due'){
+    if(_touchMoved)return;
+    const now=Date.now();if(now-_lastFilterClickAt<400)return;_lastFilterClickAt=now;
     S.sort=S.sort==='dueAt'?'order':'dueAt';
     renderTaskFilters();renderContent();
   }
