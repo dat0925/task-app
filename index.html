@@ -5884,9 +5884,7 @@ function renderNoteDrawer(){
     +'</div>'
     +'<div class="mob-action-bar">'
       +'<button class="mob-btn mob-btn-del" data-a="note-del" data-id="'+note.id+'">削除</button>'
-      +'<button class="mob-btn mob-btn-ghost" data-a="note-dup" data-id="'+note.id+'">複製</button>'
-      +'<button class="mob-btn mob-btn-ghost" data-a="note-to-task" data-id="'+note.id+'">✅ タスク化</button>'
-      +'<button class="mob-btn mob-btn-ghost" data-a="note-copy-url" data-id="'+note.id+'">🔗 リンクコピー</button>'
+      +'<button class="mob-btn mob-btn-ghost" id="note-more-btn" style="letter-spacing:1px">•••</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-nav-prev" style="font-size:16px">↑</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-nav-next" style="font-size:16px">↓</button>'
       +'<button class="mob-btn-close" data-a="close-note">✕</button>'
@@ -5901,6 +5899,52 @@ function renderNoteDrawer(){
     dr.querySelectorAll('[data-a="note-nav-prev"]').forEach(b=>{if(ci<=0){b.disabled=true;b.style.opacity='0.35';}});
     dr.querySelectorAll('[data-a="note-nav-next"]').forEach(b=>{if(ci>=vn.length-1){b.disabled=true;b.style.opacity='0.35';}});
   })();
+
+  // ••• メニュー（Note詳細）
+  document.getElementById('note-more-btn')?.addEventListener('click',e=>{
+    if(_touchMoved)return;
+    e.stopPropagation();
+    document.getElementById('note-more-menu')?.remove();
+    const menu=document.createElement('div');
+    menu.id='note-more-menu';
+    menu.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:9999;overflow:hidden';
+    const noteUrl=location.origin+location.pathname+'?note='+note.id;
+    const items=[
+      {label:'✅ タスクに変換して削除',action:'note-to-task',id:note.id},
+      {label:'📋 複製する',action:'note-dup',id:note.id},
+      {label:'🔗 NoteのURLをコピー',action:'copy-note-url',id:note.id},
+    ];
+    items.forEach((item,i)=>{
+      const btn=document.createElement('button');
+      btn.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:'+(i===0?'none':'1px solid var(--border)')+';font-size:15px;color:var(--text);text-align:left;cursor:pointer;display:block';
+      btn.textContent=item.label;
+      btn.addEventListener('click',e=>{
+        e.stopPropagation();
+        menu.remove();overlay.remove();
+        if(item.action==='copy-note-url'){
+          navigator.clipboard?.writeText(noteUrl).then(()=>toast('URLをコピーしました')).catch(()=>toast(noteUrl));
+          return;
+        }
+        const dummy=document.createElement('button');
+        dummy.dataset.a=item.action;
+        dummy.dataset.id=item.id;
+        document.body.appendChild(dummy);
+        dummy.click();
+        dummy.remove();
+      });
+      menu.appendChild(btn);
+    });
+    const cancel=document.createElement('button');
+    cancel.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:1px solid var(--border);font-size:15px;color:var(--text3);text-align:center;cursor:pointer;font-weight:600;display:block';
+    cancel.textContent='キャンセル';
+    cancel.addEventListener('click',e=>{e.stopPropagation();menu.remove();overlay.remove();});
+    menu.appendChild(cancel);
+    const overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.3)';
+    overlay.addEventListener('click',()=>{menu.remove();overlay.remove();});
+    document.body.appendChild(overlay);
+    document.body.appendChild(menu);
+  });
 
   // モバイルナビボタン長押しリピート（1秒ごとに移動）
   (()=>{
