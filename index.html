@@ -5885,6 +5885,7 @@ function renderNoteDrawer(){
     +'<div class="mob-action-bar">'
       +'<button class="mob-btn mob-btn-del" data-a="note-del" data-id="'+note.id+'">削除</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-dup" data-id="'+note.id+'">複製</button>'
+      +'<button class="mob-btn mob-btn-ghost" data-a="note-to-task" data-id="'+note.id+'">✅ タスク化</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-copy-url" data-id="'+note.id+'">🔗 リンクコピー</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-nav-prev" style="font-size:16px">↑</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="note-nav-next" style="font-size:16px">↓</button>'
@@ -6343,6 +6344,7 @@ function renderDrawer(){
         ?'<button class="mob-btn mob-btn-complete" data-a="complete-confirm" data-id="'+task.id+'">完了</button>'
         :'<button class="mob-btn mob-btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 戻す</button>')
       +'<button class="mob-btn mob-btn-ghost" data-a="dup" data-id="'+task.id+'">複製</button>'
+      +'<button class="mob-btn mob-btn-ghost" data-a="task-to-note" data-id="'+task.id+'">📝 Note化</button>'
       +'<button class="mob-btn mob-btn-ghost" id="copy-url-btn-mob" style="font-size:14px">🔗</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="task-nav-prev" style="font-size:16px">↑</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="task-nav-next" style="font-size:16px">↓</button>'
@@ -7958,6 +7960,26 @@ else if(a==='scroll-to-comments'){
       );
     }
   }
+  else if(a==='note-to-task'){
+    const note=S.notes.find(n=>n.id===el.dataset.id);
+    if(note){
+      openConfirmModal(
+        'タスクに変換',
+        '"'+(note.title||'無題')+'" をタスクに変換します。\nこのNoteは削除されます。',
+        async()=>{
+          const t=mkTask({title:note.title||'無題',notes:note.body||'',tagIds:[...(note.tagIds||[])],createdAt:note.createdAt,updatedAt:now()});
+          await saveTask(t);
+          await delNote(note.id);
+          S.noteOpen=false;S.noteId=null;
+          S.taskId=t.id;S.drawerOpen=true;
+          S.view='inbox';
+          render();
+          toast('✅ タスクに変換しました');
+        },
+        'タスクに変換',false
+      );
+    }
+  }
   else if(a==='copy-task-notes'){
     const ta=document.getElementById('dt-notes');
     const text=ta?ta.value:'';
@@ -8268,6 +8290,26 @@ else if(a==='scroll-to-comments'){
   else if(a==='dup'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(task){const d=await dupTask(task);S.taskId=d.id;render();}
+  }
+  else if(a==='task-to-note'){
+    const task=S.tasks.find(t=>t.id===el.dataset.id);
+    if(task){
+      openConfirmModal(
+        'Noteに変換',
+        '"'+(task.title||'無題')+'" をNoteに変換します。\nこのタスクは削除されます。',
+        async()=>{
+          const n=mkNote({title:task.title||'無題',body:task.notes||'',tagIds:[...(task.tagIds||[])],createdAt:task.createdAt,updatedAt:now()});
+          await saveNote(n);
+          await delTask(task.id);
+          S.drawerOpen=false;S.taskId=null;
+          S.noteId=n.id;S.noteOpen=true;
+          S.view='notes';
+          render();
+          toast('📝 Noteに変換しました');
+        },
+        'Noteに変換',false
+      );
+    }
   }
   else if(a==='del'){
     const id=el.dataset.id;
