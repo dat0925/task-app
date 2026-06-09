@@ -6343,9 +6343,7 @@ function renderDrawer(){
       +(!done
         ?'<button class="mob-btn mob-btn-complete" data-a="complete-confirm" data-id="'+task.id+'">完了</button>'
         :'<button class="mob-btn mob-btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 戻す</button>')
-      +'<button class="mob-btn mob-btn-ghost" data-a="dup" data-id="'+task.id+'">複製</button>'
-      +'<button class="mob-btn mob-btn-ghost" data-a="task-to-note" data-id="'+task.id+'">📝 Note化</button>'
-      +'<button class="mob-btn mob-btn-ghost" id="copy-url-btn-mob" style="font-size:14px">🔗</button>'
+      +'<button class="mob-btn mob-btn-ghost" id="task-more-btn" style="letter-spacing:1px">•••</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="task-nav-prev" style="font-size:16px">↑</button>'
       +'<button class="mob-btn mob-btn-ghost" data-a="task-nav-next" style="font-size:16px">↓</button>'
       +'<button class="mob-btn-close" data-a="close-drawer">✕</button>'
@@ -6372,7 +6370,51 @@ function renderDrawer(){
     catch(e){const inp=document.createElement('input');inp.value=taskUrl;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();toast('URLをコピーしました 🔗');}
   }
   document.getElementById('copy-url-btn')?.addEventListener('click',copyTaskUrl);
-  document.getElementById('copy-url-btn-mob')?.addEventListener('click',copyTaskUrl);
+
+  // ••• メニュー
+  document.getElementById('task-more-btn')?.addEventListener('click',e=>{
+    if(_touchMoved)return;
+    e.stopPropagation();
+    // 既存メニューがあれば閉じる
+    document.getElementById('task-more-menu')?.remove();
+    const menu=document.createElement('div');
+    menu.id='task-more-menu';
+    menu.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:9999;overflow:hidden';
+    const items=[
+      {label:'📝 Noteに変換して削除',action:'task-to-note',id:task.id},
+      {label:'📋 複製する',action:'dup',id:task.id},
+      {label:'🔗 タスクのURLをコピー',action:'copy-task-url',id:task.id},
+    ];
+    items.forEach((item,i)=>{
+      const btn=document.createElement('button');
+      btn.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:'+(i===0?'none':'1px solid var(--border)')+';font-size:15px;color:var(--text);text-align:left;cursor:pointer;display:block';
+      btn.textContent=item.label;
+      btn.addEventListener('click',e=>{
+        e.stopPropagation();
+        menu.remove();overlay.remove();
+        if(item.action==='copy-task-url'){copyTaskUrl();return;}
+        // data-a経由でhandleAction呼び出し
+        const dummy=document.createElement('button');
+        dummy.dataset.a=item.action;
+        dummy.dataset.id=item.id;
+        document.body.appendChild(dummy);
+        dummy.click();
+        dummy.remove();
+      });
+      menu.appendChild(btn);
+    });
+    // キャンセルボタン
+    const cancel=document.createElement('button');
+    cancel.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:1px solid var(--border);font-size:15px;color:var(--text3);text-align:center;cursor:pointer;font-weight:600;display:block';
+    cancel.textContent='キャンセル';
+    cancel.addEventListener('click',e=>{e.stopPropagation();menu.remove();overlay.remove();});
+    menu.appendChild(cancel);
+    const overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.3)';
+    overlay.addEventListener('click',()=>{menu.remove();overlay.remove();});
+    document.body.appendChild(overlay);
+    document.body.appendChild(menu);
+  });
 
   // モバイルナビボタン長押しリピート（1秒ごとに移動）
   (()=>{
