@@ -180,12 +180,12 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .date-adj-row{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-top:0}
 /* スケジュールアコーディオン */
 .dt-schedule-block{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px}
-.dt-section-head{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:linear-gradient(135deg,#1e1b4b 0%,#312e81 30%,#4f46e5 70%,#6366f1 100%);border:none;cursor:pointer;font-size:12px;font-weight:700;color:#fff;text-align:left;transition:background .2s,color .2s,box-shadow .2s;box-shadow:0 1px 4px rgba(79,70,229,.2)}
+.dt-section-head{-webkit-tap-highlight-color:transparent;user-select:none;width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:linear-gradient(135deg,#1e1b4b 0%,#312e81 30%,#4f46e5 70%,#6366f1 100%);border:none;cursor:pointer;font-size:12px;font-weight:700;color:#fff;text-align:left;transition:background .2s,color .2s,box-shadow .2s;box-shadow:0 1px 4px rgba(79,70,229,.2)}
 .dt-section-head.closed{background:var(--bg3);color:var(--text2);box-shadow:none}
 .dt-section-head.closed .dt-section-chev{color:var(--text2)}
 .dt-section-head.closed .dt-section-label{color:var(--text2)}
-.dt-section-head:hover{filter:brightness(1.05)}
-.dt-section-head.closed:hover{filter:brightness(0.95)}
+@media(pointer:fine){.dt-section-head:hover{filter:brightness(1.05)}.dt-section-head.closed:hover{filter:brightness(0.95)}}
+@media(pointer:coarse){.dt-section-head{-webkit-tap-highlight-color:transparent;}.dt-section-head:active{filter:none!important;background:inherit!important;opacity:1!important;}.dt-section-head button:active,.dt-section-head:active{outline:none;}.nav-label-row:active{filter:none!important;background:inherit!important;opacity:1!important;}}
 .dt-section-label{display:flex;align-items:center;gap:5px;color:inherit}
 .dt-section-chev{transition:transform .2s ease;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:inherit;opacity:.8;padding:10px 10px;margin:-10px -10px}
 .dt-section-chev.closed{transform:rotate(-90deg)}
@@ -510,7 +510,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .proj-section-wrap.collapsed{grid-template-rows:0fr}
 .proj-section-inner{overflow:hidden;min-height:0}
 /* Nav label toggle button */
-.nav-label-row{display:flex;align-items:center;padding:6px 8px;cursor:pointer;user-select:none;background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 30%,#2563eb 70%,#3b82f6 100%);border-radius:6px;margin-bottom:2px;margin-top:8px;border:1px solid rgba(29,78,216,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.18),0 2px 10px rgba(37,99,235,.35)}
+.nav-label-row{-webkit-tap-highlight-color:transparent;display:flex;align-items:center;padding:6px 8px;cursor:pointer;user-select:none;background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 30%,#2563eb 70%,#3b82f6 100%);border-radius:6px;margin-bottom:2px;margin-top:8px;border:1px solid rgba(29,78,216,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.18),0 2px 10px rgba(37,99,235,.35)}
 .nav-label-row .nav-label{padding:0;flex:1;color:#fff;font-weight:600;font-size:11.5px;letter-spacing:.3px}
 .nav-label-row .toggle-chevron{font-size:11px;color:rgba(255,255,255,.75);transition:transform .25s ease;display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:10px 8px;margin:-10px -8px}
 .nav-label-row.collapsed{background:#64748b;box-shadow:none}
