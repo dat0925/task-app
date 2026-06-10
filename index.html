@@ -10603,6 +10603,19 @@ async function init(){
     // 保存済みビューの有効性を検証（削除済みプロジェクト/タグへの参照を除去）
     if(S.view==='project'&&!S.projects.find(p=>p.id===S.projId)){S.view='inbox';S.projId=null;}
     if(S.view==='tag'&&S.tagId!=='__none__'&&!S.tags.find(t=>t.id===S.tagId)){S.view='inbox';S.tagId=null;}
+    // 孤立サブタスクの自動修復（親タスクが存在しないparentTaskIdをnullに）
+    (async()=>{
+      const taskIds=new Set(S.tasks.map(t=>t.id));
+      const orphans=S.tasks.filter(t=>t.parentTaskId&&!taskIds.has(t.parentTaskId));
+      for(const t of orphans){
+        t.parentTaskId=null;
+        await dbPut('tasks',t);
+      }
+      if(orphans.length>0){
+        console.log('[Taskra] 孤立サブタスクを修復:',orphans.length,'件');
+        render();
+      }
+    })().catch(()=>{});
     // ?note= URLパラメータからノートを開く
     const urlP=new URLSearchParams(location.search);
     const noteP=urlP.get('note');
