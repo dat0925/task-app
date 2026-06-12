@@ -4780,14 +4780,14 @@ function renderContent(){
     else{qabar.style.display='';}
   }
 
-  // notes以外ではnoteドロワーを閉じる
-  if(S.view!=='notes'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.style.display='none';dr.classList.remove('open')}}
+  // notes・search以外ではnoteドロワーを閉じる
+  if(S.view!=='notes'&&S.view!=='search'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.style.display='none';dr.classList.remove('open')}}
 
   if(S.view==='dashboard'){el.innerHTML=renderDashboard();attachDashboardEvents();return}
   renderTaskFilters();
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
-  if(S.view==='search'){el.innerHTML=renderSearch();return}
+  if(S.view==='search'){el.innerHTML=renderSearch();renderNoteDrawer();return}
   if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();
     const nc=document.getElementById('note-list-items');if(nc)initNoteSwipe(nc);
     return}
@@ -7991,8 +7991,8 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='note-from-search'){
     const id=el.dataset.id;
-    S.view='notes';S.search='';S.noteId=id;S.noteOpen=true;
-    render();
+    S.noteId=id;S.noteOpen=true;
+    renderNoteDrawer();
   }
   else if(a==='close-note'){S.noteOpen=false;S.noteId=null;renderContent();}
   else if(a==='note-nav-prev'||a==='note-nav-next'){
