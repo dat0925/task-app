@@ -358,7 +358,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .rv-btn{background:var(--green-bg);color:var(--green);border:1.5px solid var(--green);padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer}
 
 /* Modal */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.open{opacity:1;pointer-events:all}
 .modal{background:var(--surface);border-radius:12px;padding:22px;max-width:420px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2)}
 .modal-title{font-size:16px;font-weight:600;margin-bottom:14px}
@@ -1785,7 +1785,7 @@ async function openMyPlan(){
   const ov=document.createElement('div');
   ov.className='overlay';
   ov.innerHTML=
-    '<div class="modal" style="max-width:500px;width:95vw">'
+    '<div class="modal" style="max-width:480px;width:min(95vw,480px);max-height:85vh;overflow-y:auto">'
       +'<div class="modal-title">📋 マイプラン</div>'
       +'<div style="display:flex;flex-direction:column;gap:16px;padding:4px 0 8px">'
 
