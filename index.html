@@ -4788,7 +4788,7 @@ function renderContent(){
   renderTaskFilters();
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='review'){el.innerHTML=renderReview();return}
-  if(S.view==='search'){el.innerHTML=renderSearch();return}
+  if(S.view==='search'){el.innerHTML=renderSearch();if(S.noteOpen)renderNoteDrawer();return}
   if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();
     const nc=document.getElementById('note-list-items');if(nc)initNoteSwipe(nc);
     return}
@@ -7994,9 +7994,7 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='note-from-search'){
     const id=el.dataset.id;
-    const _prevView=S.view; // searchビューを記憶
     S.noteId=id;S.noteOpen=true;
-    // viewとsearchはそのまま維持して検索結果を保持
     renderContent();
   }
   else if(a==='close-note'){
