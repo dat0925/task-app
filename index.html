@@ -7579,7 +7579,7 @@ document.addEventListener('click',async e=>{
   if(!el)return;
   const a=el.dataset.a;
   // 連打防止: date-adj / start-time系 は意図的連打があるので除外
-  const _noDebounce=new Set(['date-adj','start-time-adj','start-time-adj-min','start-time-zero-min','start-time-set','start-time-clear','date-clear']);
+  const _noDebounce=new Set(['date-adj','start-time-adj','start-time-adj-min','start-time-zero-min','start-time-set','start-time-clear','date-clear','close-note','close-drawer']);
   if(!_noDebounce.has(a)){const _now=Date.now();if(_now-_lastActionAt<350)return;_lastActionAt=_now;}
 
   if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}if(el.dataset.v==='search'&&window.innerWidth<=768){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
