@@ -4781,8 +4781,8 @@ function renderContent(){
     else{qabar.style.display='';}
   }
 
-  // notes以外ではnoteドロワーを閉じる
-  if(S.view!=='notes'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.style.display='none';dr.classList.remove('open')}}
+  // notes・search以外ではnoteドロワーを閉じる
+  if(S.view!=='notes'&&S.view!=='search'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.style.display='none';dr.classList.remove('open')}}
 
   if(S.view==='dashboard'){el.innerHTML=renderDashboard();attachDashboardEvents();return}
   renderTaskFilters();
@@ -7994,10 +7994,15 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='note-from-search'){
     const id=el.dataset.id;
-    S.view='notes';S.search='';S.noteId=id;S.noteOpen=true;
-    render();
+    const _prevView=S.view; // searchビューを記憶
+    S.noteId=id;S.noteOpen=true;
+    // viewとsearchはそのまま維持して検索結果を保持
+    renderContent();
   }
-  else if(a==='close-note'){S.noteOpen=false;S.noteId=null;renderContent();}
+  else if(a==='close-note'){
+    S.noteOpen=false;S.noteId=null;
+    renderContent();
+  }
   else if(a==='note-nav-prev'||a==='note-nav-next'){
     const q=(S.noteSearch||'').toLowerCase();
     const sortKey=S.noteSort||'updatedAt';
