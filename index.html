@@ -8005,7 +8005,7 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='close-note'){
     S.noteOpen=false;S.noteId=null;
-    renderContent();
+    renderNoteDrawer();renderContent();
   }
   else if(a==='note-nav-prev'||a==='note-nav-next'){
     const q=(S.noteSearch||'').toLowerCase();
