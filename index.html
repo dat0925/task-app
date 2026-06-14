@@ -4782,7 +4782,7 @@ function renderContent(){
   }
 
   // notes・search以外ではnoteドロワーを閉じる
-  if(S.view!=='notes'&&S.view!=='search'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.style.display='none';dr.classList.remove('open')}}
+  if(S.view!=='notes'&&S.view!=='search'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.style.display='none';dr.classList.remove('open');const _ct3=document.getElementById('content');if(_ct3)_ct3.style.overflow='';}}
 
   if(S.view==='dashboard'){el.innerHTML=renderDashboard();attachDashboardEvents();return}
   renderTaskFilters();
@@ -5825,11 +5825,15 @@ function renderNoteList(){
 
 function renderNoteDrawer(){
   const dr=document.getElementById('drawer');
-  if(!S.noteOpen||!S.noteId){dr.style.display='none';dr.classList.remove('open');return}
+  const _ct2=document.getElementById('content');
+  if(!S.noteOpen||!S.noteId){dr.style.display='none';dr.classList.remove('open');if(_ct2)_ct2.style.overflow='';return}
   const note=S.notes.find(n=>n.id===S.noteId);
-  if(!note){dr.style.display='none';dr.classList.remove('open');return}
+  if(!note){dr.style.display='none';dr.classList.remove('open');if(_ct2)_ct2.style.overflow='';return}
   dr.style.display='flex';
   dr.classList.add('open');
+  // iOSでoverflow:autoがfixed要素のタッチを横取りするバグ対策
+  const _ct=document.getElementById('content');
+  if(_ct)_ct.style.overflow='hidden';
   const noteUrl=location.origin+location.pathname+'?note='+note.id;
   dr.innerHTML=
     '<div class="drawer-head">'
