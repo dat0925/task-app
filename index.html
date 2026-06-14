@@ -10487,6 +10487,9 @@ document.getElementById('ai-input').addEventListener('input',function(){
   document.addEventListener('touchend',function(e){
     const el=e.target.closest('[data-a],[data-k],button');
     if(!el)return;
+    // drawerが開いている時、drawer外の要素をFAST TAPしない
+    const dr=document.getElementById('drawer');
+    if(dr&&dr.classList.contains('open')&&!el.closest('#drawer'))return;
     e.preventDefault();
     if(_ft)return;
     _ft=true;
