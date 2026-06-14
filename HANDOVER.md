@@ -1,6 +1,38 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-06-05
+最終更新: 2026-06-14
+
+---
+
+## ⚠️ 作業開始前に必ず読むこと（事故防止）
+
+### git push前の必須チェック
+
+```bash
+# 必ずpull --rebaseしてからpush
+git pull --rebase
+git push
+```
+
+**やってはいけないこと:**
+- `git pull`なしでいきなり`git push` → リモートの最新コミットを上書き事故が発生する
+- Claudeが別セッションで作業した変更がリモートにある場合、pushが競合で失敗 → `--force`で解決しようとすると最新データが消える
+
+**push失敗時の対応:**
+```bash
+git pull --rebase   # リモートの変更を取り込んでからpush
+git push
+# コンフリクトが出た場合
+git checkout --theirs index.html   # リモート優先で解決（慎重に）
+git add index.html
+git rebase --continue --no-edit
+git push
+```
+
+**再発防止のルール:**
+1. 毎セッション開始時は必ず`git clone`からやり直す（古いローカルを使い回さない）
+2. push直前に`git status` / `git log --oneline -3`で確認する
+3. コンフリクト解決は`--theirs`（リモート優先）を基本とする
 
 ---
 
@@ -83,15 +115,19 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 
 ### 重要な実装ルール
 
-- **日本語テキストを含むファイルの編集**: `str_replace` ツールはマルチバイト文字で失敗する。`python3 -c` インラインスクリプトで `str.replace()` を使うこと
+- **日本語テキストを含むファイルの編集**: `str_replace` ツールはマルチバイト文字で失敗する。`python3 -c` インラインスクリプト（heredocで`/tmp/fix_xxx.py`に書いてから実行）で `str.replace()` を使うこと
 - **Flex コンテナ内のテキスト**: テキストノードを直接 flex child にしない。必ず `<span>` で囲む
 - **LINE内ブラウザ対応**: deep linkには `?openExternalBrowser=1` を付与してSafari/Chromeで開くようにする
 
 ### グローバル状態管理
 
 - `S` オブジェクトに全アプリ状態を集約
-- `_touchMoved` フラグでスクロールとタップを区別
+- `_touchMoved` フラグでスクロールとタップを区別（touchstart でリセット）
+- `_touchStartX` / `_touchStartY` で水平・垂直スワイプを両方検知
+- `_touchTargetIsChev` でtouchstart時にchevron要素かどうかを判定（アコーディオン制御）
 - `_lastFilterClickAt` でフィルタボタンの連打防止（400ms debounce）
+- `_lastActionAt` で全ボタンの連打防止（350ms debounce）
+- `_noDebounce` セット: `date-adj`系・`close-note`・`close-drawer` は連打防止対象外
 
 ### Supabase DBアクセス関数
 
@@ -104,12 +140,69 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 
 ---
 
+## UI仕様（スマホ）
+
+### アコーディオン（サイドバー・タスク詳細）
+
+- スマホ（≤768px）では **▶ chevron部分のタップのみ**で開閉
+- バー全体タップでは開閉しない（誤操作防止）
+- `touchstart`時に `_touchTargetIsChev` を判定して保持し、click時に参照
+- chevronのCSSに `padding:10px` でタップ領域を拡大
+- アコーディオンバーのタップ時の色変化は `pointer:coarse` で無効化済み
+
+### mob-action-bar（タスク詳細・Note詳細）
+
+**タスク詳細:** `削除 / 完了 / ••• / ↑ / ↓ / ✕`
+
+`•••` メニュー内容:
+- 📝 Noteに変換して削除
+- 📋 複製する
+- 🔗 タスクのURLをコピー
+
+**Note詳細:** `削除 / ••• / ↑ / ↓ / ✕`
+
+`•••` メニュー内容:
+- ✅ タスクに変換して削除
+- 📋 複製する
+- 🔗 NoteのURLをコピー
+
+### フィルタバー
+
+現在・完了・共有 の固定ボタンに加え、タグクイックフィルターを追加:
+- `S.tags` から「仕事」「個人」「開発」を名前で検索して動的表示
+- タグが存在しない場合は非表示
+- タップでON/OFF（排他選択・1タグのみ）
+- ONの時はタグカラーでハイライト
+- 削除済み: 優先ボタン・全開/全閉ボタン
+
+---
+
+## Task ↔ Note 相互変換
+
+- **Task→Note**: `•••` メニュー「Noteに変換して削除」→ notes画面に遷移
+  - `title`→`title` / `notes`→`body` / `tagIds`引き継ぎ / タスク削除
+- **Note→Task**: `•••` メニュー「タスクに変換して削除」→ タスク詳細に遷移
+  - `title`→`title` / `body`→`notes` / `tagIds`引き継ぎ / Note削除
+- コメントは引き継がない（仕様）
+- 変換前に確認モーダルあり
+
+---
+
+## Note検索の仕様
+
+- 検索結果からNoteを開いても `S.view='search'` / `S.search` をリセットしない
+- searchビューでも `renderNoteDrawer()` を呼ぶよう `renderContent()` を修正済み
+- 閉じると検索結果一覧に戻る
+- `close-note` は `_noDebounce` 対象（検索結果クリック直後でも確実に閉じられる）
+
+---
+
 ## マイグレーション履歴
 
 | ファイル | 内容 |
 |---|---|
 | `20250513_ai_usage.sql` | AI使用量テーブル |
-| `20260513_enable_rls.sql` | 主要テーブルRLS有効化（tasks/projects/sections/tags/backups/app_settings） |
+| `20260513_enable_rls.sql` | 主要テーブルRLS有効化 |
 | `20260513_user_plans_stripe.sql` | Stripeプラン管理テーブル |
 | `20260514_grant_api_access.sql` | APIアクセス権限設定 |
 | `20260515_task_comments.sql` | タスクコメントテーブル |
@@ -127,6 +220,8 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 - **プッシュ通知**: 過去にJSON stringify/parseミスマッチのバグあり（修正済み）
 - **Google OAuth**: callbackページがないとリダイレクトループが起きる（修正済み）
 - **`user_id=null` レコード**: `importFromIndexedDB` で古いデータを取り込む際に発生しうる。現在はRLSで保護されているが要注意
+- **dt-memo-toggle重複**: 以前ハンドラが2箇所定義されていてチェックなし側が先に実行されるバグがあった（修正済み）
+- **renderContent オーバーライド**: `renderContent` が search機能で `const _origRenderContent = renderContent` としてラップされている。修正時は両方の参照に注意
 
 ---
 
@@ -135,8 +230,8 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 | アプリ | URL | リポジトリ | 概要 |
 |---|---|---|---|
 | Taskra | app.taskra.jp | dat0925/task-app | タスク管理（本リポジトリ） |
-| Flowra | flowra.taskra.jp | — | 家計管理PWA |
-| Tavera | tavera.taskra.jp | — | 食事計画PWA |
+| Flowra | flowra.taskra.jp | dat0925/flowra | 家計管理PWA |
+| Tavera | tavera.taskra.jp | dat0925/tavera | 食事計画PWA |
 | taskra-web | taskra.jp | dat0925/taskra-web | マーケティングサイト |
 
 ---
@@ -144,7 +239,7 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 ## デプロイ手順
 
 ```bash
-# 1. クローン
+# 1. 毎回必ずcloneからやり直す（使い回し禁止）
 git clone https://github.com/dat0925/task-app.git
 cd task-app
 
@@ -152,9 +247,10 @@ cd task-app
 git config user.email "deploy@taskra.jp"
 git config user.name "Taskra Deploy"
 
-# 3. 編集後コミット・プッシュ
-git add .
+# 3. 編集後、必ずpull --rebaseしてからpush
+git add index.html
 git commit -m "feat: 変更内容"
+git pull --rebase   # ← 必須。これを省くと上書き事故が起きる
 git push https://<PAT>@github.com/dat0925/task-app.git main
 ```
 
