@@ -20,7 +20,7 @@ git push
 
 **push失敗時の対応:**
 ```bash
-git pull --rebase   # リモートの変更を取り込んでからpush
+git pull --rebase
 git push
 # コンフリクトが出た場合
 git checkout --theirs index.html   # リモート優先で解決（慎重に）
@@ -33,6 +33,45 @@ git push
 1. 毎セッション開始時は必ず`git clone`からやり直す（古いローカルを使い回さない）
 2. push直前に`git status` / `git log --oneline -3`で確認する
 3. コンフリクト解決は`--theirs`（リモート優先）を基本とする
+
+---
+
+## ⚠️ FAST TAPとdrawerの相互作用（重要）
+
+### 概要
+
+`index.html`末尾付近に **FAST TAP** というグローバルリスナーがある：
+
+```js
+document.addEventListener('touchend', function(e) {
+  const el = e.target.closest('[data-a],[data-k],button');
+  e.preventDefault();
+  el.click(); // touchendで強制click発火
+}, {passive: false});
+```
+
+### 危険なケース
+
+drawerが開いている状態で、drawerの背後にある要素（リスト行など）の上に
+drawerの✕ボタンが重なっている場合：
+
+1. `touchend` → FAST TAPが`e.target`（実際に触れた要素）を取得
+2. drawerの背後の`[data-a]`要素をclick() → 意図しない処理が実行される
+3. その後ブラウザのネイティブclickが来て正しい処理が走るが、順番が逆になる
+
+### 対処済みの修正
+
+```js
+// drawer open時はdrawer外の要素へのFAST TAPを無効化
+const dr = document.getElementById('drawer');
+if (dr && dr.classList.contains('open') && !el.closest('#drawer')) return;
+```
+
+### 教訓
+
+- drawerを新しいビューから開く実装をする時は必ずFAST TAPの影響を考慮する
+- `close-note` / `close-drawer` などの閉じる操作は必ず `renderNoteDrawer()` + `renderContent()` の両方を呼ぶ
+- searchビューでnoteを開いた際に✕が効かない症状が出たらFAST TAPを疑う
 
 ---
 
@@ -138,6 +177,23 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 | `dbPut(table, item)` | upsert（`user_id` を自動付与） |
 | `dbDel(table, id)` | id指定削除 |
 
+### renderContentのオーバーライドに注意
+
+searchビューの入力同期のため、`renderContent`が以下のようにラップされている：
+
+```js
+const _origRenderContent = renderContent;
+renderContent = function() {
+  _origRenderContent();
+  if (S.view === 'search') {
+    const srch = document.getElementById('srch');
+    if (srch && srch.value !== S.search) srch.value = S.search;
+  }
+};
+```
+
+`renderContent`を参照・上書きする修正をする時は両方の参照に注意すること。
+
 ---
 
 ## UI仕様（スマホ）
@@ -191,9 +247,10 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 ## Note検索の仕様
 
 - 検索結果からNoteを開いても `S.view='search'` / `S.search` をリセットしない
-- searchビューでも `renderNoteDrawer()` を呼ぶよう `renderContent()` を修正済み
-- 閉じると検索結果一覧に戻る
+- searchビューでも `if(S.noteOpen)renderNoteDrawer()` を呼ぶよう修正済み
+- `close-note` は `renderNoteDrawer() + renderContent()` の両方を呼ぶ（片方だけでは閉じない）
 - `close-note` は `_noDebounce` 対象（検索結果クリック直後でも確実に閉じられる）
+- 閉じると検索結果一覧に戻る
 
 ---
 
@@ -221,7 +278,7 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 - **Google OAuth**: callbackページがないとリダイレクトループが起きる（修正済み）
 - **`user_id=null` レコード**: `importFromIndexedDB` で古いデータを取り込む際に発生しうる。現在はRLSで保護されているが要注意
 - **dt-memo-toggle重複**: 以前ハンドラが2箇所定義されていてチェックなし側が先に実行されるバグがあった（修正済み）
-- **renderContent オーバーライド**: `renderContent` が search機能で `const _origRenderContent = renderContent` としてラップされている。修正時は両方の参照に注意
+- **FAST TAP × drawer**: drawerが開いている時にFAST TAPがdrawer背後の要素を誤クリックする問題（修正済み・上記セクション参照）
 
 ---
 
