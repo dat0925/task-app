@@ -5080,8 +5080,17 @@ function setupSectionDrag(){
       }
     },{signal:sig});
 
-  } else {
-    // ── モバイル: 長押しタッチドラッグ ──────────────────────
+  }
+
+  // タッチ対応端末（iPadなど）かどうか。iPadは画面幅だけではisMobile=falseになるが、
+  // 直接指でタッチ操作することも多いため、幅に関わらずタッチドラッグも併用できるようにする。
+  // ※直接タッチ時はtouchstartでpreventDefault()するため、ブラウザが合成するmousedownは
+  //   発火しなくなり、上のPC用ドラッグ(mousedown起点)とは競合しない。
+  // ※トラックパッド/マウスのクリックは本物のmousedownなので、引き続き上のPC用ドラッグが
+  //   機能する。
+  const _touchCapable=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+  if(isMobile||_touchCapable){
+    // ── モバイル/タッチ対応端末: 長押しタッチドラッグ ──────────────────────
     let ghost=null,dtype=null,dragId=null,dragSecId=null;
     let startX=0,startY=0,dragging=false,lpTimer=null,activeEl=null;
     const LONG_MS=480,MOVE_LIM=12;

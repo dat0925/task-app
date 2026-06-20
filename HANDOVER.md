@@ -4,6 +4,50 @@
 
 ---
 
+## ⚠️ iPadでタスクの並び替え（ドラッグ）が機能しなくなった（2026-06-20 修正・直前のhover修正の副作用）
+
+### 症状
+
+直前の「2タップ問題」修正（`.nav-item:hover`/`.trow:hover`を`@media(pointer:fine)`で
+ガード）の直後、iPadでタスクのドラッグ並び替えが機能しなくなった。iPhoneは問題なし。
+
+### 原因（直前修正の副作用）
+
+タスクのドラッグ&ドロップは画面幅で完全に実装が分岐していた：
+- `!isMobile`（幅>768px、iPadはここに該当）→ PC用: ネイティブHTML5 Drag&Drop
+  （`.task-drag-handle`への`mousedown`→`draggable=true`→`dragstart`という、
+  マウス操作前提の実装）
+- `isMobile`（幅<=768px、iPhoneはここに該当）→ 長押しタッチドラッグ
+  （`touchstart`/`touchmove`/`touchend`を直接使う、タッチ専用の実装）
+
+iPadは直接指でタッチしていても画面幅だけで「PC」判定されマウス用実装が使われていたが、
+これが動いていたのは、WebKitが「`:hover`で見た目が変わる要素はタッチでも合成mousedown
+イベントを発火する」という挙動に偶然乗っかっていたため。直前の修正で`.trow:hover`を
+`@media(pointer:fine)`配下に移したことで、直接タッチ時にこの合成mousedownが発火しなくなり、
+`mousedown`起点の`draggable=true`設定が行われずドラッグが始まらなくなった
+（2タップ問題とドラッグ問題は同じWebKitの挙動の表裏だった）。
+
+### 修正内容
+
+画面幅ベースの`if(!isMobile){PC実装}else{タッチ実装}`という排他分岐をやめ、
+タッチ対応端末かどうか（`'ontouchstart' in window || navigator.maxTouchPoints>0`）で
+タッチドラッグ実装も独立して有効化するよう変更。iPad（幅>768pxかつタッチ対応）では
+PC用実装とタッチ用実装の両方が有効になり、指で直接ドラッグした場合は長押しタッチドラッグが、
+トラックパッド/マウスでドラッグした場合はネイティブDrag&Dropが、それぞれ適切に動作する。
+タッチ開始時に`touchstart`で`preventDefault()`しているため合成mousedownは発生せず、
+両実装が同時に有効でも競合しない。
+
+### 教訓
+
+- iPadのようなタッチ＋トラックパッド両対応端末を画面幅だけで「PC」「モバイル」に
+  分類するのは危険。入力方式の判定にはタッチ対応の有無（`maxTouchPoints`等）を見るべき。
+- WebKitの「hover CSSがあるとタッチでも合成mousedownを発火する」という挙動は、
+  一見無関係な機能（hoverの見た目）が別の機能（ネイティブdrag&drop）の動作条件に
+  なってしまう典型例。CSSの`:hover`を変更する際は、その要素にmousedown/dragstart等の
+  マウスイベント前提のロジックが乗っていないか必ず確認すること。
+
+---
+
 ## ⚠️ iPadでプロジェクト/タスクが2タップしないと切り替わらない（2026-06-20 修正）
 
 ### 症状
