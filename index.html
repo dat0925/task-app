@@ -10631,6 +10631,35 @@ function waitForSBAndRecover(){
   },2000);
 }
 
+// ===== iOS/iPadOS: input/textareaフォーカス時にページ全体(window)が
+//      意図せず最上部へスクロールしてしまう問題への対策 =====
+// 本アプリは .layout が height:100vh;overflow:hidden 設計のため、
+// window/body レベルのスクロールは常に0であるべき（スクロールは全て
+// .drawer-body や .content など内部の要素が担う）。
+// しかしWebKitは、入れ子のoverflow:autoコンテナ内にあるinput/textareaへ
+// フォーカスした際、ネイティブの「フォーカス要素を可視領域に入れる」処理で
+// 誤ってwindow/body側をスクロールしてしまうことがある。
+// オンスクリーンキーボード使用時はキーボード出現によるレイアウト変化と
+// タイミングが重なって目立たないことがあるが、外部キーボード接続時は
+// オンスクリーンキーボードが出ないためこの誤スクロールがそのまま視認されてしまう
+// （タスク詳細のコメント欄フォーカス時に画面が最上部へ飛ぶ不具合の原因）。
+// 対策: input/textarea/contenteditableへのフォーカスのたびに、
+// window/body/documentElementのスクロール位置を強制的に0へ戻す。
+(function(){
+  function _resetOuterScroll(){
+    if(window.scrollY!==0)window.scrollTo(0,0);
+    if(document.documentElement.scrollTop!==0)document.documentElement.scrollTop=0;
+    if(document.body.scrollTop!==0)document.body.scrollTop=0;
+  }
+  document.addEventListener('focusin',e=>{
+    const t=e.target;
+    if(!t||(t.tagName!=='INPUT'&&t.tagName!=='TEXTAREA'&&!t.isContentEditable))return;
+    _resetOuterScroll();
+    requestAnimationFrame(_resetOuterScroll);
+    setTimeout(_resetOuterScroll,350);
+  },true);
+})();
+
 // ===== INIT =====
 async function init(){
   try{
