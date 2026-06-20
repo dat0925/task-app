@@ -10595,52 +10595,103 @@ document.getElementById('ai-input').addEventListener('input',function(){
 
 
 
+// ===== Supabase接続エラー表示・自動復旧 =====
+// 背景: 以前はSupabase接続待ちが5秒でタイムアウトすると、未接続のまま
+// ローカル限定IndexedDBのdbAll/dbPut/dbDelにフォールバックして起動していた。
+// この間に保存したデータはSupabaseに一切送信されず、次回の同期(loadAll)で
+// サーバー側データに上書きされて消えてしまっていた（iPad→iPhone未反映・データ消失の原因）。
+// 対策として、未接続のまま絶対にデータの読み書きを行わず、接続できるまで待つ。
+function showConnError(){
+  if(document.getElementById('sb-conn-error'))return;
+  const el=document.createElement('div');
+  el.id='sb-conn-error';
+  el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:999;background:#dc2626;color:#fff;'
+    +'padding:10px 14px;padding-top:calc(env(safe-area-inset-top,0px) + 10px);font-size:12.5px;'
+    +'text-align:center;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+  el.textContent='⚠ サーバーに接続できません。電波の良い場所で自動的に再接続を試みています…';
+  document.body.appendChild(el);
+}
+function hideConnError(){
+  const el=document.getElementById('sb-conn-error');
+  if(el)el.remove();
+}
+function waitForSBAndRecover(){
+  if(window._sbRecoverTimer)return; // 二重起動防止
+  window._sbRecoverTimer=setInterval(()=>{
+    if(window._sbReady&&window._SB){
+      clearInterval(window._sbRecoverTimer);
+      window._sbRecoverTimer=null;
+      hideConnError();
+      Promise.all([loadUserPlan(),loadAll(),loadNavOrder()]).then(()=>{
+        seed().catch(()=>{});
+        render();
+        toastTop('再接続しました');
+      }).catch(()=>{});
+    }
+  },2000);
+}
+
 // ===== INIT =====
 async function init(){
   try{
     renderBotNav(); // ボトムナビを即時描画（データロード前）
     // openDB と Supabase待機を並列で開始（どちらも独立して実行可能）
     const dbPromise = openDB();
+    // Supabase接続待ち：最大20秒（モバイル回線の低速時を考慮し5秒から延長）
     const sbPromise = new Promise(res=>{
       if(window._sbReady)return res();
       const t=Date.now();
       const iv=setInterval(()=>{
-        if(window._sbReady||Date.now()-t>5000){clearInterval(iv);res()}
+        if(window._sbReady||Date.now()-t>20000){clearInterval(iv);res()}
       },50);
     });
     await Promise.all([dbPromise, sbPromise]);
-    // loadUserPlan・loadAll・loadNavOrder を並列実行（互いに依存しない）
-    // seed は新規ユーザー用の初期データ挿入で軽量のため先行チェックのみ並列化
-    await Promise.all([
-      loadUserPlan(),
-      loadAll(),
-      loadNavOrder(),
-    ]);
-    // seed は loadAll 後（タスク存在確認が必要なため）、ただし非ブロッキング
-    seed().catch(()=>{});
-    // 招待トークンチェック（ログイン済みの場合はここで即処理）
-    checkInviteToken();
-    const _storedToken=localStorage.getItem('pendingInviteToken');
-    if(_storedToken){
-      localStorage.removeItem('pendingInviteToken');
-      await joinWorkspaceByToken(_storedToken);
+
+    // _sbReady かつ _SB（Supabaseクライアント）が揃って初めて「接続できた」とみなす。
+    // どちらか欠けている状態でloadAll/seed等を実行すると、ローカル限定の
+    // dbAll/dbPut/dbDelやuid未確定のSupabase関数が静かに失敗し、データ消失につながるため、
+    // 接続できるまでは一切データの読み書きを行わない。
+    const sbOk = !!(window._sbReady && window._SB);
+    if(sbOk){
+      hideConnError();
+      // loadUserPlan・loadAll・loadNavOrder を並列実行（互いに依存しない）
+      // seed は新規ユーザー用の初期データ挿入で軽量のため先行チェックのみ並列化
+      await Promise.all([
+        loadUserPlan(),
+        loadAll(),
+        loadNavOrder(),
+      ]);
+      // seed は loadAll 後（タスク存在確認が必要なため）、ただし非ブロッキング
+      seed().catch(()=>{});
+      // 招待トークンチェック（ログイン済みの場合はここで即処理）
+      checkInviteToken();
+      const _storedToken=localStorage.getItem('pendingInviteToken');
+      if(_storedToken){
+        localStorage.removeItem('pendingInviteToken');
+        await joinWorkspaceByToken(_storedToken);
+      }
+      // 保存済みビューの有効性を検証（削除済みプロジェクト/タグへの参照を除去）
+      if(S.view==='project'&&!S.projects.find(p=>p.id===S.projId)){S.view='inbox';S.projId=null;}
+      if(S.view==='tag'&&S.tagId!=='__none__'&&!S.tags.find(t=>t.id===S.tagId)){S.view='inbox';S.tagId=null;}
+      // 孤立サブタスクの自動修復（親タスクが存在しないparentTaskIdをnullに）
+      (async()=>{
+        const taskIds=new Set(S.tasks.map(t=>t.id));
+        const orphans=S.tasks.filter(t=>t.parentTaskId&&!taskIds.has(t.parentTaskId));
+        for(const t of orphans){
+          t.parentTaskId=null;
+          await dbPut('tasks',t);
+        }
+        if(orphans.length>0){
+          console.log('[Taskra] 孤立サブタスクを修復:',orphans.length,'件');
+          render();
+        }
+      })().catch(()=>{});
+    } else {
+      // サーバーに接続できない：データを読み書きせず、エラー表示＋自動再接続待ちに切り替える
+      console.warn('[Taskra] Supabase未接続のためデータ読み込みを保留し、再接続を待ちます');
+      showConnError();
+      waitForSBAndRecover();
     }
-    // 保存済みビューの有効性を検証（削除済みプロジェクト/タグへの参照を除去）
-    if(S.view==='project'&&!S.projects.find(p=>p.id===S.projId)){S.view='inbox';S.projId=null;}
-    if(S.view==='tag'&&S.tagId!=='__none__'&&!S.tags.find(t=>t.id===S.tagId)){S.view='inbox';S.tagId=null;}
-    // 孤立サブタスクの自動修復（親タスクが存在しないparentTaskIdをnullに）
-    (async()=>{
-      const taskIds=new Set(S.tasks.map(t=>t.id));
-      const orphans=S.tasks.filter(t=>t.parentTaskId&&!taskIds.has(t.parentTaskId));
-      for(const t of orphans){
-        t.parentTaskId=null;
-        await dbPut('tasks',t);
-      }
-      if(orphans.length>0){
-        console.log('[Taskra] 孤立サブタスクを修復:',orphans.length,'件');
-        render();
-      }
-    })().catch(()=>{});
     // ?note= URLパラメータからノートを開く
     const urlP=new URLSearchParams(location.search);
     const noteP=urlP.get('note');
@@ -10806,6 +10857,7 @@ init();
 <script>
 (function(){
 async function setupSB(){
+  if(window._sbSetupDone)return; // 既に初期化済みなら何もしない（再試行時の二重リスナー登録防止）
   try{
     const SB=window.supabase.createClient('https://sfhtvtcmgueystyuhzvd.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw');
     window._SB=SB;
@@ -10997,7 +11049,16 @@ async function setupSB(){
       return done;
     };
 
-  }catch(e){console.error('Supabase init failed',e);window._sbReady=true;}
+    window._sbSetupDone=true; // ここまで到達したら正常に初期化完了
+
+  }catch(e){
+    console.error('Supabase init failed',e);
+    // 以前はここで window._sbReady=true としていたが、初期化が失敗しているのに
+    // 「準備完了」と偽の合図を出してしまい、init()側がdbAll/dbPut/dbDelが
+    // Supabaseに繋がっていないまま処理を進めてデータ消失につながっていた。
+    // 失敗時はreadyにせず、数秒後に自動で再試行する（CDN読み込み失敗・回線断などの一時的要因に対応）。
+    setTimeout(setupSB,4000);
+  }
 }
 setupSB();
 })();
