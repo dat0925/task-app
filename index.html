@@ -5469,11 +5469,11 @@ function renderDashboard() {
   const uid = window._currentUser?.id;
 
   // 期限切れ
-  const overdue = S.tasks.filter(t => t.status !== 'completed' && t.dueAt && t.dueAt < today)
+  const overdue = S.tasks.filter(t => t.status !== 'completed' && t.status !== 'archived' && t.dueAt && t.dueAt < today)
     .sort((a, b) => a.dueAt > b.dueAt ? 1 : -1);
 
   // 今日
-  const todayTasks = S.tasks.filter(t => t.status !== 'completed' && t.dueAt === today)
+  const todayTasks = S.tasks.filter(t => t.status !== 'completed' && t.status !== 'archived' && t.dueAt === today)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   // Inbox（status='inbox' かつ サブタスクでないもの）
@@ -5481,11 +5481,11 @@ function renderDashboard() {
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   // 自分が担当のタスク
-  const myTasks = uid ? S.tasks.filter(t => t.status !== 'completed' && t.assigneeId === uid)
+  const myTasks = uid ? S.tasks.filter(t => t.status !== 'completed' && t.status !== 'archived' && t.assigneeId === uid)
     .sort((a, b) => (a.dueAt || '9') > (b.dueAt || '9') ? 1 : -1) : [];
 
   // Flagged
-  const flagged = S.tasks.filter(t => t.status !== 'completed' && t.flagged)
+  const flagged = S.tasks.filter(t => t.status !== 'completed' && t.status !== 'archived' && t.flagged)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   function taskChip(t) {
