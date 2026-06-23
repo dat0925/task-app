@@ -4042,7 +4042,6 @@ function renderSidebar(){
     {v:'dashboard',label:'Dashboard',icon:ICONS.dashboard,sub:'今日・通知・担当タスク'},
     {v:'inbox',label:'Inbox',icon:ICONS.inbox,cnt:c.inbox,sub:'プロジェクト未設定のタスク'},
     {v:'today',label:'Today',icon:ICONS.today,cnt:c.today,sub:'期限が今日のタスク'},
-    {v:'upcoming',label:'Upcoming',icon:ICONS.upcoming,sub:'期限付きタスクのカレンダー'},
     {v:'forecast',label:'Forecast',icon:ICONS.forecast,sub:'2週間先までのタスク一覧'},
     {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged,sub:'フラグを付けたタスク'},
     {v:'assigned',label:'Assigned',icon:ICONS.assigned,cnt:c.assigned,sub:'自分が担当のタスク'},
@@ -4385,7 +4384,6 @@ const ALL_NAV_ITEMS=[
   {v:'dashboard',label:'Dashboard',icon:()=>ICONS.dashboard},
   {v:'inbox',label:'Inbox',icon:()=>ICONS.inbox},
   {v:'today',label:'Today',icon:()=>ICONS.today},
-  {v:'upcoming',label:'Upcoming',icon:()=>ICONS.upcoming},
   {v:'forecast',label:'Forecast',icon:()=>ICONS.forecast},
   {v:'flagged',label:'Flagged',icon:()=>ICONS.flag},
   {v:'review',label:'Review',icon:()=>ICONS.review},
@@ -4424,7 +4422,7 @@ async function loadNavOrder(){
 }
 // ===== PREV/NEXT ナビゲーション =====
 function getNavSequence(){
-  const SYS_VIEWS=['dashboard','inbox','today','upcoming','forecast','flagged','review','nextview','search','notes'];
+  const SYS_VIEWS=['dashboard','inbox','today','forecast','flagged','review','nextview','search','notes'];
   const bnavOrder=getNavOrder().filter(v=>SYS_VIEWS.includes(v));
   const orderedSys=[...bnavOrder,...SYS_VIEWS.filter(v=>!bnavOrder.includes(v))];
   const views=orderedSys.map(v=>({type:'view',v}));
