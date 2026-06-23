@@ -10908,18 +10908,32 @@ async function setupSB(){
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
     // ===== DB操作: user_idでフィルタ =====
     let _lastErrMsg='',_lastErrTs=0;
+    // PostgRESTは1リクエストあたり最大1000行で打ち切られる。タスクが1000件を超えると
+    // 超過分が読み込まれず、検索にも出ず「消えた」ように見える。.range()で全行をページ取得する。
+    const _PAGE=1000;
+    const _pageAll=async(makeQuery)=>{
+      let from=0,out=[];
+      for(;;){
+        const{data,error}=await makeQuery().range(from,from+_PAGE-1);
+        if(error){console.error('SB._pageAll',error);return from===0?null:out;}
+        out=out.concat(data||[]);
+        if(!data||data.length<_PAGE)break;
+        from+=_PAGE;
+      }
+      return out;
+    };
     window.dbAll=async s=>{
       const uid=window._currentUser?.id;
       if(!uid)return[];
-      const{data,error}=await SB.from(s).select('*').eq('user_id',uid);
-      if(error){console.error('SB.dbAll',s,error);return[]}
-      return(data||[]).map(frDB);
+      const rows=await _pageAll(()=>SB.from(s).select('*').eq('user_id',uid).order('id',{ascending:true}));
+      if(rows===null){console.error('SB.dbAll',s,'page fetch failed');return[]}
+      return rows.map(frDB);
     };
     window.dbAllNoFilter=async s=>{
       if(!window._currentUser?.id)return[];
-      const{data,error}=await SB.from(s).select('*');
-      if(error){console.error('SB.dbAllNoFilter',s,error);return[]}
-      return(data||[]).map(frDB);
+      const rows=await _pageAll(()=>SB.from(s).select('*').order('id',{ascending:true}));
+      if(rows===null){console.error('SB.dbAllNoFilter',s,'page fetch failed');return[]}
+      return rows.map(frDB);
     };
     window.dbPut=async(s,i)=>{
       const uid=window._currentUser?.id;
