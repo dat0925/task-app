@@ -2725,7 +2725,7 @@ function getTasks(){
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
-  if(S.hideNotStarted){tasks=tasks.filter(x=>!isNotStartedTask(x))}
+  if(S.hideNotStarted&&S.view!=='inbox'){tasks=tasks.filter(x=>!isNotStartedTask(x))} // Inboxは捕捉・整理用の受信箱なので「現在」フィルタを適用しない（開始日が未来のタスクが消えバッジ件数と不一致になる問題の修正）
   if(!S.showShared&&(S.view==='today')){const spids=new Set(S.projects.filter(p=>p.workspaceId).map(p=>p.id));tasks=tasks.filter(x=>!spids.has(x.projectId));}
   if(S.filterTagIds&&S.filterTagIds.length&&S.view!=='tag')tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
