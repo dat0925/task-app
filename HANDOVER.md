@@ -1,6 +1,39 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-06-20
+最終更新: 2026-06-23
+
+---
+
+## 🚨 Stripe webhook 障害・修正（2026-06-23）
+
+**事象**: Stripeから「taskra-paymentエンドポイントへ9日間連続でエラー」のメールが届き、
+Stripeがエンドポイントを自動無効化した（2026-06-14頃〜）。
+14リクエストが "other errors" で失敗。この間の課金イベントは全て取りこぼされていた。
+
+**根本原因**: `stripe-webhook` Edge Functionが `verify_jwt: true` で設定されていた。
+StripeはSupabase JWTを送れないため、Supabaseミドルウェアが関数本体に到達する前に
+401を返していた（stripe-signature検証すら実行されていなかった）。
+
+**修正内容**（Supabase Edge Function v22→v23）:
+1. `verify_jwt: false` に変更（セキュリティはstripe-signature検証で維持）
+2. `invoice.payment_succeeded` ハンドラを追加
+   → これがないと月次自動更新のたびにプランが維持されない恐れがあった
+
+**対応手順（再発時）**:
+1. Supabase MCPで stripe-webhook を `verify_jwt: false` で再デプロイ
+2. Stripe ダッシュボード → Developers → Webhooks → taskra-payment → 「有効にする」
+3. 「イベントの配信」タブでテストイベントを送って確認
+
+**登録済みイベント**（2026-06-23時点）:
+- `checkout.session.completed`（初回購入）
+- `customer.subscription.created`（サブスク作成）
+- `customer.subscription.updated`（プラン変更）
+- `customer.subscription.deleted`（解約・ダウングレード）
+- `invoice.payment_succeeded`（月次自動更新 ← 今回追加）
+
+**注意**: `verify_jwt` は絶対に `true` に戻さないこと。
+Stripe webhookは公開エンドポイントである必要があり、
+セキュリティはstripe-signatureヘッダーで担保する。
 
 ---
 
