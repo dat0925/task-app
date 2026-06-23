@@ -5218,8 +5218,22 @@ function renderNoteListOnly(){
 function renderList(){
   const showSubsInView=['today','flagged'].includes(S.view);
   const tasks=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId);
-  if(!tasks.length)return renderEmpty();
-  let h='<div class="tlist">';
+  // Completedビュー: アーカイブバナーを先頭に追加
+  let prefix='';
+  if(S.view==='completed'){
+    const allCompleted=S.tasks.filter(t=>t.status==='completed'&&!t.parentTaskId);
+    const cnt=allCompleted.length;
+    const _def=(()=>{const d=new Date();d.setDate(d.getDate()-30);return d.toISOString().slice(0,10);})();
+    prefix='<div id="archive-banner" style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin:10px 12px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text2);flex-wrap:wrap;">'
+      +'<span style="flex:0 0 auto">📦 完了タスク <b style="color:var(--text)">'+cnt+'件</b></span>'
+      +'<span style="flex:0 0 auto;color:var(--text3)">｜</span>'
+      +'<span style="flex:0 0 auto">この日付より前を一括アーカイブ:</span>'
+      +'<input type="date" id="archive-date-input" value="'+_def+'" style="border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);padding:3px 7px;font-size:13px;flex:0 0 auto">'
+      +'<button data-a="do-archive" style="padding:4px 12px;border-radius:6px;background:var(--p1);color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;flex:0 0 auto">アーカイブ実行</button>'
+      +'</div>';
+  }
+  if(!tasks.length)return prefix+renderEmpty();
+  let h=prefix+'<div class="tlist">';
   tasks.forEach(t=>{h+=renderRow(t)});
   h+='</div>';
   return h;
@@ -8580,6 +8594,32 @@ else if(a==='scroll-to-comments'){
   else if(a==='tog-filter-btn'){openFilterPopup(el);}
   else if(a==='tog-sort-btn'){openSortPopup(el);}
   else if(a==='clear-filters'){S.hideNotStarted=false;S.showCompleted=false;S.showShared=true;S.filterTagIds=[];renderTaskFilters();renderContent();}
+  else if(a==='do-archive'){
+    const dateInput=document.getElementById('archive-date-input');
+    const cutoff=dateInput?dateInput.value:null;
+    if(!cutoff){toast('日付を選択してください');return;}
+    // cutoff日（含む）より前に完了したタスクを対象（サブタスクは親と一緒にアーカイブ）
+    const targets=S.tasks.filter(t=>t.status==='completed'&&t.completedAt&&t.completedAt.slice(0,10)<=cutoff);
+    if(!targets.length){toast('アーカイブ対象がありません（'+cutoff+' 以前の完了タスクなし）');return;}
+    const cnt=targets.length;
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">アーカイブの確認</div>'
+      +'<p style="font-size:14px;color:var(--text2);margin:8px 0 16px">'+cutoff+' 以前に完了した <b style="color:var(--text)">'+cnt+'件</b> をアーカイブします。<br>アーカイブしたタスクは一覧から非表示になります（削除ではありません）。</p>'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-primary" id="arch-ok">実行する</button>'
+        +'<button class="btn btn-ghost" id="arch-cancel">キャンセル</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+    ov.querySelector('#arch-cancel').onclick=()=>ov.remove();
+    ov.querySelector('#arch-ok').onclick=async()=>{
+      ov.remove();
+      let done=0;
+      for(const t of targets){t.status='archived';await saveTask(t);done++;}
+      toast(done+'件をアーカイブしました',null);
+      render();
+    };
+  }
   else if(a==='bulk-sel-all'){
     if(S.view==='nextview'){
       const projs=getSortedProjects('active');
