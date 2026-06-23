@@ -6135,7 +6135,7 @@ function renderSearchResults(q){
   if(notes.length){
     h+='<div class="nav-label" style="margin-top:12px">メモ</div>';
     notes.forEach(n=>{
-      h+='<div class="trow" data-a="note-from-search" data-id="'+n.id+'">'
+      h+='<div class="trow" data-a="note-from-search" data-id="'+n.id+'" style="touch-action:pan-y">'
         +'<div class="tbody">'
           +'<div class="ttitle">📝 '+esc(n.title||'無題')+'</div>'
           +'<div class="tmeta" style="font-size:11px;color:var(--text3)">更新: '+fmtDate(n.updatedAt.slice(0,10))+'</div>'
@@ -8019,6 +8019,7 @@ else if(a==='scroll-to-comments'){
     renderContent();
   }
   else if(a==='note-from-search'){
+    if(_touchMoved)return; // スクロール中は開かない（8px以上移動で判定）
     const id=el.dataset.id;
     S.noteId=id;S.noteOpen=true;
     renderContent();
