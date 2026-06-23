@@ -5218,22 +5218,8 @@ function renderNoteListOnly(){
 function renderList(){
   const showSubsInView=['today','flagged'].includes(S.view);
   const tasks=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId);
-  // Completedビュー: アーカイブバナーを先頭に追加
-  let prefix='';
-  if(S.view==='completed'){
-    const allCompleted=S.tasks.filter(t=>t.status==='completed'&&!t.parentTaskId);
-    const cnt=allCompleted.length;
-    const _def=(()=>{const d=new Date();d.setDate(d.getDate()-30);return d.toISOString().slice(0,10);})();
-    prefix='<div id="archive-banner" style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin:10px 12px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text2);flex-wrap:wrap;">'
-      +'<span style="flex:0 0 auto">📦 完了タスク <b style="color:var(--text)">'+cnt+'件</b></span>'
-      +'<span style="flex:0 0 auto;color:var(--text3)">｜</span>'
-      +'<span style="flex:0 0 auto">この日付より前を一括アーカイブ:</span>'
-      +'<input type="date" id="archive-date-input" value="'+_def+'" style="border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);padding:3px 7px;font-size:13px;flex:0 0 auto">'
-      +'<button data-a="do-archive" style="padding:4px 12px;border-radius:6px;background:var(--p1);color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;flex:0 0 auto">アーカイブ実行</button>'
-      +'</div>';
-  }
-  if(!tasks.length)return prefix+renderEmpty();
-  let h=prefix+'<div class="tlist">';
+  if(!tasks.length)return renderEmpty();
+  let h='<div class="tlist">';
   tasks.forEach(t=>{h+=renderRow(t)});
   h+='</div>';
   return h;
@@ -5777,6 +5763,19 @@ function renderReview(){
       h+='<div class="rv-item"><span class="pdot" style="background:'+esc(p.color)+'"></span><span style="flex:1">'+esc(p.name)+'</span><button class="act-btn" data-a="proj-archive" data-id="'+p.id+'">アーカイブ</button></div>';
     });
     h+='</div>';
+  }
+  // 完了タスクの一括アーカイブ
+  const completedCnt=S.tasks.filter(t=>t.status==='completed').length;
+  if(completedCnt>0){
+    const _def=(()=>{const d=new Date();d.setDate(d.getDate()-30);return d.toISOString().slice(0,10);})();
+    h+='<div class="rv-card"><div class="rv-card-head"><span class="rv-card-title">📦 完了タスクのアーカイブ</span><span class="rv-badge" style="background:var(--bg2);color:var(--text2)">'+completedCnt+'件</span></div>'
+      +'<div style="font-size:12px;color:var(--text3);padding:0 12px 8px">指定日より前に完了したタスクを非表示にします。削除ではないのでデータは残ります。</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;padding:4px 12px 12px;flex-wrap:wrap">'
+        +'<span style="font-size:13px;color:var(--text2)">この日付より前:</span>'
+        +'<input type="date" id="archive-date-input" value="'+_def+'" style="border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);padding:4px 8px;font-size:13px">'
+        +'<button data-a="do-archive" style="padding:5px 14px;border-radius:6px;background:var(--p1);color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer">実行</button>'
+      +'</div>'
+      +'</div>';
   }
   if(!overdue.length&&!stale.length&&!rvProjs.length&&!archiveCandidates.length)h+='<div class="empty"><div class="empty-ico">🎉</div><div class="empty-t">完璧です！</div><div class="empty-d">期限切れも停滞タスクもありません</div></div>';
   return h+'</div>';
