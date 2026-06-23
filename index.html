@@ -5270,7 +5270,7 @@ function renderTaskFilters(){
 
   tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
     +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
-    +(showStatusBtns?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
+    +((showStatusBtns&&S.view!=='inbox')?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
     +(showCompletedBtn?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
     +(showSharedBtn?'<button class="toggle-completed-btn'+(S.showShared?' active':'')+'" data-a="quick-filter" data-key="showShared" title="共有プロジェクトのタスクを表示/非表示">共有</button>':'')
     +_qfTags.map(t=>'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' active':'')+' tf-quick-tag" data-a="quick-tag-filter" data-tagid="'+t.id+'" style="'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?'border-color:'+t.color+';color:'+t.color+';background:'+t.color+'22':'')+'">'+t.name+'</button>').join('')
@@ -5303,10 +5303,10 @@ function openFilterPopup(btn){
   const tags=S.tags;
   const _isNotesOrSearch=S.view==='notes'||S.view==='search';
   pop.innerHTML=
-    (!_isNotesOrSearch?'<div class="tf-popup-item" data-a="fpop-toggle" data-key="hideNotStarted">'
+    ((!_isNotesOrSearch&&S.view!=='inbox')?'<div class="tf-popup-item" data-a="fpop-toggle" data-key="hideNotStarted">'
       +'<span>現在（開始前を除外）</span><span class="tf-popup-check'+(S.hideNotStarted?' on':'')+'">✓</span>'
-    +'</div>'
-    +'<div class="tf-popup-item" data-a="fpop-toggle" data-key="showCompleted">'
+    +'</div>':'')
+    +(!_isNotesOrSearch?'<div class="tf-popup-item" data-a="fpop-toggle" data-key="showCompleted">'
       +'<span>完了を表示</span><span class="tf-popup-check'+(S.showCompleted?' on':'')+'">✓</span>'
     +'</div>':'')
     +(tags.length
@@ -10864,6 +10864,7 @@ async function init(){
         _lt=setTimeout(()=>{
           if(_lmoved)return;
           _lt=null;
+          if(S.view==='inbox')return; // Inboxでは「現在」フィルタは無効。長押しでの誤作動（タスクが消えたように見える）を防止
           playSE('toggle');
           S.hideNotStarted=!S.hideNotStarted;
           renderTaskFilters();renderContent();
