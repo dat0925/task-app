@@ -8613,9 +8613,18 @@ else if(a==='scroll-to-comments'){
     ov.querySelector('#arch-cancel').onclick=()=>ov.remove();
     ov.querySelector('#arch-ok').onclick=async()=>{
       ov.remove();
-      let done=0;
-      for(const t of targets){t.status='archived';await saveTask(t);done++;}
-      toast(done+'件をアーカイブしました',null);
+      toast('アーカイブ中…');
+      const ids=targets.map(t=>t.id);
+      const ts=now();
+      // 一括UPDATE: 103件でも1リクエストで完了（個別saveTaskは数十秒かかるため）
+      const SB=window._SB;
+      if(SB&&window._currentUser){
+        await SB.from('tasks').update({status:'archived',updated_at:ts}).in('id',ids);
+      }
+      // メモリ上のS.tasksも同期
+      targets.forEach(t=>{t.status='archived';t.updatedAt=ts;});
+      window._lastSelfSave=Date.now();
+      toast(cnt+'件をアーカイブしました');
       render();
     };
   }
