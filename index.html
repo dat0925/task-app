@@ -1610,6 +1610,10 @@ if('serviceWorker' in navigator){
         }
       },300);
     }
+    // 新しいSWが有効化されたら自動リロード（PWAでキャッシュが古いまま残る問題の対策）
+    if(e.data&&e.data.type==='SW_UPDATED'){
+      window.location.reload();
+    }
   });
 }
 

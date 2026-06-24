@@ -1,5 +1,5 @@
-// Taskra - Service Worker v34 (stale-while-revalidate)
-const CACHE_NAME = 'taskra-v34';
+// Taskra - Service Worker v35 (stale-while-revalidate)
+const CACHE_NAME = 'taskra-v35';
 const CDN_CACHE  = 'taskra-cdn-v33';
 
 // キャッシュするアセット
@@ -35,6 +35,11 @@ self.addEventListener('activate', event => {
             .map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
+    .then(async () => {
+      // 新SWが有効化されたら全クライアントにリロード指示を送る
+      const all = await self.clients.matchAll({ type: 'window' });
+      all.forEach(c => c.postMessage({ type: 'SW_UPDATED' }));
+    })
   );
 });
 
