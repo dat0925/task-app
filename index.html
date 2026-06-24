@@ -1626,6 +1626,7 @@ function showUpgradeModal(feature){
     notes:{title:'ノートの上限に達しました',desc:'現在のプランでは最大'+pd.noteLimit+'件までノートを作成できます。上位プランにアップグレードするとノート数を増やせます。'},
     ai:{title:'AI利用回数の上限に達しました',desc:'今月のAI利用回数が上限（'+pd.aiLimit+'回）に達しました。上位プランにアップグレードすると利用回数が増えます。'},
     repeat:{title:'繰り返しタスク',desc:'繰り返しタスクはスタンダードプラン以上でご利用いただける機能です。'},
+    gantt:{title:'ガントチャート',desc:'ガントチャートはスタンダードプラン以上でご利用いただける機能です。プロジェクトのスケジュールを視覚的に管理できます。'},
   };
   const c=cfg[feature]||{title:feature,desc:'上位プランでご利用いただける機能です。'};
   const _isStd=getUserPlan()==='standard';
@@ -4796,6 +4797,8 @@ function renderContent(){
     return}
   if(S.view==='nextview'){el.innerHTML=renderNextView();renderTaskFilters();initTaskSwipe(el);return}
   if(S.view==='gantt'){
+    // ガントチャートはスタンダードプラン以上（LP記載通りにゲート）
+    if(getPlanDef().taskLimit!==Infinity){showUpgradeModal('gantt');S.view='dashboard';render();return;}
     // スクロール位置を保持してGantt再描画（初回のみ今日へスクロール）
     const _ganttArea=document.getElementById('gantt-area');
     const _isFirstRender=!_ganttArea; // gantt-areaがまだなければ初回
