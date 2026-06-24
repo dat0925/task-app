@@ -7911,7 +7911,7 @@ else if(a==='scroll-to-comments'){
           for(const sub of subs){sub.status='completed';sub.completedAt=now();await saveTask(sub);}
         }
         playSE('complete');
-        if(task.repeatRule&&task.dueAt){
+        if(task.repeatRule&&task.dueAt&&task.status==='completed'){ // status確認: 非同期処理中にundoされていたらnextRepeatしない
           const next=nextRepeat(task);
           if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}
           else toast('"'+task.title+'" 完了 ✓');
@@ -8381,7 +8381,7 @@ else if(a==='scroll-to-comments'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(task){
       task.status='completed';task.completedAt=now();await saveTask(task);
-      if(task.repeatRule&&task.dueAt){const next=nextRepeat(task);if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}}
+      if(task.repeatRule&&task.dueAt&&task.status==='completed'){const next=nextRepeat(task);if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}}
       S.drawerOpen=false;S.taskId=null;render();
     }
   }
@@ -8390,7 +8390,7 @@ else if(a==='scroll-to-comments'){
     if(!task)return;
     openConfirmModal('タスクを完了','"'+(task.title||'無題')+'" を完了にしますか？',async()=>{
       task.status='completed';task.completedAt=now();await saveTask(task);playSE('complete');
-      if(task.repeatRule&&task.dueAt){const next=nextRepeat(task);if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}}
+      if(task.repeatRule&&task.dueAt&&task.status==='completed'){const next=nextRepeat(task);if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}}
       S.drawerOpen=false;S.taskId=null;render();
     },'完了にする',false);
   }
