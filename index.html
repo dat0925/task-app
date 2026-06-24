@@ -6074,6 +6074,7 @@ function renderNextView(){
     const tasks=S.tasks
       .filter(t=>{
         if(t.projectId!==proj.id||t.parentTaskId)return false;
+        if(t.status==='archived')return false; // archivedはNextビューに出さない（getTasks()と同様）
         if(!S.showCompleted&&t.status==='completed')return false;
         if(S.hideNotStarted&&isNotStartedTask(t))return false;
         if(S.filterTagIds&&S.filterTagIds.length&&!S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)))return false;
