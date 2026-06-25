@@ -6298,7 +6298,7 @@ function renderDrawer(){
         +'<button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count" id="cm-jump-count">…</span></button></div>':''
       )
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
-      '<div class="fg"><label class="flabel">優先度</label>'
+      +'<div class="fg"><label class="flabel">優先度</label>'
         +'<div class="pri-grid">'
           +[1,2,3,4].map(p=>'<button class="pbtn'+(task.priority===p?' on':'')+'" data-a="pri" data-p="'+p+'" data-id="'+task.id+'">'+pLabels[p]+'</button>').join('')
         +'</div>'
