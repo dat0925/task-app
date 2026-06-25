@@ -457,6 +457,48 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 | `notify-mention` | メンション通知 |
 | `stripe-portal` | Stripeカスタマーポータル |
 | `stripe-webhook` | Stripe Webhook受信 |
+| `mcp-server` | Claude.ai用 remote MCPサーバー（詳細は次セクション） |
+
+---
+
+## MCP連携（Claude.aiカスタムコネクタでTaskraを操作）
+
+2026-06-26に追加。Claude.aiのチャットから直接Taskraのタスクを追加・更新・完了・削除できる。
+
+### 仕組み（重要：シングルユーザー専用）
+
+- Edge Function `mcp-server`（`supabase/functions/mcp-server/index.ts`）が remote MCP server として動作
+- 認証はOAuthではなく**共有シークレットトークン方式**。Supabase Secretsの`MCP_SECRET_TOKEN`と、接続URLの`?token=`パラメータが一致すれば誰でも操作できてしまう
+- どのSupabaseユーザーのデータを操作するかは`MCP_USER_EMAIL`（Secrets）で**固定**されている。マルチユーザー非対応
+- **このトークンを知っている人は誰でもTaskraのデータを読み書きできる。** パスワードと同じ扱いで、チャットのスクショや公開リポジトリに値そのものを書かないこと（このファイルにも実際の値は書いていない）
+
+### 再接続・初回設定の手順
+
+1. Supabaseダッシュボード → Taskraプロジェクト（`sfhtvtcmgueystyuhzvd`） → Edge Functions → Secrets で以下が設定されていることを確認
+   - `MCP_SECRET_TOKEN`：ランダムな長い文字列（実際の値は1Password/Notion等の非公開先を参照。このリポジトリには書かない）
+   - `MCP_USER_EMAIL`：Taskraにログインしているメールアドレス
+2. Claude.ai（Pro/Max）→ Customize → Connectors → 「＋」→ カスタムコネクタを追加
+3. URLに以下を入力（`<TOKEN>`は上記`MCP_SECRET_TOKEN`の実際の値に置き換える）：
+   ```
+   https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/mcp-server?token=<TOKEN>
+   ```
+4. OAuthのClient ID/Secret欄は空欄でよい
+5. 「追加」→ Taskraコネクタが「未接続」から接続済みに変わればOK
+
+### トークンを失効・再発行したい場合
+
+1. 新しいトークンを生成（例：`python3 -c "import secrets; print(secrets.token_urlsafe(32))"`）
+2. Supabase Secretsの`MCP_SECRET_TOKEN`を新しい値に更新
+3. Claude.aiの既存「Taskra」コネクタを削除し、新トークン入りのURLで再追加（古いURLは無効化される）
+
+### 提供しているツール（`mcp-server/index.ts`内`TOOLS`参照）
+
+`list_tasks` / `add_task` / `update_task`（status指定で完了・未完了・アーカイブも可） / `delete_task` / `add_subtask` / `list_projects` / `add_project` / `list_tags` / `add_tag` / `add_note`
+
+### トラブルシュート
+
+- Claude.ai側で「サインインサービスへの登録ができませんでした」エラー → 大抵はSecrets未設定/値の打ち間違い（`=`や空白が混入するミスが多い）。Supabase:get_logsで`mcp-server`の401が出ていないか確認
+- 動作確認はSupabase MCP（`Supabase:get_logs` service=`edge-function`）でリクエストログを見るのが早い
 
 ---
 
