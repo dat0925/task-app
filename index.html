@@ -10090,6 +10090,16 @@ function aiAddMsg(role,text,actions=[]){
   AI.msgs.push({role,text,actions});
 }
 
+function aiActionLabel(a){
+  if(a.type==='updateTask'&&a.status!==undefined){
+    if(a.status==='completed')return '完了';
+    if(a.status==='archived')return 'アーカイブ';
+    return '未完了に戻す';
+  }
+  const labels={addTask:'タスク追加',deleteTask:'削除',updateTask:'更新',addProject:'プロジェクト追加',addTag:'タグ追加',addNote:'ノート追加',addSubtask:'サブタスク追加'};
+  return labels[a.type]||a.type;
+}
+
 function aiRender(){
   const el=document.getElementById('ai-msgs');
   let h='';
@@ -10099,8 +10109,7 @@ function aiRender(){
     h+='<div class="ai-bubble'+(m.loading?' thinking':'')+'">'+txt+'</div>';
     if(m.actions&&m.actions.length){
       m.actions.forEach(a=>{
-        const labels={addTask:'タスク追加',completeTask:'完了',deleteTask:'削除',updateTask:'更新',addProject:'プロジェクト追加',reactivateTask:'未完了に戻す'};
-        h+='<span class="ai-action-tag">✓ '+(labels[a.type]||a.type)+': '+esc(a.label||'')+'</span>';
+        h+='<span class="ai-action-tag">✓ '+aiActionLabel(a)+': '+esc(a.label||'')+'</span>';
       });
     }
     h+='</div>';
@@ -10142,34 +10151,25 @@ async function aiExecuteActions(actions){
         });
         await saveTask(t);
         done.push({...a,label:a.title});
-      } else if(a.type==='completeTask'){
-        const _ct=a.taskId
-          ?[S.tasks.find(x=>x.id===a.taskId)].filter(Boolean)
-          :a.keyword?S.tasks.filter(x=>x.title&&x.title.includes(a.keyword)&&x.status!=='completed'):[];
-        for(const t of _ct){t.status='completed';t.completedAt=now();await saveTask(t);done.push({...a,label:t.title});}
       } else if(a.type==='deleteTask'){
         const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
         if(t){await delTask(t.id);done.push({...a,label:t.title})}
-      } else if(a.type==='reactivateTask'){
-        const t=a.taskId
-          ?S.tasks.find(x=>x.id===a.taskId&&x.status==='completed')
-          :a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)&&x.status==='completed'):null;
-        if(t){
-          t.status=t.projectId?'active':'inbox';t.completedAt=null;
-          await saveTask(t);done.push({...a,label:t.title});
-        } else {
-          done.push({...a,label:a.keyword||a.taskId||'','error':'対象の完了済みタスクが見つかりません'});
-        }
       } else if(a.type==='updateTask'){
         // keywordまたはidで対象タスクを特定。複数マッチ・id直接指定にも対応
+        // status:'completed'への変更→未完了タスクから探す。status:'completed'以外への変更（完了取り消し）→完了済みタスクから探す
         let targets=[];
         if(a.taskId){
           const t=S.tasks.find(x=>x.id===a.taskId);
           if(t)targets=[t];
         } else if(a.keyword){
+          const reactivating=a.status!==undefined&&a.status!=='completed';
+          const pool=reactivating?S.tasks.filter(x=>x.status==='completed'):S.tasks.filter(x=>x.status!=='completed');
           // 完全一致を優先、なければ部分一致
-          const exact=S.tasks.filter(x=>x.title===a.keyword&&x.status!=='completed');
-          targets=exact.length?exact:S.tasks.filter(x=>x.title&&x.title.includes(a.keyword)&&x.status!=='completed');
+          const exact=pool.filter(x=>x.title===a.keyword);
+          targets=exact.length?exact:pool.filter(x=>x.title&&x.title.includes(a.keyword));
+        }
+        if(!targets.length&&(a.taskId||a.keyword)){
+          done.push({...a,label:a.keyword||a.taskId||'',error:'対象のタスクが見つかりません'});
         }
         for(const t of targets){
           if(!t.tagIds)t.tagIds=[];// tagIds未初期化ガード
@@ -10198,6 +10198,17 @@ async function aiExecuteActions(actions){
               newIds.forEach(id=>{if(!t.tagIds.includes(id))t.tagIds.push(id);});
             } else {
               t.tagIds=newIds;
+            }
+          }
+          // ステータス変更（完了・未完了への復帰・アーカイブ）
+          if(a.status!==undefined){
+            if(a.status==='completed'){
+              t.status='completed';t.completedAt=now();
+            } else if(a.status==='archived'){
+              t.status='archived';
+            } else {
+              t.status=a.status==='inbox'?'inbox':(t.projectId?'active':'inbox');
+              t.completedAt=null;
             }
           }
           await saveTask(t);done.push({...a,label:t.title});
@@ -10317,7 +10328,8 @@ ${JSON.stringify(context,null,2)}
 - タスクのメモ（notes）への追記は append_note フィールドを使う。ノート（Note機能）とは別物
 - 【重要】サブタスク作成時、内容の説明・コツ・参考情報・URLなどを求められた場合は notes フィールドに詳細を記載する。Web検索はできないが、知識の範囲で有用な情報を入れること
 - 「今日/昨日完了にしたタスク」「完了一覧を出して」などの問い合わせには completedTasks（直近14日分）を参照して reply_to_user で一覧をテキスト表示する（タスク名と完了日時を分かりやすく）
-- 「誤って完了にした」「元に戻して」「未完了に戻して」と言われたら reactivate_task ツールを使う。対象はcompletedTasksのidまたはタイトルのkeywordで特定する`;
+- 「誤って完了にした」「元に戻して」「未完了に戻して」と言われたら update_task の status フィールド（active/inbox）を使う。対象はcompletedTasksのidまたはタイトルのkeywordで特定する
+- タスクを完了にする場合も update_task の status:'completed'、アーカイブする場合は status:'archived' を使う（専用ツールはない）`;
 
   // ── ツール定義 ──────────────────────────────────────────
   const tools=[
@@ -10349,23 +10361,12 @@ ${JSON.stringify(context,null,2)}
       },
     },
     {
-      name:'complete_task',
-      description:'タスクを完了にする',
-      input_schema:{
-        type:'object',
-        properties:{
-          task_id:{type:'string',description:'タスクID（推奨）'},
-          keyword:{type:'string',description:'タイトルの一部（task_id不明時）'},
-        },
-      },
-    },
-    {
       name:'update_task',
-      description:'タスクを更新する（タイトル変更・期日変更・タグ追加など）',
+      description:'タスクを更新する（タイトル変更・期日変更・タグ追加・完了/未完了/アーカイブの切り替えなど）',
       input_schema:{
         type:'object',
         properties:{
-          task_id:{type:'string',description:'タスクID（推奨）'},
+          task_id:{type:'string',description:'タスクID（推奨。completedTasksのidも指定可）'},
           keyword:{type:'string',description:'タイトルの一部（task_id不明時）'},
           new_title:{type:'string',description:'新しいタイトル'},
           due_at:{type:'string',description:'新しい期日 YYYY-MM-DD'},
@@ -10374,6 +10375,7 @@ ${JSON.stringify(context,null,2)}
           project_name:{type:'string',description:'プロジェクト名'},
           tag_names:{type:'array',items:{type:'string'},description:'タグ名の配列'},
           append_tags:{type:'boolean',description:'trueなら既存タグに追記、falseなら置換'},
+          status:{type:'string',enum:['active','inbox','completed','archived'],description:'タスクを完了にする場合はcompleted。誤って完了にしたタスクを元に戻す場合はactive（または対象がプロジェクト無しならinbox）。アーカイブする場合はarchived'},
         },
       },
     },
@@ -10384,17 +10386,6 @@ ${JSON.stringify(context,null,2)}
         type:'object',
         properties:{
           task_id:{type:'string',description:'タスクID（推奨）'},
-          keyword:{type:'string',description:'タイトルの一部（task_id不明時）'},
-        },
-      },
-    },
-    {
-      name:'reactivate_task',
-      description:'誤って完了にしてしまったタスクを未完了（アクティブ/Inbox）に戻す。対象はcompletedTasksから探す',
-      input_schema:{
-        type:'object',
-        properties:{
-          task_id:{type:'string',description:'タスクID（推奨。completedTasksのid）'},
           keyword:{type:'string',description:'タイトルの一部（task_id不明時）'},
         },
       },
@@ -10535,8 +10526,6 @@ ${JSON.stringify(context,null,2)}
             projectId:inp.project_name||null,
             tagNames:inp.tag_names||[],
           });
-        } else if(block.name==='complete_task'){
-          actions.push({type:'completeTask',taskId:inp.task_id,keyword:inp.keyword});
         } else if(block.name==='update_task'){
           actions.push({
             type:'updateTask',
@@ -10549,11 +10538,10 @@ ${JSON.stringify(context,null,2)}
             tagNames:inp.tag_names,appendTags:inp.append_tags,
             repeatRule:inp.repeat_rule,
             appendNote:inp.append_note,
+            status:inp.status,
           });
         } else if(block.name==='delete_task'){
           actions.push({type:'deleteTask',taskId:inp.task_id,keyword:inp.keyword});
-        } else if(block.name==='reactivate_task'){
-          actions.push({type:'reactivateTask',taskId:inp.task_id,keyword:inp.keyword});
         } else if(block.name==='add_project'){
           actions.push({type:'addProject',name:inp.name,color:inp.color||'#3b82f6'});
         } else if(block.name==='add_subtask'){
@@ -10586,7 +10574,7 @@ ${JSON.stringify(context,null,2)}
     if(done&&done.length>0){
       const counts={};
       done.forEach(d=>{
-        const label=d.type==='addTask'?'タスク追加':d.type==='completeTask'?'完了':d.type==='updateTask'?'更新':d.type==='deleteTask'?'削除':d.type==='reactivateTask'?'未完了に戻す':d.type==='addProject'?'プロジェクト追加':d.type==='addTag'?'タグ追加':d.type==='addNote'?'ノート追加':d.type==='addSubtask'?'サブタスク追加':d.type;
+        const label=aiActionLabel(d);
         counts[label]=(counts[label]||0)+1;
       });
       const parts=Object.entries(counts).map(([k,v])=>k+' '+v+'件');
