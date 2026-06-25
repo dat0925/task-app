@@ -10724,6 +10724,32 @@ function waitForSBAndRecover(){
   },true);
 })();
 
+// iOS PWA: キーボード出現時にフォーカス中の入力欄がキーボードで隠れる問題の対策
+// visualViewport APIでビューポートの縮小（=キーボード表示）を検知し、
+// フォーカス中の要素をdrawer-body内でスクロールして見える位置に移動する。
+(function(){
+  if(!window.visualViewport)return;
+  let _prevH=window.visualViewport.height;
+  window.visualViewport.addEventListener('resize',()=>{
+    const h=window.visualViewport.height;
+    if(h>=_prevH){_prevH=h;return;} // キーボードが閉じた
+    _prevH=h;
+    const el=document.activeElement;
+    if(!el||(el.tagName!=='INPUT'&&el.tagName!=='TEXTAREA'&&!el.isContentEditable))return;
+    // drawer-bodyが最も近いスクロールコンテナ
+    const container=el.closest('.drawer-body,.expand-modal,.calc-drawer-body,.tlist-wrap');
+    if(!container)return;
+    requestAnimationFrame(()=>{
+      const elRect=el.getBoundingClientRect();
+      const viewBottom=window.visualViewport.offsetTop+h;
+      const gap=24; // 入力欄の下に最低24pxの余白
+      if(elRect.bottom+gap>viewBottom){
+        container.scrollTop+=elRect.bottom+gap-viewBottom;
+      }
+    });
+  });
+})();
+
 // ===== INIT =====
 async function init(){
   try{
