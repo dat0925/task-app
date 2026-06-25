@@ -186,7 +186,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 @media(pointer:fine){.dt-section-head:hover{filter:brightness(1.05)}.dt-section-head.closed:hover{filter:brightness(0.95)}}
 @media(pointer:coarse){.dt-section-head{-webkit-tap-highlight-color:transparent;}.dt-section-head:active{filter:none!important;opacity:1!important;}.dt-section-head button:active,.dt-section-head:active{outline:none;}.nav-label-row:active{filter:none!important;opacity:1!important;}}
 .dt-section-label{display:flex;align-items:center;gap:5px;color:inherit}
-.dt-section-chev{transition:transform .2s ease;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:inherit;opacity:.8;min-width:40px;align-self:stretch;} /* padding/margin負値を廃止：ヘッダー外にタップ判定がはみ出すのを防ぐ */
+.dt-section-chev{transition:transform .25s ease;display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:rgba(255,255,255,.75);opacity:1;padding:0 4px;} /* 左メニューのtoggle-chevronと同じ扱い：視覚インジケーターのみ */
 .dt-section-chev.closed{transform:rotate(-90deg)}
 .dt-section-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .dt-section-body.hidden{display:none}
@@ -8160,13 +8160,11 @@ else if(a==='scroll-to-comments'){
   else if(a==='dt-memo-toggle'){
     if(_touchMoved)return;
     if(window._drawerScrolledRecently&&window._drawerScrolledRecently())return; // 慣性スクロール止めタップ対策
-    if(window.innerWidth<=768&&!_touchTargetIsChev)return;
     if(typeof _dtMemoToggle==='function')_dtMemoToggle();
   }
   else if(a==='dt-detail-toggle'){
     if(_touchMoved)return;
     if(window._drawerScrolledRecently&&window._drawerScrolledRecently())return; // 慣性スクロール止めタップ対策
-    if(window.innerWidth<=768&&!_touchTargetIsChev)return;
     const body=document.getElementById('dt-detail-body');
     const chev=document.getElementById('dt-detail-chev');
     const head=el.closest('.dt-section-head')||el;
@@ -8175,7 +8173,6 @@ else if(a==='scroll-to-comments'){
   else if(a==='dt-subs-toggle'){
     if(_touchMoved)return;
     if(window._drawerScrolledRecently&&window._drawerScrolledRecently())return; // 慣性スクロール止めタップ対策
-    if(window.innerWidth<=768&&!_touchTargetIsChev)return;
     const body=document.getElementById('dt-subs-body');
     const chev=document.getElementById('dt-subs-chev');
     const head=el.closest('.dt-section-head')||el;
@@ -8184,7 +8181,6 @@ else if(a==='scroll-to-comments'){
   else if(a==='dt-cm-toggle'){
     if(_touchMoved)return;
     if(window._drawerScrolledRecently&&window._drawerScrolledRecently())return; // 慣性スクロール止めタップ対策
-    if(window.innerWidth<=768&&!_touchTargetIsChev)return;
     const body=document.getElementById('dt-cm-body');
     const chev=document.getElementById('dt-cm-chev');
     const head=el.closest('.dt-section-head')||el;
@@ -8193,7 +8189,6 @@ else if(a==='scroll-to-comments'){
   else if(a==='dt-sched-toggle'){
     if(_touchMoved)return;
     if(window._drawerScrolledRecently&&window._drawerScrolledRecently())return; // 慣性スクロール止めタップ対策
-    if(window.innerWidth<=768&&!_touchTargetIsChev)return;
     const body=document.getElementById('dt-sched-body');
     const chev=document.getElementById('dt-sched-chev');
     const head=el.closest('.dt-section-head')||el;
@@ -8202,7 +8197,6 @@ else if(a==='scroll-to-comments'){
   else if(a==='dt-gantt-toggle'){
     if(_touchMoved)return;
     if(window._drawerScrolledRecently&&window._drawerScrolledRecently())return; // 慣性スクロール止めタップ対策
-    if(window.innerWidth<=768&&!_touchTargetIsChev)return;
     const body=document.getElementById('dt-gantt-body');
     const chev=document.getElementById('dt-gantt-chev');
     if(body){body.classList.toggle('hidden');chev?.classList.toggle('closed');}
