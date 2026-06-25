@@ -2383,6 +2383,7 @@ function _showAiHelp(btn){
     '<div style="font-weight:700;font-size:13px;margin-bottom:10px">✦ Taskra AI でできること</div>'
     +'<div style="display:flex;flex-direction:column;gap:7px;font-size:12px;line-height:1.6">'
     +'<div><b>✅ タスク操作</b><br>追加・完了・削除・タイトル変更・期日/開始日・時刻・タグ・優先度・フラグ・プロジェクト割当・繰り返し設定・メモ追記・サブタスク追加・一括操作</div>'
+    +'<div><b>📋 完了タスクの確認・取り消し</b><br>「今日完了にしたタスク一覧出して」「誤って完了にしたAを元に戻して」など（直近14日分）</div>'
     +'<div><b>📁 プロジェクト・🏷 タグ</b><br>新規プロジェクト作成・新規タグ作成</div>'
     +'<div><b>📝 ノート</b><br>タイトルと内容を指定して新規ノートを作成</div>'
     +'<div><b>💬 まとめて指示</b><br>「今のビューのタスク全部に仕事タグをつけて」「Next Viewのタスクの開始時間を10時にして」など</div>'
@@ -10098,7 +10099,7 @@ function aiRender(){
     h+='<div class="ai-bubble'+(m.loading?' thinking':'')+'">'+txt+'</div>';
     if(m.actions&&m.actions.length){
       m.actions.forEach(a=>{
-        const labels={addTask:'タスク追加',completeTask:'完了',deleteTask:'削除',updateTask:'更新',addProject:'プロジェクト追加'};
+        const labels={addTask:'タスク追加',completeTask:'完了',deleteTask:'削除',updateTask:'更新',addProject:'プロジェクト追加',reactivateTask:'未完了に戻す'};
         h+='<span class="ai-action-tag">✓ '+(labels[a.type]||a.type)+': '+esc(a.label||'')+'</span>';
       });
     }
@@ -10149,6 +10150,16 @@ async function aiExecuteActions(actions){
       } else if(a.type==='deleteTask'){
         const t=a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)):null;
         if(t){await delTask(t.id);done.push({...a,label:t.title})}
+      } else if(a.type==='reactivateTask'){
+        const t=a.taskId
+          ?S.tasks.find(x=>x.id===a.taskId&&x.status==='completed')
+          :a.keyword?S.tasks.find(x=>x.title&&x.title.includes(a.keyword)&&x.status==='completed'):null;
+        if(t){
+          t.status=t.projectId?'active':'inbox';t.completedAt=null;
+          await saveTask(t);done.push({...a,label:t.title});
+        } else {
+          done.push({...a,label:a.keyword||a.taskId||'','error':'対象の完了済みタスクが見つかりません'});
+        }
       } else if(a.type==='updateTask'){
         // keywordまたはidで対象タスクを特定。複数マッチ・id直接指定にも対応
         let targets=[];
@@ -10252,6 +10263,7 @@ async function aiSend(){
     if(S.view==='tag')return S.tasks.filter(x=>(x.tagIds||[]).includes(S.tagId)&&x.status!=='completed');
     return [];
   })();
+  const _completedSince=(()=>{const d=new Date();d.setDate(d.getDate()-14);return d.toISOString().slice(0,10);})();
   const context={
     currentView:S.view,
     currentViewTasks:_viewTasks.map(t=>({
@@ -10269,6 +10281,15 @@ async function aiSend(){
       project:S.projects.find(p=>p.id===t.projectId)?.name||null,
       tags:(t.tagIds||[]).map(id=>S.tags.find(g=>g.id===id)?.name).filter(Boolean),
     })),
+    // 直近14日間に完了したタスク（「今日完了にしたタスク一覧」「誤って完了にした」等の問い合わせ・取り消しに使う）
+    completedTasks:S.tasks.filter(t=>t.status==='completed'&&t.completedAt&&t.completedAt.slice(0,10)>=_completedSince)
+      .sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||''))
+      .slice(0,80)
+      .map(t=>({
+        id:t.id,title:t.title,completedAt:t.completedAt,
+        project:S.projects.find(p=>p.id===t.projectId)?.name||null,
+        tags:(t.tagIds||[]).map(id=>S.tags.find(g=>g.id===id)?.name).filter(Boolean),
+      })),
     projects:S.projects.filter(p=>p.status==='active').map(p=>({name:p.name,color:p.color})),
     tags:S.tags.map(t=>({name:t.name})),
     today:today(),
@@ -10294,7 +10315,9 @@ ${JSON.stringify(context,null,2)}
 - 【重要】「ノートを追加」「Note追加」「メモを作って」→ 必ず add_note ツールを使う。add_task は絶対に使わない
 - 【重要】add_note の body フィールドには必ずユーザーが指定した内容を入れる。省略しない
 - タスクのメモ（notes）への追記は append_note フィールドを使う。ノート（Note機能）とは別物
-- 【重要】サブタスク作成時、内容の説明・コツ・参考情報・URLなどを求められた場合は notes フィールドに詳細を記載する。Web検索はできないが、知識の範囲で有用な情報を入れること`;
+- 【重要】サブタスク作成時、内容の説明・コツ・参考情報・URLなどを求められた場合は notes フィールドに詳細を記載する。Web検索はできないが、知識の範囲で有用な情報を入れること
+- 「今日/昨日完了にしたタスク」「完了一覧を出して」などの問い合わせには completedTasks（直近14日分）を参照して reply_to_user で一覧をテキスト表示する（タスク名と完了日時を分かりやすく）
+- 「誤って完了にした」「元に戻して」「未完了に戻して」と言われたら reactivate_task ツールを使う。対象はcompletedTasksのidまたはタイトルのkeywordで特定する`;
 
   // ── ツール定義 ──────────────────────────────────────────
   const tools=[
@@ -10361,6 +10384,17 @@ ${JSON.stringify(context,null,2)}
         type:'object',
         properties:{
           task_id:{type:'string',description:'タスクID（推奨）'},
+          keyword:{type:'string',description:'タイトルの一部（task_id不明時）'},
+        },
+      },
+    },
+    {
+      name:'reactivate_task',
+      description:'誤って完了にしてしまったタスクを未完了（アクティブ/Inbox）に戻す。対象はcompletedTasksから探す',
+      input_schema:{
+        type:'object',
+        properties:{
+          task_id:{type:'string',description:'タスクID（推奨。completedTasksのid）'},
           keyword:{type:'string',description:'タイトルの一部（task_id不明時）'},
         },
       },
@@ -10518,6 +10552,8 @@ ${JSON.stringify(context,null,2)}
           });
         } else if(block.name==='delete_task'){
           actions.push({type:'deleteTask',taskId:inp.task_id,keyword:inp.keyword});
+        } else if(block.name==='reactivate_task'){
+          actions.push({type:'reactivateTask',taskId:inp.task_id,keyword:inp.keyword});
         } else if(block.name==='add_project'){
           actions.push({type:'addProject',name:inp.name,color:inp.color||'#3b82f6'});
         } else if(block.name==='add_subtask'){
@@ -10550,7 +10586,7 @@ ${JSON.stringify(context,null,2)}
     if(done&&done.length>0){
       const counts={};
       done.forEach(d=>{
-        const label=d.type==='addTask'?'タスク追加':d.type==='completeTask'?'完了':d.type==='updateTask'?'更新':d.type==='deleteTask'?'削除':d.type==='addProject'?'プロジェクト追加':d.type==='addTag'?'タグ追加':d.type==='addNote'?'ノート追加':d.type==='addSubtask'?'サブタスク追加':d.type;
+        const label=d.type==='addTask'?'タスク追加':d.type==='completeTask'?'完了':d.type==='updateTask'?'更新':d.type==='deleteTask'?'削除':d.type==='reactivateTask'?'未完了に戻す':d.type==='addProject'?'プロジェクト追加':d.type==='addTag'?'タグ追加':d.type==='addNote'?'ノート追加':d.type==='addSubtask'?'サブタスク追加':d.type;
         counts[label]=(counts[label]||0)+1;
       });
       const parts=Object.entries(counts).map(([k,v])=>k+' '+v+'件');
