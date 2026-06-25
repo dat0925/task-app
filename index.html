@@ -377,6 +377,12 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .bnav.on{color:var(--accent)}
 .bnav svg{width:21px;height:21px}
 .bnav-ai{color:#3b82f6}
+.bnav-sidebar{color:var(--text2)}
+/* モバイル: サイドバー(左)・AI(右)を固定フランクとして区切り線で分離 */
+@media(max-width:768px){
+  .bnav-sidebar{border-right:1px solid var(--border);flex-shrink:0}
+  .bnav-ai{border-left:1px solid var(--border);flex-shrink:0}
+}
 /* Prev / Next step buttons */
 .bnav-step{
   flex-shrink:0;width:34px;display:flex;align-items:center;justify-content:center;
@@ -4444,18 +4450,31 @@ function getCurrentNavIdx(seq){
 function renderBotNav(){
   const order=getNavOrder();
   const aiEnabled=getSetting('aiChat',true);
-  const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean).filter(i=>i.special!=='ai'||aiEnabled).filter(i=>i.special!=='edit').filter(i=>i.v!=='gantt');
   const isMobile=window.innerWidth<=768;
-  const inner=items.map(i=>{
+  const mkItem=i=>{
     const isAI=i.special==='ai';
     const isEdit=i.special==='edit';
     const isSidebar=i.special==='sidebar';
     const on=(!isAI&&!isEdit&&!isSidebar&&S.view===i.v)||(isSidebar&&S.sidebarOpen);
-    return'<div class="bnav'+(on?' on':'')+(isAI?' bnav-ai':'')+'" data-a="'+(isAI?'ai-open':isEdit?'nav-edit':isSidebar?'menu':'view')+'"'+((!isAI&&!isEdit&&!isSidebar)?(' data-v="'+i.v+'"'):'')+'>'+i.icon()+'<span>'+i.label+'</span></div>';
-  }).join('');
-  document.getElementById('botnav').innerHTML=isMobile
-    ?'<button class="bnav-step bnav-prev" data-a="nav-prev" aria-label="前へ">‹</button>'+'<div class="bot-nav-inner">'+inner+'</div>'+'<button class="bnav-step bnav-next" data-a="nav-next" aria-label="次へ">›</button>'
-    :'<div class="bot-nav-inner">'+inner+'</div>';
+    return'<div class="bnav'+(on?' on':'')+(isAI?' bnav-ai':'')+(isSidebar?' bnav-sidebar':'')
+      +'" data-a="'+(isAI?'ai-open':isEdit?'nav-edit':isSidebar?'menu':'view')+'"'
+      +((!isAI&&!isEdit&&!isSidebar)?(' data-v="'+i.v+'"'):'')+'>'+i.icon()+'<span>'+i.label+'</span></div>';
+  };
+  if(isMobile){
+    // モバイル: 左固定=サイドバー、右固定=AI、中央=カスタマイズ可能なビュー
+    const sidebarItem=ALL_NAV_ITEMS.find(x=>x.special==='sidebar');
+    const aiItem=ALL_NAV_ITEMS.find(x=>x.special==='ai');
+    const viewItems=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean)
+      .filter(i=>!i.special&&i.v!=='gantt');
+    const leftFixed=sidebarItem?mkItem(sidebarItem):'';
+    const rightFixed=(aiEnabled&&aiItem)?mkItem(aiItem):'';
+    document.getElementById('botnav').innerHTML=
+      leftFixed+'<div class="bot-nav-inner">'+viewItems.map(mkItem).join('')+'</div>'+rightFixed;
+  }else{
+    const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean)
+      .filter(i=>i.special!=='ai'||aiEnabled).filter(i=>i.special!=='edit').filter(i=>i.v!=='gantt');
+    document.getElementById('botnav').innerHTML='<div class="bot-nav-inner">'+items.map(mkItem).join('')+'</div>';
+  }
 }
 function openNavEdit(){
   const ov=document.createElement('div');ov.className='overlay';
