@@ -10234,10 +10234,11 @@ async function aiSend(){
       project:S.projects.find(p=>p.id===t.projectId)?.name||null,
       tags:(t.tagIds||[]).map(id=>S.tags.find(g=>g.id===id)?.name).filter(Boolean),
     })),
-    tasks:S.tasks.filter(t=>t.status!=='completed').map(t=>({
+    tasks:S.tasks.filter(t=>t.status!=='completed'&&t.status!=='archived').slice(0,300).map(t=>({
       id:t.id,title:t.title,status:t.status,priority:t.priority,
       dueAt:t.dueAt,startAt:t.startAt,flagged:t.flagged,
-      repeatRule:t.repeatRule,notes:t.notes,
+      repeatRule:t.repeatRule,
+      notes:t.notes?(t.notes.slice(0,120)+(t.notes.length>120?'…':'')):null,
       project:S.projects.find(p=>p.id===t.projectId)?.name||null,
       tags:(t.tagIds||[]).map(id=>S.tags.find(g=>g.id===id)?.name).filter(Boolean),
     })),
@@ -10425,7 +10426,7 @@ ${JSON.stringify(context,null,2)}
         'Authorization':'Bearer '+session.access_token,
       },
       body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+        model:'claude-sonnet-4-6',
         max_tokens:2048,
         system:systemPrompt,
         messages,
