@@ -479,8 +479,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     padding-bottom:0;
   }
   .toggle-btn-wrap{padding:6px 8px 6px 8px;justify-content:flex-start;gap:4px}
-  .toggle-completed-btn{padding:4px 7px;font-size:11px}
-  #task-filters{flex-wrap:nowrap;overflow-x:auto;padding:4px 8px;gap:3px;scrollbar-width:none}
+  .toggle-completed-btn{padding:3px 10px;font-size:11px}
+  #task-filters{padding:4px 8px;gap:2px}
   #task-filters::-webkit-scrollbar{display:none}
   /* Safe-area padding for action bar on notch phones */
   .mob-action-bar{padding-bottom:calc(7px + env(safe-area-inset-bottom))}
@@ -547,9 +547,9 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 }
 /* Toggle completed button */
 .toggle-btn-wrap{display:flex;align-items:center;justify-content:flex-start;padding:8px 0 8px 0}
-#task-filters{background:var(--bg);padding:4px 16px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;flex-shrink:0;border-bottom:1px solid var(--border)}
-.toggle-completed-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 16px;border-radius:20px;font-size:12px;font-weight:500;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text3);transition:background .08s,color .08s,border-color .08s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none}
-.toggle-completed-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+#task-filters{background:var(--bg);padding:5px 16px;display:flex;align-items:center;gap:4px;flex-wrap:nowrap;flex-shrink:0;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.toggle-completed-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;border:none;background:none;cursor:pointer;color:var(--text2);transition:background .1s,color .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;white-space:nowrap;flex-shrink:0}
+.toggle-completed-btn.active{color:var(--accent);background:var(--accent-bg);font-weight:600}
 .toggle-completed-btn:hover{border-color:var(--text2);color:var(--text2)}
 .toggle-completed-btn:active{opacity:.7}
 /* Search clear button */
@@ -675,9 +675,9 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 /* 一括編集 */
 .trow.bulk-sel{background:var(--accent-bg)!important;outline:1.5px solid var(--accent);border-radius:7px}
 /* フィルタ・並び替えアイコンボタン */
-.tf-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:28px;border-radius:6px;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text3);transition:background .08s,color .08s,border-color .08s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;flex-shrink:0}
+.tf-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:28px;border-radius:6px;border:none;background:none;cursor:pointer;color:var(--text3);transition:background .1s,color .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;flex-shrink:0}
 .tf-icon-btn:hover{border-color:var(--text2);color:var(--text2)}
-.tf-icon-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.tf-icon-btn.active{color:var(--accent);background:var(--accent-bg)}
 .tf-icon-btn:active{opacity:.7}
 /* フィルタ・並び替えポップアップ */
 .tf-popup{position:fixed;z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.18);padding:5px;min-width:180px}
