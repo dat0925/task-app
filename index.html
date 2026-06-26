@@ -2360,10 +2360,16 @@ function parseQA(input){
   if(!r.dueAt){
     const wk=['日','月','火','水','木','金','土'];
     for(let i=0;i<7;i++){
-      if(title.includes(wk[i]+'曜')||title.includes(wk[i])){
+      const dc=wk[i];
+      const inBracket=new RegExp('[（(]'+dc+'[）)]').test(title);
+      const hasYoubi=title.includes(dc+'曜');
+      const hasDayAlone=!inBracket&&title.includes(dc);
+      if(hasYoubi||hasDayAlone){
         const d=new Date(),diff=(i-d.getDay()+7)%7||7;
         d.setDate(d.getDate()+diff);r.dueAt=d.toISOString().slice(0,10);
-        title=title.replace(wk[i]+'曜','').replace(wk[i],'');break;
+        if(hasYoubi){title=title.replace(dc+'曜','');}
+        else{title=title.replace(new RegExp('(?<![（(])'+dc+'(?![）)])'),'');}
+        break;
       }
     }
   }
@@ -2705,6 +2711,11 @@ async function saveNote(n){
   showSaveStatus('saving');try{window._lastSelfSave = Date.now();n.updatedAt=now();await dbPut('notes',n);const i=S.notes.findIndex(x=>x.id===n.id);i>=0?S.notes[i]=n:S.notes.push(n);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id)}
 function mkNote(o={}){return{id:uid(),title:'',body:'',tagIds:[],createdAt:now(),updatedAt:now(),...o}}
+// プロジェクト内の最上部sort_orderを返す
+function topOrderInProject(projId){
+  const orders=S.tasks.filter(x=>x.projectId===projId&&x.status==='active').map(x=>x.order||0);
+  return orders.length>0?Math.min(...orders)-1000:0;
+}
 async function saveTask(t){
   // 文字数チェック
   if((t.title||'').length>CHAR_LIMITS.taskTitle){toast('タスクタイトルは'+CHAR_LIMITS.taskTitle+'文字以内で入力してください');throw new Error('char_limit');}
@@ -6567,6 +6578,14 @@ function renderDrawer(){
       t2.repeatRule=getRepeatRule();
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
 
+      // Inboxからプロジェクトに初めて割り当てられた場合、sort_orderをプロジェクト最上部に設定
+      if(t2.projectId&&!prevProjectId){
+        const sibOrders=S.tasks
+          .filter(x=>x.projectId===t2.projectId&&x.id!==t2.id&&x.status==='active')
+          .map(x=>x.order||0);
+        t2.order=sibOrders.length>0?Math.min(...sibOrders)-1000:0;
+      }
+
       const activeId=document.activeElement?.id;
       const activeInDrawer=document.activeElement?.closest('#drawer,.expand-modal');
       await saveTask(t2);
@@ -7612,7 +7631,8 @@ async function submitQA(){
   const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();
   if(!p.dueAt)p.dueAt=_d3;
   if(!p.startAt)p.startAt=_t;
-  const task=mkTask({...p,status,projectId:p.projectId||(S.view==='project'?S.projId:null)});
+  const _newProjId=p.projectId||(S.view==='project'?S.projId:null);
+  const task=mkTask({...p,status,projectId:_newProjId,order:_newProjId?topOrderInProject(_newProjId):Date.now()});
   await saveTask(task);
   inp.value='';
   document.getElementById('qachips').innerHTML='';
@@ -7652,7 +7672,7 @@ document.addEventListener('click',async e=>{
   if(!_noDebounce.has(a)){const _now=Date.now();if(_now-_lastActionAt<350)return;_lastActionAt=_now;}
 
   if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}if(el.dataset.v==='search'&&window.innerWidth<=768){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
-  else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(a==='proj'&&_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
+  else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='shared-projs-toggle'){playSE('toggle');S.sharedProjsOpen=!S.sharedProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
@@ -7806,7 +7826,8 @@ document.addEventListener('click',async e=>{
   else if(a==='dark'){S.dark=!S.dark;localStorage.setItem('dark',S.dark?'1':'0');render()}
   else if(a==='newtask'){
     if(S.view==='notes'){S.view='inbox';S.noteOpen=false;}
-    const task=mkTask({status:S.view==='project'?'active':'inbox',projectId:S.view==='project'?S.projId:null});
+    const _ntProjId=S.view==='project'?S.projId:null;
+    const task=mkTask({status:S.view==='project'?'active':'inbox',projectId:_ntProjId,order:_ntProjId?topOrderInProject(_ntProjId):Date.now()});
     await saveTask(task);S.taskId=task.id;S.drawerOpen=true;render();
     setTimeout(()=>document.getElementById('dt-title')?.focus(),50);
   }
@@ -10293,6 +10314,7 @@ async function aiSend(){
       id:t.id,title:t.title,status:t.status,priority:t.priority,
       dueAt:t.dueAt,startAt:t.startAt,flagged:t.flagged,
       repeatRule:t.repeatRule,
+      parentTaskId:t.parentTaskId||null,
       notes:t.notes?(t.notes.slice(0,120)+(t.notes.length>120?'…':'')):null,
       project:S.projects.find(p=>p.id===t.projectId)?.name||null,
       tags:(t.tagIds||[]).map(id=>S.tags.find(g=>g.id===id)?.name).filter(Boolean),
@@ -10334,7 +10356,9 @@ ${JSON.stringify(context,null,2)}
 - 【重要】サブタスク作成時、内容の説明・コツ・参考情報・URLなどを求められた場合は notes フィールドに詳細を記載する。Web検索はできないが、知識の範囲で有用な情報を入れること
 - 「今日/昨日完了にしたタスク」「完了一覧を出して」などの問い合わせには completedTasks（直近14日分）を参照して reply_to_user で一覧をテキスト表示する（タスク名と完了日時を分かりやすく）
 - 「誤って完了にした」「元に戻して」「未完了に戻して」と言われたら update_task の status フィールド（active/inbox）を使う。対象はcompletedTasksのidまたはタイトルのkeywordで特定する
-- タスクを完了にする場合も update_task の status:'completed'、アーカイブする場合は status:'archived' を使う（専用ツールはない）`;
+- タスクを完了にする場合も update_task の status:'completed'、アーカイブする場合は status:'archived' を使う（専用ツールはない）
+- 【重要】サブタスクの更新（開始日・期日・タイトル・優先度など変更）も update_task を使う。tasks の中で parentTaskId が設定されているものがサブタスク。task_id にサブタスク自身の id を指定すること
+- 「〇〇のサブタスクの開始日を〜に」という指示はサブタスクへの update_task。tasks から parentTaskId が設定されかつタイトルが一致するものを探す`;
 
   // ── ツール定義 ──────────────────────────────────────────
   const tools=[
@@ -10367,7 +10391,7 @@ ${JSON.stringify(context,null,2)}
     },
     {
       name:'update_task',
-      description:'タスクを更新する（タイトル変更・期日変更・タグ追加・完了/未完了/アーカイブの切り替えなど）',
+      description:'タスクを更新する（タイトル変更・期日変更・開始日変更・タグ追加・完了/未完了/アーカイブの切り替えなど）。サブタスク（parentTaskIdが設定されたタスク）の更新にも使う',
       input_schema:{
         type:'object',
         properties:{
@@ -10649,6 +10673,8 @@ document.getElementById('ai-input').addEventListener('input',function(){
     // drawerが開いている時、drawer外の要素をFAST TAPしない
     const dr=document.getElementById('drawer');
     if(dr&&dr.classList.contains('open')&&!el.closest('#drawer'))return;
+    // スワイプ中はproj-nav-chipのFAST TAPをキャンセル（誤タップ防止）
+    if(_touchMoved&&el.dataset.a==='go-proj')return;
     e.preventDefault();
     if(_ft)return;
     _ft=true;
