@@ -5299,7 +5299,7 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-cancel" style="margin-left:auto;border-color:var(--p1);color:var(--p1)">✕ 終了</button>';
     return;
   }
-  const filterOn=S.hideNotStarted||S.showCompleted||!!(S.filterTagIds&&S.filterTagIds.length)||!S.showShared;
+  const filterOn=S.hideNotStarted||!!(S.filterTagIds&&S.filterTagIds.length)||!S.showShared;
   const sortOn=S.sort!=='order';
   const ICON_FILTER='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
   const ICON_SORT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 6h13M8 12h9M8 18h5"/><polyline points="3 6 3 3 6 3"/><polyline points="3 18 3 21 6 21"/></svg>';
@@ -5310,7 +5310,6 @@ function renderTaskFilters(){
   const isGantt=S.view==='gantt';
   const isCompletedView=S.view==='completed';
   const showStatusBtns=!isForecast&&!isNotes&&!isSearch&&!isCompletedView;
-  const showCompletedBtn=showStatusBtns||isSearch;
   const hasSharedProjs=S.projects.some(p=>p.workspaceId);
   const showSharedBtn=hasSharedProjs&&(S.view==='today'||S.view==='nextview');
   const _qfTagNames=['仕事','個人','開発'];
@@ -5319,7 +5318,6 @@ function renderTaskFilters(){
   tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
     +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
     +((showStatusBtns&&S.view!=='inbox')?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
-    +(showCompletedBtn?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
     +(showSharedBtn?'<button class="toggle-completed-btn'+(S.showShared?' active':'')+'" data-a="quick-filter" data-key="showShared" title="共有プロジェクトのタスクを表示/非表示">共有</button>':'')
     +_qfTags.map(t=>'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' active':'')+' tf-quick-tag" data-a="quick-tag-filter" data-tagid="'+t.id+'" style="'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?'border-color:'+t.color+';color:'+t.color+';background:'+t.color+'22':'')+'">'+t.name+'</button>').join('')
     +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt&&!isCompletedView?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
