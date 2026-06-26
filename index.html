@@ -2360,10 +2360,19 @@ function parseQA(input){
   if(!r.dueAt){
     const wk=['日','月','火','水','木','金','土'];
     for(let i=0;i<7;i++){
-      if(title.includes(wk[i]+'曜')||title.includes(wk[i])){
+      const dc=wk[i];
+      // 全角/半角括弧内の曜日はタイトルの一部として扱い、日付解釈しない
+      // 例: 「7/8（火）9（水）」の（火）（水）はそのまま保持
+      const inBracket=new RegExp('[（(]'+dc+'[）)]').test(title);
+      const hasYoubi=title.includes(dc+'曜');
+      const hasDayAlone=!inBracket&&title.includes(dc);
+      if(hasYoubi||hasDayAlone){
         const d=new Date(),diff=(i-d.getDay()+7)%7||7;
         d.setDate(d.getDate()+diff);r.dueAt=d.toISOString().slice(0,10);
-        title=title.replace(wk[i]+'曜','').replace(wk[i],'');break;
+        // 「〇曜」を優先的に除去。単体曜日は括弧なしのものだけ除去
+        if(hasYoubi){title=title.replace(dc+'曜','');}
+        else{title=title.replace(new RegExp('(?<![（(])'+dc+'(?![）)])','');}
+        break;
       }
     }
   }
