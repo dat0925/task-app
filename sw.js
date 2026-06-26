@@ -1,5 +1,5 @@
-// Taskra - Service Worker v51 (network-first for app shell)
-const CACHE_NAME = 'taskra-v51';
+// Taskra - Service Worker v50 (stale-while-revalidate)
+const CACHE_NAME = 'taskra-v50';
 const CDN_CACHE  = 'taskra-cdn-v33';
 
 // キャッシュするアセット
@@ -19,7 +19,7 @@ self.addEventListener('install', event => {
       ),
       caches.open(CDN_CACHE).then(c =>
         Promise.all(CDN_ASSETS.map(url =>
-          c.add(url).catch(() => {})
+          c.add(url).catch(() => {}) // CDN失敗しても続行
         ))
       ),
     ])
@@ -69,20 +69,18 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // index.html / アプリ本体 → network-first
-  // ネットワークから最新版を取得、失敗時のみキャッシュにフォールバック
+  // index.html / アプリ本体 → stale-while-revalidate
+  // キャッシュから即座に返しつつ、バックグラウンドで更新
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.open(CACHE_NAME).then(async cache => {
-        try {
-          const fresh = await fetch(event.request);
+        const cached = await cache.match(event.request);
+        const fetchPromise = fetch(event.request).then(fresh => {
           if (fresh.ok) cache.put(event.request, fresh.clone());
           return fresh;
-        } catch {
-          // オフライン時はキャッシュから
-          const cached = await cache.match(event.request);
-          return cached || new Response('offline', {status: 503});
-        }
+        }).catch(() => null);
+
+        return cached || fetchPromise; // キャッシュがあれば即返す
       })
     );
     return;
