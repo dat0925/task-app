@@ -1040,6 +1040,7 @@ let _touchStartY = 0;
 let _touchStartX = 0;
 let _drawerClosedAt = 0;
 let _touchMoved = false;
+let _tappingView = null;
 let _clickTarget = null; // クリックのe.target保持（アコーディオン制御用）
 let _touchTargetIsChev = false; // touchstart時にchevronをタップしたか
 let _lastFilterClickAt = 0; // フィルタ連打防止
@@ -4099,7 +4100,7 @@ function renderSidebar(){
   h+='<div class="proj-section-wrap'+(viewsOpen?'':' collapsed')+'" id="views-section-wrap">'
     +'<div class="proj-section-inner">';
   navItems.forEach(n=>{
-    h+='<div class="nav-item'+(S.view===n.v?' on':'')+'" data-a="view" data-v="'+n.v+'">'
+    h+='<div class="nav-item'+(S.view===n.v?' on':'')+(_tappingView===n.v?' tapping':'')+'" data-a="view" data-v="'+n.v+'">'
       +n.icon+'<div style="display:flex;flex-direction:column;gap:0px"><span>'+n.label+'</span>'+(n.sub?'<span style="font-size:10px;color:var(--text3);font-weight:400;line-height:1.2">'+n.sub+'</span>':'')+' </div>'
       +(n.cnt?'<span class="badge">'+n.cnt+'</span>':'')+
     '</div>';
@@ -7667,7 +7668,7 @@ document.addEventListener('click',async e=>{
   const _noDebounce=new Set(['date-adj','start-time-adj','start-time-adj-min','start-time-zero-min','start-time-set','start-time-clear','date-clear','close-note','close-drawer']);
   if(!_noDebounce.has(a)){const _now=Date.now();if(_now-_lastActionAt<350)return;_lastActionAt=_now;}
 
-  if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob){playSE('toggle');el.classList.add('tapping');if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{el.classList.remove('tapping');S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
+  if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob){playSE('toggle');_tappingView=el.dataset.v;if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{_tappingView=null;S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
   else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
