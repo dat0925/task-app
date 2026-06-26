@@ -68,6 +68,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:13.5px;color:var(--text2);transition:background .15s,color .15s;user-select:none}
 @media(pointer:fine){.nav-item:hover{background:var(--bg3);color:var(--text)}}
 .nav-item.on{background:var(--surface);color:var(--text);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.nav-item.tapping{background:var(--accent-bg)!important;transition:background 0s!important}
 .nav-label{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);padding:10px 8px 3px}
 .badge{margin-left:auto;font-size:11px;color:var(--text3);background:var(--bg3);padding:1px 6px;border-radius:10px}
 .nav-item.on .badge{background:var(--accent-bg);color:var(--accent)}
@@ -7666,7 +7667,7 @@ document.addEventListener('click',async e=>{
   const _noDebounce=new Set(['date-adj','start-time-adj','start-time-adj-min','start-time-zero-min','start-time-set','start-time-clear','date-clear','close-note','close-drawer']);
   if(!_noDebounce.has(a)){const _now=Date.now();if(_now-_lastActionAt<350)return;_lastActionAt=_now;}
 
-  if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}if(el.dataset.v==='search'&&window.innerWidth<=768){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
+  if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400){el.classList.add('tapping');setTimeout(()=>{S.sidebarOpen=false;render();if(el.dataset.v==='search'){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}},120);return;}}if(el.dataset.v==='search'&&window.innerWidth<=768){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
   else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
