@@ -2745,9 +2745,11 @@ function getTasks(){
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
   if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
-  if(S.hideNotStarted&&S.view!=='inbox'){tasks=tasks.filter(x=>!isNotStartedTask(x))} // Inboxは捕捉・整理用の受信箱なので「現在」フィルタを適用しない（開始日が未来のタスクが消えバッジ件数と不一致になる問題の修正）
+  if(S.hideNotStarted&&S.view!=='inbox'&&S.view!=='completed'){tasks=tasks.filter(x=>!isNotStartedTask(x))} // Inboxは捕捉・整理用の受信箱なので「現在」フィルタを適用しない（開始日が未来のタスクが消えバッジ件数と不一致になる問題の修正）
   if(!S.showShared&&(S.view==='today')){const spids=new Set(S.projects.filter(p=>p.workspaceId).map(p=>p.id));tasks=tasks.filter(x=>!spids.has(x.projectId));}
   if(S.filterTagIds&&S.filterTagIds.length&&S.view!=='tag')tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
+  // Logbook（完了済み一覧）は常に「最近完了した順」固定。他ビューでの並び替え設定の影響を受けない
+  if(S.view==='completed')return tasks.sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||''));
   if(S.sort==='updated') return tasks.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   if(S.sort==='startAt') return tasks.sort((a,b)=>{if(!a.startAt&&!b.startAt)return 0;if(!a.startAt)return 1;if(!b.startAt)return -1;return a.startAt.localeCompare(b.startAt);});
   if(S.sort==='priority') return tasks.sort((a,b)=>(a.priority||4)-(b.priority||4));
@@ -3971,10 +3973,10 @@ const VIEW_HELP={
     conds:['選択したタグが付いたタスクのみ表示','プロジェクト・ビューをまたいで集約']
   },
   completed:{
-    name:'Completed',
+    name:'Logbook',
     colorBg:'var(--green-bg)',colorFg:'var(--green)',
-    desc:'完了済みタスクのアーカイブです。過去の作業履歴を確認したり、完了タスクを元に戻したりできます。',
-    conds:['ステータスが「完了」のタスクのみ表示']
+    desc:'完了済みタスクのアーカイブです。過去の作業履歴を確認したり、誤って完了にしたタスクを元に戻したりできます。',
+    conds:['ステータスが「完了」のタスクのみ表示・最近完了した順','チェックマークをもう一度タップすると未完了に戻る']
   },
   nextview:{
     name:'Next',
@@ -4066,6 +4068,7 @@ function renderSidebar(){
     {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged,sub:'フラグを付けたタスク'},
     {v:'assigned',label:'Assigned',icon:ICONS.assigned,cnt:c.assigned,sub:'自分が担当のタスク'},
     {v:'review',label:'Review',icon:ICONS.review,sub:'停滞・期限切れを定期チェック'},
+    {v:'completed',label:'Logbook',icon:ICONS.check,sub:'完了済みタスクの履歴・取り消し'},
     {v:'nextview',label:'Next',icon:ICONS.nextview,sub:'各PJの次のアクション'},
     {v:'search',label:'Search',icon:ICONS.search,sub:'タスク・メモを横断検索'},
     {v:'notes',label:'Note',sub:'自由記述のメモ帳',icon:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
@@ -4786,7 +4789,7 @@ function scrollGanttToToday(){
 // ===== RENDER CONTENT =====
 function renderContent(){
   const el=document.getElementById('content');
-  const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Completed',notes:'Notes',nextview:'Next',gantt:'Gantt',
+  const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Logbook',notes:'Notes',nextview:'Next',gantt:'Gantt',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||''};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
@@ -5294,7 +5297,8 @@ function renderTaskFilters(){
   const isSearch=S.view==='search';
   const isNextView=S.view==='nextview';
   const isGantt=S.view==='gantt';
-  const showStatusBtns=!isForecast&&!isNotes&&!isSearch;
+  const isCompletedView=S.view==='completed';
+  const showStatusBtns=!isForecast&&!isNotes&&!isSearch&&!isCompletedView;
   const showCompletedBtn=showStatusBtns||isSearch;
   const hasSharedProjs=S.projects.some(p=>p.workspaceId);
   const showSharedBtn=hasSharedProjs&&(S.view==='today'||S.view==='nextview');
@@ -5307,7 +5311,7 @@ function renderTaskFilters(){
     +(showCompletedBtn?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
     +(showSharedBtn?'<button class="toggle-completed-btn'+(S.showShared?' active':'')+'" data-a="quick-filter" data-key="showShared" title="共有プロジェクトのタスクを表示/非表示">共有</button>':'')
     +_qfTags.map(t=>'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' active':'')+' tf-quick-tag" data-a="quick-tag-filter" data-tagid="'+t.id+'" style="'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?'border-color:'+t.color+';color:'+t.color+';background:'+t.color+'22':'')+'">'+t.name+'</button>').join('')
-    +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
+    +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt&&!isCompletedView?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
     +(S.view==='project'&&S.projId?'<button class="toggle-completed-btn" data-a="proj-to-gantt" title="このプロジェクトのGanttを表示">'+ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')+'</button>':'')
     +(!isForecast&&!isNotes&&!isGantt?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
 }
@@ -5334,7 +5338,7 @@ function openFilterPopup(btn){
   _closeTfPopups();
   const pop=document.createElement('div');pop.className='tf-popup filter-pop';
   const tags=S.tags;
-  const _isNotesOrSearch=S.view==='notes'||S.view==='search';
+  const _isNotesOrSearch=S.view==='notes'||S.view==='search'||S.view==='completed';
   pop.innerHTML=
     ((!_isNotesOrSearch&&S.view!=='inbox')?'<div class="tf-popup-item" data-a="fpop-toggle" data-key="hideNotStarted">'
       +'<span>現在（開始前を除外）</span><span class="tf-popup-check'+(S.hideNotStarted?' on':'')+'">✓</span>'
