@@ -4090,8 +4090,15 @@ function renderSidebar(){
     {v:'gantt',label:'Gantt',sub:'プロジェクトのスケジュール管理',icon:ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')},
   ];
   const SYS_VIEWS=ALL_SYS.map(x=>x.v);
-  // サイドバーはALL_SYS固定順で表示（ボトムナビ順に影響されない）
-  const navItems=ALL_SYS;
+  // サイドバー: bnavOrderを基準にALL_SYSの順で表示（ALL_SYSにあってbnavOrderにないものは末尾）
+  const bnavOrder=getNavOrder().filter(v=>SYS_VIEWS.includes(v));
+  const _dbItem=ALL_SYS.find(x=>x.v==='dashboard');
+  const _restOrder=bnavOrder.filter(v=>v!=='dashboard');
+  const navItems=[
+    ...(_dbItem?[_dbItem]:[]),
+    ..._restOrder.map(v=>ALL_SYS.find(x=>x.v===v)).filter(Boolean),
+    ...ALL_SYS.filter(x=>x.v!=='dashboard'&&!bnavOrder.includes(x.v)),
+  ];
   const viewsOpen=S.viewsOpen!==false;
   let h='';
   h+='<div class="nav-label-row'+(viewsOpen?'':' collapsed')+'" data-a="views-toggle" style="margin-top:0">'
@@ -5321,7 +5328,7 @@ function renderTaskFilters(){
   if(hasQuickFilters)html+=SEP;
   if(showStatusBtns&&S.view!=='inbox')html+='<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>';
   if(showSharedBtn)html+='<button class="toggle-completed-btn'+(S.showShared?'':' active')+'" data-a="quick-filter" data-key="showShared" title="共有プロジェクトのタスクを表示/非表示">共有</button>';
-  html+=_qfTags.map(t=>'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' active':'')+' tf-quick-tag" data-a="quick-tag-filter" data-tagid="'+t.id+'" style="'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?'color:'+t.color+';background:'+t.color+'22':'')+'">'+(t.name)+'</button>').join('');
+  html+=_qfTags.map(t=>'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' active':'')+' tf-quick-tag" data-a="quick-tag-filter" data-tagid="'+t.id+'" style="'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?'color:'+t.color+';background:'+t.color+'22':'')+'">'+esc(t.name)+'</button>').join('');
 
   if(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt&&!isCompletedView){
     html+=SEP;
