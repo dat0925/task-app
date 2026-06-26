@@ -10320,7 +10320,8 @@ async function aiSend(){
       id:t.id,title:t.title,status:t.status,priority:t.priority,
       dueAt:t.dueAt,startAt:t.startAt,flagged:t.flagged,
       repeatRule:t.repeatRule,
-      notes:t.notes?(t.notes.slice(0,120)+(t.notes.length>120?'…':'')):null,
+      parentTaskId:t.parentTaskId||null,
+      notes:t.notes?(t.notes.slice(0,120)+(t.notes.length>120?'\u2026':'')):null,
       project:S.projects.find(p=>p.id===t.projectId)?.name||null,
       tags:(t.tagIds||[]).map(id=>S.tags.find(g=>g.id===id)?.name).filter(Boolean),
     })),
@@ -10361,7 +10362,9 @@ ${JSON.stringify(context,null,2)}
 - 【重要】サブタスク作成時、内容の説明・コツ・参考情報・URLなどを求められた場合は notes フィールドに詳細を記載する。Web検索はできないが、知識の範囲で有用な情報を入れること
 - 「今日/昨日完了にしたタスク」「完了一覧を出して」などの問い合わせには completedTasks（直近14日分）を参照して reply_to_user で一覧をテキスト表示する（タスク名と完了日時を分かりやすく）
 - 「誤って完了にした」「元に戻して」「未完了に戻して」と言われたら update_task の status フィールド（active/inbox）を使う。対象はcompletedTasksのidまたはタイトルのkeywordで特定する
-- タスクを完了にする場合も update_task の status:'completed'、アーカイブする場合は status:'archived' を使う（専用ツールはない）`;
+- タスクを完了にする場合も update_task の status:'completed'、アーカイブする場合は status:'archived' を使う（専用ツールはない）
+- 【重要】サブタスクの更新（開始日・期日・タイトル・優先度など変更）も update_task を使う。tasks の中で parentTaskId が設定されているものがサブタスク。task_id にサブタスク自身の id を指定すること
+- 「〇〇のサブタスクの開始日を〜に」という指示はサブタスクへの update_task。tasks から parentTaskId が設定されかつタイトルが一致するものを探す`;
 
   // ── ツール定義 ──────────────────────────────────────────
   const tools=[
@@ -10394,7 +10397,7 @@ ${JSON.stringify(context,null,2)}
     },
     {
       name:'update_task',
-      description:'タスクを更新する（タイトル変更・期日変更・タグ追加・完了/未完了/アーカイブの切り替えなど）',
+      description:'タスクを更新する（タイトル変更・期日変更・開始日変更・タグ追加・完了/未完了/アーカイブの切り替えなど）。サブタスク（parentTaskIdが設定されたタスク）の更新にも使う',
       input_schema:{
         type:'object',
         properties:{
