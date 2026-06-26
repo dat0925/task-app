@@ -6562,6 +6562,14 @@ function renderDrawer(){
       t2.repeatRule=getRepeatRule();
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
 
+      // Inboxからプロジェクトに初めて割り当てられた場合、sort_orderをプロジェクト最上部に設定
+      if(t2.projectId&&!prevProjectId){
+        const sibOrders=S.tasks
+          .filter(x=>x.projectId===t2.projectId&&x.id!==t2.id&&x.status==='active')
+          .map(x=>x.order||0);
+        t2.order=sibOrders.length>0?Math.min(...sibOrders)-1000:0;
+      }
+
       const activeId=document.activeElement?.id;
       const activeInDrawer=document.activeElement?.closest('#drawer,.expand-modal');
       await saveTask(t2);
