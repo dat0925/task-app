@@ -2705,6 +2705,11 @@ async function saveNote(n){
   showSaveStatus('saving');try{window._lastSelfSave = Date.now();n.updatedAt=now();await dbPut('notes',n);const i=S.notes.findIndex(x=>x.id===n.id);i>=0?S.notes[i]=n:S.notes.push(n);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id)}
 function mkNote(o={}){return{id:uid(),title:'',body:'',tagIds:[],createdAt:now(),updatedAt:now(),...o}}
+// プロジェクト内の最上部sort_orderを返す（既存タスクの最小値-1000、なければ0）
+function topOrderInProject(projId){
+  const orders=S.tasks.filter(x=>x.projectId===projId&&x.status==='active').map(x=>x.order||0);
+  return orders.length>0?Math.min(...orders)-1000:0;
+}
 async function saveTask(t){
   // 文字数チェック
   if((t.title||'').length>CHAR_LIMITS.taskTitle){toast('タスクタイトルは'+CHAR_LIMITS.taskTitle+'文字以内で入力してください');throw new Error('char_limit');}
@@ -7615,7 +7620,8 @@ async function submitQA(){
   const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();
   if(!p.dueAt)p.dueAt=_d3;
   if(!p.startAt)p.startAt=_t;
-  const task=mkTask({...p,status,projectId:p.projectId||(S.view==='project'?S.projId:null)});
+  const _newProjId=p.projectId||(S.view==='project'?S.projId:null);
+  const task=mkTask({...p,status,projectId:_newProjId,order:_newProjId?topOrderInProject(_newProjId):Date.now()});
   await saveTask(task);
   inp.value='';
   document.getElementById('qachips').innerHTML='';
@@ -7809,7 +7815,8 @@ document.addEventListener('click',async e=>{
   else if(a==='dark'){S.dark=!S.dark;localStorage.setItem('dark',S.dark?'1':'0');render()}
   else if(a==='newtask'){
     if(S.view==='notes'){S.view='inbox';S.noteOpen=false;}
-    const task=mkTask({status:S.view==='project'?'active':'inbox',projectId:S.view==='project'?S.projId:null});
+    const _ntProjId=S.view==='project'?S.projId:null;
+    const task=mkTask({status:S.view==='project'?'active':'inbox',projectId:_ntProjId,order:_ntProjId?topOrderInProject(_ntProjId):Date.now()});
     await saveTask(task);S.taskId=task.id;S.drawerOpen=true;render();
     setTimeout(()=>document.getElementById('dt-title')?.focus(),50);
   }
