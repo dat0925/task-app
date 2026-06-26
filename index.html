@@ -479,8 +479,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     padding-bottom:0;
   }
   .toggle-btn-wrap{padding:6px 8px 6px 8px;justify-content:flex-start;gap:4px}
-  .toggle-completed-btn{padding:4px 7px;font-size:11px}
-  #task-filters{flex-wrap:nowrap;overflow-x:auto;padding:4px 8px;gap:3px;scrollbar-width:none}
+  .toggle-completed-btn{padding:3px 10px;font-size:11px}
+  #task-filters{padding:4px 8px;gap:2px}
   #task-filters::-webkit-scrollbar{display:none}
   /* Safe-area padding for action bar on notch phones */
   .mob-action-bar{padding-bottom:calc(7px + env(safe-area-inset-bottom))}
@@ -547,10 +547,10 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 }
 /* Toggle completed button */
 .toggle-btn-wrap{display:flex;align-items:center;justify-content:flex-start;padding:8px 0 8px 0}
-#task-filters{background:var(--bg);padding:4px 16px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;flex-shrink:0;border-bottom:1px solid var(--border)}
-.toggle-completed-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 16px;border-radius:20px;font-size:12px;font-weight:500;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text3);transition:background .08s,color .08s,border-color .08s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none}
-.toggle-completed-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
-.toggle-completed-btn:hover{border-color:var(--text2);color:var(--text2)}
+#task-filters{background:var(--bg);padding:5px 16px;display:flex;align-items:center;gap:4px;flex-wrap:nowrap;flex-shrink:0;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.toggle-completed-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;border:none;background:none;cursor:pointer;color:var(--text2);transition:background .1s,color .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;white-space:nowrap;flex-shrink:0}
+.toggle-completed-btn.active{color:var(--accent);background:var(--accent-bg);font-weight:600}
+@media(pointer:fine){.toggle-completed-btn:hover{background:var(--bg2);color:var(--text)}}
 .toggle-completed-btn:active{opacity:.7}
 /* Search clear button */
 #srch-clear{display:none;background:none;border:none;cursor:pointer;color:var(--text3);padding:0;width:18px;height:18px;align-items:center;justify-content:center;border-radius:3px;flex-shrink:0;font-size:13px;line-height:1}
@@ -675,9 +675,9 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 /* 一括編集 */
 .trow.bulk-sel{background:var(--accent-bg)!important;outline:1.5px solid var(--accent);border-radius:7px}
 /* フィルタ・並び替えアイコンボタン */
-.tf-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:28px;border-radius:6px;border:1.5px solid var(--border);background:none;cursor:pointer;color:var(--text3);transition:background .08s,color .08s,border-color .08s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;flex-shrink:0}
-.tf-icon-btn:hover{border-color:var(--text2);color:var(--text2)}
-.tf-icon-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.tf-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:28px;border-radius:6px;border:none;background:none;cursor:pointer;color:var(--text3);transition:background .1s,color .1s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;flex-shrink:0}
+@media(pointer:fine){.tf-icon-btn:hover{background:var(--bg2);color:var(--text)}}
+.tf-icon-btn.active{color:var(--accent);background:var(--accent-bg)}
 .tf-icon-btn:active{opacity:.7}
 /* フィルタ・並び替えポップアップ */
 .tf-popup{position:fixed;z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.18);padding:5px;min-width:180px}
@@ -5288,7 +5288,7 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-cancel" style="margin-left:auto;border-color:var(--p1);color:var(--p1)">✕ 終了</button>';
     return;
   }
-  const filterOn=S.hideNotStarted||S.showCompleted||!!(S.filterTagIds&&S.filterTagIds.length)||!S.showShared;
+  const filterOn=S.hideNotStarted||!!(S.filterTagIds&&S.filterTagIds.length)||!S.showShared;
   const sortOn=S.sort!=='order';
   const ICON_FILTER='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
   const ICON_SORT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 6h13M8 12h9M8 18h5"/><polyline points="3 6 3 3 6 3"/><polyline points="3 18 3 21 6 21"/></svg>';
@@ -5299,21 +5299,29 @@ function renderTaskFilters(){
   const isGantt=S.view==='gantt';
   const isCompletedView=S.view==='completed';
   const showStatusBtns=!isForecast&&!isNotes&&!isSearch&&!isCompletedView;
-  const showCompletedBtn=showStatusBtns||isSearch;
   const hasSharedProjs=S.projects.some(p=>p.workspaceId);
   const showSharedBtn=hasSharedProjs&&(S.view==='today'||S.view==='nextview');
   const _qfTagNames=['仕事','個人','開発'];
   const _qfTags=_qfTagNames.map(n=>S.tags.find(t=>t.name===n)).filter(Boolean);
+  const SEP='<span style="width:1px;height:16px;background:var(--border);flex-shrink:0;margin:0 2px"></span>';
 
-  tf.innerHTML='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>'
-    +'<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:13px;font-weight:700;'+(filterOn?'color:var(--p1);border-color:var(--p1)':'color:var(--text3);opacity:.4;pointer-events:none')+'">×</button>'
-    +((showStatusBtns&&S.view!=='inbox')?'<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>':'')
-    +(showCompletedBtn?'<button class="toggle-completed-btn'+(S.showCompleted?' active':'')+'" data-a="quick-filter" data-key="showCompleted" title="完了タスクを表示">完了</button>':'')
-    +(showSharedBtn?'<button class="toggle-completed-btn'+(S.showShared?' active':'')+'" data-a="quick-filter" data-key="showShared" title="共有プロジェクトのタスクを表示/非表示">共有</button>':'')
-    +_qfTags.map(t=>'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' active':'')+' tf-quick-tag" data-a="quick-tag-filter" data-tagid="'+t.id+'" style="'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?'border-color:'+t.color+';color:'+t.color+';background:'+t.color+'22':'')+'">'+t.name+'</button>').join('')
-    +(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt&&!isCompletedView?'<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>':'')
-    +(S.view==='project'&&S.projId?'<button class="toggle-completed-btn" data-a="proj-to-gantt" title="このプロジェクトのGanttを表示">'+ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')+'</button>':'')
-    +(!isForecast&&!isNotes&&!isGantt?'<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>':'');
+  let html='<button class="tf-icon-btn'+(filterOn?' active':'')+'" data-a="tog-filter-btn" title="フィルタ">'+ICON_FILTER+'</button>';
+  html+='<button class="tf-icon-btn" data-a="clear-filters" title="フィルタをすべて解除" style="font-size:14px;font-weight:700;'+(filterOn?'color:var(--p1)':'color:var(--text3);opacity:.3;pointer-events:none')+'">×</button>';
+
+  const hasQuickFilters=(showStatusBtns&&S.view!=='inbox')||showSharedBtn||_qfTags.length>0;
+  if(hasQuickFilters)html+=SEP;
+  if(showStatusBtns&&S.view!=='inbox')html+='<button class="toggle-completed-btn'+(S.hideNotStarted?' active':'')+'" data-a="quick-filter" data-key="hideNotStarted" title="開始前を除外して現在のタスクのみ表示">現在</button>';
+  if(showSharedBtn)html+='<button class="toggle-completed-btn'+(S.showShared?'':' active')+'" data-a="quick-filter" data-key="showShared" title="共有プロジェクトのタスクを表示/非表示">共有</button>';
+  html+=_qfTags.map(t=>'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' active':'')+' tf-quick-tag" data-a="quick-tag-filter" data-tagid="'+t.id+'" style="'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?'color:'+t.color+';background:'+t.color+'22':'')+'">'+(t.name)+'</button>').join('');
+
+  if(!isForecast&&!isNotes&&!isSearch&&!isNextView&&!isGantt&&!isCompletedView){
+    html+=SEP;
+    html+='<button class="tf-icon-btn'+(sortOn?' active':'')+'" data-a="tog-sort-btn" title="並び替え">'+ICON_SORT+'</button>';
+  }
+  if(S.view==='project'&&S.projId)html+='<button class="toggle-completed-btn" data-a="proj-to-gantt" title="このプロジェクトのGanttを表示">'+ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')+'</button>';
+  if(!isForecast&&!isNotes&&!isGantt)html+='<button class="toggle-completed-btn'+(S.selectMode?' active':'')+'" data-a="tog-select-mode" style="margin-left:auto">一括</button>';
+
+  tf.innerHTML=html;
 }
 
 function _closeTfPopups(){document.querySelectorAll('.tf-popup,.tf-backdrop').forEach(p=>p.remove());}
