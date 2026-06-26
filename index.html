@@ -4087,15 +4087,8 @@ function renderSidebar(){
     {v:'gantt',label:'Gantt',sub:'プロジェクトのスケジュール管理',icon:ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')},
   ];
   const SYS_VIEWS=ALL_SYS.map(x=>x.v);
-  const bnavOrder=getNavOrder().filter(v=>SYS_VIEWS.includes(v));
-  // dashboardは常に先頭に固定、残りはbnavOrder順
-  const _dbItem=ALL_SYS.find(x=>x.v==='dashboard');
-  const _restOrder=bnavOrder.filter(v=>v!=='dashboard');
-  const navItems=[
-    ...(_dbItem?[_dbItem]:[]),
-    ..._restOrder.map(v=>ALL_SYS.find(x=>x.v===v)).filter(Boolean),
-    ...ALL_SYS.filter(x=>x.v!=='dashboard'&&!bnavOrder.includes(x.v)),
-  ];
+  // サイドバーはALL_SYS定義順で固定表示（ボトムナビのカスタム順に影響されない）
+  const navItems=[...ALL_SYS];
   const viewsOpen=S.viewsOpen!==false;
   let h='';
   h+='<div class="nav-label-row'+(viewsOpen?'':' collapsed')+'" data-a="views-toggle" style="margin-top:0">'
