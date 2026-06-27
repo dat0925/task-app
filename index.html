@@ -1684,7 +1684,7 @@ function showUpgradeModal(feature){
       +'<div class="upgrade-title">'+c.title+'</div>'
       +'<div class="upgrade-desc">'+c.desc+'</div>'
       +'<div class="upgrade-features">'
-        +['AIアシスタント（500回/月）','ノート無制限','全機能利用可能'].map(f=>'<div class="upgrade-feat">'+f+'</div>').join('')
+        +['AIアシスタント（400回/月）','ノート無制限','全機能利用可能'].map(f=>'<div class="upgrade-feat">'+f+'</div>').join('')
       +'</div>'
       +'<div class="upgrade-price">¥780<span>/月</span></div>'
       +'<div class="upgrade-price-note">月額・いつでもキャンセル可</div>'
@@ -1704,7 +1704,7 @@ function showUpgradeModal(feature){
           +'<div style="font-size:13px;font-weight:700;color:var(--text)">✦ スタンダード</div>'
           +'<div style="font-size:22px;font-weight:800;color:var(--text)">¥480<span style="font-size:13px;font-weight:400;color:var(--text3)">/月</span></div>'
           +'<div style="font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;flex:1">'
-            +['タスク無制限','プロジェクト無制限','ノート300件','繰り返しタスク','AI（100回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
+            +['タスク無制限','プロジェクト無制限','ノート300件','繰り返しタスク','チーム共有','AI（200回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
           +'</div>'
           +'<a href="'+_payUrl(PAYMENT_LINKS.standard)+'" target="_blank" class="btn btn-ghost" style="text-decoration:none;text-align:center;margin-top:4px;font-size:13px">選択する →</a>'
         +'</div>'
@@ -1713,7 +1713,7 @@ function showUpgradeModal(feature){
           +'<div style="font-size:13px;font-weight:700;color:var(--accent)">✦ プレミアム</div>'
           +'<div style="font-size:22px;font-weight:800;color:var(--text)">¥780<span style="font-size:13px;font-weight:400;color:var(--text3)">/月</span></div>'
           +'<div style="font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;flex:1">'
-            +['タスク無制限','プロジェクト無制限','ノート無制限','繰り返しタスク','AI（500回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
+            +['タスク無制限','プロジェクト無制限','ノート無制限','繰り返しタスク','チーム共有','AI（400回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
           +'</div>'
           +'<a href="'+_payUrl(PAYMENT_LINKS.premium)+'" target="_blank" class="btn btn-primary" style="text-decoration:none;text-align:center;margin-top:4px;font-size:13px">選択する →</a>'
         +'</div>'
@@ -1763,7 +1763,7 @@ async function openMyPlan(){
       key:'free',
       label:'フリー',
       price:'¥0',
-      features:['タスク100件まで','プロジェクト3件まで','ノート50件まで','AI（20回/月）'],
+      features:['タスク無制限','プロジェクト10件まで','ノート100件まで','ガントチャート','繰り返しタスク','AI（10回/月）'],
       btnLabel:'',
       btnUrl:'',
       btnClass:'',
@@ -1772,7 +1772,7 @@ async function openMyPlan(){
       key:'standard',
       label:'スタンダード',
       price:'¥480',
-      features:['タスク無制限','プロジェクト無制限','ノート300件まで','繰り返しタスク','AI（100回/月）','優先サポート'],
+      features:['タスク無制限','プロジェクト無制限','ノート300件まで','繰り返しタスク','チーム共有','AI（200回/月）','優先サポート'],
       btnLabel:'スタンダードにアップグレード →',
       btnUrl:_payUrl2(PAYMENT_LINKS.standard),
       btnClass:'btn-ghost',
@@ -1781,7 +1781,7 @@ async function openMyPlan(){
       key:'premium',
       label:'プレミアム',
       price:'¥780',
-      features:['タスク無制限','プロジェクト無制限','ノート無制限','繰り返しタスク','AI（500回/月）','優先サポート'],
+      features:['タスク無制限','プロジェクト無制限','ノート無制限','繰り返しタスク','チーム共有','AI（400回/月）','優先サポート'],
       btnLabel:'プレミアムにアップグレード →',
       btnUrl:_payUrl2(PAYMENT_LINKS.premium),
       btnClass:'btn-primary',
