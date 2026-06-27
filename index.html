@@ -1272,9 +1272,9 @@ const PAYMENT_LINKS={
 };
 // プラン定義: 将来のプラン追加はここにキーを足すだけ
 const PLAN_DEFS={
-  free:    {label:'フリー',     taskLimit:Infinity, projectLimit:10,       noteLimit:100, aiLimit:20,  ai:false, repeat:true,  team:false},
+  free:    {label:'フリー',     taskLimit:Infinity, projectLimit:10,       noteLimit:100, aiLimit:10,  ai:false, repeat:true,  team:false},
   standard:{label:'スタンダード',taskLimit:Infinity, projectLimit:Infinity, noteLimit:300, aiLimit:200, ai:true,  repeat:true,  team:true},
-  premium: {label:'プレミアム', taskLimit:Infinity, projectLimit:Infinity, noteLimit:Infinity, aiLimit:500, ai:true,  repeat:true,  team:true},
+  premium: {label:'プレミアム', taskLimit:Infinity, projectLimit:Infinity, noteLimit:Infinity, aiLimit:400, ai:true,  repeat:true,  team:true},
 };
 // 文字数上限
 const CHAR_LIMITS={taskTitle:500,taskNotes:50000,noteTitle:500,noteBody:200000};
