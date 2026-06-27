@@ -10169,10 +10169,10 @@ function aiRender(scrollTarget){
     const aiMsgs=el.querySelectorAll('.ai-msg.ai');
     const lastAi=aiMsgs[aiMsgs.length-1];
     if(lastAi){
-      // 最新AIメッセージの上端がチャット欄の上端に来るようにスクロール
-      requestAnimationFrame(()=>{
+      // rAF2重でレイアウト計算完了を待ってからスクロール
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
         el.scrollTop=lastAi.offsetTop-8;
-      });
+      }));
     }
   } else {
     el.scrollTop=el.scrollHeight;
