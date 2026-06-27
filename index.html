@@ -651,8 +651,11 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 #ai-send{width:38px;height:38px;border-radius:50%;background:#3b82f6;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;align-self:flex-end}
 #ai-send:hover{background:#2563eb}
 #ai-send:disabled{background:var(--border);cursor:not-allowed}
-#ai-float-close{position:absolute;bottom:80px;left:16px;width:40px;height:40px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);color:var(--text2);font-size:18px;display:flex;align-items:center;justify-content:center;z-index:201;box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+#ai-float-close{position:absolute;bottom:80px;right:16px;width:40px;height:40px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);color:var(--text2);font-size:18px;display:flex;align-items:center;justify-content:center;z-index:201;box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 #ai-float-close:active{background:var(--bg3)}
+#sb-float-close{position:fixed;bottom:80px;left:16px;width:40px;height:40px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);color:var(--text2);font-size:18px;display:none;align-items:center;justify-content:center;z-index:151;box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+#sb-float-close:active{background:var(--bg3)}
+.sidebar.open~#sb-float-close,#sb-float-close.visible{display:flex}
 #ai-key-wrap{padding:16px;display:flex;flex-direction:column;gap:10px}
 #ai-key-wrap p{font-size:13px;color:var(--text2);line-height:1.6}
 #ai-key-input{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
@@ -930,6 +933,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 
 
 <div class="sov" id="sov"></div>
+<button id="sb-float-close" data-a="sb-float-close" title="閉じる">×</button>
 <div class="toast-wrap" id="toasts"></div>
 
 <!-- AI CHAT -->
@@ -7568,6 +7572,7 @@ function render(){
   // sidebar open/close
   const sb=document.getElementById('sidebar');
   const sov=document.getElementById('sov');
+  const _sbfc=document.getElementById('sb-float-close');if(_sbfc)_sbfc.style.display=(S.sidebarOpen&&window.innerWidth<=768)?'flex':'none';
   if(S.sidebarOpen){sb.classList.add('open');sov.classList.add('open');if(window.innerWidth<=768)document.body.style.overflow='hidden';}
   else{sb.classList.remove('open');sov.classList.remove('open');document.body.style.overflow='';}
   renderSidebar();
@@ -8895,6 +8900,7 @@ else if(a==='scroll-to-comments'){
   else if(a==='nav-edit'){openNavEdit()}
   else if(a==='ai-open'){aiToggle()}
   else if(a==='ai-float-close'){aiToggle(false)}
+  else if(a==='sb-float-close'){S.sidebarOpen=false;render()}
 });
 
 // sidebar overlay click
