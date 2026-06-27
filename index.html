@@ -10147,11 +10147,11 @@ function aiActionLabel(a){
   return labels[a.type]||a.type;
 }
 
-function aiRender(){
+function aiRender(scrollTarget){
   const el=document.getElementById('ai-msgs');
   let h='';
-  AI.msgs.forEach(m=>{
-    h+='<div class="ai-msg '+m.role+'">';
+  AI.msgs.forEach((m,i)=>{
+    h+='<div class="ai-msg '+m.role+'" data-idx="'+i+'">';
     const txt=m.loading?esc(m.text):esc(m.text.replace(/```json[\s\S]*?```/g,'').replace(/```[\s\S]*?```/g,'').trim()).replace(/\n/g,'<br>');
     h+='<div class="ai-bubble'+(m.loading?' thinking':'')+'">'+txt+'</div>';
     if(m.actions&&m.actions.length){
@@ -10162,10 +10162,22 @@ function aiRender(){
     h+='</div>';
   });
   if(AI.loading){
-    h+='<div class="ai-msg ai"><div class="ai-bubble thinking">考え中…</div></div>';
+    h+='<div class="ai-msg ai" data-idx="loading"><div class="ai-bubble thinking">考え中…</div></div>';
   }
   el.innerHTML=h;
-  el.scrollTop=el.scrollHeight;
+  // AI返答完了時は最新AIメッセージの先頭へ、それ以外は最下部へ
+  if(scrollTarget==='last-ai'){
+    const aiMsgs=el.querySelectorAll('.ai-msg.ai');
+    const lastAi=aiMsgs[aiMsgs.length-1];
+    if(lastAi){
+      // 最新AIメッセージの上端がチャット欄の上端に来るようにスクロール
+      requestAnimationFrame(()=>{
+        el.scrollTop=lastAi.offsetTop-8;
+      });
+    }
+  } else {
+    el.scrollTop=el.scrollHeight;
+  }
 }
 
 async function aiExecuteActions(actions){
@@ -10307,7 +10319,7 @@ async function aiSend(){
 
   inp.value='';inp.style.height='auto';
   aiAddMsg('user',text);
-  AI.loading=true;aiRender();
+  AI.loading=true;aiRender('bottom');
 
   // 現在の状態をコンテキストとして渡す
   // 現在表示中のタスクを特定
@@ -10511,7 +10523,7 @@ ${JSON.stringify(context,null,2)}
     if(!session?.access_token){
       AI.loading=false;
       aiAddMsg('ai','ログインが必要です。再度ログインしてください。');
-      aiRender();
+      aiRender('last-ai');
       return;
     }
 
@@ -10541,7 +10553,7 @@ ${JSON.stringify(context,null,2)}
     if(res.status===429){
       AI.loading=false;
       aiAddMsg('ai',data.message||'今月のAI利用回数が上限に達しました。');
-      aiRender();
+      aiRender('last-ai');
       showUpgradeModal('ai');
       return;
     }
@@ -10632,12 +10644,12 @@ ${JSON.stringify(context,null,2)}
       summary+='\n\n✅ '+parts.join('、');
     }
     aiAddMsg('ai',summary||'完了しました',done);
-    aiRender();
+    aiRender('last-ai');
 
   }catch(e){
     AI.loading=false;
     aiAddMsg('ai','エラーが発生しました: '+e.message);
-    aiRender();
+    aiRender('last-ai');
   }
 }
 
