@@ -6329,7 +6329,7 @@ function renderDrawer(){
   // タスクのプロジェクトをrecentに記録
   if(task.projectId)addRecentProject(task.projectId);
   dr.style.display='flex';
-  const _mainEl=document.querySelector('.main');if(_mainEl&&window.innerWidth>768){const _sbW=document.getElementById('sidebar')?.getBoundingClientRect().width||0;_mainEl.style.maxWidth=(window.innerWidth-_sbW-373)+'px';}
+  const _mainEl=document.querySelector('.main');if(_mainEl&&window.innerWidth>768){const _sbW=document.getElementById('sidebar')?.getBoundingClientRect().width||0;const _drW=dr.getBoundingClientRect().width||336;_mainEl.style.maxWidth=(window.innerWidth-_sbW-_drW)+'px';}
   dr.classList.add('open');
   const subs=S.tasks.filter(t=>t.parentTaskId===task.id);
   const done=task.status==='completed';
