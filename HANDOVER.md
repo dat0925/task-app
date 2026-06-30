@@ -1,6 +1,55 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-06-26（セッション②）
+最終更新: 2026-07-01
+
+---
+
+## 🚨 Claude作業ルール（再発防止・必読）
+
+### ① index.html のJS文字列を直接編集するときは必ずNode.js構文チェックを通してからpushする
+
+index.htmlの描画関数（`renderDrawer()`など）はJSのテンプレートリテラルではなく**1行の巨大な文字列連結**（`+'<div...>'`形式）になっている。
+Pythonでこの文字列を置換するとクォート・バックスラッシュのエスケープが非常に壊れやすく、**過去2回同じ事故が発生した**（左メニュー・下部ナビが消える全壊）。
+
+**必須手順：**
+```
+1. Python/sedで置換
+2. 置換できたか count() で確認（0件ならミス）
+3. Node.js で構文チェック ← これを省くと事故になる
+4. OK が出たらファイル書き込み・commit・push
+```
+
+Node.js構文チェックのコマンド（テンプレ）:
+```python
+import subprocess, tempfile, os
+tmpf = tempfile.mktemp(suffix='.html')
+open(tmpf, 'w').write(c)  # c = 修正後のHTML文字列
+r = subprocess.run(
+    ['node', '-e',
+     "const h=require('fs').readFileSync('" + tmpf + "','utf8');"
+     "const m=h.match(/<script>([\\s\\S]*?)<\\/script>/g)||[];"
+     "const j=m.map(s=>s.replace(/<\\/?script>/g,'')).join('\\n');"
+     "try{new Function(j);process.stdout.write('JS_OK\\n');}catch(e){process.stderr.write('JS_ERR:'+e.message+'\\n');}"],
+    capture_output=True, text=True
+)
+os.unlink(tmpf)
+# JS_OK が出たらファイル書き込みへ。JS_ERR が出たら書き込み禁止。
+```
+
+### ② index.html のJS文字列内に含まれる文字列の実際のバイト列を必ず確認してから置換する
+
+`repr()` でPythonが表示する `\\'` は **ファイル上の1文字の `'`** であり、バックスラッシュではない。
+置換対象を構築する前に必ず以下を実行してバイト列を確認すること：
+```python
+c = open('index.html').read()
+idx = c.find('目印となる文字列')
+print(repr(c[idx:idx+200]))  # 実際のバイト列を確認
+```
+
+### ③ Pythonスクリプトはファイルに書き出してから実行する（heredoc禁止）
+
+`bash_tool` に `<< 'ENDSCRIPT'` で渡すheredoc内にPython文字列リテラルのエスケープシーケンスを混在させると、bashとPython双方のエスケープが干渉して `SyntaxError` になる。
+**Pythonスクリプトは必ず `cat > /tmp/fix.py` 等でファイルに書き出し、`python3 /tmp/fix.py` で実行すること。**
 
 ---
 
