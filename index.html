@@ -143,7 +143,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 @media(pointer:fine){.trow:hover{background:var(--bg2);border-color:var(--border)}}
 .trow.sel{border-color:var(--accent)}
 .trow.done .ttitle{text-decoration:line-through;color:var(--text3)}
-.chk{width:24px;height:24px;min-width:24px;min-height:24px;aspect-ratio:1;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:2px;cursor:pointer;flex-shrink:0;background:none;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+.chk{width:24px;height:24px;min-width:24px;min-height:24px;aspect-ratio:1;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:2px;cursor:pointer;flex-shrink:0;background:none;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);position:relative}
+.chk::before{content:'';position:absolute;top:-10px;left:-10px;right:-10px;bottom:-10px;}
 @media(pointer:fine){.chk:hover{border-color:var(--accent)}}
 .chk.done{background:var(--green);border-color:var(--green);color:#fff;font-size:10px;font-weight:700}
 .p1 .chk{border-color:var(--p1)}
@@ -610,6 +611,14 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .note-swipe-del-bg{
   position:absolute;top:0;right:0;bottom:0;width:80px;
   background:#ef4444;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:13px;font-weight:600;gap:4px;
+  pointer-events:none;z-index:0;
+  clip-path:inset(0 0 0 100%);
+  transition:clip-path .2s;
+}
+.task-swipe-complete-bg{
+  position:absolute;top:0;right:0;bottom:0;width:80px;
+  background:#22c55e;display:flex;align-items:center;justify-content:center;
   color:#fff;font-size:13px;font-weight:600;gap:4px;
   pointer-events:none;z-index:0;
   clip-path:inset(0 0 0 100%);
@@ -3343,29 +3352,23 @@ function initTaskSwipe(container){
         opened=false;
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='';
-        const bg=wrap.querySelector('.note-swipe-del-bg');
+        const bg=wrap.querySelector('.task-swipe-complete-bg');
         if(bg){bg.style.clipPath='inset(0 0 0 100%)';bg.style.pointerEvents='none';}
       } else if(finalDx<-THRESH){
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='translateX(-'+THRESH+'px)';
-        const bg=wrap.querySelector('.note-swipe-del-bg');
+        const bg=wrap.querySelector('.task-swipe-complete-bg');
         if(bg){bg.style.clipPath='inset(0 0 0 0)';bg.style.pointerEvents='auto';bg.style.cursor='pointer';}
         opened=true;
         if(bg&&!bg._bound){
           bg._bound=true;
           bg.addEventListener('click',()=>{
-            const task=S.tasks.find(t=>t.id===taskId);if(!task)return;
-            const snap=JSON.stringify(task);
-            openConfirmModal('タスクを削除','"'+(task.title||'無題')+'" を削除しますか？',async()=>{
-              if(S.taskId===taskId){S.drawerOpen=false;S.taskId=null;}
-              await delTask(taskId);
-              wrap.style.transition='height .2s,opacity .2s';
-              wrap.style.overflow='hidden';
-              wrap.style.height=wrap.offsetHeight+'px';
-              requestAnimationFrame(()=>{wrap.style.height='0';wrap.style.opacity='0';});
-              setTimeout(()=>render(),220);
-              toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render();});
-            },'削除',true);
+            opened=false;
+            inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+            inner.style.transform='';
+            bg.style.clipPath='inset(0 0 0 100%)';bg.style.pointerEvents='none';
+            const chkBtn=wrap.querySelector('.chk');
+            if(chkBtn)chkBtn.click();
           });
         }
       } else {
@@ -3379,7 +3382,7 @@ function initTaskSwipe(container){
         opened=false;
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='';
-        const bg=wrap.querySelector('.note-swipe-del-bg');
+        const bg=wrap.querySelector('.task-swipe-complete-bg');
         if(bg){bg.style.clipPath='inset(0 0 0 100%)';bg.style.pointerEvents='none';}
       }
     },{passive:true});
@@ -5481,7 +5484,7 @@ function renderRow(task){
   const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">✏️ '+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
 
   let html=(!S.selectMode?'<div class="note-swipe-wrap" data-task-swipe-id="'+task.id+'">'
-    +'<div class="note-swipe-del-bg">🗑 削除</div>'
+    +'<div class="task-swipe-complete-bg">✓ 完了</div>'
     +'<div class="note-swipe-inner">':'')
   +'<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
     +(!S.selectMode?'<span class="task-drag-handle" data-drag-task="'+task.id+'" title="ドラッグで並び替え" ontouchstart="event.stopPropagation()">⠿</span>':'')
@@ -7708,7 +7711,7 @@ document.addEventListener('click',async e=>{
   if(!el)return;
   const a=el.dataset.a;
   // 連打防止: date-adj / start-time系 は意図的連打があるので除外
-  const _noDebounce=new Set(['date-adj','start-time-adj','start-time-adj-min','start-time-zero-min','start-time-set','start-time-clear','date-clear','close-note','close-drawer']);
+  const _noDebounce=new Set(['date-adj','start-time-adj','start-time-adj-min','start-time-zero-min','start-time-set','start-time-clear','date-clear','close-note','close-drawer','chk']);
   if(!_noDebounce.has(a)){const _now=Date.now();if(_now-_lastActionAt<350)return;_lastActionAt=_now;}
 
   if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob){playSE('toggle');_tappingView=el.dataset.v;if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{_tappingView=null;S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
