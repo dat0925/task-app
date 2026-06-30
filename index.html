@@ -96,7 +96,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 #save-dot.saved{background:var(--green)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .topbar-title{font-size:17px;font-weight:600;letter-spacing:-.2px}
-#global-srch-wrap{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:0 10px;height:34px;min-width:0;max-width:260px;flex:1;transition:border-color .15s}
+#global-srch-wrap{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:0 10px;height:34px;min-width:0;flex:1;transition:border-color .15s}
 #global-srch-wrap:focus-within{border-color:var(--accent)}
 #global-srch-wrap svg{flex-shrink:0;color:var(--text3)}
 #global-srch{flex:1;background:none;border:none;outline:none;font-size:13px;color:var(--text);min-width:0}
@@ -1014,8 +1014,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <input id="global-srch" type="search" placeholder="検索…" autocomplete="off">
           <button id="srch-clear" title="クリア">✕</button>
         </div>
-        <button class="pc-nav-step" data-a="nav-prev" title="前のビュー (Ctrl+↑)">↑</button>
-        <button class="pc-nav-step" data-a="nav-next" title="次のビュー (Ctrl+↓)">↓</button>
         <button class="ai-topbar-btn" data-a="ai-open" title="AI">✦</button>
         <button class="btn btn-primary" data-a="newtask" title="タスクを追加" style="padding:6px 10px;gap:4px;background:#3b82f6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>
         <button class="btn btn-primary" data-a="newnote" title="ノートを追加" style="padding:6px 10px;gap:4px;background:#6b7280;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>
@@ -4486,6 +4484,30 @@ function getCurrentNavIdx(seq){
   if(S.view==='tag')return seq.findIndex(x=>x.type==='tag'&&x.id===S.tagId);
   return seq.findIndex(x=>x.type==='view'&&x.v===S.view);
 }
+function doViewNav(dir){ // dir: 'prev' | 'next'
+  playSE('toggle');
+  const seq=getNavSequence();
+  if(!seq.length)return;
+  const cur=getCurrentNavIdx(seq);
+  const len=seq.length;
+  // curが-1（未知のビュー）のときは先頭/末尾へ
+  let ni;
+  if(dir==='prev') ni=cur<=0?len-1:cur-1;
+  else ni=cur>=len-1?0:cur+1;
+  const item=seq[ni];
+  if(!item)return;
+  S.taskId=null;S.drawerOpen=false;
+  if(item.type==='view'){S.view=item.v;}
+  else if(item.type==='proj'){S.view='project';S.projId=item.id;}
+  else if(item.type==='tag'){S.view='tag';S.tagId=item.id;}
+  render();
+  // サイドバーのアクティブ項目が見えるようにスクロール
+  requestAnimationFrame(()=>{
+    const sidenav=document.getElementById('sidenav');
+    const active=sidenav?.querySelector('.nav-item.on');
+    if(active)active.scrollIntoView({block:'nearest',behavior:'smooth'});
+  });
+}
 
 function renderBotNav(){
   const order=getNavOrder();
@@ -7762,29 +7784,7 @@ document.addEventListener('click',async e=>{
   
   else if(a==='menu'){if(Date.now()-_drawerClosedAt<400)return;playSE('toggle');S.sidebarOpen=!S.sidebarOpen;render()}
 
-  else if(a==='nav-prev'||a==='nav-next'){playSE('toggle');
-    const seq=getNavSequence();
-    if(!seq.length)return;
-    const cur=getCurrentNavIdx(seq);
-    const len=seq.length;
-    // curが-1（未知のビュー）のときは先頭/末尾へ
-    let ni;
-    if(a==='nav-prev') ni=cur<=0?len-1:cur-1;
-    else ni=cur>=len-1?0:cur+1;
-    const item=seq[ni];
-    if(!item)return;
-    S.taskId=null;S.drawerOpen=false;
-    if(item.type==='view'){S.view=item.v;}
-    else if(item.type==='proj'){S.view='project';S.projId=item.id;}
-    else if(item.type==='tag'){S.view='tag';S.tagId=item.id;}
-    render();
-    // サイドバーのアクティブ項目が見えるようにスクロール
-    requestAnimationFrame(()=>{
-      const sidenav=document.getElementById('sidenav');
-      const active=sidenav?.querySelector('.nav-item.on');
-      if(active)active.scrollIntoView({block:'nearest',behavior:'smooth'});
-    });
-  }
+  else if(a==='nav-prev'||a==='nav-next'){doViewNav(a==='nav-prev'?'prev':'next')}
   
   else if(a==='gantt-scale'){S.ganttScale=el.dataset.scale;render();scrollGanttToToday();}
   else if(a==='proj-to-gantt'){
@@ -9378,7 +9378,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='f'&&(e.ctrlKey||e.metaKey)&&window.innerWidth>768){e.preventDefault();const gs=document.getElementById('global-srch');if(gs){gs.focus();gs.select();}}
   if((e.ctrlKey||e.metaKey)&&(e.key==='ArrowUp'||e.key==='ArrowDown')){
     e.preventDefault();
-    document.querySelector('.pc-nav-step[data-a="nav-'+(e.key==='ArrowUp'?'prev':'next')+'"]')?.click();
+    doViewNav(e.key==='ArrowUp'?'prev':'next');
   }
 });
 
