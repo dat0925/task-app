@@ -176,6 +176,12 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .fl{field-group:margin-bottom:12px}
 .flabel{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:4px;display:block}
 .finput{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s;-webkit-appearance:none}
+.finput[type="date"],.finput[type="time"]{-webkit-appearance:auto;appearance:auto;color:var(--text)}
+.finput[type="date"]::-webkit-datetime-edit,.finput[type="time"]::-webkit-datetime-edit{color:var(--text)}
+.finput[type="date"]::-webkit-datetime-edit-fields-wrapper,.finput[type="time"]::-webkit-datetime-edit-fields-wrapper{color:var(--text)}
+.finput[type="date"]::-webkit-datetime-edit-text,.finput[type="time"]::-webkit-datetime-edit-text{color:var(--text)}
+.finput[type="date"]::-webkit-datetime-edit-year-field,.finput[type="date"]::-webkit-datetime-edit-month-field,.finput[type="date"]::-webkit-datetime-edit-day-field{color:var(--text)}
+.finput[type="time"]::-webkit-datetime-edit-hour-field,.finput[type="time"]::-webkit-datetime-edit-minute-field{color:var(--text)}
 .finput[type="date"]{height:38px;box-sizing:border-box}
 .finput:focus{border-color:var(--accent)}
 .ftextarea{min-height:94px;resize:none;line-height:1.5}
