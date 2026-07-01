@@ -9383,6 +9383,36 @@ document.addEventListener('keydown',e=>{
     e.preventDefault();
     doViewNav(e.key==='ArrowUp'?'prev':'next');
   }
+  // PC専用: ↑↓でタスク選択移動、Spaceで完了トグル
+  if(window.innerWidth>768&&!e.target.matches('input,textarea,select')){
+    if(e.key==='ArrowUp'||e.key==='ArrowDown'){
+      if(e.ctrlKey||e.metaKey)return; // Ctrl/Cmd+↑↓はビュー切替なのでスキップ
+      e.preventDefault();
+      const vt=getTasks().filter(t=>!t.parentTaskId);
+      if(!vt.length)return;
+      const cur=vt.findIndex(t=>t.id===S.taskId);
+      let ni=e.key==='ArrowUp'?cur-1:cur+1;
+      if(ni<0)ni=0;
+      if(ni>=vt.length)ni=vt.length-1;
+      const next=vt[ni];
+      if(!next||next.id===S.taskId)return;
+      S.taskId=next.id;S.drawerOpen=true;S.noteOpen=false;
+      renderDrawer();renderContent();
+      // スクロールして選択行を表示
+      requestAnimationFrame(()=>{
+        document.querySelector('.trow[data-id="'+next.id+'"]')?.scrollIntoView({block:'nearest',behavior:'smooth'});
+      });
+    }
+    if(e.key===' '){
+      if(!S.taskId||S.drawerOpen===false)return;
+      // フォーカスがinput/textareaにある場合は通常スペースを優先
+      const active=document.activeElement;
+      if(active&&active.matches('input,textarea,select,[contenteditable]'))return;
+      e.preventDefault();
+      const chkBtn=document.querySelector('.trow[data-id="'+S.taskId+'"] .chk');
+      if(chkBtn)chkBtn.click();
+    }
+  }
 });
 
 // ===== BACKUP =====
