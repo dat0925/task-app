@@ -2339,6 +2339,14 @@ function applyDateInputStyle(el,val){
   el.style.cssText=dateInputStyle(v).replace(/flex:1;min-width:0;?/,'');
   el.style.flex='1';el.style.minWidth='0';
 }
+// タスク詳細のスケジュール欄（幅130px固定＋調整ボタン列）専用。
+// applyDateInputStyleはflex:1を強制してレイアウトを崩すため、幅を固定したまま配色だけ反映する。
+function applyDateInputStyleFixed(el,val){
+  if(!el)return;
+  const v=val!==undefined?val:el.value;
+  el.style.cssText=dateInputStyle(v).replace(/flex:1;min-width:0;?/,'');
+  el.style.width='130px';el.style.flexShrink='0';
+}
 function fmtDate(d){
   if(!d)return'';
   const t=today(),dd=new Date(d+'T00:00:00'),td=new Date(t+'T00:00:00');
@@ -6787,7 +6795,7 @@ function renderDrawer(){
         const dueEl=document.getElementById('dt-due');
         if(dueEl&&dueEl.value&&el.value>dueEl.value){
           dueEl.value=el.value;
-          applyDateInputStyle(dueEl,el.value);
+          applyDateInputStyleFixed(dueEl,el.value);
           const wdD=document.getElementById('dt-due-wd');
           if(wdD){wdD.textContent='('+(wdStr(el.value).replace('曜','')||'　')+')';wdD.style.color=wdColor(el.value);}
         }
@@ -6796,7 +6804,7 @@ function renderDrawer(){
         const startEl=document.getElementById('dt-start');
         if(startEl&&startEl.value&&el.value<startEl.value){
           startEl.value=el.value;
-          applyDateInputStyle(startEl,el.value);
+          applyDateInputStyleFixed(startEl,el.value);
           const wdS=document.getElementById('dt-start-wd');
           if(wdS){wdS.textContent='('+(wdStr(el.value).replace('曜','')||'　')+')';wdS.style.color=wdColor(el.value);}
         }
@@ -6805,7 +6813,7 @@ function renderDrawer(){
       if(id==='dt-due'||id==='dt-start'){
         const wd=document.getElementById('dt-'+( id==='dt-due'?'due':'start')+'-wd');
         if(wd){wd.textContent='('+(wdStr(el.value).replace('曜','')||'　')+')';wd.style.color=wdColor(el.value);}
-        applyDateInputStyle(el,el.value);
+        applyDateInputStyleFixed(el,el.value);
       }
     });
   });
@@ -8303,7 +8311,7 @@ else if(a==='scroll-to-comments'){
     }
     const newVal=base.toISOString().slice(0,10);
     input.value=newVal;
-    applyDateInputStyle(input,newVal);
+    applyDateInputStyleFixed(input,newVal);
     const wdKey=field==='start'?'start':field==='planned-start'?'planned-start':'due';
     document.querySelectorAll('#dt-'+wdKey+'-wd').forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
     const task=S.tasks.find(t=>t.id===S.taskId);
@@ -8323,7 +8331,7 @@ else if(a==='scroll-to-comments'){
     const field=el.dataset.field;
     const inputId=field==='start'?'dt-start':field==='planned-start'?'dt-planned-start':'dt-due';
     const input=el.closest('.expand-modal')?.querySelector('#'+inputId)||document.getElementById(inputId);
-    if(input){input.value='';applyDateInputStyle(input,'');}
+    if(input){input.value='';applyDateInputStyleFixed(input,'');}
     const wdKey=field==='start'?'start':field==='planned-start'?'planned-start':'due';
     document.querySelectorAll('#dt-'+wdKey+'-wd').forEach(s=>s.textContent='');
     const task=S.tasks.find(t=>t.id===S.taskId);
