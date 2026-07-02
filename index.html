@@ -6169,7 +6169,7 @@ function renderNoteDrawer(){
   initNoteComments(note.id);
 }
 
-function renderNextView(){
+function getNextViewRows(){
   // プロジェクト毎に最初の未完了タスクを1件ずつ取得
   const projs=getSortedProjects('active').filter(p=>S.showShared||!p.workspaceId);
   const rows=[];
@@ -6191,6 +6191,10 @@ function renderNextView(){
     if(tasks.length===0)continue;
     rows.push({proj,task:tasks[0]});
   }
+  return rows;
+}
+function renderNextView(){
+  const rows=getNextViewRows();
   if(rows.length===0){
     const hasProjs=getSortedProjects('active').length>0;
     if(!hasProjs){
@@ -8730,13 +8734,7 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='bulk-sel-all'){
     if(S.view==='nextview'){
-      const projs=getSortedProjects('active');
-      const ids=[];
-      for(const proj of projs){
-        const tasks=S.tasks.filter(t=>t.projectId===proj.id&&!t.parentTaskId&&(!S.showCompleted&&t.status!=='completed')&&(!S.hideNotStarted||!isNotStartedTask(t))).sort((a,b)=>(a.order||0)-(b.order||0));
-        if(tasks.length)ids.push(tasks[0].id);
-      }
-      S.selectedIds=ids;
+      S.selectedIds=getNextViewRows().map(r=>r.task.id);
     }else if(S.view==='search'){
       const ql=(S.search||'').toLowerCase();
       if(ql){
@@ -9405,7 +9403,7 @@ document.addEventListener('keydown',e=>{
     if(e.key==='ArrowUp'||e.key==='ArrowDown'){
       if(e.ctrlKey||e.metaKey)return; // Ctrl/Cmd+↑↓はビュー切替なのでスキップ
       e.preventDefault();
-      const vt=getTasks().filter(t=>!t.parentTaskId);
+      const vt=S.view==='nextview'?getNextViewRows().map(r=>r.task):getTasks().filter(t=>!t.parentTaskId);
       if(!vt.length)return;
       const cur=vt.findIndex(t=>t.id===S.taskId);
       let ni=e.key==='ArrowUp'?cur-1:cur+1;
