@@ -6150,11 +6150,12 @@ function renderNoteDrawer(){
       const days=['日','月','火','水','木','金','土'];
       const dateBase=d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate());
       const timeBase=pad(d.getHours())+':'+pad(d.getMinutes());
-      const map={date:dateBase,time:timeBase,datetime:dateBase+' '+timeBase,datetimeweek:dateBase+'（'+days[d.getDay()]+'） '+timeBase+' ',sep:'—————————————'};
+      const map={date:dateBase,time:timeBase,datetime:dateBase+' '+timeBase,datetimeweek:dateBase+'（'+days[d.getDay()]+'） '+timeBase+'\n',sep:'—————————————'};
       const ins=map[btn.dataset.ns]||'';
       if(!bodyEl._stampFocused){
-        bodyEl.value=ins+'\n'+bodyEl.value;
-        bodyEl.selectionStart=bodyEl.selectionEnd=ins.length+1;
+        const sep=ins.endsWith('\n')?'':'\n';
+        bodyEl.value=ins+sep+bodyEl.value;
+        bodyEl.selectionStart=bodyEl.selectionEnd=ins.length+sep.length;
       }else{
         const s=bodyEl.selectionStart,e=bodyEl.selectionEnd;
         bodyEl.value=bodyEl.value.slice(0,s)+ins+bodyEl.value.slice(e);
@@ -8616,7 +8617,7 @@ else if(a==='scroll-to-comments'){
     const days2=['日','月','火','水','木','金','土'];
     const dateStr=now2.getFullYear()+'/'+(pad(now2.getMonth()+1))+'/'+pad(now2.getDate());
     const timeStr=pad(now2.getHours())+':'+pad(now2.getMinutes());
-    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+' ',sep:'\n---\n'};
+    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+'\n',sep:'\n---\n'};
     const ins=map[el.dataset.type]||'';
     // メモエリアが閉じていたら開く
     const _mc=document.getElementById('memo-collapse');
@@ -8627,8 +8628,9 @@ else if(a==='scroll-to-comments'){
     const _pvBtn=document.getElementById('dt-preview-btn');
     if(_pvBtn&&_pvBtn.textContent.trim()==='編集'){_pvBtn.click();}
     if(!ta._stampFocused){
-      ta.value=ins+'\n'+ta.value;
-      ta.selectionStart=ta.selectionEnd=ins.length+1;
+      const sep=ins.endsWith('\n')?'':'\n';
+      ta.value=ins+sep+ta.value;
+      ta.selectionStart=ta.selectionEnd=ins.length+sep.length;
     }else{
       const s=ta.selectionStart,en=ta.selectionEnd;
       ta.value=ta.value.slice(0,s)+ins+ta.value.slice(en);
@@ -8645,7 +8647,7 @@ else if(a==='scroll-to-comments'){
     const days2=['日','月','火','水','木','金','土'];
     const dateStr=now2.getFullYear()+'/'+(pad(now2.getMonth()+1))+'/'+pad(now2.getDate());
     const timeStr=pad(now2.getHours())+':'+pad(now2.getMinutes());
-    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+' ',sep:'\n---\n'};
+    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+'\n',sep:'\n---\n'};
     const ins=map[el.dataset.type]||'';
     const s=ta.selectionStart,en=ta.selectionEnd;
     ta.value=ta.value.slice(0,s)+ins+ta.value.slice(en);
@@ -8661,7 +8663,7 @@ else if(a==='scroll-to-comments'){
     const days2=['日','月','火','水','木','金','土'];
     const dateStr=now2.getFullYear()+'/'+(pad(now2.getMonth()+1))+'/'+pad(now2.getDate());
     const timeStr=pad(now2.getHours())+':'+pad(now2.getMinutes());
-    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+' ',sep:'\n---\n'};
+    const map={date:dateStr,time:timeStr,datetime:dateStr+' '+timeStr,datetimeweek:dateStr+'（'+days2[now2.getDay()]+'） '+timeStr+'\n',sep:'\n---\n'};
     const ins=map[el.dataset.type]||'';
     const s=ta.selectionStart,en=ta.selectionEnd;
     ta.value=ta.value.slice(0,s)+ins+ta.value.slice(en);
@@ -9155,12 +9157,13 @@ function reattachModalEvents(modal, type, onClose){
         const d=new Date();
         const dateBase=d.getFullYear()+'/'+_pad(d.getMonth()+1)+'/'+_pad(d.getDate());
         const timeBase=_pad(d.getHours())+':'+_pad(d.getMinutes());
-        const map={date:dateBase,time:timeBase,datetime:dateBase+' '+timeBase,datetimeweek:dateBase+'（'+_days[d.getDay()]+'） '+timeBase+' ',sep:'—————————————'};
+        const map={date:dateBase,time:timeBase,datetime:dateBase+' '+timeBase,datetimeweek:dateBase+'（'+_days[d.getDay()]+'） '+timeBase+'\n',sep:'—————————————'};
         const ins=map[btn.dataset.ns]||'';
         if(!ins)return;
         if(!bodyEl._stampFocused){
-          bodyEl.value=ins+'\n'+bodyEl.value;
-          bodyEl.selectionStart=bodyEl.selectionEnd=ins.length+1;
+          const sep=ins.endsWith('\n')?'':'\n';
+          bodyEl.value=ins+sep+bodyEl.value;
+          bodyEl.selectionStart=bodyEl.selectionEnd=ins.length+sep.length;
         }else{
           const s=bodyEl.selectionStart,e2=bodyEl.selectionEnd;
           bodyEl.value=bodyEl.value.slice(0,s)+ins+bodyEl.value.slice(e2);
