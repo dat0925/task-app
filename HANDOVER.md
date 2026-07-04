@@ -1,6 +1,43 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-07-01
+最終更新: 2026-07-05
+
+---
+
+## 🆕 Dashboard「期限切れ」もっと見るが専用ビューに繋がっていない問題・修正（2026-07-05）
+
+### 症状
+
+Dashboardの「期限切れ」セクションの「もっと見る →」をタップしても、期限切れタスクだけの
+一覧は表示されず、実質的に「今日」ビュー（`S.view='today'`）に遷移していた。
+`today`ビューは「期限が今日」または「フラグ付き」のタスクしか拾わないため、
+期限切れタスクの一部（フラグなし・今日より前が期限）が表示されない不整合があった。
+
+### 原因
+
+`renderDashboard()`内の`section()`呼び出しで、「期限切れ」セクションの`viewName`引数が
+誤って`'today'`になっていた（コピペ起因と推測）。専用の`overdue`ビュー自体が存在しなかった。
+
+### 修正内容
+
+新規`overdue`ビューを追加し、新規ビュー追加チェックリスト（本ファイル内、旧セッション記載）
+に沿って全箇所を登録：
+- `getTasks()`：`dueAt<today`かつ未完了のタスクを抽出するフィルタ条件を追加
+- `counts()`：`overdue`件数を追加
+- `renderSidebar()`の`ALL_SYS`：サイドバーに「Overdue」項目を追加（Todayの直下）
+- `ALL_NAV_ITEMS`：ボトムナビカスタマイズ候補に追加
+- `getNavSequence()`の`SYS_VIEWS`：前後ナビゲーション対応
+- `renderContent()`の`titles`：タイトルバー文字列
+- `VIEW_HELP`：？ツールチップの説明文
+- `openViewHelp()`のアイコンmap
+- `renderEmpty()`：空状態メッセージ
+- `ICONS.overdue`：専用アイコン（アラームクロック風）を追加
+- `renderList()`の`showSubsInView`・`renderRow()`の親タスク名表示：`today`/`flagged`と同様に`overdue`でもサブタスクの親タイトルを表示するよう対象に追加
+- `renderDashboard()`：「期限切れ」セクションの`viewName`を`'today'`→`'overdue'`に修正
+
+修正後、Node.js構文チェック（本ファイル冒頭のルール①）で全JS文字列の構文エラーがないことを確認済み。
+
+
 
 ---
 

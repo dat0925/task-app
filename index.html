@@ -2792,6 +2792,7 @@ function getTasks(){
   let tasks=S.tasks.filter(x=>x.status!=='archived');
   if(S.view==='inbox')tasks=tasks.filter(x=>x.status==='inbox'||(S.showCompleted&&x.status==='completed'&&!x.projectId));
   else if(S.view==='today')tasks=tasks.filter(x=>(isToday(x.dueAt)||x.flagged)&&(S.showCompleted||x.status!=='completed'));
+  else if(S.view==='overdue')tasks=tasks.filter(x=>x.dueAt&&x.dueAt<t&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='upcoming')tasks=tasks.filter(x=>x.dueAt&&x.dueAt>t&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='flagged')tasks=tasks.filter(x=>x.flagged&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='assigned'){const _auid=window._currentUser?.id;tasks=_auid?tasks.filter(x=>x.assigneeId===_auid&&(S.showCompleted||x.status!=='completed')):[];}
@@ -2816,6 +2817,7 @@ function counts(){
   return{
     inbox:S.tasks.filter(x=>x.status==='inbox'&&!x.parentTaskId).length,
     today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
+    overdue:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.dueAt&&x.dueAt<t).length,
     flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged).length,
     assigned:_uid?S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.assigneeId===_uid).length:0,
   };
@@ -2912,6 +2914,7 @@ function ico(d,s=16){return'<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24
 const ICONS={
   inbox:ico('<polyline points="22,12 16,12 14,15 10,15 8,12 2,12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>'),
   today:ico('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
+  overdue:ico('<circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><path d="M5 3L2 6M19 3l3 3"/>'),
   upcoming:ico('<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><line x1="12" y1="3" x2="12" y2="1"/><line x1="21" y1="12" x2="23" y2="12"/>'),
   forecast:ico('<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'),
   flag:ico('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>'),
@@ -3973,6 +3976,12 @@ const VIEW_HELP={
     desc:'今日やるべきことを一覧表示します。期限が今日のタスクと、重要マーク（フラグ）付きのタスクが自動的にまとめられます。',
     conds:['期限日が今日のタスク','フラグ（★）が付いたタスク']
   },
+  overdue:{
+    name:'Overdue',
+    colorBg:'rgba(239,68,68,.1)',colorFg:'var(--p1)',
+    desc:'期限が過ぎてしまったタスクだけを集めた一覧です。ダッシュボードの「期限切れ」からここに遷移し、全件を確認・整理できます。',
+    conds:['期限日が今日より前で未完了のタスクのみ表示','完了済みは非表示（設定で変更可）']
+  },
   upcoming:{
     name:'Upcoming',
     colorBg:'var(--blue-bg)',colorFg:'var(--blue)',
@@ -4047,7 +4056,7 @@ function openViewHelp(triggerEl){
   const ov=document.getElementById('view-help-ov');
   if(!popup)return;
   // icon from ICONS map
-  const iconSvg=({dashboard:ICONS.dashboard,inbox:ICONS.inbox,today:ICONS.today,upcoming:ICONS.upcoming,
+  const iconSvg=({dashboard:ICONS.dashboard,inbox:ICONS.inbox,today:ICONS.today,overdue:ICONS.overdue,upcoming:ICONS.upcoming,
     forecast:ICONS.forecast,flagged:ICONS.flag,assigned:ICONS.assigned,review:ICONS.review,
     nextview:ICONS.nextview,
     search:ICONS.search,notes:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
@@ -4114,6 +4123,7 @@ function renderSidebar(){
     {v:'inbox',label:'Inbox',icon:ICONS.inbox,cnt:c.inbox,sub:'プロジェクト未設定のタスク'},
     {v:'nextview',label:'Next',icon:ICONS.nextview,sub:'各PJの次のアクション'},
     {v:'today',label:'Today',icon:ICONS.today,cnt:c.today,sub:'期限が今日のタスク'},
+    {v:'overdue',label:'Overdue',icon:ICONS.overdue,cnt:c.overdue,sub:'期限が過ぎているタスク'},
     {v:'forecast',label:'Forecast',icon:ICONS.forecast,sub:'2週間先までのタスク一覧'},
     {v:'flagged',label:'Flagged',icon:ICONS.flag,cnt:c.flagged,sub:'フラグを付けたタスク'},
     {v:'assigned',label:'Assigned',icon:ICONS.assigned,cnt:c.assigned,sub:'自分が担当のタスク'},
@@ -4449,6 +4459,7 @@ const ALL_NAV_ITEMS=[
   {v:'dashboard',label:'Dashboard',icon:()=>ICONS.dashboard},
   {v:'inbox',label:'Inbox',icon:()=>ICONS.inbox},
   {v:'today',label:'Today',icon:()=>ICONS.today},
+  {v:'overdue',label:'Overdue',icon:()=>ICONS.overdue},
   {v:'forecast',label:'Forecast',icon:()=>ICONS.forecast},
   {v:'flagged',label:'Flagged',icon:()=>ICONS.flag},
   {v:'review',label:'Review',icon:()=>ICONS.review},
@@ -4487,7 +4498,7 @@ async function loadNavOrder(){
 }
 // ===== PREV/NEXT ナビゲーション =====
 function getNavSequence(){
-  const SYS_VIEWS=['dashboard','inbox','today','forecast','flagged','review','nextview','search','notes'];
+  const SYS_VIEWS=['dashboard','inbox','today','overdue','forecast','flagged','review','nextview','search','notes'];
   const bnavOrder=getNavOrder().filter(v=>SYS_VIEWS.includes(v));
   const orderedSys=[...bnavOrder,...SYS_VIEWS.filter(v=>!bnavOrder.includes(v))];
   const views=orderedSys.map(v=>({type:'view',v}));
@@ -4855,7 +4866,7 @@ function scrollGanttToToday(){
 // ===== RENDER CONTENT =====
 function renderContent(){
   const el=document.getElementById('content');
-  const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Logbook',notes:'Notes',nextview:'Next',gantt:'Gantt',
+  const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',overdue:'Overdue',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Logbook',notes:'Notes',nextview:'Next',gantt:'Gantt',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||''};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
@@ -5318,7 +5329,7 @@ function renderNoteListOnly(){
 }
 
 function renderList(){
-  const showSubsInView=['today','flagged'].includes(S.view);
+  const showSubsInView=['today','flagged','overdue'].includes(S.view);
   const tasks=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId);
   if(!tasks.length)return renderEmpty();
   let h='<div class="tlist">';
@@ -5504,7 +5515,7 @@ function renderRow(task){
     +(!S.selectMode?'<span class="task-drag-handle" data-drag-task="'+task.id+'" title="ドラッグで並び替え" ontouchstart="event.stopPropagation()">⠿</span>':'')
     +'<button class="chk'+(done?' done':'')+'" data-a="chk" data-id="'+task.id+'"'+(S.selectMode?' style="pointer-events:none"':'')+' >'+(done?'✓':'')+'</button>'
     +'<div class="tbody">'
-      +(task.parentTaskId&&['today','flagged'].includes(S.view)?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="font-size:11px;color:var(--text3);margin-bottom:1px;display:flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>'+esc(pt.title||'無題')+'</div>':''})():'')
+      +(task.parentTaskId&&['today','flagged','overdue'].includes(S.view)?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="font-size:11px;color:var(--text3);margin-bottom:1px;display:flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>'+esc(pt.title||'無題')+'</div>':''})():'')
       +'<div class="ttitle'+(subs.length>0?' has-subs':'')+'" data-title-edit="'+task.id+'"'+(notStarted?' style="color:var(--text3)"':'')+'>'+( task.title?esc(task.title):'<span style="color:var(--text3)">無題</span>')+'</div>'
       +'<div class="tmeta">'+(meta||'')+updStr+'</div>'
     +'</div>'
@@ -5529,6 +5540,7 @@ function renderEmpty(){
   const e={
     inbox:{ico:'📥',t:'Inboxは空です',d:'上の入力欄からタスクを追加'},
     today:{ico:'☀️',t:'今日のタスクはありません',d:'期限を「今日」に設定したタスクがここに表示されます。タスク追加時に「明日」「今日」などと入力すると自動設定されます。'},
+    overdue:{ico:'🎉',t:'期限切れのタスクはありません',d:'期限が過ぎた未完了タスクがあると、ここに一覧表示されます。'},
     upcoming:{ico:'📅',t:'期限付きタスクはありません',d:'タスクに期限を設定すると、カレンダー形式でここに表示されます。'},
     flagged:{ico:'🚩',t:'フラグ付きタスクはありません',d:'特に重要なタスクに🚩フラグを付けると、ここで一覧できます。タスク一覧の旗アイコンでフラグを設定できます。'},
     completed:{ico:'✅',t:'完了済みタスクはありません',d:''},
@@ -5672,7 +5684,7 @@ function renderDashboard() {
   </div>`;
 
   let h = `<div style="padding:12px 12px 80px">`;
-  if (overdue.length) h += section('🔴', '期限切れ', 'var(--p1)', overdue, 3, 'today', 'なし');
+  if (overdue.length) h += section('🔴', '期限切れ', 'var(--p1)', overdue, 3, 'overdue', 'なし');
   h += section('📅', '今日', 'var(--text)', todayTasks, 3, 'today', overdue.length ? '期限切れ以外のタスクはありません' : '今日のタスクはありません');
   h += notifHtml;
   if (myTasks.length) h += section('👤', '自分の担当', 'var(--text)', myTasks, 3, 'assigned', '');
