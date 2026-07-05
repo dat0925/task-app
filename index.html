@@ -2375,12 +2375,12 @@ function parseQA(input){
   title=title.replace(/!(高|1)/g,()=>{r.priority=1;return''})
     .replace(/!(中|2)/g,()=>{r.priority=2;return''})
     .replace(/!(低|3)/g,()=>{r.priority=3;return''});
-  // tags
+  // tags（1件につき1つのため、複数#タグが書かれても最後の1つのみ採用）
   r._newTagNames=[];
   title=title.replace(/#([\w\u3040-\u9FFF\u30A0-\u30FF]+)/g,(m,n)=>{
     const t=S.tags.find(x=>x.name===n);
-    if(t&&!r.tagIds.includes(t.id))r.tagIds.push(t.id);
-    else if(!t&&!r._newTagNames.includes(n))r._newTagNames.push(n);
+    if(t){r.tagIds=[t.id];r._newTagNames=[];}
+    else{r.tagIds=[];r._newTagNames=[n];}
     return'';
   });
   // project
@@ -7538,23 +7538,23 @@ async function handleBulkEdit(field){
     };
   } else if(field==='tags'){
     const ov=document.createElement('div');ov.className='overlay';
-    ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括追加</div>'
-      +'<div style="max-height:220px;overflow-y:auto;margin-bottom:12px">'
-      +S.tags.map(t=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer"><input type="checkbox" data-tag="'+t.id+'"><span style="color:'+t.color+'">#'+esc(t.name)+'</span></label>').join('')
-      +'</div>'
+    ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括設定</div>'
+      +'<select id="bulk-tag-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
+      +S.tags.map(t=>'<option value="'+t.id+'">#'+esc(t.name)+'</option>').join('')
+      +'</select>'
       +'<div style="display:flex;gap:8px">'
-        +'<button class="btn btn-primary" id="bulk-tag-ok">追加</button>'
+        +'<button class="btn btn-primary" id="bulk-tag-ok">設定する</button>'
         +'<button class="btn btn-ghost" id="bulk-tag-cancel">キャンセル</button>'
       +'</div></div>';
     document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
     ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
     ov.querySelector('#bulk-tag-cancel').onclick=()=>ov.remove();
     ov.querySelector('#bulk-tag-ok').onclick=async()=>{
-      const checked=[...ov.querySelectorAll('input[data-tag]:checked')].map(i=>i.dataset.tag);
-      ov.remove();if(!checked.length)return;
-      for(const t of tasks){if(!t.tagIds)t.tagIds=[];checked.forEach(tid=>{if(!t.tagIds.includes(tid))t.tagIds.push(tid);});await saveTask(t);}
+      const tid=ov.querySelector('#bulk-tag-sel').value;
+      ov.remove();
+      for(const t of tasks){t.tagIds=tid?[tid]:[];await saveTask(t);}
       S.selectMode=false;S.selectedIds=[];
-      toast(tasks.length+'件にタグを追加しました');render();
+      toast(tasks.length+'件のタグを設定しました');render();
     };
   } else if(field==='project'){
     const ov=document.createElement('div');ov.className='overlay';
@@ -8483,13 +8483,13 @@ else if(a==='scroll-to-comments'){
     }
   }
   else if(a==='tog-tag'){
+    // タグは単一選択（同じタグを再タップで解除、別タグをタップで切り替え）
     const tid=el.dataset.tag;
     if(el.dataset.note){
       const note=S.notes.find(n=>n.id===el.dataset.note);
       if(note){
-        if(!note.tagIds)note.tagIds=[];
-        const i=note.tagIds.indexOf(tid);
-        i>=0?note.tagIds.splice(i,1):note.tagIds.push(tid);
+        const already=note.tagIds&&note.tagIds.includes(tid);
+        note.tagIds=already?[]:[tid];
         playSE('toggle');
         const drBody=document.querySelector('#drawer .drawer-body');
         const scrollY=drBody?drBody.scrollTop:0;
@@ -8500,9 +8500,8 @@ else if(a==='scroll-to-comments'){
     } else {
       const task=S.tasks.find(t=>t.id===el.dataset.task);
       if(task){
-        if(!task.tagIds)task.tagIds=[];
-        const i=task.tagIds.indexOf(tid);
-        i>=0?task.tagIds.splice(i,1):task.tagIds.push(tid);
+        const already=task.tagIds&&task.tagIds.includes(tid);
+        task.tagIds=already?[]:[tid];
         playSE('toggle');
         const modal=el.closest('.expand-modal');
         const drBody=modal?modal.querySelector('.drawer-body'):document.querySelector('#drawer .drawer-body');
@@ -8832,14 +8831,12 @@ else if(a==='scroll-to-comments'){
     renderTaskFilters();renderContent();
   }
   else if(a==='fpop-tag'){
+    // タグは1件につき1つに統一したため、フィルタも排他選択に揃える
     const id=el.dataset.id||null;
-    if(!id){
+    if(!id||(S.filterTagIds&&S.filterTagIds.includes(id))){
       S.filterTagIds=[];
     } else {
-      if(!S.filterTagIds)S.filterTagIds=[];
-      const idx=S.filterTagIds.indexOf(id);
-      if(idx>=0)S.filterTagIds.splice(idx,1);
-      else S.filterTagIds.push(id);
+      S.filterTagIds=[id];
     }
     const pop=document.querySelector('.tf-popup.filter-pop');
     if(pop){
@@ -8908,26 +8905,22 @@ else if(a==='scroll-to-comments'){
     if(!S.selectedNoteIds.length){toast('ノートを選択してください');return;}
     const notes=S.notes.filter(n=>S.selectedNoteIds.includes(n.id));
     const ov=document.createElement('div');ov.className='overlay';
-    ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括追加</div>'
-      +'<div style="max-height:220px;overflow-y:auto;margin-bottom:12px">'
-      +S.tags.map(t=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer"><input type="checkbox" data-tag="'+t.id+'"><span style="color:'+t.color+'">#'+esc(t.name)+'</span></label>').join('')
-      +'</div>'
+    ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括設定</div>'
+      +'<select id="note-bulk-tag-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
+      +S.tags.map(t=>'<option value="'+t.id+'">#'+esc(t.name)+'</option>').join('')
+      +'</select>'
       +'<div style="display:flex;gap:8px">'
-        +'<button class="btn btn-primary" id="note-bulk-tag-ok">追加</button>'
+        +'<button class="btn btn-primary" id="note-bulk-tag-ok">設定する</button>'
         +'<button class="btn btn-ghost" id="note-bulk-tag-cancel">キャンセル</button>'
       +'</div></div>';
     document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
     ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
     ov.querySelector('#note-bulk-tag-cancel').onclick=()=>ov.remove();
     ov.querySelector('#note-bulk-tag-ok').onclick=async()=>{
-      const checked=[...ov.querySelectorAll('input[data-tag]:checked')].map(i=>i.dataset.tag);
-      ov.remove();if(!checked.length)return;
-      for(const n of notes){
-        if(!n.tagIds)n.tagIds=[];
-        checked.forEach(tid=>{if(!n.tagIds.includes(tid))n.tagIds.push(tid);});
-        await saveNote(n);
-      }
-      toast(notes.length+'件にタグを追加しました');render();
+      const tid=ov.querySelector('#note-bulk-tag-sel').value;
+      ov.remove();
+      for(const n of notes){n.tagIds=tid?[tid]:[];await saveNote(n);}
+      toast(notes.length+'件のタグを設定しました');render();
     };
   }
   else if(a==='note-bulk-del'){
@@ -9910,13 +9903,12 @@ function openSettingsModal(){
           const p=S.projects.find(x=>x.name===r['projectName']);
           if(p)projectId=p.id;
         }
-        // タグ名からIDを解決
+        // タグ名からIDを解決（1件につき1つのため、|区切りで複数あっても最初の1つのみ）
         let tagIds=[];
         if(r['tagNames']){
-          tagIds=r['tagNames'].split('|').map(n=>{
-            const tg=S.tags.find(x=>x.name===n.trim());
-            return tg?tg.id:null;
-          }).filter(Boolean);
+          const firstName=r['tagNames'].split('|')[0].trim();
+          const tg=S.tags.find(x=>x.name===firstName);
+          if(tg)tagIds=[tg.id];
         }
         const task=mkTask({
           title,
@@ -9988,10 +9980,9 @@ function openSettingsModal(){
         if(!title){skipped++;continue;}
         let tagIds=[];
         if(r['tagNames']){
-          tagIds=r['tagNames'].split('|').map(n=>{
-            const tg=S.tags.find(x=>x.name===n.trim());
-            return tg?tg.id:null;
-          }).filter(Boolean);
+          const firstName=r['tagNames'].split('|')[0].trim();
+          const tg=S.tags.find(x=>x.name===firstName);
+          if(tg)tagIds=[tg.id];
         }
         const note={
           id:uid(),
@@ -10275,17 +10266,15 @@ function aiRender(scrollTarget){
 
 async function aiExecuteActions(actions){
   const done=[];
-  // タグ名→IDを解決（未登録なら自動作成）
+  // タグ名→IDを解決（未登録なら自動作成）。タグは1件につき1つのため、複数指定されても最初の1件のみ採用
   async function resolveTagIds(tagNames){
     if(!tagNames||!tagNames.length)return[];
-    const ids=[];
-    for(const name of (Array.isArray(tagNames)?tagNames:[tagNames])){
-      if(!name)continue;
-      let tag=S.tags.find(t=>t.name===name);
-      if(!tag){tag=mkTag({name,color:'#7c3aed'});await saveTag(tag);}
-      if(!ids.includes(tag.id))ids.push(tag.id);
-    }
-    return ids;
+    const list=Array.isArray(tagNames)?tagNames:[tagNames];
+    const name=list.find(Boolean);
+    if(!name)return[];
+    let tag=S.tags.find(t=>t.name===name);
+    if(!tag){tag=mkTag({name,color:'#7c3aed'});await saveTag(tag);}
+    return[tag.id];
   }
   for(const a of actions){
     try{
@@ -10343,14 +10332,9 @@ async function aiExecuteActions(actions){
             t.projectId=proj?proj.id:null;
             if(t.projectId&&t.status==='inbox')t.status='active';
           }
-          // タグの追加・置換
+          // タグの設定（1件につき1つのため、append指定でも常に置き換え）
           if(a.tagNames!==undefined){
-            const newIds=await resolveTagIds(a.tagNames);
-            if(a.appendTags){
-              newIds.forEach(id=>{if(!t.tagIds.includes(id))t.tagIds.push(id);});
-            } else {
-              t.tagIds=newIds;
-            }
+            t.tagIds=await resolveTagIds(a.tagNames);
           }
           // ステータス変更（完了・未完了への復帰・アーカイブ）
           if(a.status!==undefined){
@@ -10510,7 +10494,7 @@ ${JSON.stringify(context,null,2)}
           priority:{type:'number',description:'優先度 1=高 2=中 3=低 4=なし'},
           flagged:{type:'boolean',description:'フラグ'},
           project_name:{type:'string',description:'プロジェクト名。なければnull'},
-          tag_names:{type:'array',items:{type:'string'},description:'タグ名の配列'},
+          tag_names:{type:'array',items:{type:'string'},description:'タグ名（1タスク/ノートにつき1つのみ。複数渡された場合は1つ目のみ使用）'},
         },
         required:['title'],
       },
@@ -10528,8 +10512,8 @@ ${JSON.stringify(context,null,2)}
           priority:{type:'number',description:'優先度 1-4'},
           flagged:{type:'boolean',description:'フラグ'},
           project_name:{type:'string',description:'プロジェクト名'},
-          tag_names:{type:'array',items:{type:'string'},description:'タグ名の配列'},
-          append_tags:{type:'boolean',description:'trueなら既存タグに追記、falseなら置換'},
+          tag_names:{type:'array',items:{type:'string'},description:'タグ名（1タスク/ノートにつき1つのみ。複数渡された場合は1つ目のみ使用）'},
+          append_tags:{type:'boolean',description:'未使用（タグは1件のみのため常に置換される）'},
           status:{type:'string',enum:['active','inbox','completed','archived'],description:'タスクを完了にする場合はcompleted。誤って完了にしたタスクを元に戻す場合はactive（または対象がプロジェクト無しならinbox）。アーカイブする場合はarchived'},
         },
       },
@@ -10593,7 +10577,7 @@ ${JSON.stringify(context,null,2)}
         properties:{
           title:{type:'string',description:'ノートのタイトル'},
           body:{type:'string',description:'ノートの本文・内容。ユーザーが指定した内容を必ず入れる'},
-          tag_names:{type:'array',items:{type:'string'},description:'タグ名の配列'},
+          tag_names:{type:'array',items:{type:'string'},description:'タグ名（1タスク/ノートにつき1つのみ。複数渡された場合は1つ目のみ使用）'},
         },
         required:['title'],
       },
