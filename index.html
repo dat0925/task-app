@@ -7529,6 +7529,7 @@ async function handleBulkEdit(field){
         else if(stimeCleared)t.startTime=null;
         await saveTask(t);
       }
+      S.selectMode=false;S.selectedIds=[];
       toast(tasks.length+'件を更新しました');render();
     };
   } else if(field==='tags'){
@@ -7548,6 +7549,7 @@ async function handleBulkEdit(field){
       const checked=[...ov.querySelectorAll('input[data-tag]:checked')].map(i=>i.dataset.tag);
       ov.remove();if(!checked.length)return;
       for(const t of tasks){if(!t.tagIds)t.tagIds=[];checked.forEach(tid=>{if(!t.tagIds.includes(tid))t.tagIds.push(tid);});await saveTask(t);}
+      S.selectMode=false;S.selectedIds=[];
       toast(tasks.length+'件にタグを追加しました');render();
     };
   } else if(field==='project'){
@@ -7569,6 +7571,7 @@ async function handleBulkEdit(field){
         t.projectId=val;
         if(val&&t.status==='inbox')t.status='active'; // Inboxから移動
       await saveTask(t);}
+      S.selectMode=false;S.selectedIds=[];
       toast(tasks.length+'件を更新しました');render();
     };
   } else if(field==='repeat'){
@@ -7587,11 +7590,13 @@ async function handleBulkEdit(field){
     ov.querySelector('#bulk-rep-ok').onclick=async()=>{
       const val=ov.querySelector('#bulk-rep-sel').value||null;ov.remove();
       for(const t of tasks){t.repeatRule=val;await saveTask(t);}
+      S.selectMode=false;S.selectedIds=[];
       toast(tasks.length+'件を更新しました');render();
     };
   } else if(field==='flag'){
     const anyUnflagged=tasks.some(t=>!t.flagged);
     for(const t of tasks){t.flagged=anyUnflagged;await saveTask(t);}
+    S.selectMode=false;S.selectedIds=[];
     toast(tasks.length+'件を'+(anyUnflagged?'フラグ付き':'フラグなし')+'に設定しました');render();
   } else if(field==='complete'){
     openConfirmModal(tasks.length+'件を完了にする',tasks.length+'件のタスクを完了にしますか？',async()=>{
