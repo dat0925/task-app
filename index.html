@@ -11104,7 +11104,7 @@ function renderExtractResults(ov){
     '<div class="extract-row" data-id="'+c.id+'" style="display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border)">'
       +'<input type="checkbox" data-extract-chk="'+c.id+'" '+(c.selected?'checked':'')+' style="margin-top:11px;width:17px;height:17px;flex-shrink:0">'
       +'<div style="flex:1;min-width:0">'
-        +'<input class="finput" data-extract-title="'+c.id+'" value="'+esc(c.title)+'" maxlength="'+CHAR_LIMITS.taskTitle+'" style="font-size:14px;font-weight:500;margin-bottom:4px">'
+        +'<textarea class="finput" data-extract-title="'+c.id+'" maxlength="'+CHAR_LIMITS.taskTitle+'" rows="1" style="font-size:14px;font-weight:500;margin-bottom:4px;resize:none;overflow:hidden;line-height:1.4;white-space:pre-wrap;word-break:break-word">'+esc(c.title)+'</textarea>'
         +'<div style="display:flex;align-items:center;gap:6px">'
           +'<span style="font-size:11px;color:var(--text3)">📅</span>'
           +'<input type="date" data-extract-due="'+c.id+'" value="'+(c.dueAt||'')+'" style="font-size:12px;border:1px solid var(--border);border-radius:6px;padding:2px 6px;background:var(--bg)">'
@@ -11113,6 +11113,7 @@ function renderExtractResults(ov){
     +'</div>';
   body.innerHTML='<div style="font-size:12px;color:var(--text3);margin-bottom:4px">'+_extractCandidates.length+'件見つかりました。内容を確認して、Inboxに追加してください</div>'
     +_extractCandidates.map(rowHtml).join('');
+  const autoGrow=el=>{el.style.height='auto';el.style.height=el.scrollHeight+'px';};
   body.querySelectorAll('[data-extract-chk]').forEach(el=>{
     el.addEventListener('change',()=>{
       const c=_extractCandidates.find(x=>x.id===el.dataset.extractChk);
@@ -11121,9 +11122,11 @@ function renderExtractResults(ov){
     });
   });
   body.querySelectorAll('[data-extract-title]').forEach(el=>{
+    autoGrow(el);
     el.addEventListener('input',()=>{
       const c=_extractCandidates.find(x=>x.id===el.dataset.extractTitle);
       if(c)c.title=el.value;
+      autoGrow(el);
     });
   });
   body.querySelectorAll('[data-extract-due]').forEach(el=>{
