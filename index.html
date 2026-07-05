@@ -1292,6 +1292,8 @@ const PLAN_DEFS={
 };
 // 文字数上限
 const CHAR_LIMITS={taskTitle:500,taskNotes:50000,noteTitle:500,noteBody:200000};
+// メール貼り付け機能のうち、Word/PDF/画像の添付解析はプレミアム限定・月次回数上限あり（原価を見て今後調整）
+const FILE_EXTRACT_LIMIT=30;
 const ADMIN_EMAILS=['masamune.endo@gmail.com','mstd0520@gmail.com'];
 
 window._userPlan='free'; // Supabase読み込み前のデフォルト
@@ -1674,6 +1676,7 @@ function showUpgradeModal(feature){
     projects:{title:'プロジェクトの上限に達しました',desc:'現在のプランでは最大'+pd.projectLimit+'件まで作成できます。上位プランにアップグレードするとプロジェクト数無制限でご利用いただけます。'},
     notes:{title:'ノートの上限に達しました',desc:'現在のプランでは最大'+pd.noteLimit+'件までノートを作成できます。上位プランにアップグレードするとノート数を増やせます。'},
     ai:{title:'AI利用回数の上限に達しました',desc:'今月のAI利用回数が上限（'+pd.aiLimit+'回）に達しました。上位プランにアップグレードすると利用回数が増えます。'},
+    fileExtract:{title:'ファイル解析（Word/PDF/写真）',desc:'メール本文の貼り付けに加えて、Word・PDF・写真からのタスク抽出はプレミアムプラン限定の機能です（月'+FILE_EXTRACT_LIMIT+'回まで）。'},
     team:{title:'チーム共有機能',desc:'チーム共有・メンバー招待はスタンダードプラン以上でご利用いただける機能です。チームでタスクを共有してコメントでやり取りできます。'},
     repeat:{title:'繰り返しタスク',desc:'繰り返しタスクはスタンダードプラン以上でご利用いただける機能です。'},
     gantt:{title:'ガントチャート',desc:'ガントチャートはスタンダードプラン以上でご利用いただける機能です。プロジェクトのスケジュールを視覚的に管理できます。'},
@@ -10791,7 +10794,11 @@ document.getElementById('ai-input').addEventListener('input',function(){
 // 設計方針: チャットAIの add_task と違い「即実行」はしない。抽出はあくまで下書きで、
 // 最終判断（本当にタスク化するか・内容を直すか）は人間が行い、選んだものだけをInboxに追加する。
 let _extractCandidates=[]; // [{id,title,dueAt,notes,selected}]
+let _extractAttachment=null; // {kind:'image'|'pdf'|'docx', mediaType, base64, fileName, text?}
+
 function openExtractModal(){
+  _extractAttachment=null;
+  const premium=isPlanPremium();
   const ov=document.createElement('div');
   ov.className='overlay';ov.id='extract-ov';
   ov.innerHTML=
@@ -10799,7 +10806,21 @@ function openExtractModal(){
       +'<div class="modal-title">メール・チャットから起票</div>'
       +'<div style="font-size:12.5px;color:var(--text3);margin:-6px 0 10px;line-height:1.5">メール本文やTeams・口頭メモをそのまま貼り付けてください。行動が必要な項目だけをAIが拾い出し、Inboxに下書きとして追加します。</div>'
       +'<div id="extract-body" style="flex:1;overflow-y:auto;min-height:0">'
-        +'<textarea id="extract-input" class="finput" placeholder="ここに貼り付け…" style="width:100%;min-height:160px;resize:vertical;font-size:14px;line-height:1.5"></textarea>'
+        +'<textarea id="extract-input" class="finput" placeholder="ここに貼り付け…（画像はそのまま貼り付けもできます）" style="width:100%;min-height:160px;resize:vertical;font-size:14px;line-height:1.5"></textarea>'
+        +'<div id="extract-attach-holder"></div>'
+        +(premium
+          ?'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
+            +'<button type="button" class="btn btn-ghost" id="extract-btn-doc" style="font-size:12px;padding:6px 10px">📎 Word / PDF</button>'
+            +'<button type="button" class="btn btn-ghost" id="extract-btn-img" style="font-size:12px;padding:6px 10px">🖼️ 画像を選ぶ</button>'
+            +'<button type="button" class="btn btn-ghost" id="extract-btn-cam" style="font-size:12px;padding:6px 10px">📷 写真を撮る</button>'
+            +'</div>'
+            +'<input type="file" id="extract-file-doc" accept=".pdf,.doc,.docx" style="display:none">'
+            +'<input type="file" id="extract-file-img" accept="image/*" style="display:none">'
+            +'<input type="file" id="extract-file-cam" accept="image/*" capture="environment" style="display:none">'
+          :'<div style="font-size:11.5px;color:var(--text3);margin-top:8px;display:flex;align-items:center;gap:5px">'
+            +'<span>✦ Word・PDF・写真からの起票はプレミアムプラン限定です</span>'
+            +'<button type="button" id="extract-upgrade-hint" style="background:none;border:none;color:var(--accent);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:0">詳しく見る</button>'
+            +'</div>')
       +'</div>'
       +'<div class="modal-foot" style="margin-top:10px;flex-shrink:0">'
         +'<button class="btn btn-ghost" id="extract-cancel">キャンセル</button>'
@@ -10812,14 +10833,124 @@ function openExtractModal(){
   ov.querySelector('#extract-cancel').onclick=close;
   ov.addEventListener('click',e=>{if(e.target===ov)close();});
   ov.querySelector('#extract-analyze').onclick=()=>extractAnalyze(ov);
-  setTimeout(()=>ov.querySelector('#extract-input')?.focus(),200);
+  const ta=ov.querySelector('#extract-input');
+  ta.addEventListener('paste',e=>extractHandlePasteEvent(ov,e));
+  if(premium){
+    ov.querySelector('#extract-btn-doc').onclick=()=>ov.querySelector('#extract-file-doc').click();
+    ov.querySelector('#extract-btn-img').onclick=()=>ov.querySelector('#extract-file-img').click();
+    ov.querySelector('#extract-btn-cam').onclick=()=>ov.querySelector('#extract-file-cam').click();
+    ov.querySelector('#extract-file-doc').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)handleExtractDocFile(ov,f);});
+    ov.querySelector('#extract-file-img').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)handleExtractImageFile(ov,f);});
+    ov.querySelector('#extract-file-cam').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)handleExtractImageFile(ov,f);});
+  }else{
+    ov.querySelector('#extract-upgrade-hint')?.addEventListener('click',()=>{close();showUpgradeModal('fileExtract');});
+  }
+  setTimeout(()=>ta?.focus(),200);
+}
+
+function extractHandlePasteEvent(ov,e){
+  const items=e.clipboardData?.items;
+  if(!items)return;
+  for(const item of items){
+    if(item.kind==='file'&&item.type&&item.type.startsWith('image/')){
+      if(!isPlanPremium()){toast('画像の解析はプレミアムプラン限定です');return;}
+      e.preventDefault();
+      const file=item.getAsFile();
+      if(file)handleExtractImageFile(ov,file);
+      return;
+    }
+  }
+}
+
+function fileToBase64Raw(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result).split(',')[1]||'');
+    r.onerror=()=>reject(new Error('ファイルの読み込みに失敗しました'));
+    r.readAsDataURL(file);
+  });
+}
+
+let _mammothPromise=null;
+function loadMammoth(){
+  if(window.mammoth)return Promise.resolve();
+  if(_mammothPromise)return _mammothPromise;
+  _mammothPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('Wordファイル読み込み用ライブラリの取得に失敗しました'));
+    document.head.appendChild(s);
+  });
+  return _mammothPromise;
+}
+
+async function handleExtractDocFile(ov,file){
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  if(ext==='pdf'){
+    if(file.size>20*1024*1024){toast('PDFは20MB以内にしてください');return;}
+    try{
+      const base64=await fileToBase64Raw(file);
+      _extractAttachment={kind:'pdf',mediaType:'application/pdf',base64,fileName:file.name};
+      renderExtractAttachmentChip(ov);
+    }catch(e){toast('PDFの読み込みに失敗しました: '+e.message);}
+    return;
+  }
+  if(ext==='doc'){toast('.doc形式には対応していません。.docx形式で保存し直してください');return;}
+  if(ext==='docx'){
+    const btn=ov.querySelector('#extract-btn-doc');
+    if(btn){btn.disabled=true;btn.textContent='読み込み中…';}
+    try{
+      await loadMammoth();
+      const buf=await file.arrayBuffer();
+      const result=await window.mammoth.extractRawText({arrayBuffer:buf});
+      const extractedText=(result.value||'').trim();
+      if(!extractedText){toast('文書からテキストを抽出できませんでした');return;}
+      _extractAttachment={kind:'docx',mediaType:null,base64:null,fileName:file.name,text:extractedText};
+      renderExtractAttachmentChip(ov);
+    }catch(e){toast('Wordファイルの読み込みに失敗しました: '+e.message);}
+    finally{if(btn){btn.disabled=false;btn.textContent='📎 Word / PDF';}}
+    return;
+  }
+  toast('対応していないファイル形式です（Word・PDFのみ）');
+}
+
+async function handleExtractImageFile(ov,file){
+  if(!file.type||!file.type.startsWith('image/')){toast('画像ファイルを選択してください');return;}
+  if(file.size>15*1024*1024){toast('画像サイズは15MB以内にしてください');return;}
+  try{
+    const base64=await fileToBase64Raw(file);
+    _extractAttachment={kind:'image',mediaType:file.type,base64,fileName:file.name||'photo.jpg'};
+    renderExtractAttachmentChip(ov);
+  }catch(e){toast('画像の読み込みに失敗しました: '+e.message);}
+}
+
+function renderExtractAttachmentChip(ov){
+  const holder=ov.querySelector('#extract-attach-holder');
+  if(!holder)return;
+  const a=_extractAttachment;
+  if(!a){holder.innerHTML='';return;}
+  const icon=a.kind==='pdf'?'📄':a.kind==='docx'?'📝':'🖼️';
+  holder.innerHTML='<div style="display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12.5px;margin-top:8px">'
+    +'<span>'+icon+'</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.fileName)+'</span>'
+    +'<button type="button" id="extract-attach-remove" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:0 2px;line-height:1">✕</button>'
+    +'</div>';
+  holder.querySelector('#extract-attach-remove').onclick=()=>{_extractAttachment=null;renderExtractAttachmentChip(ov);};
 }
 
 async function extractAnalyze(ov){
   const ta=ov.querySelector('#extract-input');
   const text=(ta?.value||'').trim();
-  if(!text){toast('テキストを貼り付けてください');return;}
-  if(text.length>8000){toast('8000文字以内にしてください');return;}
+  const attachment=_extractAttachment;
+  const usingAttachment=!!attachment;
+
+  if(usingAttachment&&!isPlanPremium()){
+    // 念のためのフロント側ガード（サーバー側でも判定するが二重チェック）
+    ov.remove();showUpgradeModal('fileExtract');return;
+  }
+  if(!text&&!usingAttachment){toast('テキストを貼り付けるか、ファイル・写真を添付してください');return;}
+  if(text.length>8000){toast('本文は8000文字以内にしてください');return;}
+
   const btn=ov.querySelector('#extract-analyze');
   const cancelBtn=ov.querySelector('#extract-cancel');
   btn.disabled=true;btn.textContent='解析中…';cancelBtn.disabled=true;
@@ -10827,7 +10958,7 @@ async function extractAnalyze(ov){
     const { data: { session } } = await window._SB.auth.getSession();
     if(!session?.access_token){toast('ログインが必要です');btn.disabled=false;btn.textContent='解析する';cancelBtn.disabled=false;return;}
     const t=today();
-    const systemPrompt='あなたはメール本文・Teamsのやり取り・会議メモ・口頭伝達メモなど、貼り付けられた雑多なテキストから'
+    const systemPrompt='あなたはメール本文・Teamsのやり取り・会議メモ・口頭伝達メモ、および添付されたWord/PDF文書や写真から'
       +'「行動が必要なタスク」だけを抽出するアシスタントです。今日の日付は'+t+'です。\n'
       +'ルール:\n'
       +'- 挨拶・世間話・FYI共有・すでに完了済みの報告・単なる情報連携など、行動を要さない内容は無視する\n'
@@ -10835,11 +10966,12 @@ async function extractAnalyze(ov){
       +'- タイトルは「誰が」「何をするか」が一目で分かるよう簡潔に（20〜30文字目安）\n'
       +'- 期限らしき日付・曜日・相対表現（明日/来週金曜/月末等）があればYYYY-MM-DD形式のdue_atに変換する。無ければ省略する\n'
       +'- 元文から要点を1〜2文でnotesに補足してもよい（本文をそのまま長く引用しない）\n'
+      +'- 添付が写真の場合、写っている文書・ホワイトボード・手書きメモ等の文字を読み取ってから同様に判断する\n'
       +'- 確信が持てる項目だけを拾う。該当する行動項目が無ければ空配列を返してよい\n'
       +'- 必ずextract_tasksツールを1回だけ呼び出し、結果はそのツール呼び出しのみで返す';
     const tools=[{
       name:'extract_tasks',
-      description:'貼り付けられたテキストから抽出した行動項目の一覧を返す',
+      description:'貼り付けられたテキストや添付ファイルから抽出した行動項目の一覧を返す',
       input_schema:{
         type:'object',
         properties:{
@@ -10859,19 +10991,44 @@ async function extractAnalyze(ov){
         required:['tasks'],
       },
     }];
+
+    // 添付の種類に応じてメッセージ内容を組み立てる
+    let content;
+    if(attachment?.kind==='image'){
+      content=[
+        {type:'image',source:{type:'base64',media_type:attachment.mediaType,data:attachment.base64}},
+        {type:'text',text:text||'この写真に写っている内容から、行動が必要なタスクを抽出してください。'},
+      ];
+    }else if(attachment?.kind==='pdf'){
+      content=[
+        {type:'document',source:{type:'base64',media_type:'application/pdf',data:attachment.base64}},
+        {type:'text',text:text||'この添付PDFの内容から、行動が必要なタスクを抽出してください。'},
+      ];
+    }else if(attachment?.kind==='docx'){
+      const combined=(text?text+'\n\n':'')+'【添付Word文書: '+attachment.fileName+'】\n'+attachment.text.slice(0,20000);
+      content=combined;
+    }else{
+      content=text;
+    }
+
+    const body={
+      model:'claude-haiku-4-5-20251001',
+      max_tokens:1536,
+      system:systemPrompt,
+      messages:[{role:'user',content}],
+      tools,
+      tool_choice:{type:'tool',name:'extract_tasks'},
+    };
+    if(usingAttachment)body.feature='file_extract'; // サーバー側でプレミアム判定・月30回の別枠上限をチェック
+
     const res=await fetch(AI_ENDPOINT,{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',
-        max_tokens:1536,
-        system:systemPrompt,
-        messages:[{role:'user',content:text}],
-        tools,
-        tool_choice:{type:'tool',name:'extract_tasks'},
-      }),
+      body:JSON.stringify(body),
     });
     const data=await res.json();
+    if(data.error==='premium_required'){ov.remove();showUpgradeModal('fileExtract');return;}
+    if(res.status===429&&data.error==='file_limit_exceeded'){toast(data.message||'今月のファイル解析回数の上限に達しました。');btn.disabled=false;btn.textContent='解析する';cancelBtn.disabled=false;return;}
     if(res.status===429){toast(data.message||'今月のAI利用回数が上限に達しました。');ov.remove();showUpgradeModal('ai');return;}
     if(data.error)throw new Error(data.error);
     const toolBlock=(data.content||[]).find(b=>b.type==='tool_use'&&b.name==='extract_tasks');
@@ -10880,6 +11037,7 @@ async function extractAnalyze(ov){
       id:uid(),title:String(x.title).slice(0,CHAR_LIMITS.taskTitle),
       dueAt:x.due_at||null,notes:x.notes||'',selected:true,
     }));
+    _extractAttachment=null;
     renderExtractResults(ov);
   }catch(e){
     toast('解析でエラーが発生しました: '+e.message);
