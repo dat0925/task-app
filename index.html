@@ -8343,9 +8343,25 @@ else if(a==='scroll-to-comments'){
         task.startTime=null;
         const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
         if(sti)sti.value='';
+        // 開始日が期限日を超えた場合は期限日も同じ日付に合わせる（date-picker直接編集時と同じ矛盾防止ロジック）
+        if(task.dueAt&&newVal>task.dueAt){
+          task.dueAt=newVal;
+          const dueInput=el.closest('.expand-modal')?.querySelector('#dt-due')||document.getElementById('dt-due');
+          if(dueInput){dueInput.value=newVal;applyDateInputStyleFixed(dueInput,newVal);}
+          document.querySelectorAll('#dt-due-wd').forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
+        }
       }
       else if(field==='planned-start') task.plannedStartAt=newVal;
-      else task.dueAt=newVal;
+      else{
+        task.dueAt=newVal;
+        // 期限日が開始日より前になった場合は開始日も同じ日付に合わせる
+        if(task.startAt&&newVal<task.startAt){
+          task.startAt=newVal;
+          const startInput=el.closest('.expand-modal')?.querySelector('#dt-start')||document.getElementById('dt-start');
+          if(startInput){startInput.value=newVal;applyDateInputStyleFixed(startInput,newVal);}
+          document.querySelectorAll('#dt-start-wd').forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
+        }
+      }
       await saveTask(task);
     }
   }
