@@ -974,7 +974,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="ai-title">Taskra AI</div>
       <div class="ai-sub" id="ai-usage-label">タスクをAIで操作</div>
     </div>
-    <button id="ai-help-btn" onclick="_showAiHelp(this)" style="margin-left:auto;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);color:var(--text3);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;margin-right:6px">?</button>
+    <button id="ai-extract-btn" data-a="extract-open" title="メール・チャットの文章から起票" style="margin-left:auto;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:14px;cursor:pointer;flex-shrink:0;line-height:1;padding:0;margin-right:2px;display:flex;align-items:center;justify-content:center">📋</button>
+    <button id="ai-help-btn" onclick="_showAiHelp(this)" style="width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);color:var(--text3);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;margin-right:6px">?</button>
     <button class="icon-btn" id="ai-close" style="width:36px;height:36px;font-size:20px;display:flex;align-items:center;justify-content:center">✕</button>
   </div>
   <div id="ai-msgs"></div>
@@ -8969,6 +8970,7 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='nav-edit'){openNavEdit()}
   else if(a==='ai-open'){aiToggle()}
+  else if(a==='extract-open'){if(isPlanFree()){showUpgradeModal('ai');}else{aiToggle(false);openExtractModal();}}
   else if(a==='ai-float-close'){aiToggle(false)}
   else if(a==='sb-float-close'){S.sidebarOpen=false;render()}
 });
@@ -10784,6 +10786,181 @@ document.getElementById('ai-input').addEventListener('keydown',e=>{
 document.getElementById('ai-input').addEventListener('input',function(){
   this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';
 });
+
+// ===== テキスト解析→Inbox起票（メール・Teams・口頭メモなどの雑多なテキストから行動項目を抽出） =====
+// 設計方針: チャットAIの add_task と違い「即実行」はしない。抽出はあくまで下書きで、
+// 最終判断（本当にタスク化するか・内容を直すか）は人間が行い、選んだものだけをInboxに追加する。
+let _extractCandidates=[]; // [{id,title,dueAt,notes,selected}]
+function openExtractModal(){
+  const ov=document.createElement('div');
+  ov.className='overlay';ov.id='extract-ov';
+  ov.innerHTML=
+    '<div class="modal" style="max-width:460px;max-height:82vh;display:flex;flex-direction:column">'
+      +'<div class="modal-title">メール・チャットから起票</div>'
+      +'<div style="font-size:12.5px;color:var(--text3);margin:-6px 0 10px;line-height:1.5">メール本文やTeams・口頭メモをそのまま貼り付けてください。行動が必要な項目だけをAIが拾い出し、Inboxに下書きとして追加します。</div>'
+      +'<div id="extract-body" style="flex:1;overflow-y:auto;min-height:0">'
+        +'<textarea id="extract-input" class="finput" placeholder="ここに貼り付け…" style="width:100%;min-height:160px;resize:vertical;font-size:14px;line-height:1.5"></textarea>'
+      +'</div>'
+      +'<div class="modal-foot" style="margin-top:10px;flex-shrink:0">'
+        +'<button class="btn btn-ghost" id="extract-cancel">キャンセル</button>'
+        +'<button class="btn btn-primary" id="extract-analyze">解析する</button>'
+      +'</div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  requestAnimationFrame(()=>ov.classList.add('open'));
+  const close=()=>ov.remove();
+  ov.querySelector('#extract-cancel').onclick=close;
+  ov.addEventListener('click',e=>{if(e.target===ov)close();});
+  ov.querySelector('#extract-analyze').onclick=()=>extractAnalyze(ov);
+  setTimeout(()=>ov.querySelector('#extract-input')?.focus(),200);
+}
+
+async function extractAnalyze(ov){
+  const ta=ov.querySelector('#extract-input');
+  const text=(ta?.value||'').trim();
+  if(!text){toast('テキストを貼り付けてください');return;}
+  if(text.length>8000){toast('8000文字以内にしてください');return;}
+  const btn=ov.querySelector('#extract-analyze');
+  const cancelBtn=ov.querySelector('#extract-cancel');
+  btn.disabled=true;btn.textContent='解析中…';cancelBtn.disabled=true;
+  try{
+    const { data: { session } } = await window._SB.auth.getSession();
+    if(!session?.access_token){toast('ログインが必要です');btn.disabled=false;btn.textContent='解析する';cancelBtn.disabled=false;return;}
+    const t=today();
+    const systemPrompt='あなたはメール本文・Teamsのやり取り・会議メモ・口頭伝達メモなど、貼り付けられた雑多なテキストから'
+      +'「行動が必要なタスク」だけを抽出するアシスタントです。今日の日付は'+t+'です。\n'
+      +'ルール:\n'
+      +'- 挨拶・世間話・FYI共有・すでに完了済みの報告・単なる情報連携など、行動を要さない内容は無視する\n'
+      +'- 1つの行動項目につき1タスク。無理に細かく分割しない\n'
+      +'- タイトルは「誰が」「何をするか」が一目で分かるよう簡潔に（20〜30文字目安）\n'
+      +'- 期限らしき日付・曜日・相対表現（明日/来週金曜/月末等）があればYYYY-MM-DD形式のdue_atに変換する。無ければ省略する\n'
+      +'- 元文から要点を1〜2文でnotesに補足してもよい（本文をそのまま長く引用しない）\n'
+      +'- 確信が持てる項目だけを拾う。該当する行動項目が無ければ空配列を返してよい\n'
+      +'- 必ずextract_tasksツールを1回だけ呼び出し、結果はそのツール呼び出しのみで返す';
+    const tools=[{
+      name:'extract_tasks',
+      description:'貼り付けられたテキストから抽出した行動項目の一覧を返す',
+      input_schema:{
+        type:'object',
+        properties:{
+          tasks:{
+            type:'array',
+            items:{
+              type:'object',
+              properties:{
+                title:{type:'string',description:'タスクのタイトル'},
+                due_at:{type:'string',description:'期限日 YYYY-MM-DD。不明なら省略'},
+                notes:{type:'string',description:'補足メモ。不要なら省略'},
+              },
+              required:['title'],
+            },
+          },
+        },
+        required:['tasks'],
+      },
+    }];
+    const res=await fetch(AI_ENDPOINT,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:1536,
+        system:systemPrompt,
+        messages:[{role:'user',content:text}],
+        tools,
+        tool_choice:{type:'tool',name:'extract_tasks'},
+      }),
+    });
+    const data=await res.json();
+    if(res.status===429){toast(data.message||'今月のAI利用回数が上限に達しました。');ov.remove();showUpgradeModal('ai');return;}
+    if(data.error)throw new Error(data.error);
+    const toolBlock=(data.content||[]).find(b=>b.type==='tool_use'&&b.name==='extract_tasks');
+    const rawTasks=toolBlock?.input?.tasks||[];
+    _extractCandidates=rawTasks.filter(x=>x&&x.title).map(x=>({
+      id:uid(),title:String(x.title).slice(0,CHAR_LIMITS.taskTitle),
+      dueAt:x.due_at||null,notes:x.notes||'',selected:true,
+    }));
+    renderExtractResults(ov);
+  }catch(e){
+    toast('解析でエラーが発生しました: '+e.message);
+    btn.disabled=false;btn.textContent='解析する';cancelBtn.disabled=false;
+  }
+}
+
+function renderExtractResults(ov){
+  const body=ov.querySelector('#extract-body');
+  const foot=ov.querySelector('.modal-foot');
+  if(_extractCandidates.length===0){
+    body.innerHTML='<div style="text-align:center;padding:30px 10px;color:var(--text3);font-size:13.5px">行動が必要そうな項目は見つかりませんでした。<br>別の文章で試すか、通常のタスク追加をご利用ください。</div>';
+    foot.innerHTML='<button class="btn btn-ghost" id="extract-cancel2">閉じる</button>';
+    foot.querySelector('#extract-cancel2').onclick=()=>ov.remove();
+    return;
+  }
+  const rowHtml=c=>
+    '<div class="extract-row" data-id="'+c.id+'" style="display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border)">'
+      +'<input type="checkbox" data-extract-chk="'+c.id+'" '+(c.selected?'checked':'')+' style="margin-top:11px;width:17px;height:17px;flex-shrink:0">'
+      +'<div style="flex:1;min-width:0">'
+        +'<input class="finput" data-extract-title="'+c.id+'" value="'+esc(c.title)+'" maxlength="'+CHAR_LIMITS.taskTitle+'" style="font-size:14px;font-weight:500;margin-bottom:4px">'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+          +'<span style="font-size:11px;color:var(--text3)">📅</span>'
+          +'<input type="date" data-extract-due="'+c.id+'" value="'+(c.dueAt||'')+'" style="font-size:12px;border:1px solid var(--border);border-radius:6px;padding:2px 6px;background:var(--bg)">'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+  body.innerHTML='<div style="font-size:12px;color:var(--text3);margin-bottom:4px">'+_extractCandidates.length+'件見つかりました。内容を確認して、Inboxに追加してください</div>'
+    +_extractCandidates.map(rowHtml).join('');
+  body.querySelectorAll('[data-extract-chk]').forEach(el=>{
+    el.addEventListener('change',()=>{
+      const c=_extractCandidates.find(x=>x.id===el.dataset.extractChk);
+      if(c)c.selected=el.checked;
+      updateExtractConfirmLabel(ov);
+    });
+  });
+  body.querySelectorAll('[data-extract-title]').forEach(el=>{
+    el.addEventListener('input',()=>{
+      const c=_extractCandidates.find(x=>x.id===el.dataset.extractTitle);
+      if(c)c.title=el.value;
+    });
+  });
+  body.querySelectorAll('[data-extract-due]').forEach(el=>{
+    el.addEventListener('change',()=>{
+      const c=_extractCandidates.find(x=>x.id===el.dataset.extractDue);
+      if(c)c.dueAt=el.value||null;
+    });
+  });
+  foot.innerHTML='<button class="btn btn-ghost" id="extract-cancel2">キャンセル</button>'
+    +'<button class="btn btn-primary" id="extract-confirm">選択した'+_extractCandidates.filter(c=>c.selected).length+'件をInboxに追加</button>';
+  foot.querySelector('#extract-cancel2').onclick=()=>ov.remove();
+  foot.querySelector('#extract-confirm').onclick=()=>extractConfirm(ov);
+}
+
+function updateExtractConfirmLabel(ov){
+  const b=ov.querySelector('#extract-confirm');
+  if(b)b.textContent='選択した'+_extractCandidates.filter(c=>c.selected).length+'件をInboxに追加';
+}
+
+async function extractConfirm(ov){
+  const picked=_extractCandidates.filter(c=>c.selected&&c.title.trim());
+  if(picked.length===0){toast('追加する項目を選択してください');return;}
+  const btn=ov.querySelector('#extract-confirm');
+  btn.disabled=true;btn.textContent='追加中…';
+  try{
+    for(const c of picked){
+      const o={title:c.title.trim(),notes:c.notes||''};
+      if(c.dueAt)o.dueAt=c.dueAt;
+      await saveTask(mkTask(o));
+    }
+    toast(picked.length+'件をInboxに追加しました');
+    ov.remove();
+    _extractCandidates=[];
+    S.view='inbox';
+    render();
+  }catch(e){
+    toast('追加でエラーが発生しました: '+e.message);
+    btn.disabled=false;btn.textContent='選択した'+picked.length+'件をInboxに追加';
+  }
+}
+
 
 // ===== FAST TAP (global) =====
 (function(){
