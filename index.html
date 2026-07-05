@@ -1676,7 +1676,7 @@ function showUpgradeModal(feature){
     projects:{title:'プロジェクトの上限に達しました',desc:'現在のプランでは最大'+pd.projectLimit+'件まで作成できます。上位プランにアップグレードするとプロジェクト数無制限でご利用いただけます。'},
     notes:{title:'ノートの上限に達しました',desc:'現在のプランでは最大'+pd.noteLimit+'件までノートを作成できます。上位プランにアップグレードするとノート数を増やせます。'},
     ai:{title:'AI利用回数の上限に達しました',desc:'今月のAI利用回数が上限（'+pd.aiLimit+'回）に達しました。上位プランにアップグレードすると利用回数が増えます。'},
-    fileExtract:{title:'ファイル解析（Word/PDF/写真）',desc:'メール本文の貼り付けに加えて、Word・PDF・写真からのタスク抽出はプレミアムプラン限定の機能です（月'+FILE_EXTRACT_LIMIT+'回まで）。'},
+    fileExtract:{title:'ファイル解析（Word/Excel/PowerPoint/PDF/写真）',desc:'メール本文の貼り付けに加えて、Word・Excel・PowerPoint・PDF・写真からのタスク抽出はプレミアムプラン限定の機能です（月'+FILE_EXTRACT_LIMIT+'回まで）。'},
     team:{title:'チーム共有機能',desc:'チーム共有・メンバー招待はスタンダードプラン以上でご利用いただける機能です。チームでタスクを共有してコメントでやり取りできます。'},
     repeat:{title:'繰り返しタスク',desc:'繰り返しタスクはスタンダードプラン以上でご利用いただける機能です。'},
     gantt:{title:'ガントチャート',desc:'ガントチャートはスタンダードプラン以上でご利用いただける機能です。プロジェクトのスケジュールを視覚的に管理できます。'},
@@ -10794,7 +10794,8 @@ document.getElementById('ai-input').addEventListener('input',function(){
 // 設計方針: チャットAIの add_task と違い「即実行」はしない。抽出はあくまで下書きで、
 // 最終判断（本当にタスク化するか・内容を直すか）は人間が行い、選んだものだけをInboxに追加する。
 let _extractCandidates=[]; // [{id,title,dueAt,notes,selected}]
-let _extractAttachment=null; // {kind:'image'|'pdf'|'docx', mediaType, base64, fileName, text?}
+let _extractAttachment=null; // {kind:'image'|'pdf'|'docx'|'xlsx'|'pptx', mediaType, base64, fileName, text?}
+const EXTRACT_ACCEPT='image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx';
 
 function openExtractModal(){
   _extractAttachment=null;
@@ -10806,21 +10807,16 @@ function openExtractModal(){
       +'<div class="modal-title">メール・チャットから起票</div>'
       +'<div style="font-size:12.5px;color:var(--text3);margin:-6px 0 10px;line-height:1.5">メール本文やTeams・口頭メモをそのまま貼り付けてください。行動が必要な項目だけをAIが拾い出し、Inboxに下書きとして追加します。</div>'
       +'<div id="extract-body" style="flex:1;overflow-y:auto;min-height:0">'
-        +'<textarea id="extract-input" class="finput" placeholder="ここに貼り付け…（画像はそのまま貼り付けもできます）" style="width:100%;min-height:160px;resize:vertical;font-size:14px;line-height:1.5"></textarea>'
+        +'<div style="position:relative">'
+          +'<textarea id="extract-input" class="finput" placeholder="ここに貼り付け…（画像・ファイルもそのまま貼り付けできます）" style="width:100%;min-height:160px;resize:vertical;font-size:14px;line-height:1.5;padding-right:38px"></textarea>'
+          +'<button type="button" id="extract-attach-btn" title="Word・PDF・Excel・PowerPoint・写真を添付" style="position:absolute;right:6px;bottom:6px;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0">'
+            +(premium?'📎':'🔒')
+          +'</button>'
+          +'<input type="file" id="extract-file-input" accept="'+EXTRACT_ACCEPT+'" style="display:none">'
+        +'</div>'
         +'<div id="extract-attach-holder"></div>'
-        +(premium
-          ?'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
-            +'<button type="button" class="btn btn-ghost" id="extract-btn-doc" style="font-size:12px;padding:6px 10px">📎 Word / PDF</button>'
-            +'<button type="button" class="btn btn-ghost" id="extract-btn-img" style="font-size:12px;padding:6px 10px">🖼️ 画像を選ぶ</button>'
-            +'<button type="button" class="btn btn-ghost" id="extract-btn-cam" style="font-size:12px;padding:6px 10px">📷 写真を撮る</button>'
-            +'</div>'
-            +'<input type="file" id="extract-file-doc" accept=".pdf,.doc,.docx" style="display:none">'
-            +'<input type="file" id="extract-file-img" accept="image/*" style="display:none">'
-            +'<input type="file" id="extract-file-cam" accept="image/*" capture="environment" style="display:none">'
-          :'<div style="font-size:11.5px;color:var(--text3);margin-top:8px;display:flex;align-items:center;gap:5px">'
-            +'<span>✦ Word・PDF・写真からの起票はプレミアムプラン限定です</span>'
-            +'<button type="button" id="extract-upgrade-hint" style="background:none;border:none;color:var(--accent);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:0">詳しく見る</button>'
-            +'</div>')
+        +(premium?''
+          :'<div style="font-size:11.5px;color:var(--text3);margin-top:8px">✦ Word・PDF・Excel・PowerPoint・写真からの起票はプレミアムプラン限定です</div>')
       +'</div>'
       +'<div class="modal-foot" style="margin-top:10px;flex-shrink:0">'
         +'<button class="btn btn-ghost" id="extract-cancel">キャンセル</button>'
@@ -10835,28 +10831,29 @@ function openExtractModal(){
   ov.querySelector('#extract-analyze').onclick=()=>extractAnalyze(ov);
   const ta=ov.querySelector('#extract-input');
   ta.addEventListener('paste',e=>extractHandlePasteEvent(ov,e));
-  if(premium){
-    ov.querySelector('#extract-btn-doc').onclick=()=>ov.querySelector('#extract-file-doc').click();
-    ov.querySelector('#extract-btn-img').onclick=()=>ov.querySelector('#extract-file-img').click();
-    ov.querySelector('#extract-btn-cam').onclick=()=>ov.querySelector('#extract-file-cam').click();
-    ov.querySelector('#extract-file-doc').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)handleExtractDocFile(ov,f);});
-    ov.querySelector('#extract-file-img').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)handleExtractImageFile(ov,f);});
-    ov.querySelector('#extract-file-cam').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)handleExtractImageFile(ov,f);});
-  }else{
-    ov.querySelector('#extract-upgrade-hint')?.addEventListener('click',()=>{close();showUpgradeModal('fileExtract');});
-  }
+  ov.querySelector('#extract-attach-btn').onclick=()=>{
+    if(!premium){showUpgradeModal('fileExtract');return;}
+    ov.querySelector('#extract-file-input').click();
+  };
+  ov.querySelector('#extract-file-input').addEventListener('change',e=>{
+    const f=e.target.files[0];e.target.value='';
+    if(f)handleExtractFile(ov,f);
+  });
   setTimeout(()=>ta?.focus(),200);
 }
 
+// PC/Mac: エクスプローラー/Finderでファイルをコピーしてテキストエリアにペーストすると、
+// 画像に限らず（PDF/Word/Excel/PowerPoint等）そのまま添付できるようにする（Claudeのチャット欄と同じ体験）
 function extractHandlePasteEvent(ov,e){
   const items=e.clipboardData?.items;
   if(!items)return;
   for(const item of items){
-    if(item.kind==='file'&&item.type&&item.type.startsWith('image/')){
-      if(!isPlanPremium()){toast('画像の解析はプレミアムプラン限定です');return;}
-      e.preventDefault();
+    if(item.kind==='file'){
+      if(!isPlanPremium()){toast('ファイル・画像からの解析はプレミアムプラン限定です');return;}
       const file=item.getAsFile();
-      if(file)handleExtractImageFile(ov,file);
+      if(!file)continue;
+      e.preventDefault();
+      handleExtractFile(ov,file);
       return;
     }
   }
@@ -10871,22 +10868,61 @@ function fileToBase64Raw(file){
   });
 }
 
-let _mammothPromise=null;
-function loadMammoth(){
-  if(window.mammoth)return Promise.resolve();
-  if(_mammothPromise)return _mammothPromise;
-  _mammothPromise=new Promise((resolve,reject)=>{
+function loadScriptOnce(key,src){
+  if(window[key])return Promise.resolve();
+  if(!window._extractLibPromises)window._extractLibPromises={};
+  if(window._extractLibPromises[key])return window._extractLibPromises[key];
+  window._extractLibPromises[key]=new Promise((resolve,reject)=>{
     const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
+    s.src=src;
     s.onload=()=>resolve();
-    s.onerror=()=>reject(new Error('Wordファイル読み込み用ライブラリの取得に失敗しました'));
+    s.onerror=()=>reject(new Error('読み込み用ライブラリの取得に失敗しました'));
     document.head.appendChild(s);
   });
-  return _mammothPromise;
+  return window._extractLibPromises[key];
+}
+const loadMammoth=()=>loadScriptOnce('mammoth','https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
+const loadXLSX=()=>loadScriptOnce('XLSX','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+const loadJSZip=()=>loadScriptOnce('JSZip','https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+
+async function extractPptxText(file){
+  await loadJSZip();
+  const zip=await window.JSZip.loadAsync(await file.arrayBuffer());
+  const slidePaths=Object.keys(zip.files)
+    .filter(p=>/^ppt\/slides\/slide\d+\.xml$/.test(p))
+    .sort((a,b)=>{
+      const na=parseInt(a.match(/slide(\d+)\.xml/)[1],10);
+      const nb=parseInt(b.match(/slide(\d+)\.xml/)[1],10);
+      return na-nb;
+    });
+  const parser=new DOMParser();
+  const slideTexts=[];
+  for(const p of slidePaths){
+    const xml=await zip.files[p].async('text');
+    const doc=parser.parseFromString(xml,'application/xml');
+    const runs=Array.from(doc.getElementsByTagName('a:t')).map(n=>n.textContent).filter(Boolean);
+    if(runs.length)slideTexts.push(runs.join(' '));
+  }
+  return slideTexts.map((t,i)=>'[スライド'+(i+1)+'] '+t).join('\n');
 }
 
-async function handleExtractDocFile(ov,file){
+async function extractXlsxText(file){
+  await loadXLSX();
+  const buf=await file.arrayBuffer();
+  const wb=window.XLSX.read(buf,{type:'array'});
+  const parts=[];
+  for(const sheetName of wb.SheetNames){
+    const csv=window.XLSX.utils.sheet_to_csv(wb.Sheets[sheetName]).trim();
+    if(csv)parts.push('[シート: '+sheetName+']\n'+csv);
+  }
+  return parts.join('\n\n');
+}
+
+async function handleExtractFile(ov,file){
   const ext=(file.name.split('.').pop()||'').toLowerCase();
+  const btn=ov.querySelector('#extract-attach-btn');
+  const setLoading=(on)=>{if(btn){btn.disabled=on;btn.textContent=on?'…':'📎';}};
+
   if(ext==='pdf'){
     if(file.size>20*1024*1024){toast('PDFは20MB以内にしてください');return;}
     try{
@@ -10896,10 +10932,20 @@ async function handleExtractDocFile(ov,file){
     }catch(e){toast('PDFの読み込みに失敗しました: '+e.message);}
     return;
   }
+  if(file.type&&file.type.startsWith('image/')){
+    if(file.size>15*1024*1024){toast('画像サイズは15MB以内にしてください');return;}
+    try{
+      const base64=await fileToBase64Raw(file);
+      _extractAttachment={kind:'image',mediaType:file.type,base64,fileName:file.name||'photo.jpg'};
+      renderExtractAttachmentChip(ov);
+    }catch(e){toast('画像の読み込みに失敗しました: '+e.message);}
+    return;
+  }
   if(ext==='doc'){toast('.doc形式には対応していません。.docx形式で保存し直してください');return;}
+  if(ext==='ppt'){toast('.ppt形式には対応していません。.pptx形式で保存し直してください');return;}
+  if(ext==='xls'){toast('.xls形式には対応していません。.xlsx形式で保存し直してください');return;}
   if(ext==='docx'){
-    const btn=ov.querySelector('#extract-btn-doc');
-    if(btn){btn.disabled=true;btn.textContent='読み込み中…';}
+    setLoading(true);
     try{
       await loadMammoth();
       const buf=await file.arrayBuffer();
@@ -10909,20 +10955,32 @@ async function handleExtractDocFile(ov,file){
       _extractAttachment={kind:'docx',mediaType:null,base64:null,fileName:file.name,text:extractedText};
       renderExtractAttachmentChip(ov);
     }catch(e){toast('Wordファイルの読み込みに失敗しました: '+e.message);}
-    finally{if(btn){btn.disabled=false;btn.textContent='📎 Word / PDF';}}
+    finally{setLoading(false);}
     return;
   }
-  toast('対応していないファイル形式です（Word・PDFのみ）');
-}
-
-async function handleExtractImageFile(ov,file){
-  if(!file.type||!file.type.startsWith('image/')){toast('画像ファイルを選択してください');return;}
-  if(file.size>15*1024*1024){toast('画像サイズは15MB以内にしてください');return;}
-  try{
-    const base64=await fileToBase64Raw(file);
-    _extractAttachment={kind:'image',mediaType:file.type,base64,fileName:file.name||'photo.jpg'};
-    renderExtractAttachmentChip(ov);
-  }catch(e){toast('画像の読み込みに失敗しました: '+e.message);}
+  if(ext==='pptx'){
+    setLoading(true);
+    try{
+      const extractedText=(await extractPptxText(file)).trim();
+      if(!extractedText){toast('スライドからテキストを抽出できませんでした');return;}
+      _extractAttachment={kind:'pptx',mediaType:null,base64:null,fileName:file.name,text:extractedText};
+      renderExtractAttachmentChip(ov);
+    }catch(e){toast('PowerPointファイルの読み込みに失敗しました: '+e.message);}
+    finally{setLoading(false);}
+    return;
+  }
+  if(ext==='xlsx'){
+    setLoading(true);
+    try{
+      const extractedText=(await extractXlsxText(file)).trim();
+      if(!extractedText){toast('シートからテキストを抽出できませんでした');return;}
+      _extractAttachment={kind:'xlsx',mediaType:null,base64:null,fileName:file.name,text:extractedText};
+      renderExtractAttachmentChip(ov);
+    }catch(e){toast('Excelファイルの読み込みに失敗しました: '+e.message);}
+    finally{setLoading(false);}
+    return;
+  }
+  toast('対応していないファイル形式です（Word・Excel・PowerPoint・PDF・画像のみ）');
 }
 
 function renderExtractAttachmentChip(ov){
@@ -10930,7 +10988,8 @@ function renderExtractAttachmentChip(ov){
   if(!holder)return;
   const a=_extractAttachment;
   if(!a){holder.innerHTML='';return;}
-  const icon=a.kind==='pdf'?'📄':a.kind==='docx'?'📝':'🖼️';
+  const iconMap={pdf:'📄',docx:'📝',pptx:'📊',xlsx:'📗',image:'🖼️'};
+  const icon=iconMap[a.kind]||'📎';
   holder.innerHTML='<div style="display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12.5px;margin-top:8px">'
     +'<span>'+icon+'</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.fileName)+'</span>'
     +'<button type="button" id="extract-attach-remove" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:0 2px;line-height:1">✕</button>'
@@ -10958,7 +11017,7 @@ async function extractAnalyze(ov){
     const { data: { session } } = await window._SB.auth.getSession();
     if(!session?.access_token){toast('ログインが必要です');btn.disabled=false;btn.textContent='解析する';cancelBtn.disabled=false;return;}
     const t=today();
-    const systemPrompt='あなたはメール本文・Teamsのやり取り・会議メモ・口頭伝達メモ、および添付されたWord/PDF文書や写真から'
+    const systemPrompt='あなたはメール本文・Teamsのやり取り・会議メモ・口頭伝達メモ、および添付されたWord/Excel/PowerPoint/PDF文書や写真から'
       +'「行動が必要なタスク」だけを抽出するアシスタントです。今日の日付は'+t+'です。\n'
       +'ルール:\n'
       +'- 挨拶・世間話・FYI共有・すでに完了済みの報告・単なる情報連携など、行動を要さない内容は無視する\n'
@@ -10967,6 +11026,8 @@ async function extractAnalyze(ov){
       +'- 期限らしき日付・曜日・相対表現（明日/来週金曜/月末等）があればYYYY-MM-DD形式のdue_atに変換する。無ければ省略する\n'
       +'- 元文から要点を1〜2文でnotesに補足してもよい（本文をそのまま長く引用しない）\n'
       +'- 添付が写真の場合、写っている文書・ホワイトボード・手書きメモ等の文字を読み取ってから同様に判断する\n'
+      +'- 添付がExcelの場合、表の各行を単純に転記せず、対応が必要な行（未対応・期限あり等）だけを拾う\n'
+      +'- 添付がPowerPointの場合、スライドのタイトルや箇条書きから決定事項・宿題事項を拾う\n'
       +'- 確信が持てる項目だけを拾う。該当する行動項目が無ければ空配列を返してよい\n'
       +'- 必ずextract_tasksツールを1回だけ呼び出し、結果はそのツール呼び出しのみで返す';
     const tools=[{
@@ -11004,8 +11065,9 @@ async function extractAnalyze(ov){
         {type:'document',source:{type:'base64',media_type:'application/pdf',data:attachment.base64}},
         {type:'text',text:text||'この添付PDFの内容から、行動が必要なタスクを抽出してください。'},
       ];
-    }else if(attachment?.kind==='docx'){
-      const combined=(text?text+'\n\n':'')+'【添付Word文書: '+attachment.fileName+'】\n'+attachment.text.slice(0,20000);
+    }else if(attachment?.kind==='docx'||attachment?.kind==='xlsx'||attachment?.kind==='pptx'){
+      const labelMap={docx:'添付Word文書',xlsx:'添付Excelブック',pptx:'添付PowerPoint'};
+      const combined=(text?text+'\n\n':'')+'【'+labelMap[attachment.kind]+': '+attachment.fileName+'】\n'+attachment.text.slice(0,20000);
       content=combined;
     }else{
       content=text;
