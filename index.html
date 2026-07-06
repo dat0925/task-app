@@ -5959,6 +5959,11 @@ function renderNoteList(){
         +'<button class="toggle-completed-btn'+(S.noteSortUpdated!==false?' active':'')+'" data-a="note-tog-sort" style="white-space:nowrap;flex-shrink:0">'+(S.noteSortUpdated!==false?'↓ 更新日':'↓ 作成日')+'</button>'
         +'<button class="toggle-completed-btn" data-a="note-tog-select-mode">一括</button>'
       +'</div>'
+      +(S.tags.length?('<div style="display:flex;gap:6px;flex-wrap:wrap;padding:2px 2px 0">'
+        +'<button class="toggle-completed-btn'+(!S.filterTagIds||!S.filterTagIds.length?' active':'')+'" data-a="notes-tag-chip" data-id="">すべて</button>'
+        +'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes('__none__')?' active':'')+'" data-a="notes-tag-chip" data-id="__none__" style="'+(S.filterTagIds&&S.filterTagIds.includes('__none__')?'border-color:var(--text3);color:var(--text2);background:var(--bg3)':'')+'"><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0;display:inline-block"></span>タグなし</span></button>'
+        +S.tags.map(t=>'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' active':'')+'" data-a="notes-tag-chip" data-id="'+t.id+'" style="'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?'border-color:'+t.color+';color:'+t.color+';background:'+t.color+'22':'')+'"><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:'+t.color+';flex-shrink:0;display:inline-block"></span>'+esc(t.name)+'</span></button>').join('')
+      +'</div>'):'')
       +'<div style="font-size:11px;color:var(--text3);padding:0 2px">'+_countLabel+'</div>'
     +'</div>';
   }
@@ -8834,6 +8839,15 @@ else if(a==='scroll-to-comments'){
     if(key==='hideNotStarted')S.hideNotStarted=!S.hideNotStarted;
     else if(key==='showCompleted')S.showCompleted=!S.showCompleted;
     el.querySelector('.tf-popup-check').classList.toggle('on');
+    renderTaskFilters();renderContent();
+  }
+  else if(a==='notes-tag-chip'){
+    if(_touchMoved)return;
+    const now=Date.now();if(now-_lastFilterClickAt<400)return;_lastFilterClickAt=now;
+    const id=el.dataset.id||null;
+    if(!id)S.filterTagIds=[];
+    else if(S.filterTagIds&&S.filterTagIds.includes(id))S.filterTagIds=[];
+    else S.filterTagIds=[id];
     renderTaskFilters();renderContent();
   }
   else if(a==='fpop-tag'){
