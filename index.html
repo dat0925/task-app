@@ -7582,10 +7582,18 @@ async function handleBulkEdit(field){
     ov.querySelector('#bulk-proj-cancel').onclick=()=>ov.remove();
     ov.querySelector('#bulk-proj-ok').onclick=async()=>{
       const val=ov.querySelector('#bulk-proj-sel').value||null;ov.remove();
-      for(const t of tasks){
+      // 複数タスクを一括でプロジェクトに割り当てる際、全タスクが同じプロジェクトの最上部にまとまるよう
+      // orderを再採番する（未設定のままだと既存のorder値が引き継がれ、1件だけ最上部・残りが最下部に
+      // ばらけてしまう不具合の修正）。tasks配列の並び順を維持したまま、先頭のタスクが一番上に来るように
+      // 新しいプロジェクト内の既存タスクより小さいorder値を連番で割り当てる。
+      const step=1000;
+      const baseOrder=val?topOrderInProject(val)-(tasks.length-1)*step:null;
+      tasks.forEach((t,i)=>{
         t.projectId=val;
         if(val&&t.status==='inbox')t.status='active'; // Inboxから移動
-      await saveTask(t);}
+        if(val)t.order=baseOrder+i*step;
+      });
+      for(const t of tasks){await saveTask(t);}
       S.selectMode=false;S.selectedIds=[];
       toast(tasks.length+'件を更新しました');render();
     };
