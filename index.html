@@ -214,6 +214,11 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .date-clr-btn{font-size:13px;padding:2px 7px;border-radius:4px;background:var(--bg);border:1px solid var(--border);color:var(--text3);cursor:pointer;flex-shrink:0;line-height:1.4;touch-action:manipulation;transition:background .15s,color .15s}
 .date-clr-btn:hover{background:var(--bg2);color:var(--text)}
 .note-stamp-btn:hover{background:var(--bg3);color:var(--text)}
+.note-copy-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;background:var(--accent);color:#fff;border:1px solid var(--accent);cursor:pointer;min-height:44px;transition:transform .08s ease,background .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+.note-copy-btn:hover{background:var(--accent2)}
+.note-copy-btn:active{transform:scale(0.96)}
+.note-stamp-btn-minor{display:inline-flex;align-items:center;gap:4px;padding:6px 8px;border-radius:6px;font-size:11px;font-weight:500;background:transparent;color:var(--text3);cursor:pointer;border:1px solid transparent;transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);white-space:nowrap}
+.note-stamp-btn-minor:hover{background:var(--bg2);color:var(--text2)}
 /* Calculator (inline) */
 .mob-only{display:none}
 /* Calculator global drawer */
@@ -6009,11 +6014,13 @@ function renderNoteDrawer(){
       +'<div><div class="dt-label">タイトル</div><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="nt-title" value="'+esc(note.title)+'" placeholder="タイトル" style="flex:1;min-width:0"><button class="date-clr-btn" data-a="note-copy-title" data-id="'+note.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
       +'<div>'
         +'<div class="dt-label">メモ</div>'
-        +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'
-          +'<button class="note-stamp-btn" data-ns="datetimeweek">📅 日時</button>'
-          +'<button class="note-stamp-btn" data-a="copy-note-body-inline" title="メモ内容をコピー">コピー</button>'
-                    +'<button class="note-stamp-btn" id="nt-link-btn">Link</button>'
-          +'<button class="note-stamp-btn" id="nt-preview-btn">プレビュー</button>'
+        +'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">'
+          +'<button class="note-copy-btn" data-a="copy-note-body-inline" title="メモ内容をコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>コピー</button>'
+          +'<div style="display:flex;gap:4px">'
+            +'<button class="note-stamp-btn-minor" data-ns="datetimeweek">📅 日時</button>'
+            +'<button class="note-stamp-btn-minor" id="nt-link-btn">🔗 Link</button>'
+            +'<button class="note-stamp-btn-minor" id="nt-preview-btn">プレビュー</button>'
+          +'</div>'
         +'</div>'
         +'<textarea class="finput" id="nt-body" rows="6" style="resize:vertical;font-size:14px;line-height:1.7" placeholder="メモ…&#10;&#10;リンク記法: [テキスト](https://...)">'+esc(note.body)+'</textarea>'
         +'<div id="nt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:180px;word-break:break-word"></div>'
