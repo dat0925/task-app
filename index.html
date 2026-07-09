@@ -11441,7 +11441,7 @@ function waitForSBAndRecover(){
 // iOS PWA: コメント入力欄など「drawer-body内の一番下の要素」はスクロールしても
 // これ以上下に余地がなく、キーボードに隠れたままになる問題への対策。
 // フォーカス中だけ一時的な余白(スペーサー)をコンテナ末尾に追加し、
-// 下の visualViewport resize ハンドラがスクロールできる余地を作る。
+// スクロールできる余地を作った上で、強制的にスクロール位置を調整する。
 (function(){
   let spacer=null, savedContainer=null, savedScrollTop=null;
   function ensureSpacer(container){
@@ -11451,7 +11451,7 @@ function waitForSBAndRecover(){
     savedScrollTop=container.scrollTop;
     spacer=document.createElement('div');
     spacer.setAttribute('data-kb-spacer','1');
-    spacer.style.cssText='height:320px;flex-shrink:0;pointer-events:none';
+    spacer.style.cssText='height:480px;flex-shrink:0;pointer-events:none';
     container.appendChild(spacer);
   }
   function clearSpacer(){
@@ -11463,12 +11463,29 @@ function waitForSBAndRecover(){
     }
     savedContainer=null; savedScrollTop=null;
   }
+  function adjustScroll(el,container){
+    const vv=window.visualViewport;
+    const viewBottom=vv?vv.offsetTop+vv.height:window.innerHeight;
+    const elRect=el.getBoundingClientRect();
+    const gap=24; // 入力欄の下に最低24pxの余白
+    if(elRect.bottom+gap>viewBottom){
+      container.scrollTop+=elRect.bottom+gap-viewBottom;
+    }
+  }
   document.addEventListener('focusin',e=>{
     const t=e.target;
     if(!t||(t.tagName!=='INPUT'&&t.tagName!=='TEXTAREA'&&!t.isContentEditable))return;
     const container=t.closest('.drawer-body,.expand-modal,.calc-drawer-body,.tlist-wrap');
     if(!container)return;
     ensureSpacer(container);
+    // visualViewportのresizeイベントに頼らず、キーボードのアニメーション完了を
+    // 見込んだ複数タイミングで強制的にスクロール調整する（フォールバック）
+    [150,350,600].forEach(delay=>{
+      setTimeout(()=>{
+        if(document.activeElement!==t)return;
+        adjustScroll(t,container);
+      },delay);
+    });
   },true);
   document.addEventListener('focusout',()=>{
     setTimeout(()=>{
@@ -11477,32 +11494,19 @@ function waitForSBAndRecover(){
       clearSpacer();
     },80);
   },true);
-})();
-
-// iOS PWA: キーボード出現時にフォーカス中の入力欄がキーボードで隠れる問題の対策
-// visualViewport APIでビューポートの縮小（=キーボード表示）を検知し、
-// フォーカス中の要素をdrawer-body内でスクロールして見える位置に移動する。
-(function(){
-  if(!window.visualViewport)return;
-  let _prevH=window.visualViewport.height;
-  window.visualViewport.addEventListener('resize',()=>{
-    const h=window.visualViewport.height;
-    if(h>=_prevH){_prevH=h;return;} // キーボードが閉じた
-    _prevH=h;
-    const el=document.activeElement;
-    if(!el||(el.tagName!=='INPUT'&&el.tagName!=='TEXTAREA'&&!el.isContentEditable))return;
-    // drawer-bodyが最も近いスクロールコンテナ
-    const container=el.closest('.drawer-body,.expand-modal,.calc-drawer-body,.tlist-wrap');
-    if(!container)return;
-    requestAnimationFrame(()=>{
-      const elRect=el.getBoundingClientRect();
-      const viewBottom=window.visualViewport.offsetTop+h;
-      const gap=24; // 入力欄の下に最低24pxの余白
-      if(elRect.bottom+gap>viewBottom){
-        container.scrollTop+=elRect.bottom+gap-viewBottom;
-      }
+  if(window.visualViewport){
+    let _prevH=window.visualViewport.height;
+    window.visualViewport.addEventListener('resize',()=>{
+      const h=window.visualViewport.height;
+      if(h>=_prevH){_prevH=h;return;} // キーボードが閉じた
+      _prevH=h;
+      const el=document.activeElement;
+      if(!el||(el.tagName!=='INPUT'&&el.tagName!=='TEXTAREA'&&!el.isContentEditable))return;
+      const container=el.closest('.drawer-body,.expand-modal,.calc-drawer-body,.tlist-wrap');
+      if(!container)return;
+      requestAnimationFrame(()=>adjustScroll(el,container));
     });
-  });
+  }
 })();
 
 
