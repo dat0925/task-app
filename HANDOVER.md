@@ -4,6 +4,46 @@
 
 ---
 
+## 🆕 メモツールバーのサイズ調整・Note/タスク詳細デザイン統一（2026-07-09）
+
+### 背景
+
+直前の「ノート詳細画面『メモ』ツールバーのボタン階層改善」で`.note-copy-btn`（コピー、塗りつぶし）
+を大きくしたところ「縦に大きすぎる」というフィードバック。また、タスク詳細側の同種メモツールバー
+（`memo-toolbar`、絵文字アイコンのみの旧`.note-stamp-btn`スタイル）とノート詳細側のデザインが
+異なりすぎるため統一してほしいとの要望があった。
+
+### 変更内容
+
+- `.note-copy-btn`：縦幅を約2/3に縮小（`padding:10px 16px`→`7px 16px`、`min-height:44px`→`30px`）。
+  横幅（`padding`の左右16px）は変更なし
+- 新規CSSクラス`.note-stamp-btn-major`を追加：「📅 日時」ボタン用。`.note-copy-btn`と同じ
+  padding/min-height/font-sizeだが、塗りつぶしではなくアウトライン（背景transparent、
+  `border:1px solid var(--accent)`、文字色`var(--accent)`）でコピーボタンとの主従を視覚的に区別
+- ノート詳細（`renderNoteDrawer`内）の「📅 日時」ボタンを`.note-stamp-btn-minor`→
+  `.note-stamp-btn-major`に変更（コピーボタンと同じ大きさに）
+- タスク詳細（`renderDrawer`内、`#memo-toolbar`）を全面的にNote側と同じデザイン言語に統一：
+  - 📋（絵文字のみ）→ `.note-copy-btn`（SVGアイコン+「コピー」テキスト、`data-a="copy-task-notes"`）
+  - 📅（絵文字のみ）→ `.note-stamp-btn-major`（「📅 日時」テキスト付き）
+  - 🔗（絵文字のみ）→ `.note-stamp-btn-minor`（「🔗 Link」テキスト付き）
+  - 編集（旧: インラインstyleで塗りつぶし）→ `.note-stamp-btn-minor`（インラインstyle除去、
+    ノート詳細の「プレビュー」ボタンと同格の脇役スタイルに統一）
+  - `#memo-toolbar`に`flex-wrap:wrap`を追加（ボタンサイズ拡大に伴う折り返し対応）
+- イベントハンドラ（`data-a="copy-task-notes"`、`id="dt-link-btn"`、`id="dt-preview-btn"`等）は
+  一切変更しておらず、見た目のみの変更
+
+Node.js構文チェック済みでエラーなし。
+
+### 触れなかった箇所
+
+- 認証・決済（Stripe）・RLSまわりは今回のスコープ外で、一切変更していない
+- コメント欄（`cm-section`内）の「📅 日時」「🔗 Link」ボタン（`.note-stamp-btn`のまま、
+  `ncm-stamp`/`ncm-link-btn`）は今回のスコープ外で未変更
+- PC拡大モーダル（`openExpandModal`）は`#drawer`の`innerHTML`をコピーする実装のため、
+  今回のクラス変更は自動的に反映される想定（別途モーダル側の個別修正は不要）
+
+---
+
 ## 🆕 ノート詳細画面「メモ」ツールバーのボタン階層改善（2026-07-09）
 
 ### 背景
