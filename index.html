@@ -11438,6 +11438,47 @@ function waitForSBAndRecover(){
   },true);
 })();
 
+// iOS PWA: コメント入力欄など「drawer-body内の一番下の要素」はスクロールしても
+// これ以上下に余地がなく、キーボードに隠れたままになる問題への対策。
+// フォーカス中だけ一時的な余白(スペーサー)をコンテナ末尾に追加し、
+// 下の visualViewport resize ハンドラがスクロールできる余地を作る。
+(function(){
+  let spacer=null, savedContainer=null, savedScrollTop=null;
+  function ensureSpacer(container){
+    if(spacer&&spacer.parentNode===container)return;
+    clearSpacer();
+    savedContainer=container;
+    savedScrollTop=container.scrollTop;
+    spacer=document.createElement('div');
+    spacer.setAttribute('data-kb-spacer','1');
+    spacer.style.cssText='height:320px;flex-shrink:0;pointer-events:none';
+    container.appendChild(spacer);
+  }
+  function clearSpacer(){
+    if(spacer&&spacer.parentNode)spacer.parentNode.removeChild(spacer);
+    spacer=null;
+    if(savedContainer){
+      const c=savedContainer, st=savedScrollTop;
+      requestAnimationFrame(()=>{ if(st!=null)c.scrollTop=Math.min(st,c.scrollHeight); });
+    }
+    savedContainer=null; savedScrollTop=null;
+  }
+  document.addEventListener('focusin',e=>{
+    const t=e.target;
+    if(!t||(t.tagName!=='INPUT'&&t.tagName!=='TEXTAREA'&&!t.isContentEditable))return;
+    const container=t.closest('.drawer-body,.expand-modal,.calc-drawer-body,.tlist-wrap');
+    if(!container)return;
+    ensureSpacer(container);
+  },true);
+  document.addEventListener('focusout',()=>{
+    setTimeout(()=>{
+      const active=document.activeElement;
+      if(active&&(active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.isContentEditable))return;
+      clearSpacer();
+    },80);
+  },true);
+})();
+
 // iOS PWA: キーボード出現時にフォーカス中の入力欄がキーボードで隠れる問題の対策
 // visualViewport APIでビューポートの縮小（=キーボード表示）を検知し、
 // フォーカス中の要素をdrawer-body内でスクロールして見える位置に移動する。
@@ -11463,6 +11504,7 @@ function waitForSBAndRecover(){
     });
   });
 })();
+
 
 // iOS慣性スクロールの「止めタップ」でアコーディオンが誤作動する問題の対策。
 // drawer-bodyのスクロールを監視し、停止直後300ms以内のタップをガードする関数を公開。
