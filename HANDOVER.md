@@ -4,6 +4,98 @@
 
 ---
 
+## 🆕 Supabaseセキュリティアラート対応：管理者用RPC・RLSポリシーの権限漏れを修正（2026-07-10）
+
+### 背景
+
+Supabaseから「Action required: security vulnerabilities detected in your projects」という
+セキュリティアラートメールが届き、`get_advisors`（security）で全体を棚卸しした結果、
+共有Supabaseプロジェクト（`sfhtvtcmgueystyuhzvd`）内のTaskra関連テーブル・関数に、
+「管理者専用／service専用のつもりが実際は誰でも（anon含む）実行・アクセス可能だった」
+権限設定ミスが複数見つかった。
+
+### 修正内容
+
+**1. `admin_get_all_users()` RPCに認可チェック追加＋anon実行権限を剥奪**
+（マイグレーション: `fix_admin_get_all_users_auth_check`）
+
+- Tavera側の関数だが、同一プロジェクト内の問題として合わせて対応
+- `admin_update_plan` / `admin_set_usage_overrides` / `admin_reset_usage` の3関数には
+  `IF (SELECT email FROM auth.users WHERE id = auth.uid()) IS DISTINCT FROM 'mstd0520@gmail.com' THEN RAISE EXCEPTION`
+  という認可チェックが入っていたが、`admin_get_all_users()`だけこのチェックが欠落しており、
+  かつ`anon`ロールにもEXECUTE権限が付与されたままだった
+- 未ログインの第三者が`/rest/v1/rpc/admin_get_all_users`を直接叩くだけで、
+  Taveraの全ユーザーのメールアドレス・プラン・利用状況が取得できる状態だった（SECURITY DEFINERのためRLSも無視）
+- 対応: 同関数に同じ認可チェックを追加し、4関数すべて`anon`からのEXECUTE権限を`REVOKE`
+  （`authenticated`のみ残すが、内部チェックで結局本人以外は`Unauthorized`になる）
+
+**2. `ai_usage` / `file_extract_usage` テーブルのRLSポリシーを管理者限定に修正**
+（マイグレーション: `restrict_overly_permissive_rls_policies`）
+
+- `"Admin can read all usage"` / `"Admin can update usage"` という名前のポリシーが、
+  実際には`USING (true)`かつロール指定なし（`public`扱い）＝**anon含め誰でも
+  全ユーザーのAI利用状況・ファイル抽出利用状況を読み書きできる状態**だった
+- 対応: `USING`句を`(SELECT email FROM auth.users WHERE id = auth.uid()) = 'mstd0520@gmail.com'`に変更
+
+**3. `line_users` テーブルのポリシーを`service_role`限定に修正**
+
+- ポリシー名`"line_users: service only"`という意図に反し、`USING(true)`が`public`ロールに
+  適用されており、LINE連携ユーザーのマッピング情報を誰でも読み書き削除できる状態だった
+- 対応: ポリシーを`TO service_role`に変更（クライアントからは触れなくなる。
+  Edge Functionはservice_roleキー使用のため影響なし想定）
+
+**4. `task_logs` テーブルの全ポリシーから`anon`を除外**
+
+- `read_all` / `insert_all` / `update_all` / `delete_all` の4ポリシーが全て`USING(true)`かつ
+  `public`ロールで、未ログインでも全タスクログの閲覧・改ざん・削除が可能だった
+- 対応: 4ポリシーとも`TO authenticated`に変更（ログイン済みユーザーのみ。個別ユーザー単位の
+  絞り込みは今回未実施＝ログインさえすれば他人のログも操作可能なまま。要フォロー）
+
+**5. `workspace_members` テーブルの無条件許可ポリシーを削除**
+
+- `ws_members_insert`（`WITH CHECK (true)`, 無条件許可）と、正しく本人チェックする
+  `wsmembers_can_insert_self`（`WITH CHECK (user_id = auth.uid())`）が同居しており、
+  RLSはOR評価のため前者が後者を無意味化し、誰でも任意のワークスペースに自分以外を
+  メンバー追加できる状態だった
+- 対応: 無条件許可の`ws_members_insert`を削除。正しい制限付きポリシーのみ残す
+
+**6. `notifications` テーブルのINSERT/DELETEから`anon`を除外**
+
+- SELECT/UPDATEは本人限定で正しかったが、INSERT/DELETEが`USING(true)`かつ`public`で
+  誰でも任意ユーザー宛の通知を作成・削除できた
+- 対応: `TO authenticated`に変更
+
+### 原因調査
+
+- `file_extract_usage`のポリシーは`create_file_extract_usage`マイグレーション（2026-07-05）で
+  `ai_usage`テーブルの既存ポリシー（ポリシー名・`USING(true)`の書き方まで同一）を
+  そのままコピーして作られたことが履歴から確認できた。つまり「`ai_usage`側の誤った
+  権限設計」が起点となり、新規テーブルを作るたびにコピペで踏襲・拡散していったと見られる
+- `ai_usage` / `line_users` / `task_logs` / `workspace_members`自体は、追跡可能な
+  マイグレーション履歴（2026-06-27以降）より前に作成されたテーブルのため、
+  最初にいつ・どの改修で`USING(true)`パターンが持ち込まれたかは特定できなかった
+- 教訓: `USING (true)`は「誰でもOK」という意味であり、「管理者/service専用」を
+  意図する場合は`TO service_role`や`auth.uid()`ベースのチェックを明示する必要がある。
+  新規テーブル作成時に既存ポリシーをコピーする前に、対象ロールが本当に適切か確認すること
+
+### 触れなかった箇所（要フォロー）
+
+- `task_logs`の4ポリシーは`authenticated`なら誰でも全ログを操作できる状態のまま
+  （ユーザー/ワークスペース単位の絞り込みは未実装）
+- 以下のSupabase Advisor（security）指摘は今回スコープ外、未対応:
+  - 12テーブル（`kotobakake_*`, `reno_*`, `housecleaning_*`など）でRLS有効だがポリシー0件
+    （Edge Function経由のservice_roleアクセスのみを想定した設計と思われ、リスクは低いと
+    判断したが未検証）
+  - `pg_net`拡張がpublicスキーマに配置されている（`extension_in_public`）
+  - 認証関連のヘルパー関数（`auth_user_workspace_ids`, `find_household_by_code`,
+    `get_my_household_id`, `get_workspace_by_invite_token`, `household_has_premium`）が
+    `anon`/`authenticated`双方からSECURITY DEFINERとして実行可能（意図的な設計の可能性が
+    高いが未レビュー）
+  - 複数関数の`function_search_path_mutable`警告（`purge_old_notification_log`など）
+  - 漏洩パスワード保護（HaveIBeenPwned連携）が無効
+
+---
+
 ## 🆕 一括日付設定に「本日」ボタン追加／日付・時間調整ボタンの視認性改善（2026-07-10）
 
 ### 依頼内容
