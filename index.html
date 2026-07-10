@@ -977,7 +977,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="ai-title">Taskra AI</div>
       <div class="ai-sub" id="ai-usage-label">タスクをAIで操作</div>
     </div>
-    <button id="ai-extract-btn" data-a="extract-open" title="メール・チャットの文章から起票" style="margin-left:auto;display:flex;align-items:center;gap:4px;padding:5px 10px 5px 8px;border-radius:14px;border:1.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11.5px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;margin-right:2px">📋<span>起票</span></button>
+    <button id="ai-extract-btn" data-a="extract-open" title="メール・チャット・添付の文章から起票" style="margin-left:auto;display:flex;align-items:center;gap:4px;padding:5px 10px 5px 8px;border-radius:14px;border:1.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:11.5px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;margin-right:2px">📋<span>起票</span></button>
     <button id="ai-help-btn" onclick="_showAiHelp(this)" style="width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);color:var(--text3);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;margin-right:6px">?</button>
     <button class="icon-btn" id="ai-close" style="width:36px;height:36px;font-size:20px;display:flex;align-items:center;justify-content:center">✕</button>
   </div>
@@ -10917,12 +10917,12 @@ function openExtractModal(){
   ov.className='overlay';ov.id='extract-ov';
   ov.innerHTML=
     '<div class="modal" style="max-width:460px;max-height:82vh;display:flex;flex-direction:column">'
-      +'<div class="modal-title">メール・チャットから起票</div>'
+      +'<div class="modal-title">メール・チャット・添付から起票</div>'
       +'<div style="font-size:12.5px;color:var(--text3);margin:-6px 0 10px;line-height:1.5">メール本文やTeams・口頭メモをそのまま貼り付けてください。行動が必要な項目だけをAIが拾い出し、Inboxに下書きとして追加します。</div>'
       +'<div id="extract-body" style="flex:1;overflow-y:auto;min-height:0">'
         +'<div style="position:relative">'
-          +'<textarea id="extract-input" class="finput" placeholder="ここに貼り付け…（画像・ファイルもそのまま貼り付けできます）" style="width:100%;min-height:160px;resize:vertical;font-size:14px;line-height:1.5;padding-right:38px"></textarea>'
-          +'<button type="button" id="extract-attach-btn" title="Word・PDF・Excel・PowerPoint・写真を添付" style="position:absolute;right:6px;bottom:6px;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0">'
+          +'<textarea id="extract-input" class="finput" placeholder="ここに貼り付け…（画像・ファイルもそのまま貼り付けできます）" style="width:100%;min-height:160px;resize:vertical;font-size:14px;line-height:1.5;padding-right:42px"></textarea>'
+          +'<button type="button" id="extract-attach-btn" title="Word・PDF・Excel・PowerPoint・写真を添付" style="position:absolute;right:9px;bottom:9px;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0">'
             +(premium?'📎':'🔒')
           +'</button>'
           +'<input type="file" id="extract-file-input" accept="'+EXTRACT_ACCEPT+'" style="display:none">'
