@@ -5371,6 +5371,7 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="dates">日付</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="tags">タグ</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="project">PJ</button>'
+      +(S.view==='project'&&S.projId?'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="top" title="選択したタスクをこのプロジェクトの最上部にまとめて移動">⬆️ 最上部へ</button>':'')
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="repeat">繰返</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="flag">🚩</button>'      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="parent">親設定</button>'      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="detach">独立化</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="complete" style="color:var(--green)">✓ 完了</button>'
@@ -6605,6 +6606,7 @@ function renderDrawer(){
       {label:'🔗 タスクのURLをコピー',action:'copy-task-url',id:task.id},
       {label:'🗑 メモ欄をクリア',action:'clear-task-notes',id:task.id},
     ];
+    if(task.projectId){items.splice(2,0,{label:'⬆️ プロジェクトの最上部へ移動',action:'move-to-top',id:task.id});}
     items.forEach((item,i)=>{
       const btn=document.createElement('button');
       btn.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:'+(i===0?'none':'1px solid var(--border)')+';font-size:15px;color:var(--text);text-align:left;cursor:pointer;display:block';
@@ -7613,6 +7615,25 @@ async function handleBulkEdit(field){
       S.selectMode=false;S.selectedIds=[];
       toast(tasks.length+'件を更新しました');render();
     };
+  } else if(field==='top'){
+    // 選択したタスクを、それぞれの所属プロジェクトの最上部にまとめて移動する。
+    // 「選択順」ではなく「現在のorder値の昇順（＝表示上の並び順）」を基準に相対順序を維持したまま、
+    // まとめて先頭（既存タスクより小さいorder値）に積み直す。プロジェクトが混在する場合は
+    // プロジェクトごとにグルーピングして個別に先頭へ積む（Inbox等projectIdなしタスクは対象外）。
+    const byProj={};
+    tasks.forEach(t=>{const k=t.projectId||'';(byProj[k]=byProj[k]||[]).push(t);});
+    const step=1000;
+    let movedCount=0;
+    Object.keys(byProj).forEach(pid=>{
+      if(!pid)return; // projectId未設定のタスクはスキップ
+      const group=byProj[pid].slice().sort((a,b)=>(a.order||0)-(b.order||0));
+      const baseOrder=topOrderInProject(pid)-(group.length-1)*step;
+      group.forEach((t,i)=>{t.order=baseOrder+i*step;movedCount++;});
+    });
+    if(!movedCount){toast('プロジェクトに属するタスクがありません');S.selectMode=false;S.selectedIds=[];render();return;}
+    for(const t of tasks){if(t.projectId)await saveTask(t);}
+    S.selectMode=false;S.selectedIds=[];
+    toast(movedCount+'件を最上部に移動しました');render();
   } else if(field==='repeat'){
     const ov=document.createElement('div');ov.className='overlay';
     ov.innerHTML='<div class="modal"><div class="modal-title">繰り返しを一括設定</div>'
@@ -8614,6 +8635,15 @@ else if(a==='scroll-to-comments'){
   else if(a==='dup'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(task){const d=await dupTask(task);S.taskId=d.id;render();}
+  }
+  else if(a==='move-to-top'){
+    const task=S.tasks.find(t=>t.id===el.dataset.id);
+    if(task&&task.projectId){
+      task.order=topOrderInProject(task.projectId);
+      await saveTask(task);
+      toast('"'+(task.title||'無題')+'" をプロジェクトの最上部に移動しました');
+      renderDrawer();renderContent();
+    }
   }
   else if(a==='task-to-note'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
