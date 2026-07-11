@@ -6048,7 +6048,6 @@ function renderNoteDrawer(){
       +'<button class="btn btn-ghost" data-a="close-note" style="margin-left:auto">✕ 閉じる</button>'
     +'</div>'
     +'<div class="mob-action-bar">'
-      +'<button class="mob-btn mob-btn-del" data-a="note-del" data-id="'+note.id+'">削除</button>'
       +'<button class="mob-btn mob-btn-ghost" id="note-more-btn" style="letter-spacing:1px">•••</button>'
       +'<button class="mob-btn-close" data-a="close-note">✕</button>'
     +'</div>';
@@ -6067,10 +6066,11 @@ function renderNoteDrawer(){
       {label:'📋 複製する',action:'note-dup',id:note.id},
       {label:'🔗 NoteのURLをコピー',action:'copy-note-url',id:note.id},
       {label:'🗑 メモ欄をクリア',action:'clear-note-body',id:note.id},
+      {label:'🗑 Noteを削除',action:'note-del',id:note.id,danger:true},
     ];
     items.forEach((item,i)=>{
       const btn=document.createElement('button');
-      btn.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:'+(i===0?'none':'1px solid var(--border)')+';font-size:15px;color:var(--text);text-align:left;cursor:pointer;display:block';
+      btn.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:'+(i===0?'none':'1px solid var(--border)')+';font-size:15px;color:'+(item.danger?'#c0392b':'var(--text)')+';text-align:left;cursor:pointer;display:block'+(item.danger?';font-weight:600':'');
       btn.textContent=item.label;
       btn.addEventListener('click',e=>{
         e.stopPropagation();
@@ -6529,7 +6529,6 @@ function renderDrawer(){
       +'</div>'
     +'</div>'
     +'<div class="mob-action-bar">'
-      +'<button class="mob-btn mob-btn-del" data-a="del-confirm-hdr" data-id="'+task.id+'">削除</button>'
       +(!done
         ?'<button class="mob-btn mob-btn-complete" data-a="complete-confirm" data-id="'+task.id+'">完了</button>'
         :'<button class="mob-btn mob-btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 戻す</button>')
@@ -6566,11 +6565,12 @@ function renderDrawer(){
       {label:'📋 複製する',action:'dup',id:task.id},
       {label:'🔗 タスクのURLをコピー',action:'copy-task-url',id:task.id},
       {label:'🗑 メモ欄をクリア',action:'clear-task-notes',id:task.id},
+      {label:'🗑 タスクを削除',action:'del-confirm-hdr',id:task.id,danger:true},
     ];
     if(task.projectId){items.splice(2,0,{label:'⬆️ プロジェクトの最上部へ移動',action:'move-to-top',id:task.id});}
     items.forEach((item,i)=>{
       const btn=document.createElement('button');
-      btn.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:'+(i===0?'none':'1px solid var(--border)')+';font-size:15px;color:var(--text);text-align:left;cursor:pointer;display:block';
+      btn.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:'+(i===0?'none':'1px solid var(--border)')+';font-size:15px;color:'+(item.danger?'#c0392b':'var(--text)')+';text-align:left;cursor:pointer;display:block'+(item.danger?';font-weight:600':'');
       btn.textContent=item.label;
       btn.addEventListener('click',e=>{
         e.stopPropagation();
