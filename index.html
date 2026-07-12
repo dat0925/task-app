@@ -6062,11 +6062,11 @@ function renderNoteDrawer(){
     menu.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:9999;overflow:hidden';
     const noteUrl=location.origin+location.pathname+'?note='+note.id;
     const items=[
+      {label:'🗑 Noteを削除',action:'note-del',id:note.id,danger:true},
       {label:'✅ タスクに変換して削除',action:'note-to-task',id:note.id},
+      {label:'🗑 メモ欄をクリア',action:'clear-note-body',id:note.id},
       {label:'📋 複製する',action:'note-dup',id:note.id},
       {label:'🔗 NoteのURLをコピー',action:'copy-note-url',id:note.id},
-      {label:'🗑 メモ欄をクリア',action:'clear-note-body',id:note.id},
-      {label:'🗑 Noteを削除',action:'note-del',id:note.id,danger:true},
     ];
     items.forEach((item,i)=>{
       const btn=document.createElement('button');
@@ -6561,13 +6561,13 @@ function renderDrawer(){
     menu.id='task-more-menu';
     menu.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:9999;overflow:hidden';
     const items=[
+      {label:'🗑 タスクを削除',action:'del-confirm-hdr',id:task.id,danger:true},
       {label:'📝 Noteに変換して削除',action:'task-to-note',id:task.id},
+      {label:'🗑 メモ欄をクリア',action:'clear-task-notes',id:task.id},
       {label:'📋 複製する',action:'dup',id:task.id},
       {label:'🔗 タスクのURLをコピー',action:'copy-task-url',id:task.id},
-      {label:'🗑 メモ欄をクリア',action:'clear-task-notes',id:task.id},
-      {label:'🗑 タスクを削除',action:'del-confirm-hdr',id:task.id,danger:true},
     ];
-    if(task.projectId){items.splice(2,0,{label:'⬆️ プロジェクトの最上部へ移動',action:'move-to-top',id:task.id});}
+    if(task.projectId){items.push({label:'⬆️ プロジェクトの最上部へ移動',action:'move-to-top',id:task.id});}
     items.forEach((item,i)=>{
       const btn=document.createElement('button');
       btn.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:'+(i===0?'none':'1px solid var(--border)')+';font-size:15px;color:'+(item.danger?'#c0392b':'var(--text)')+';text-align:left;cursor:pointer;display:block'+(item.danger?';font-weight:600':'');
