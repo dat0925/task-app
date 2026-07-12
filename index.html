@@ -2825,7 +2825,7 @@ function counts(){
     inbox:S.tasks.filter(x=>x.status==='inbox'&&!x.parentTaskId).length,
     today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
     overdue:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.dueAt&&x.dueAt<t).length,
-    flagged:S.tasks.filter(x=>x.status!=='completed'&&x.flagged).length,
+    flagged:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.flagged).length,
     assigned:_uid?S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.assigneeId===_uid).length:0,
   };
 }
