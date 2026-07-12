@@ -4058,14 +4058,23 @@ const VIEW_HELP={
   },
 };
 function openViewHelp(triggerEl){
-  const info=VIEW_HELP[S.view];
+  let info=VIEW_HELP[S.view];
+  if(S.view==='forecast-day'){
+    const dLabel=S.forecastDate?fmtDate(S.forecastDate):'';
+    info={
+      name:dLabel+'の予定',
+      colorBg:'var(--purple-bg)',colorFg:'var(--purple)',
+      desc:'Forecastの日付をタップした時に表示される、その日の予定の全件一覧です。グリッド表示では収まりきらない件数でも、ここで漏れなく確認できます。',
+      conds:['期限日 または 開始日 のいずれかがこの日のタスクが対象','「Forecastに戻る」でグリッド表示に戻れます']
+    };
+  }
   if(!info)return;
   const popup=document.getElementById('view-help-popup');
   const ov=document.getElementById('view-help-ov');
   if(!popup)return;
   // icon from ICONS map
   const iconSvg=({dashboard:ICONS.dashboard,inbox:ICONS.inbox,today:ICONS.today,overdue:ICONS.overdue,upcoming:ICONS.upcoming,
-    forecast:ICONS.forecast,flagged:ICONS.flag,assigned:ICONS.assigned,review:ICONS.review,
+    forecast:ICONS.forecast,'forecast-day':ICONS.forecast,flagged:ICONS.flag,assigned:ICONS.assigned,review:ICONS.review,
     nextview:ICONS.nextview,
     search:ICONS.search,notes:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
     project:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>',
@@ -4883,7 +4892,7 @@ function renderContent(){
   const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',overdue:'Overdue',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Logbook',notes:'Notes',nextview:'Next',gantt:'Gantt',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||'',
-    'forecast-day':S.forecastDate?fmtDate(S.forecastDate):'Forecast'};
+    'forecast-day':S.forecastDate?fmtDate(S.forecastDate)+'の予定':'Forecast'};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
   // global-srch の値をS.searchと同期
   const gs=document.getElementById('global-srch');
