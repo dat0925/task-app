@@ -5865,7 +5865,7 @@ function renderReview(){
   let h='<div class="rv-wrap">';
   h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><div><div style="font-size:17px;font-weight:700;margin-bottom:3px">週次レビュー</div><div style="font-size:13px;color:var(--text3)">見落としを確認しましょう</div></div><button class="rv-btn" data-a="rv-done">✓ 完了</button></div>';
   if(overdue.length){
-    h+='<div class="rv-card"><div class="rv-card-head"><span class="rv-card-title">期限切れ</span><span class="rv-badge rv-red">'+overdue.length+'件</span></div>';
+    h+='<div class="rv-card"><div class="rv-card-head"><span class="rv-card-title">期限切れ</span><span class="rv-badge rv-red">'+overdue.length+'件</span><button data-a="view" data-v="overdue" style="margin-left:auto;font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 6px">すべて見る →</button></div>';
     overdue.forEach(t=>{h+='<div class="rv-item" data-a="sel-edit" data-id="'+t.id+'" style="cursor:pointer"><span style="color:var(--p1)">!</span><span style="flex:1">'+esc(t.title)+'</span><span class="xs muted">'+fmtDate(t.dueAt)+'</span></div>'});
     h+='</div>';
   }
