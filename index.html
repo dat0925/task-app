@@ -2802,6 +2802,7 @@ function getTasks(){
   else if(S.view==='overdue')tasks=tasks.filter(x=>x.dueAt&&x.dueAt<t&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='upcoming')tasks=tasks.filter(x=>x.dueAt&&x.dueAt>t&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='flagged')tasks=tasks.filter(x=>x.flagged&&(S.showCompleted||x.status!=='completed'));
+  else if(S.view==='forecast-day')tasks=tasks.filter(x=>(x.dueAt===S.forecastDate||x.startAt===S.forecastDate)&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='assigned'){const _auid=window._currentUser?.id;tasks=_auid?tasks.filter(x=>x.assigneeId===_auid&&(S.showCompleted||x.status!=='completed')):[];}
   else if(S.view==='completed')tasks=tasks.filter(x=>x.status==='completed');
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
@@ -4881,7 +4882,8 @@ function renderContent(){
   const el=document.getElementById('content');
   const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',overdue:'Overdue',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Logbook',notes:'Notes',nextview:'Next',gantt:'Gantt',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
-    tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||''};
+    tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||'',
+    'forecast-day':S.forecastDate?fmtDate(S.forecastDate):'Forecast'};
   document.getElementById('viewTitle').textContent=titles[S.view]||'';
   // global-srch の値をS.searchと同期
   const gs=document.getElementById('global-srch');
@@ -4911,6 +4913,11 @@ function renderContent(){
   if(S.view==='dashboard'){el.innerHTML=renderDashboard();attachDashboardEvents();return}
   renderTaskFilters();
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
+  if(S.view==='forecast-day'){
+    el.innerHTML='<div style="padding:10px 14px 0"><button data-a="view" data-v="forecast" style="font-size:13px;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:3px">‹ Forecastに戻る</button></div>'+renderList();
+    initTaskSwipe(el);
+    return;
+  }
   if(S.view==='review'){el.innerHTML=renderReview();return}
   if(S.view==='search'){el.innerHTML=renderSearch();if(S.noteOpen)renderNoteDrawer();return}
   if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();
@@ -5847,7 +5854,7 @@ function renderForecast(){
     const start=tasks.filter(t=>t.startAt===day&&t.dueAt!==day);
     const all=[...due,...start];
     h+='<div class="fc-day'+(day===today()?' today':'')+'">'
-      +'<div class="fc-head"><span class="fc-date">'+d.getDate()+'</span><span class="fc-wd">'+wd+'</span>'+(all.length?'<span style="margin-left:auto;font-size:11px;opacity:.6">'+all.length+'</span>':'')+'</div>'
+      +'<div class="fc-head"'+(all.length?' data-a="forecast-day" data-date="'+day+'" style="cursor:pointer"':'')+'><span class="fc-date">'+d.getDate()+'</span><span class="fc-wd">'+wd+'</span>'+(all.length?'<span style="margin-left:auto;font-size:11px;opacity:.6">'+all.length+'</span>':'')+'</div>'
       +'<div class="fc-tasks">'
       +due.slice(0,4).map(t=>'<div class="fc-task" data-a="sel-edit" data-id="'+t.id+'"><span>🗓</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title)+'</span></div>').join('')
       +start.slice(0,2).map(t=>'<div class="fc-task" data-a="sel-edit" data-id="'+t.id+'"><span style="color:var(--blue)">▶</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title)+'</span></div>').join('')
@@ -7758,6 +7765,7 @@ document.addEventListener('click',async e=>{
   if(!_noDebounce.has(a)){const _now=Date.now();if(_now-_lastActionAt<350)return;_lastActionAt=_now;}
 
   if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob){playSE('toggle');_tappingView=el.dataset.v;if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{_tappingView=null;S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
+  else if(a==='forecast-day'){if(_touchMoved)return;S.view='forecast-day';S.forecastDate=el.dataset.date;S.projId=null;S.tagId=null;render();}
   else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
