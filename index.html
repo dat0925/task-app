@@ -1279,6 +1279,7 @@ let S={
   wsMembers:{},       // {workspaceId: [members]}
   _commentCache:{},
   _noteCommentCache:{},
+  commentCounts:{},   // {taskId: コメント件数}（一覧の💬バッジ表示用）
 };
 
 // ===== PLAN SYSTEM =====
@@ -2628,6 +2629,29 @@ async function loadAll(){
   await loadWorkspaces();
   // 通知キャッシュをリセット（次回ダッシュボード表示時に再取得）
   _notifCache=null;
+  // コメント件数（一覧の💬バッジ用）は本体ロードをブロックしないよう非同期で取得し、
+  // 完了後にリストだけ再描画する
+  loadCommentCounts().then(()=>{
+    if(typeof renderContent==='function')renderContent();
+  }).catch(e=>console.error('loadCommentCounts',e));
+}
+
+// タスク一覧に💬バッジを出すためのコメント件数集計（RLSで自分+共有ワークスペース分のみ返る）
+async function loadCommentCounts(){
+  const SB=window._SB;
+  if(!SB)return;
+  const PAGE=1000;
+  let from=0,rows=[];
+  for(;;){
+    const{data,error}=await SB.from('task_comments').select('task_id').range(from,from+PAGE-1);
+    if(error){console.error('loadCommentCounts',error);return;}
+    rows=rows.concat(data||[]);
+    if(!data||data.length<PAGE)break;
+    from+=PAGE;
+  }
+  const counts={};
+  rows.forEach(r=>{counts[r.task_id]=(counts[r.task_id]||0)+1;});
+  S.commentCounts=counts;
 }
 
 // ===== WORKSPACE =====
@@ -5521,6 +5545,7 @@ function renderRow(task){
     meta+='<span class="mc" title="'+_rlLabel+'">↻ '+_rlLabel+'</span>';
   }
   if(task.flagged)meta+='<span>🚩</span>';
+  if(S.commentCounts[task.id])meta+='<button class="mc" data-a="task-comment-jump" data-id="'+task.id+'" title="コメント'+S.commentCounts[task.id]+'件・最新コメントへ" style="background:none;border:none;cursor:pointer;color:var(--accent);font:inherit;font-size:11px">💬 '+S.commentCounts[task.id]+'</button>';
   if(task.assigneeId){
     const _aProj=S.projects.find(p=>p.id===task.projectId);
     const _aWsId=_aProj?.workspaceId;
@@ -7110,6 +7135,9 @@ async function _cmSend(taskId){
   if(!S._commentCache[taskId])S._commentCache[taskId]=[];
   S._commentCache[taskId]=[...S._commentCache[taskId],comment];
   _cmRenderList(S._commentCache[taskId]);
+  // 一覧の💬バッジ件数も更新（drawerは対象外のcontentのみ再描画されるので入力欄には影響しない）
+  S.commentCounts[taskId]=(S.commentCounts[taskId]||0)+1;
+  if(typeof renderContent==='function')renderContent();
   inp.value='';inp.style.height='auto';btn.disabled=true;
   inp._mentionedIds=null;
   _cmHideMentionPop();
@@ -7138,6 +7166,12 @@ async function _cmDelete(cmId,taskId){
     S._commentCache[taskId]=S._commentCache[taskId].filter(c=>c.id!==cmId);
     _cmRenderList(S._commentCache[taskId]);
   }
+  // 一覧の💬バッジ件数も更新
+  if(S.commentCounts[taskId]){
+    S.commentCounts[taskId]--;
+    if(S.commentCounts[taskId]<=0)delete S.commentCounts[taskId];
+  }
+  if(typeof renderContent==='function')renderContent();
 }
 
 function _cmStartEdit(cmId,taskId){
@@ -7980,6 +8014,33 @@ else if(a==='sel-edit'){
   if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
   else{S.taskId=id;S.drawerOpen=true;playSE('open');}
   renderContent();renderSidebar();renderDrawer();
+}
+else if(a==='task-comment-jump'){
+  e.stopPropagation();
+  if(_touchMoved)return;
+  const id=el.dataset.id;
+  const task=S.tasks.find(t=>t.id===id);
+  if(!task)return;
+  S.taskId=id;S.drawerOpen=true;
+  if(window.innerWidth<=768){
+    if(task.projectId){S.view='project';S.projId=task.projectId;}
+    else{S.view='inbox';}
+    S.sidebarOpen=false;
+  }
+  playSE('open');
+  renderContent();renderSidebar();renderDrawer();
+  // コメント読み込み完了を待ってから最新コメント（コメント欄）までスクロール
+  await initComments(id);
+  const dr=document.getElementById('drawer');
+  const drBody=dr&&dr.querySelector('.drawer-body');
+  const cmSection=drBody&&drBody.querySelector('#cm-section');
+  if(cmSection&&drBody){
+    const offset=cmSection.getBoundingClientRect().top-drBody.getBoundingClientRect().top+drBody.scrollTop-8;
+    drBody.scrollTo({top:offset,behavior:'smooth'});
+    cmSection.style.transition='background .3s';
+    cmSection.style.background='var(--accent-bg)';
+    setTimeout(()=>{cmSection.style.background='';},800);
+  }
 }
 else if(a==='scroll-to-subs'){
   e.stopPropagation();
