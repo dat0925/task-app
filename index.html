@@ -2851,7 +2851,7 @@ function counts(){
     today:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&(isToday(x.dueAt)||x.flagged)&&(!S.hideNotStarted||!isNotStartedTask(x))).length,
     overdue:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.dueAt&&x.dueAt<t).length,
     flagged:S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.flagged).length,
-    assigned:_uid?S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.assigneeId===_uid).length:0,
+    assigned:_uid?S.tasks.filter(x=>x.status!=='completed'&&x.status!=='archived'&&x.assigneeId===_uid&&(!S.hideNotStarted||!isNotStartedTask(x))).length:0, // 「現在」フィルタON時にリストと件数がズレないようTodayと同条件に
   };
 }
 
@@ -5382,7 +5382,7 @@ function renderNoteListOnly(){
 }
 
 function renderList(){
-  const showSubsInView=['today','flagged','overdue'].includes(S.view);
+  const showSubsInView=['today','flagged','overdue','assigned'].includes(S.view); // assigned追加: 担当サブタスクがバッジには数えられるのにリストに出ず件数不一致になる問題の修正
   const tasks=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId);
   if(!tasks.length)return renderEmpty();
   let h='<div class="tlist">';

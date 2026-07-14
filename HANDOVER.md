@@ -145,6 +145,28 @@
 
 ---
 
+
+## 🆕 Assignedビューのバッジ件数とリスト表示件数の不一致を修正（2026-07-14）
+
+### 報告内容
+- 左メニューAssignedバッジが「4」なのにリストには3件しか表示されない
+- ユーザー仮説は「MEOエージェントPJの共有解除が原因では」だったが、DB調査の結果**共有解除は無関係**
+
+### 原因（実データで特定）
+- 4件目は共有PJ「商品企画全般」内の**担当サブタスク**（parent_task_id あり）
+- バッジ計算 `counts().assigned` はサブタスクも含めてカウントする一方、`renderList()` の `showSubsInView` に `assigned` が含まれておらず、サブタスクがリスト描画から除外されていた
+
+### 修正内容（index.html）
+1. `renderList()`: `showSubsInView` に `'assigned'` を追加（today/flagged/overdue と同じ扱い）。担当サブタスクがリストに表示されるように
+2. `counts().assigned`: `(!S.hideNotStarted||!isNotStartedTask(x))` を追加し、「現在」フィルタON時の件数計算をTodayバッジと同条件に統一（同種の不一致の予防修正）
+
+### 補足・触れなかった箇所
+- `setProjectWorkspace(projId, null)`（共有解除）はタスクの `assignee_id` をクリアしない仕様。自分担当タスクはAssignedに残る（今回の表示上は妥当）。ただし**他メンバーのassignee_idも残留する**ため、将来的に整理を検討してもよい
+- flagged / overdue のバッジも `hideNotStarted` を考慮していない同種の潜在不一致があるが、報告範囲外のため今回は未変更
+- 認証・決済・個人情報には一切触れていない（セキュリティチェック対象外の変更）
+
+---
+
 ## 🆕 タスク一覧にコメント有無の💬バッジを追加・タップで最新コメントへ遷移（2026-07-13）
 
 ### 依頼内容
