@@ -6027,6 +6027,15 @@ function renderNoteDrawer(){
   if(!S.noteOpen||!S.noteId){dr.style.display='none';dr.classList.remove('open');if(_ct2)_ct2.style.overflow='';renderTaskFilters();return}
   const note=S.notes.find(n=>n.id===S.noteId);
   if(!note){dr.style.display='none';dr.classList.remove('open');if(_ct2)_ct2.style.overflow='';renderTaskFilters();return}
+  // 再描画（バックグラウンド同期など）で入力途中の内容が消えないよう、未保存の下書きを退避
+  // （同じノートを開いたままの再描画時のみ。復元は innerHTML 再構築後）
+  let _draft=null;
+  if(dr._noteId===note.id){
+    const _dCi=dr.querySelector('#ncm-input');
+    const _dNb=dr.querySelector('#nt-body');
+    const _dNt=dr.querySelector('#nt-title');
+    _draft={cm:_dCi?_dCi.value:null,body:_dNb?_dNb.value:null,title:_dNt?_dNt.value:null};
+  }
   dr.style.display='flex';
   dr.classList.add('open');
   // iOSでoverflow:auto要素がfixed要素のタッチを横取りするバグ対策
@@ -6139,6 +6148,16 @@ function renderNoteDrawer(){
     document.body.appendChild(menu);
   });
 
+  // 退避した未保存の下書きを復元（同じノートの再描画時のみ。プレビュー初期化前に行う）
+  dr._noteId=note.id;dr._taskId=null;
+  if(_draft){
+    const _rCi=dr.querySelector('#ncm-input');
+    if(_rCi&&_draft.cm)_rCi.value=_draft.cm;
+    const _rNb=dr.querySelector('#nt-body');
+    if(_rNb&&_draft.body!=null&&_draft.body!==_rNb.value)_rNb.value=_draft.body;
+    const _rNt=dr.querySelector('#nt-title');
+    if(_rNt&&_draft.title!=null&&_draft.title!==_rNt.value)_rNt.value=_draft.title;
+  }
   const titleEl=document.getElementById('nt-title');
   const bodyEl=document.getElementById('nt-body');
   makeResizable(bodyEl);
@@ -6186,6 +6205,8 @@ function renderNoteDrawer(){
   bodyEl?.addEventListener('compositionstart',()=>{composing=true});
   bodyEl?.addEventListener('compositionend',()=>{composing=false;schedSave();});
   bodyEl?.addEventListener('input',()=>{if(!composing){schedSave();}});
+  // 復元した下書きがまだ保存されていない場合は自動保存を予約
+  if(_draft&&((bodyEl&&bodyEl.value!==(note.body||''))||(titleEl&&titleEl.value!==(note.title||''))))schedSave();
   dr.querySelectorAll('[data-ns]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       if(!bodyEl)return;
@@ -6414,6 +6435,15 @@ function renderDrawer(){
   const _scrollY=_drBody?_drBody.scrollTop:0;
   const task=S.tasks.find(t=>t.id===S.taskId);
   if(!task){dr.style.display='none';dr.classList.remove('open');const _mr=document.querySelector('.main');if(_mr)_mr.style.maxWidth='';return}
+  // 再描画（バックグラウンド同期など）で入力途中の内容が消えないよう、未保存の下書きを退避
+  // （同じタスクを開いたままの再描画時のみ。復元は innerHTML 再構築後）
+  let _draft=null;
+  if(dr._taskId===task.id){
+    const _dCi=dr.querySelector('#cm-input');
+    const _dDn=dr.querySelector('#dt-notes');
+    const _dDt=dr.querySelector('#dt-title');
+    _draft={cm:_dCi?_dCi.value:null,notes:_dDn?_dDn.value:null,title:_dDt?_dDt.value:null};
+  }
   // タスクのプロジェクトをrecentに記録
   if(task.projectId)addRecentProject(task.projectId);
   dr.style.display='flex';
@@ -6638,6 +6668,17 @@ function renderDrawer(){
     document.body.appendChild(menu);
   });
 
+  // 退避した未保存の下書きを復元（同じタスクの再描画時のみ）
+  dr._taskId=task.id;dr._noteId=null;
+  if(_draft){
+    const _rCi=dr.querySelector('#cm-input');
+    if(_rCi&&_draft.cm)_rCi.value=_draft.cm;
+    const _rDn=dr.querySelector('#dt-notes');
+    if(_rDn&&_draft.notes!=null&&_draft.notes!==_rDn.value)_rDn.value=_draft.notes;
+    const _rDt=dr.querySelector('#dt-title');
+    if(_rDt&&_draft.title!=null&&_draft.title!==_rDt.value)_rDt.value=_draft.title;
+  }
+
   // attach drawer input events
   const setInd=(s)=>{const el=document.getElementById('autosave-ind');if(!el)return;el.className='autosave-ind '+s;el.textContent=s==='saving'?'保存中…':s==='saved'?'保存済み ✓':'自動保存 ✓'};
   let _composing=false;
@@ -6803,6 +6844,12 @@ function renderDrawer(){
     el.addEventListener('compositionend',()=>{_composing=false;autosave(true);});
     el.addEventListener('input',()=>{autosave();});
   });
+  // 復元した下書きがまだ保存されていない場合は自動保存を予約
+  if(_draft){
+    const _aDn=document.getElementById('dt-notes');
+    const _aDt=document.getElementById('dt-title');
+    if((_aDn&&_aDn.value!==(task.notes||''))||(_aDt&&_aDt.value!==(task.title||'')))autosave(true);
+  }
   // 日付・セレクトはcomposition不要
   ['dt-due','dt-start','dt-start-time','dt-proj','dt-assignee','dt-repeat'].forEach(id=>{
     const el=document.getElementById(id);
@@ -7046,6 +7093,12 @@ function _cmSetupInput(taskId,comments){
     if(e.key==='Escape')_cmHideMentionPop();
   };
   btn.onclick=()=>_cmSend(taskId);
+  // 再描画で復元された下書きがある場合、送信ボタンの活性と入力欄の高さを同期
+  if(inp.value){
+    btn.disabled=!inp.value.trim();
+    inp.style.height='auto';
+    inp.style.height=Math.min(inp.scrollHeight,120)+'px';
+  }
 }
 
 // ===== @MENTION 補完 =====
@@ -7312,6 +7365,12 @@ function _ncmSetupInput(noteId){
   };
   inp.onkeydown=e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();if(!btn.disabled)_ncmSend(noteId);}};
   btn.onclick=()=>_ncmSend(noteId);
+  // 再描画で復元された下書きがある場合、送信ボタンの活性と入力欄の高さを同期
+  if(inp.value){
+    btn.disabled=!inp.value.trim();
+    inp.style.height='auto';
+    inp.style.height=Math.min(inp.scrollHeight,120)+'px';
+  }
 }
 
 async function _ncmSend(noteId){
@@ -7684,6 +7743,39 @@ async function handleBulkEdit(field){
 // ===== 親タスク選択モーダル =====
 function openSetParentModal(taskIds,onSelect){  // 選択対象自身とその子孫は除外
   const excluded=new Set(Array.isArray(taskIds)?taskIds:[taskIds]);  const addDescendants=(id)=>{S.tasks.filter(t=>t.parentTaskId===id).forEach(t=>{excluded.add(t.id);addDescendants(t.id);});};  excluded.forEach(id=>addDescendants(id));  const candidates=S.tasks.filter(t=>!excluded.has(t.id)&&t.status!=='completed'&&t.status!=='archived'&&!t.parentTaskId);  let q='';  const render=()=>{    const filtered=q?candidates.filter(t=>(t.title||'').includes(q)):candidates;    listEl.innerHTML=filtered.slice(0,50).map(t=>      '<button class="act-btn" data-id="'+t.id+'" style="display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:13px;border-bottom:1px solid var(--border)">'+esc(t.title||'無題')+'</button>'    ).join('');    listEl.querySelectorAll('[data-id]').forEach(btn=>{      btn.onclick=()=>{ov.remove();onSelect(btn.dataset.id);};    });  };  const ov=document.createElement('div');ov.className='overlay';  ov.innerHTML='<div class="modal" style="max-width:380px">'    +'<div class="modal-title">親タスクを選択</div>'    +'<input id="parent-search" class="finput" placeholder="タスク名で検索…" autocomplete="off" style="margin-bottom:10px">'    +'<div id="parent-list" style="max-height:280px;overflow-y:auto"></div>'    +'<div class="modal-foot" style="margin-top:8px"><button class="btn btn-ghost" id="parent-cancel">キャンセル</button></div>'  +'</div>';  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));  const listEl=ov.querySelector('#parent-list');  ov.querySelector('#parent-search').addEventListener('input',e=>{q=e.target.value;render();});  ov.querySelector('#parent-cancel').onclick=()=>ov.remove();  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});  render();}
+
+// ===== 未保存ドラフト検出 =====
+// バックグラウンド同期（_syncNow等）による再描画が、入力途中のコメント・メモを
+// 消してしまわないためのガード。trueの間は全画面再描画を伴う同期をスキップする
+// （次回のポーリング周期で自動的に再試行されるため、同期自体は失われない）。
+function hasUnsavedDraft(){
+  // 何らかの入力欄にフォーカス中（IME変換中含む）
+  const ae=document.activeElement;
+  if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable))return true;
+  // 未送信のコメント入力（タスク詳細・ノート詳細。PC拡大モーダル内の複製idも対象）
+  for(const el of document.querySelectorAll('[id="cm-input"],[id="ncm-input"]')){
+    if(el.value&&el.value.trim())return true;
+  }
+  // 既存コメントのインライン編集中
+  if(document.querySelector('[id^="cm-body-"] textarea,[id^="ncm-body-"] textarea'))return true;
+  // タスク詳細のタイトル・メモに自動保存が未確定の変更がある
+  if(S.taskId){
+    const t=S.tasks.find(x=>x.id===S.taskId);
+    if(t){
+      for(const el of document.querySelectorAll('[id="dt-notes"]')){if(el.value!==(t.notes||''))return true;}
+      for(const el of document.querySelectorAll('[id="dt-title"]')){if(el.value!==(t.title||''))return true;}
+    }
+  }
+  // ノート詳細のタイトル・本文に自動保存が未確定の変更がある
+  if(S.noteId){
+    const n=S.notes.find(x=>x.id===S.noteId);
+    if(n){
+      for(const el of document.querySelectorAll('[id="nt-body"]')){if(el.value!==(n.body||''))return true;}
+      for(const el of document.querySelectorAll('[id="nt-title"]')){if(el.value!==(n.title||''))return true;}
+    }
+  }
+  return false;
+}
 
 // ===== RENDER APP =====
 function render(){
@@ -11907,8 +11999,10 @@ async function setupSB(){
       if(!window._currentUser)return;
       if(Date.now()-window._lastSelfSave<5000)return;
       if(!force&&Date.now()-window._lastSync<60000)return;
-      const ae=document.activeElement;
-      if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
+      // 入力途中の内容（コメント・メモ・タイトル等）がある間は再描画で消えるためスキップ。
+      // フォーカス有無だけでなく「未保存の下書きの存在」で判定する（スクロールやアプリ切替で
+      // フォーカスが外れた直後でも入力内容を守る）。次回周期で自動再試行される
+      if(typeof hasUnsavedDraft==='function'&&hasUnsavedDraft())return;
       if(typeof loadAll==='function'&&typeof render==='function'){
         loadAll().then(()=>{window._lastSync=Date.now();render();}).catch(()=>{});
       }
@@ -11916,11 +12010,7 @@ async function setupSB(){
     // Realtimeサブスクリプションは無効化（Disk IO削減のため）
     // 120秒ポーリング＋visibilitychangeで同期を維持（60秒以内の再取得はスキップ）
     document.addEventListener('visibilitychange',()=>{
-      if(document.visibilityState==='visible'){
-        const ae=document.activeElement;
-        if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'))return;
-        _syncNow();
-      }
+      if(document.visibilityState==='visible')_syncNow();
     });
     setInterval(()=>_syncNow(true),120000);
 
