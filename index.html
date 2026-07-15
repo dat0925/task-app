@@ -6293,21 +6293,53 @@ function renderSearch(){
   const q=S.search;
   let h='<div class="tlist">';
   h+='<div style="padding:10px 0 8px"><input class="finput" id="srch" type="search" value="'+esc(q)+'" placeholder="タスク・メモを検索…" style="font-size:14px"></div>';
+  h+=renderSearchFilterBar();
   h+='<div id="srch-results">'+renderSearchResults(q)+'</div>';
   return h+'</div>';
 }
+// 検索画面用のタグフィルタ行（Notes画面と同じチップUIを流用し、data-a="notes-tag-chip" ハンドラをそのまま使う）
+function renderSearchFilterBar(){
+  if(!S.tags.length)return'';
+  const active=S.filterTagIds&&S.filterTagIds.length>0;
+  let h='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:0 0 8px">';
+  h+='<button class="toggle-completed-btn'+(!active?' active':'')+'" data-a="notes-tag-chip" data-id="">すべて</button>';
+  h+='<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes('__none__')?' active':'')+'" data-a="notes-tag-chip" data-id="__none__" style="'+(S.filterTagIds&&S.filterTagIds.includes('__none__')?'border-color:var(--text3);color:var(--text2);background:var(--bg3)':'')+'"><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0;display:inline-block"></span>タグなし</span></button>';
+  h+=S.tags.map(t=>'<button class="toggle-completed-btn'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?' active':'')+'" data-a="notes-tag-chip" data-id="'+t.id+'" style="'+(S.filterTagIds&&S.filterTagIds.includes(t.id)?'border-color:'+t.color+';color:'+t.color+';background:'+t.color+'22':'')+'"><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:7px;height:7px;border-radius:50%;background:'+t.color+';flex-shrink:0;display:inline-block"></span>'+esc(t.name)+'</span></button>').join('');
+  if(active)h+='<span style="font-size:11px;color:var(--p1);white-space:nowrap;padding:0 2px">🏷 絞り込み中</span>';
+  h+='</div>';
+  return h;
+}
 function renderSearchResults(q){
-  if(!q)return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
-  const ql=q.toLowerCase();
-  let tasks=S.tasks.filter(t=>t.status!=='archived'&&(S.showCompleted||t.status!=='completed')&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql)));
-  if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(t=>S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)));
-  let notes=S.notes.filter(n=>(n.title+n.body).toLowerCase().includes(ql));
-  if(S.filterTagIds&&S.filterTagIds.length){
-    if(S.filterTagIds.includes('__none__'))notes=notes.filter(n=>!n.tagIds||n.tagIds.length===0);
-    else notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  const tagActive=!!(S.filterTagIds&&S.filterTagIds.length);
+  if(!q){
+    if(tagActive)return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div><div class="empty-d">タグフィルタが適用された状態で検索されます</div></div>';
+    return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
   }
-  if(!tasks.length&&!notes.length)return renderEmpty();
+  const ql=q.toLowerCase();
+  const matchTask=t=>t.status!=='archived'&&(S.showCompleted||t.status!=='completed')&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql));
+  const matchNote=n=>(n.title+n.body).toLowerCase().includes(ql);
+  const tasksAll=S.tasks.filter(matchTask);
+  const notesAll=S.notes.filter(matchNote);
+  let tasks=tasksAll,notes=notesAll;
+  if(tagActive){
+    tasks=tasksAll.filter(t=>S.filterTagIds.every(id=>t.tagIds&&t.tagIds.includes(id)));
+    if(S.filterTagIds.includes('__none__'))notes=notesAll.filter(n=>!n.tagIds||n.tagIds.length===0);
+    else notes=notesAll.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
+  }
+  const totalAll=tasksAll.length+notesAll.length;
+  const totalFiltered=tasks.length+notes.length;
+  if(!tasks.length&&!notes.length){
+    if(tagActive&&totalAll>0){
+      // フィルタのせいで0件になっているケース：キーワード自体はヒットしているので明示する
+      return'<div class="empty"><div class="empty-ico">🏷</div><div class="empty-t">フィルタ適用中のため0件です</div>'
+        +'<div class="empty-d">「'+esc(q)+'」自体は'+totalAll+'件ヒットしています。タグフィルタを解除すると表示されます。</div>'
+        +'<button class="toggle-completed-btn" data-a="notes-tag-chip" data-id="" style="margin-top:8px">フィルタを解除</button>'
+      +'</div>';
+    }
+    return renderEmpty();
+  }
   let h='';
+  if(tagActive)h+='<div style="font-size:11px;color:var(--text3);padding:0 0 6px">'+totalFiltered+'件 / フィルタなしなら'+totalAll+'件</div>';
   if(tasks.length)h+='<div class="nav-label">タスク</div><div>'+tasks.map(t=>renderRow(t)).join('')+'</div>';
   if(notes.length){
     h+='<div class="nav-label" style="margin-top:12px">メモ</div>';
