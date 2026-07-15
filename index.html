@@ -11971,8 +11971,14 @@ async function setupSB(){
     // 認証状態変化の監視（初回以降の変化のみ対応）
     SB.auth.onAuthStateChange((event,session)=>{
       if(event==='INITIAL_SESSION')return; // 初回はgetSession()で処理済み
+      const prevUser=window._currentUser;
       window._currentUser=session?.user||null;
       if(event==='SIGNED_IN'){
+        // supabase-jsはタブ復帰・トークン更新時にも SIGNED_IN を再発火することがある。
+        // 同一ユーザーで既にロード済みならフルリロード＆全画面再描画をスキップ
+        // （入力途中のコメント・メモが再描画で消えるのを防ぐ。データ同期は
+        //  120秒ポーリング＋visibilitychange側の _syncNow が担う）
+        if(prevUser&&session?.user&&prevUser.id===session.user.id)return;
         hideLogin();
         if(typeof loadUserPlan==='function')loadUserPlan().then(()=>{if(typeof renderSidebar==='function')renderSidebar();}).catch(()=>{});
         if(typeof loadAll==='function'&&typeof render==='function'){
