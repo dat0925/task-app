@@ -2414,12 +2414,12 @@ function parseQA(input){
       const dc=wk[i];
       const inBracket=new RegExp('[（(]'+dc+'[）)]').test(title);
       const hasYoubi=title.includes(dc+'曜');
-      const hasDayAlone=!inBracket&&title.includes(dc);
+      const hasDayAlone=!inBracket&&new RegExp('(^|\\s)'+dc+'(?=\\s|$)').test(title);
       if(hasYoubi||hasDayAlone){
         const d=new Date(),diff=(i-d.getDay()+7)%7||7;
         d.setDate(d.getDate()+diff);r.dueAt=d.toISOString().slice(0,10);
         if(hasYoubi){title=title.replace(dc+'曜','');}
-        else{title=title.replace(new RegExp('(?<![（(])'+dc+'(?![）)])'),'');}
+        else{title=title.replace(new RegExp('(^|\\s)'+dc+'(?=\\s|$)'),'$1');}
         break;
       }
     }
