@@ -4941,7 +4941,11 @@ function renderContent(){
   }
 
   // notes・search以外ではnoteドロワーを閉じる
-  if(S.view!=='notes'&&S.view!=='search'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){dr.style.display='none';dr.classList.remove('open');const _ct3=document.getElementById('content');if(_ct3)_ct3.style.overflow='';}}
+  // ただしタスク詳細ドロワーが開いているべき状態（S.drawerOpen&&S.taskId）では隠さない。
+  // NOTEを開いた後にタスク系ビューへ移動するとS.noteOpenがtrueのまま残留するため、
+  // ここで無条件に隠すと、メモ自動保存後のrenderContent()単独呼び出し（renderDrawerなし）で
+  // タスク詳細が消え、mainのmaxWidthだけ残って画面右側が真っ白になる（PCビュー）
+  if(S.view!=='notes'&&S.view!=='search'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){const _ct3=document.getElementById('content');if(_ct3)_ct3.style.overflow='';if(!(S.drawerOpen&&S.taskId)){dr.style.display='none';dr.classList.remove('open');const _m3=document.querySelector('.main');if(_m3)_m3.style.maxWidth='';}}}
 
   if(S.view==='dashboard'){el.innerHTML=renderDashboard();attachDashboardEvents();return}
   renderTaskFilters();
