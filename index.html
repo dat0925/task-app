@@ -327,7 +327,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .pbtn[data-p="2"].on{background:var(--p2);border-color:var(--p2)}
 .pbtn[data-p="3"].on{background:var(--p3);border-color:var(--p3)}
 .pbtn[data-p="4"].on{background:#9ca3af;border-color:#9ca3af}
-.pri-cycle-btn{padding:5px 13px;border-radius:7px;border:1.5px solid var(--border);font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--text2);transition:all .15s;flex-shrink:0;white-space:nowrap;min-height:29px;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation}
+.pri-cycle-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:5px 13px;border-radius:7px;border:1.5px solid var(--border);font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--text2);transition:all .15s;flex-shrink:0;white-space:nowrap;min-height:29px;min-width:58px;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation}
 .pri-cycle-btn[data-p="1"]{background:var(--p1);border-color:var(--p1);color:#fff}
 .pri-cycle-btn[data-p="2"]{background:var(--p2);border-color:var(--p2);color:#fff}
 .pri-cycle-btn[data-p="3"]{background:var(--p3);border-color:var(--p3);color:#fff}
@@ -6491,7 +6491,7 @@ function renderDrawer(){
   dr.classList.add('open');
   const subs=S.tasks.filter(t=>t.parentTaskId===task.id);
   const done=task.status==='completed';
-  const pLabels={1:'高',2:'中',3:'低',4:'なし'};
+  const pLabels={1:'高',2:'中',3:'低',4:'無'};
   dr.innerHTML=
     '<div class="drawer-head">'
       +'<button class="icon-btn" data-a="close-drawer">'+ICONS.x+'</button>'
@@ -6517,7 +6517,7 @@ function renderDrawer(){
         +'<button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count" id="cm-jump-count">…</span></button></div>':''
       )
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'      +'<div class="fg" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
-        +'<button class="pri-cycle-btn" data-a="pri-cycle" data-id="'+task.id+'" data-p="'+(task.priority||4)+'">'+pLabels[task.priority||4]+'</button>'
+        +'<button class="pri-cycle-btn" data-a="pri-cycle" data-id="'+task.id+'" data-p="'+(task.priority||4)+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><span>'+pLabels[task.priority||4]+'</span></button>'
         +'<div class="tag-wrap" style="margin-bottom:0;flex:1;min-width:0">'
           +S.tags.map(t=>'<span class="topt'+(task.tagIds&&task.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-task="'+task.id+'" data-tag="'+t.id+'" style="'+(task.tagIds&&task.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
           +(S.tags.length===0?'<span class="muted xs">タグなし</span>':'')
