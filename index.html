@@ -5418,6 +5418,7 @@ function renderTaskFilters(){
       +'<button class="toggle-completed-btn" data-a="bulk-desel-all">全解除</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="dates">日付</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="tags">タグ</button>'
+      +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="priority">優先度</button>'
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="project">PJ</button>'
       +(S.view==='project'&&S.projId?'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="top" title="選択したタスクをこのプロジェクトの最上部にまとめて移動">⬆️ 最上部へ</button>':'')
       +'<button class="toggle-completed-btn" data-a="bulk-edit" data-field="repeat">繰返</button>'
@@ -7498,6 +7499,7 @@ function _ncmStartEdit(ncmId,noteId){
 
 // ===== BULK EDIT =====
 async function handleBulkEdit(field){
+  const pLabels={1:'高',2:'中',3:'低',4:'無'};
   const tasks=S.tasks.filter(t=>S.selectedIds.includes(t.id));
   if(!tasks.length){toast('タスクを選択してください');return;}
   if(field==='dates'){
@@ -7677,6 +7679,26 @@ async function handleBulkEdit(field){
       S.selectMode=false;S.selectedIds=[];
       toast(tasks.length+'件のタグを設定しました');render();
     };
+  } else if(field==='priority'){
+    const ov=document.createElement('div');ov.className='overlay';
+    ov.innerHTML='<div class="modal"><div class="modal-title">優先度を一括設定</div>'
+      +'<div class="pri-grid" style="margin-bottom:12px">'
+        +[1,2,3,4].map(p=>'<button class="pbtn'+(p<4?' on':'')+'" data-p="'+p+'" id="bulk-pri-'+p+'">'+pLabels[p]+'</button>').join('')
+      +'</div>'
+      +'<div style="display:flex;gap:8px">'
+        +'<button class="btn btn-ghost" id="bulk-pri-cancel">キャンセル</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+    ov.querySelector('#bulk-pri-cancel').onclick=()=>ov.remove();
+    [1,2,3,4].forEach(p=>{
+      ov.querySelector('#bulk-pri-'+p).onclick=async()=>{
+        ov.remove();
+        for(const t of tasks){t.priority=p;await saveTask(t);}
+        S.selectMode=false;S.selectedIds=[];
+        toast(tasks.length+'件の優先度を「'+pLabels[p]+'」に設定しました');render();
+      };
+    });
   } else if(field==='project'){
     const ov=document.createElement('div');ov.className='overlay';
     ov.innerHTML='<div class="modal"><div class="modal-title">プロジェクトを一括設定</div>'
