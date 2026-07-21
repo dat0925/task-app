@@ -6047,9 +6047,9 @@ function renderNoteDrawer(){
   }
   dr.style.display='flex';
   dr.classList.add('open');
-  // iOSでoverflow:auto要素がfixed要素のタッチを横取りするバグ対策
+  // iOSでoverflow:auto要素がfixed要素のタッチを横取りするバグ対策（ドロワーが全画面オーバーレイになるモバイル幅のみ）
   const _ct=document.getElementById('content');
-  if(_ct)_ct.style.overflow='hidden';
+  if(_ct)_ct.style.overflow=window.innerWidth<=768?'hidden':'';
   const _tf=document.getElementById('task-filters');
   if(_tf)_tf.style.display='none';
   const noteUrl=location.origin+location.pathname+'?note='+note.id;
