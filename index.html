@@ -47,7 +47,11 @@ button:active{opacity:.75}
 input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16px prevents iOS zoom */
 
 /* ===== LAYOUT ===== */
-.layout{display:flex;height:100vh;overflow:hidden}
+/* iPad/iOS Safari: 100vhはアドレスバー等のブラウザUIを含む「最大」viewport基準になり、
+   実際に見えている領域より高くなることがある（.layoutはoverflow:hidden・自身はスクロール
+   しない設計のため、はみ出した分＝タスク詳細フッターの完了/…/×ボタン等が画面外に隠れて
+   見えなくなる）。100dvh（動的viewport高さ）を追加指定し、対応ブラウザではそちらを優先させる */
+.layout{display:flex;height:100vh;height:100dvh;overflow:hidden}
 
 /* Sidebar */
 .sidebar{
@@ -295,7 +299,10 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .calc-label-clear:active{color:rgba(30,58,138,.7)}
 /* History in drawer */
 /* Action bar (shown on all screen sizes) */
-.mob-action-bar{display:flex;align-items:center;gap:5px;padding:6px 10px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
+/* padding-bottomはenv(safe-area-inset-bottom)込み。従来は<=768px幅のメディアクエリ内でのみ
+   加算していたが、ホームボタンなしiPad（Face ID機）は768pxより幅が広く対象外になり、
+   ホームインジケーター分だけ完了/…/×ボタンが隠れ気味になっていたため基本ルールに移動 */
+.mob-action-bar{display:flex;align-items:center;gap:5px;padding:6px 10px calc(6px + env(safe-area-inset-bottom)) 10px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .mob-btn{display:inline-flex;align-items:center;justify-content:center;gap:3px;padding:6px 10px;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);border:none;font-family:var(--font);transition:transform .1s,box-shadow .1s;white-space:nowrap;flex-shrink:0}
 .mob-btn:active{transform:translateY(1px)}
 .mob-btn-del{background:#fde8e8;color:#c0392b;border:1px solid #f5c0c0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -467,8 +474,8 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     min-width:0 !important;
   }
   .sidebar.open{transform:translateX(0)}
-  .layout{display:block;height:100vh;overflow:hidden}
-  .main{height:100vh;width:100%}
+  .layout{display:block;height:100vh;height:100dvh;overflow:hidden}
+  .main{height:100vh;height:100dvh;width:100%}
   .drawer{
     position:fixed !important;
     top:0;left:0;right:0;bottom:0;
