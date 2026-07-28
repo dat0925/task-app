@@ -2330,6 +2330,8 @@ function makePreviewResizable(el){
 function now(){return new Date().toISOString()}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function searchTerms(q){return String(q||'').toLowerCase().split(/\s+/).filter(Boolean)}
+function matchesSearch(text,terms){if(!terms.length)return false;const t=String(text||'').toLowerCase();return terms.every(w=>t.includes(w))}
 
 function wdStr(d){
   if(!d)return'';
@@ -2843,7 +2845,7 @@ function getTasks(){
   else if(S.view==='completed')tasks=tasks.filter(x=>x.status==='completed');
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
-  if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
+  if(S.search){const terms=searchTerms(S.search);if(terms.length)tasks=tasks.filter(x=>matchesSearch(x.title+' '+(x.notes||''),terms))}
   if(S.hideNotStarted&&S.view!=='inbox'&&S.view!=='completed'){tasks=tasks.filter(x=>!isNotStartedTask(x))} // Inboxは捕捉・整理用の受信箱なので「現在」フィルタを適用しない（開始日が未来のタスクが消えバッジ件数と不一致になる問題の修正）
   if(!S.showShared&&(S.view==='today')){const spids=new Set(S.projects.filter(p=>p.workspaceId).map(p=>p.id));tasks=tasks.filter(x=>!spids.has(x.projectId));}
   if(S.filterTagIds&&S.filterTagIds.length&&S.view!=='tag')tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
@@ -5379,9 +5381,9 @@ function setupSectionDrag(){
 
 // ノート検索時: 検索ボックスを再生成せずリスト部分だけ更新
 function renderNoteListOnly(){
-  const q=S.noteSearch.toLowerCase();
+  const terms=searchTerms(S.noteSearch);
   const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
-  let notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q));
+  let notes=[...S.notes].filter(n=>!terms.length||matchesSearch(n.title+n.body,terms));
   if(S.filterTagIds&&S.filterTagIds.length){
     if(S.filterTagIds.includes('__none__'))notes=notes.filter(n=>!n.tagIds||n.tagIds.length===0);
     else notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
@@ -5389,7 +5391,7 @@ function renderNoteListOnly(){
   notes.sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
   let h='';
   if(!notes.length){
-    h='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
+    h='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(terms.length?'該当なし':'メモなし')+'</div></div>';
   } else {
     notes.forEach(n=>{h+=renderNoteRow(n);});
   }
@@ -5994,9 +5996,9 @@ function renderNoteRow(n){
   +'</div>';
 }
 function renderNoteList(){
-  const q=S.noteSearch.toLowerCase();
+  const terms=searchTerms(S.noteSearch);
   const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
-  let notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q));
+  let notes=[...S.notes].filter(n=>!terms.length||matchesSearch(n.title+n.body,terms));
   if(S.filterTagIds&&S.filterTagIds.length){
     if(S.filterTagIds.includes('__none__'))notes=notes.filter(n=>!n.tagIds||n.tagIds.length===0);
     else notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
@@ -6013,7 +6015,7 @@ function renderNoteList(){
       +'<button class="toggle-completed-btn" data-a="note-bulk-cancel" style="margin-left:auto">✕ 終了</button>'
     +'</div>';
   } else {
-    const _isFiltered=!!(q||(S.filterTagIds&&S.filterTagIds.length));
+    const _isFiltered=!!(terms.length||(S.filterTagIds&&S.filterTagIds.length));
     const _countLabel=_isFiltered?(notes.length+'件 / 全'+S.notes.length+'件'):(S.notes.length+'件');
     h+='<div style="padding:10px 0 6px;display:flex;flex-direction:column;gap:4px">'
       +'<div style="display:flex;gap:6px;align-items:center">'
@@ -6031,7 +6033,7 @@ function renderNoteList(){
   }
   h+='<div id="note-list-items">';
   if(!notes.length){
-    h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
+    h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(terms.length?'該当なし':'メモなし')+'</div></div>';
   } else {
     notes.forEach(n=>{h+=renderNoteRow(n);});
   }
@@ -6328,13 +6330,13 @@ function renderSearchFilterBar(){
 }
 function renderSearchResults(q){
   const tagActive=!!(S.filterTagIds&&S.filterTagIds.length);
-  if(!q){
+  if(!q||!q.trim()){
     if(tagActive)return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div><div class="empty-d">タグフィルタが適用された状態で検索されます</div></div>';
     return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
   }
-  const ql=q.toLowerCase();
-  const matchTask=t=>t.status!=='archived'&&(S.showCompleted||t.status!=='completed')&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql));
-  const matchNote=n=>(n.title+n.body).toLowerCase().includes(ql);
+  const terms=searchTerms(q);
+  const matchTask=t=>t.status!=='archived'&&(S.showCompleted||t.status!=='completed')&&matchesSearch(t.title+' '+(t.notes||''),terms);
+  const matchNote=n=>matchesSearch(n.title+' '+n.body,terms);
   const tasksAll=S.tasks.filter(matchTask);
   const notesAll=S.notes.filter(matchNote);
   let tasks=tasksAll,notes=notesAll;
@@ -9072,9 +9074,9 @@ else if(a==='scroll-to-comments'){
     if(S.view==='nextview'){
       S.selectedIds=getNextViewRows().map(r=>r.task.id);
     }else if(S.view==='search'){
-      const ql=(S.search||'').toLowerCase();
-      if(ql){
-        S.selectedIds=S.tasks.filter(t=>t.status!=='archived'&&!t.parentTaskId&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql))).map(t=>t.id);
+      const terms=searchTerms(S.search);
+      if(terms.length){
+        S.selectedIds=S.tasks.filter(t=>t.status!=='archived'&&!t.parentTaskId&&matchesSearch(t.title+' '+(t.notes||''),terms)).map(t=>t.id);
       }else{
         S.selectedIds=[];
       }
@@ -9196,8 +9198,8 @@ else if(a==='scroll-to-comments'){
   else if(a==='note-tog-select-mode'){S.noteSelectMode=true;S.selectedNoteIds=[];renderContent();}
   else if(a==='note-bulk-cancel'){S.noteSelectMode=false;S.selectedNoteIds=[];renderContent();}
   else if(a==='note-bulk-sel-all'){
-    const _q=S.noteSearch.toLowerCase();
-    let _ns=[...S.notes].filter(n=>!_q||(n.title+n.body).toLowerCase().includes(_q));
+    const _terms=searchTerms(S.noteSearch);
+    let _ns=[...S.notes].filter(n=>!_terms.length||matchesSearch(n.title+n.body,_terms));
     if(S.filterTagIds&&S.filterTagIds.length)_ns=_ns.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
     S.selectedNoteIds=_ns.map(n=>n.id);renderContent();
   }
