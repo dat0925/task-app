@@ -5400,7 +5400,7 @@ function renderNoteListOnly(){
 }
 
 function renderList(){
-  const showSubsInView=['today','flagged','overdue','assigned'].includes(S.view); // assigned追加: 担当サブタスクがバッジには数えられるのにリストに出ず件数不一致になる問題の修正
+  const showSubsInView=['today','flagged','overdue','assigned','forecast-day'].includes(S.view); // forecast-day追加: Forecastの日付タップ時、該当タスクがサブタスクだと一覧が空になる問題の修正
   const tasks=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId);
   if(!tasks.length)return renderEmpty();
   let h='<div class="tlist">';
@@ -9081,7 +9081,10 @@ else if(a==='scroll-to-comments'){
         S.selectedIds=[];
       }
     }else{
-      S.selectedIds=getTasks().filter(t=>!t.parentTaskId).map(t=>t.id);
+      // renderList()の表示条件と揃える（サブタスクも一覧表示されるビューでは全選択にも含める。
+      // 従来は常にサブタスク除外だったため、Overdue等で表示中タスクがサブタスクばかりだと0件選択になり「機能しない」ように見えていた）
+      const showSubsInView=['today','flagged','overdue','assigned','forecast-day'].includes(S.view);
+      S.selectedIds=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId).map(t=>t.id);
     }
     renderTaskFilters();renderContent();
   }
