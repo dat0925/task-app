@@ -644,8 +644,31 @@
 
 <!-- フッター -->
 <footer>
+  <div class="qr-share">
+    <button class="qr-thumb" onclick="openQR()" aria-label="このページのQRコードを拡大表示">
+      <svg viewBox="0 0 33 33"><use href="#qr-devs"/></svg>
+    </button>
+    <span class="qr-share-label">このページのQRコード（タップで拡大）</span>
+  </div>
   <p>© 2026 <a href="https://taskra.jp">Taskra</a> &nbsp;|&nbsp; <a href="https://taskra.jp">taskra.jp</a></p>
 </footer>
+
+<!-- QRモーダル（クリックで拡大） -->
+<div class="qr-modal" id="qrModal" onclick="if(event.target===this)closeQR()">
+  <div class="qr-modal-box">
+    <svg viewBox="0 0 33 33"><use href="#qr-devs"/></svg>
+    <div class="qr-modal-title">開発プロダクト一覧</div>
+    <div class="qr-modal-url">https://app.taskra.jp/devs.html</div>
+    <button class="qr-modal-close" onclick="closeQR()">閉じる</button>
+  </div>
+</div>
+
+<script>
+  // QRモーダルの開閉のみ（QR自体はインラインSVGで外部依存なし）
+  function openQR() { document.getElementById('qrModal').classList.add('show'); }
+  function closeQR() { document.getElementById('qrModal').classList.remove('show'); }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeQR(); });
+</script>
 
 </body>
 </html>
