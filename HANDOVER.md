@@ -1,6 +1,140 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-07-31
+最終更新: 2026-08-01
+
+---
+
+## 🚨 タスクの中身が丸ごと消える重大バグを修正（autosaveのガード欠如）＋消えたデータを復旧（2026-08-01）
+
+### 報告内容
+
+「mstd0520@gmail.com のアカウントで『日報承認』というタスクが消えた。今朝10時ころまではあった」
+
+### 調査結果：タスクは削除されていない。中身だけが空で上書きされていた
+
+Taskraのタスク削除は物理削除（`dbDel()`）でゴミ箱がないため「消えた＝削除」と疑ったが、
+**実際にはレコードは生きていて、中身が空になっていた**。
+
+対象は `tasks.id = 'mr1f6ltzdgzt'`（`status='active'`）。同一タスクである根拠：
+
+| 項目 | `mpv2sn7v4ocv`（7/1に完了した元タスク） | `mr1f6ltzdgzt`（空になっていたタスク） |
+|---|---|---|
+| `tag_ids` | `["mofnrntnc4l3"]`（仕事） | `["mofnrntnc4l3"]` ← 一致 |
+| `sort_order` | `2000` | `2000` ← 一致 |
+| 時刻 | `completed_at` = 07-01 01:51:41.**787** | `created_at` = 07-01 01:51:41.**831** ← 44ms後 |
+
+2026-07-01に「日報システム（開発）承認」（`repeat_rule='monthly'`）を完了した際、
+`nextRepeat()` が8月分として生成したタスクがこれ。`updated_at` は
+**2026-08-01 01:12:36 UTC（JST 10:12）** で、ユーザーの証言と一致。その2分後の10:14に
+ユーザーが「開発日報承認（月初）」（`ms9oiuybtyds`）を手で作り直していた。
+
+### 原因：`renderDrawer()` 内 autosave のDOM存在ガード欠如（index.html 6736行目付近）
+
+```js
+// 修正前
+autosave._t=setTimeout(async()=>{
+  const t2=S.tasks.find(x=>x.id===S.taskId);if(!t2)return;   // ← ガードはこれだけ
+  t2.title=document.getElementById('dt-title')?.value||'';    // 要素が無ければ ''
+  t2.notes=document.getElementById('dt-notes')?.value||'';    // 要素が無ければ ''
+  t2.dueAt=document.getElementById('dt-due')?.value||null;    // 要素が無ければ null
+  t2.startAt=document.getElementById('dt-start')?.value||null;
+  t2.plannedStartAt=document.getElementById('dt-planned-start')?.value||null;
+  t2.startTime=document.getElementById('dt-start-time')?.value||null;
+  t2.projectId=document.getElementById('dt-proj')?.value||null;
+  t2.assigneeId=document.getElementById('dt-assignee')?.value||null;
+  t2.repeatRule=getRepeatRule();     // #dt-repeat が無いと null を返す（2537行目）
+  await saveTask(t2);
+},400);
+```
+
+`?.` で要素の不在を握りつぶしたうえ、`|| ''` / `|| null` にフォールバックして**無条件に代入**していた。
+ガードは「Stateに対象タスクがあるか」だけで、**ドロワーのDOMがまだ存在するかを見ていなかった**。
+
+そのため400msのデバウンス待ちの間に「ドロワーを閉じる」「別タスク/ノートに切り替える」
+「`render()` でDOMが作り直される」のいずれかが起きると、`getElementById` が軒並み `null` を返し、
+**タイトル・メモ・期限・開始日・計画開始日・開始時間・プロジェクト・担当者・繰り返しルールが
+一斉に空で保存される**。
+
+DBの被害内訳がこの挙動と完全に対応していた：
+
+- autosaveが**書き込む**カラム → `title` `notes` `due_at` `start_at` `planned_start_at`
+  `startTime` `project_id` `assignee_id` `repeat_rule` … **全滅**
+- autosaveが**触らない**カラム → `tag_ids` `sort_order` `status` `priority` `flagged` … **無傷**
+
+同じファイルの**PC拡大モーダル側のsave（9341行目付近）は `if(titleEl)t.title=...` と正しくガード
+していた**ため、ドロワー側だけガードが無いという非対称がそのままバグになっていた。
+
+### 修正内容（index.html、1箇所）
+
+`renderDrawer()` 内 autosave のデバウンスコールバックに2層の防御を追加：
+
+1. **ドロワーが対象タスクを表示中でなければ保存自体を行わない**
+   （`drEl._taskId!==t2.id` を利用。`dr._taskId` は6719行目で設定済み、
+   ノート表示中は6171行目で `null` になるため、ノートに切り替わった場合も弾ける）
+2. **各入力欄は「存在する場合のみ」反映**（拡大モーダル側と同じ `if(el)` 方針に統一）。
+   これによりガードをすり抜ける未知の経路があっても、欠けている欄は既存値が保持される
+
+ユーザーが**実際に入力欄を空にした場合は従来どおり空で保存される**（意図的なクリアは尊重）。
+
+### 復旧したデータ
+
+`mr1f6ltzdgzt` に対し、元タスク `mpv2sn7v4ocv` と `nextRepeat()` の計算結果から
+**autosaveが破壊したフィールドのみ**をSQLで復元（Supabase MCP経由）：
+
+```
+title='日報システム（開発）承認' / notes='[日報システム](https://nps.dev-xaas.jp/admin/report-shonin)'
+due_at='2026-08-01' / start_at='2026-08-01' / planned_start_at='2026-05-29'
+"startTime"='09:00' / project_id='mqozct6zbrz5'（会社定期業務） / repeat_rule='monthly'
+```
+
+- **`priority` は 4 のまま意図的に据え置いた**。元タスクは `priority=1` だが、autosaveは
+  priorityを書き換えないため、4になっているのは別要因（ユーザー自身の優先度変更と推定）。
+  バグ由来でないフィールドは触らない方針とした
+- `repeat_rule` が失われていたため、**放置していれば9月分以降も生成されなくなっていた**
+
+### 動作確認
+
+- Node.js構文チェック：3インラインscriptブロックともJS_OK
+- ブラウザ拡張が未接続だったため、**index.htmlからautosaveのデバウンス本体を実コードのまま
+  抽出し、DOM/Stateをスタブして直接実行するテストを作成**して検証（4ケース）：
+  1. ドロワーDOM消失中に発火 → 修正前:8フィールド全損+DB保存あり / **修正後:変化なし・保存なし**
+  2. 別タスクに切り替わった状態で発火 → 修正前:8フィールド全損 / **修正後:変化なし・保存なし**
+  3. 正常系（対象タスク表示中） → 修正前後とも正常に保存（リグレッションなし）
+  4. ユーザーが実際に空にした場合 → 修正後も空で保存される。かつ未描画の欄
+     （`#dt-start` 不在）は既存値が保持される（修正前は null で潰れていた）
+- 修正前のコード（`git show HEAD:index.html`）で同テストが3件FAILすることを確認済み＝
+  テスト自体が有効に機能している
+- **実ログイン環境での最終確認は未実施**。次にこのファイルを触る人は、本番で
+  「タスク詳細でタイトル/メモを編集 → 400ms以内にドロワーを閉じる or 別タスクに切り替える」
+  を試し、内容が保持されることを確認してほしい
+
+### セキュリティチェックの判定
+
+- 認証・決済（Stripe）・RLS・DBスキーマには一切触れていない（フロントの保存ロジックのみ）
+- データ復旧のため `tasks` テーブルに対しSupabase MCP経由でUPDATEを1行実行した
+  （`where id='mr1f6ltzdgzt'` で限定。スキーマ・ポリシー変更なし）
+- 新規/変更したテーブルなし、RLS状態の変更なし、認証・決済フローの変更なし
+
+### 触れなかった箇所・次にやるべきこと
+
+- **`ms9oiuybtyds`「開発日報承認（月初）」（今朝ユーザーが作り直したもの、`repeat_rule='monthly:1'`、
+  `due_at=2026-08-04`）と復元した `mr1f6ltzdgzt` が内容的に重複している。**
+  どちらを残すかはユーザー判断が必要（未処理）
+- 同種の被害を受けて生き残っているタスクは他になし（空タイトルの `active` タスクを全走査して確認）。
+  ただし**空タイトルの `completed`/`archived` タスクが約100件存在する**。これらは `due_at` 等が
+  残っているため別要因（タイトル未入力のまま作成されたもの）と判断したが、未検証
+- **繰り返しタスクの完了時はundoトーストが出ない**（8276〜8289行目。undo付きトーストは
+  繰り返しでない場合の `else` 側のみ）。誤って完了させると戻す手段がその場にないため、
+  改善余地あり（今回のスコープ外）
+- `nextRepeat()` は `status:'active'` を固定で上書きするため、**Inboxで管理していた繰り返しタスクを
+  完了すると次回分がInboxビュー（`x.status==='inbox'` の完全一致、2838行目）に出てこない**。
+  今回の件とは別の潜在バグ。未修正
+- ノート側の autosave（`renderNoteDrawer()` 内 `schedSave()`、6206行目付近）は**調査済みで問題なし**。
+  タスク側と違い ①`titleEl`/`bodyEl` を描画時にキャプチャした変数で保持している（DOMが作り直されても
+  detachedな要素から入力値を読めるため空にならない）②保存対象が `S.noteId` から引き直した別オブジェクト
+  ではなく、描画時にキャプチャした `note` 自身 — の2点により、同じ事故は構造的に起きない。
+  **タスク側だけが `document.getElementById` で毎回引き直し、かつ `S.taskId` から対象を引き直していた**
+  のが今回の原因だった
 
 ---
 

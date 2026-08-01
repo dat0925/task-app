@@ -6735,18 +6735,27 @@ function renderDrawer(){
     clearTimeout(autosave._t);
     autosave._t=setTimeout(async()=>{
       const t2=S.tasks.find(x=>x.id===S.taskId);if(!t2)return;
+      // 【重要】400msのデバウンス待ちの間にドロワーが閉じる・別タスク/ノートに切り替わる・
+      // render()でDOMが作り直されると、入力欄が取得できなくなる。
+      // 以前はその場合でも ?.value||'' / ||null が無条件に代入され、タイトル・メモ・期限・
+      // 開始日・プロジェクト・繰り返しルールが一斉に空で保存される全損事故が起きていた
+      // （2026-08-01に繰り返しタスクが1件全損。詳細はHANDOVER.md参照）。
+      // ドロワーが対象タスクを表示中でなければ保存自体を行わない
+      const drEl=document.getElementById('drawer');
+      if(!drEl||drEl._taskId!==t2.id||!document.getElementById('dt-title')){setInd('');return;}
       const prevStatus=t2.status;
       const prevProjectId=t2.projectId;
-      t2.title=document.getElementById('dt-title')?.value||'';
-      t2.notes=document.getElementById('dt-notes')?.value||'';
-      t2.dueAt=document.getElementById('dt-due')?.value||null;
-      t2.startAt=document.getElementById('dt-start')?.value||null;
-      t2.plannedStartAt=document.getElementById('dt-planned-start')?.value||null;
-      t2.startTime=document.getElementById('dt-start-time')?.value||null;
-      t2.projectId=document.getElementById('dt-proj')?.value||null;
+      // 各入力欄は「存在する場合のみ」反映する（拡大モーダル側のsaveと同じガード方針に統一）
+      const _elTitle=document.getElementById('dt-title');if(_elTitle)t2.title=_elTitle.value;
+      const _elNotes=document.getElementById('dt-notes');if(_elNotes)t2.notes=_elNotes.value;
+      const _elDue=document.getElementById('dt-due');if(_elDue)t2.dueAt=_elDue.value||null;
+      const _elStart=document.getElementById('dt-start');if(_elStart)t2.startAt=_elStart.value||null;
+      const _elPlanned=document.getElementById('dt-planned-start');if(_elPlanned)t2.plannedStartAt=_elPlanned.value||null;
+      const _elStartTime=document.getElementById('dt-start-time');if(_elStartTime)t2.startTime=_elStartTime.value||null;
+      const _elProj=document.getElementById('dt-proj');if(_elProj)t2.projectId=_elProj.value||null;
       if(t2.projectId)addRecentProject(t2.projectId);
-      t2.assigneeId=document.getElementById('dt-assignee')?.value||null;
-      t2.repeatRule=getRepeatRule();
+      const _elAssignee=document.getElementById('dt-assignee');if(_elAssignee)t2.assigneeId=_elAssignee.value||null;
+      if(document.getElementById('dt-repeat'))t2.repeatRule=getRepeatRule();
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
 
       // Inboxからプロジェクトに初めて割り当てられた場合、sort_orderをプロジェクト最上部に設定
