@@ -890,6 +890,28 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .admin-table tr:last-child td{border-bottom:none}
 .admin-table tr:hover td{background:var(--bg2)}
 .admin-plan-sel{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;color:var(--text);cursor:pointer}
+/* スマホ：テーブルを「1レコード＝1カード」に再構成（列比較UIより単一レコードの参照＋編集に最適化） */
+@media(max-width:560px){
+  .admin-table,.admin-table tbody{display:block;width:100%}
+  .admin-table thead{display:none} /* カードでは各値にラベルを添えるので見出し行は不要 */
+  .admin-table tr{display:block;position:relative;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--bg)}
+  .admin-table tr:hover td{background:transparent}
+  .admin-table td{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:none;min-height:36px}
+  .admin-table td::before{content:attr(data-label);font-size:11px;font-weight:600;color:var(--text3);white-space:nowrap;flex:0 0 auto}
+  /* メール＝カードの見出し（識別子を主役に昇格） */
+  .admin-table td.ad-title{display:block;font-size:14px;font-weight:600;color:var(--text);padding:0 34px 8px 0;margin-bottom:4px;border-bottom:1px solid var(--border);word-break:break-all;min-height:0}
+  .admin-table td.ad-title::before{display:none}
+  /* 削除＝カード右上に固定（誤爆しにくく、値行と分離） */
+  .admin-table td.ad-act{position:absolute;top:8px;right:6px;padding:0;min-height:0;justify-content:flex-end}
+  .admin-table td.ad-act::before{display:none}
+  /* リセット＝カード下部に全幅で（利用状況カード用） */
+  .admin-table td.ad-reset{display:block;padding:10px 0 0;margin-top:4px;border-top:1px solid var(--border)}
+  .admin-table td.ad-reset::before{display:none}
+  .admin-table td.ad-reset .btn{width:100%}
+  /* 操作要素はタップしやすいサイズに */
+  .admin-table td .admin-plan-sel{min-width:132px;min-height:34px;font-size:13px;padding:6px 8px}
+  .admin-table td .admin-note-inp{flex:1;text-align:right}
+}
 .admin-del-btn{opacity:.5;transition:opacity .15s}
 .admin-del-btn:hover{opacity:1;color:var(--p1)!important}
 /* ===== GANTT VIEW ===== */
@@ -1967,10 +1989,10 @@ async function openPlanAdmin(){
     if(!list.length)return'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">登録なし</div>';
     return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>プラン</th><th>メモ</th><th></th></tr></thead><tbody>'
       +list.map(r=>'<tr data-id="'+esc(r.id)+'">'
-        +'<td style="font-size:13px">'+esc(r.email)+'</td>'
-        +'<td><select class="admin-plan-sel" data-id="'+esc(r.id)+'">'+Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(r.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('')+'</select></td>'
-        +'<td><input class="admin-note-inp" data-id="'+esc(r.id)+'" value="'+esc(r.note||'')+'" placeholder="メモ" style="width:100%;background:none;border:none;outline:none;font-size:12px;color:var(--text2)"></td>'
-        +'<td><button class="admin-del-btn icon-btn" data-id="'+esc(r.id)+'" title="削除" style="color:var(--text3)">✕</button></td>'
+        +'<td class="ad-title" style="font-size:13px">'+esc(r.email)+'</td>'
+        +'<td data-label="プラン"><select class="admin-plan-sel" data-id="'+esc(r.id)+'">'+Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(r.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('')+'</select></td>'
+        +'<td data-label="メモ"><input class="admin-note-inp" data-id="'+esc(r.id)+'" value="'+esc(r.note||'')+'" placeholder="メモ" style="width:100%;background:none;border:none;outline:none;font-size:12px;color:var(--text2)"></td>'
+        +'<td class="ad-act"><button class="admin-del-btn icon-btn" data-id="'+esc(r.id)+'" title="削除" style="color:var(--text3)">✕</button></td>'
       +'</tr>').join('')
     +'</tbody></table>';
   }
@@ -2000,12 +2022,12 @@ async function openPlanAdmin(){
         const pct=Math.min(100,Math.round(r.count/limit*100));
         const color=pct>=100?'var(--p1)':pct>=80?'#f59e0b':'var(--green)';
         return'<tr>'
-          +'<td style="font-size:12px">'+esc(r.email)+'</td>'
-          +'<td style="font-size:12px;color:var(--text2)">'+esc(planLabel)+'</td>'
-          +'<td>'+esc(r.month)+'</td>'
-          +'<td><span style="font-weight:600;color:'+color+'">'+r.count+'</span></td>'
-          +'<td>'+limit+'</td>'
-          +'<td><button class="usage-reset-btn btn btn-ghost" data-id="'+r.id+'" data-email="'+esc(r.email)+'" data-month="'+esc(r.month)+'" style="font-size:11px;padding:2px 8px">リセット</button></td>'
+          +'<td class="ad-title" style="font-size:12px">'+esc(r.email)+'</td>'
+          +'<td data-label="プラン" style="font-size:12px;color:var(--text2)">'+esc(planLabel)+'</td>'
+          +'<td data-label="月">'+esc(r.month)+'</td>'
+          +'<td data-label="利用回数"><span style="font-weight:600;color:'+color+'">'+r.count+'</span></td>'
+          +'<td data-label="上限">'+limit+'</td>'
+          +'<td class="ad-reset"><button class="usage-reset-btn btn btn-ghost" data-id="'+r.id+'" data-email="'+esc(r.email)+'" data-month="'+esc(r.month)+'" style="font-size:11px;padding:2px 8px">リセット</button></td>'
         +'</tr>';
       }).join('')
     +'</tbody></table>';
