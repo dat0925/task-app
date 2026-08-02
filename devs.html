@@ -382,8 +382,25 @@
   .qr-card svg { width: 100%; height: 100%; display: block; shape-rendering: crispEdges; }
   .qr-modal-url {
     font-size: 12px; color: var(--text2); word-break: break-all;
-    background: var(--bg); border-radius: 8px; padding: 8px 12px; margin-bottom: 18px;
+    background: var(--bg); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;
   }
+  /* 遠隔共有アクション（送る＝ネイティブ共有 / コピー）。環境で出し分け */
+  .qr-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+  .qr-action {
+    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: 1px solid var(--border); background: #fff; color: var(--navy);
+    font-family: inherit; font-weight: 700; font-size: 13px;
+    padding: 11px 10px; border-radius: 10px; cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s, transform .1s;
+  }
+  .qr-action svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .qr-action:active { transform: scale(.97); }
+  .qr-action-primary { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+  .qr-action-primary:hover { background: var(--indigo-light); }
+  .qr-action:not(.qr-action-primary):hover { background: var(--indigo-pale); border-color: var(--indigo-light); color: var(--indigo); }
+  /* コピー成功時の一時フィードバック（このルールは最後＝最優先で上書き） */
+  .qr-action.copied,
+  .qr-action.copied:hover { background: #ecfdf5; border-color: #10b981; color: #0f766e; }
   .qr-modal-close {
     width: 100%; border: 0; background: var(--navy); color: #fff;
     font-family: inherit; font-weight: 700; font-size: 14px;
@@ -794,10 +811,10 @@
 <!-- フッター -->
 <footer>
   <div class="qr-share">
-    <button class="qr-thumb" type="button" data-qr="devs" aria-label="このページのQRコードを拡大表示">
+    <button class="qr-thumb" type="button" data-qr="devs" aria-label="このページを共有（QR・リンク送信・コピー）">
       <svg><use href="#ic-qr"/></svg>
     </button>
-    <span class="qr-share-label">このページのQRコード<br>（タップで拡大表示）</span>
+    <span class="qr-share-label">このページを共有<br>（QR・リンク送信・コピー）</span>
   </div>
   <p>© 2026 <a href="https://taskra.jp">Taskra</a> &nbsp;|&nbsp; <a href="https://taskra.jp">taskra.jp</a></p>
 </footer>
@@ -806,10 +823,18 @@
 <div class="qr-modal" id="qrModal" role="dialog" aria-modal="true" aria-labelledby="qrModalName">
   <div class="qr-modal-box">
     <div class="qr-modal-name" id="qrModalName"></div>
-    <div class="qr-modal-hint">スマホのカメラでこのQRを読み取ってください</div>
+    <div class="qr-modal-hint">目の前の人はQRを読み取り／離れた人へはリンクで送れます</div>
     <div class="qr-switch" id="qrSwitch"></div>
     <div class="qr-card"><svg id="qrImage"><use id="qrUse" href="#ic-qr"/></svg></div>
     <div class="qr-modal-url" id="qrModalUrl"></div>
+    <div class="qr-actions" id="qrActions">
+      <button class="qr-action qr-action-primary" type="button" id="qrShare">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l4 4-1.4 1.4L13 5.83V15h-2V5.83L9.4 7.4 8 6l4-4z"/><path d="M5 10h3v2H6v8h12v-8h-2v-2h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1z"/></svg>リンクを送る
+      </button>
+      <button class="qr-action qr-action-copy" type="button" id="qrCopy">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3h9a2 2 0 0 1 2 2v11h-2V5H9V3z"/><path d="M5 7h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zm0 2v10h9V9H5z"/></svg>URLをコピー
+      </button>
+    </div>
     <button class="qr-modal-close" type="button" id="qrClose">閉じる</button>
   </div>
 </div>
@@ -847,7 +872,26 @@
     var urlEl   = document.getElementById('qrModalUrl');
     var switchEl= document.getElementById('qrSwitch');
     var useEl   = document.getElementById('qrUse');
+    var shareBtn= document.getElementById('qrShare');
+    var copyBtn = document.getElementById('qrCopy');
     var current = null, idx = 0, lastFocus = null;
+    var copyDefaultHTML = copyBtn.innerHTML, copyTimer = null;
+
+    // ネイティブ共有シート（LINE等）が使える環境か。無ければ「送る」を隠し、コピーを主役に昇格
+    var canShare = !!(navigator.share);
+    if (!canShare) {
+      shareBtn.style.display = 'none';
+      copyBtn.classList.add('qr-action-primary');
+      copyBtn.classList.remove('qr-action-copy');
+    }
+
+    function currentLink() { var p = QR[current]; return p ? p.links[idx] : null; }
+
+    function resetCopyBtn() {
+      clearTimeout(copyTimer);
+      copyBtn.classList.remove('copied');
+      copyBtn.innerHTML = copyDefaultHTML;
+    }
 
     function render() {
       var p = QR[current]; if (!p) return;
@@ -856,6 +900,7 @@
       urlEl.textContent  = link.u.replace(/^https?:\/\//, '');
       useEl.setAttribute('href', '#qr-' + link.id);
       useEl.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#qr-' + link.id);
+      resetCopyBtn(); // URL切替時に「コピーしました」表示が残らないようリセット
       // アプリ/LPなど複数URLがある場合のみ切替トグルを表示（それでも可視QRは常に1枚）
       switchEl.innerHTML = '';
       if (p.links.length > 1) {
@@ -886,6 +931,48 @@
       modal.classList.remove('show');
       document.body.style.overflow = '';
       if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    // 「リンクを送る」＝ネイティブ共有シート（LINE/メール/AirDrop等）を開く
+    shareBtn.addEventListener('click', function () {
+      var link = currentLink(); if (!link) return;
+      var p = QR[current];
+      navigator.share({ title: (p ? p.name : 'Taskra'), url: link.u })
+        .catch(function () {}); // ユーザーがキャンセルした場合等は無視
+    });
+
+    // 「URLをコピー」＝clipboard API、失敗時は隠しtextareaで確実にコピー
+    copyBtn.addEventListener('click', function () {
+      var link = currentLink(); if (!link) return;
+      copyToClipboard(link.u).then(function (ok) {
+        if (!ok) return;
+        clearTimeout(copyTimer);
+        copyBtn.classList.add('copied');
+        copyBtn.innerHTML =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+          'stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>コピーしました';
+        copyTimer = setTimeout(resetCopyBtn, 1600);
+      });
+    });
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text)
+          .then(function () { return true; })
+          .catch(function () { return legacyCopy(text); });
+      }
+      return Promise.resolve(legacyCopy(text));
+    }
+    function legacyCopy(text) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed'; ta.style.left = '-9999px'; ta.style.top = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch (e) { return false; }
     }
 
     // QRボタン（カード・フッター）に一括バインド
