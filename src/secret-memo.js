@@ -174,7 +174,7 @@ function openSetup(onDone) {
     // ---- ステップ1: パスフレーズ ----
     sheet.innerHTML = `
       <h3>🔒 あなただけのメモを作る</h3>
-      <p class="sm-lead">ここに書いた内容は、運営者を含め、あなた以外の誰にも読めません。<br>
+      <p class="sm-lead">ここに書いた内容は暗号化され、合言葉を知っているあなただけが読めます。<br>
       解錠に使う合言葉を決めてください。</p>
       <input class="sm-input" id="sm-pass" type="password" placeholder="合言葉（8文字以上）" autocomplete="new-password">
       <div class="sm-meter"><i id="sm-meter-bar"></i></div>
@@ -398,7 +398,7 @@ async function renderSection(task) {
   if (!material) {
     // 未設定：初回タップでセットアップ（利用を強制しない）
     host.innerHTML = block(`
-      <p class="sm-note">パスワードやIDなど、あなただけが読めるメモを追加できます。運営者にも読めません。</p>
+      <p class="sm-note">パスワードやIDなど、あなただけが読めるメモを追加できます。端末の中で暗号化され、あなただけが読めます。</p>
       <button class="sm-btn" id="sm-setup">🔒 シークレットメモを設定</button>
     `);
     host.querySelector('#sm-setup').addEventListener('click', () => openSetup(() => renderSection(task)));
