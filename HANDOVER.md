@@ -39,9 +39,11 @@
   プロジェクト経由でワークスペースメンバーにも SELECT を許可するため、列にすると**共有相手に
   暗号文まで渡ってしまう**。Postgres の RLS は列マスク不可なので、所有者専用テーブルに分離して
   「所有者以外は行ごと取得不能」を構造で保証（多層防御）。
-- ⚠️ **未適用の可能性**：本マイグレーションは MCP 適用時に承認待ちになる場合がある。
-  `20260802_secret_notes.sql` を Supabase（プロジェクト `sfhtvtcmgueystyuhzvd`）に適用し、
-  `secret_key_material` / `task_secret_notes` の `rls_enabled = true` を実確認すること。
+- ✅ **適用済み（2026-08-02）**：Supabase（プロジェクト `sfhtvtcmgueystyuhzvd`）へ適用完了。
+  実確認で `secret_key_material` / `task_secret_notes` とも `rls_enabled = true`・ポリシー各4件。
+  セキュリティアドバイザー（security）でも本2テーブルに警告なし（RLS漏れ・過剰許可なし）。
+  ※アドバイザーが挙げる他の警告（housecleaning_* / kotobakake_* / reno_* / task_logs /
+    notifications / admin_* 関数の search_path 等）はすべて**既存の別機能由来でスコープ外**。
 
 ### UI/UX（`src/secret-memo.js`・思想: 摩擦最小／文言は「あなただけが読める」で統一）
 - タスク詳細の「メモ」セクション直後に🔒シークレットメモセクションを DOM 挿入
@@ -64,8 +66,8 @@
   既存の検索/AI/LINE 機能は `task_secret_notes` を参照しない。
 
 ### 次にやるべきこと
-- 上記マイグレーションの適用と `rls_enabled` の実確認（未適用なら最優先）。
-- 本番（app.taskra.jp）で実ログイン下の解錠・保存・共有非表示の動作確認。
+- 本番（app.taskra.jp）で実ログイン下の解錠・保存・共有非表示の動作確認
+  （※フロントは main マージ後に GitHub Pages へ反映されるため、マージ後に確認）。
 - フェーズ2: WebAuthn PRF 拡張による生体認証解錠（鍵ラップ方式を1つ追加するだけで対応可能な設計済み）。
 
 ---
