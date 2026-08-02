@@ -1970,6 +1970,14 @@ async function openPlanAdmin(){
   }
   await loadData();
 
+  // 登録日フォーマッタ（created_at を日本時間で YYYY/MM/DD 表示）
+  function fmtRegDate(s){
+    if(!s)return'—';
+    const d=new Date(s);
+    if(isNaN(d.getTime()))return'—';
+    return d.toLocaleDateString('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
+  }
+
   const planOptions=Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'">'+PLAN_DEFS[k].label+'</option>').join('');
 
   // プラン管理タブの状態
@@ -1987,10 +1995,11 @@ async function openPlanAdmin(){
 
   function buildPlanTable(list){
     if(!list.length)return'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">登録なし</div>';
-    return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>プラン</th><th>メモ</th><th></th></tr></thead><tbody>'
+    return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>プラン</th><th>登録日</th><th>メモ</th><th></th></tr></thead><tbody>'
       +list.map(r=>'<tr data-id="'+esc(r.id)+'">'
         +'<td class="ad-title" style="font-size:13px">'+esc(r.email)+'</td>'
         +'<td data-label="プラン"><select class="admin-plan-sel" data-id="'+esc(r.id)+'">'+Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(r.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('')+'</select></td>'
+        +'<td data-label="登録日" style="font-size:12px;color:var(--text2);white-space:nowrap">'+fmtRegDate(r.created_at)+'</td>'
         +'<td data-label="メモ"><input class="admin-note-inp" data-id="'+esc(r.id)+'" value="'+esc(r.note||'')+'" placeholder="メモ" style="width:100%;background:none;border:none;outline:none;font-size:12px;color:var(--text2)"></td>'
         +'<td class="ad-act"><button class="admin-del-btn icon-btn" data-id="'+esc(r.id)+'" title="削除" style="color:var(--text3)">✕</button></td>'
       +'</tr>').join('')
