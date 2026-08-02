@@ -237,6 +237,15 @@
   .repo-card:hover { background: rgba(255,255,255,.1); }
   /* 開発サービスセクション専用 */
   .services-section { background: #0f1117; }
+  /* 開発サービスセクションは暗背景。見出し類が暗色のままだと沈むため明色で上書き */
+  .services-section .section-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(255,255,255,.8); background: rgba(255,255,255,.1);
+    border-radius: 20px; padding: 4px 12px; margin-bottom: 32px;
+  }
+  .services-section .section-title { color: #fff; }
+  .services-section .section-desc { font-size: 14px; color: rgba(255,255,255,.6); margin-bottom: 32px; }
   .svc-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
