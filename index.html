@@ -6827,6 +6827,13 @@ function renderDrawer(){
   const _dtNotesTA=document.getElementById('dt-notes');
   makeResizable(_dtNotesTA);
   if(_dtNotesTA){_dtNotesTA._stampFocused=false;_dtNotesTA.addEventListener('focus',()=>{_dtNotesTA._stampFocused=true;});}
+
+  // シークレットメモ（E2EE）：メモセクション直後に本人専用セクションを差し込み、
+  // 平文メモ入力中のパスワードらしきパターンを検知して移動提案する（ローカル完結・サーバー送信なし）。
+  if(window.SecretMemo){
+    try{window.SecretMemo.mountTaskSection(task);}catch(_e){console.error('SecretMemo mount',_e);}
+    if(_dtNotesTA){_dtNotesTA.addEventListener('input',()=>{try{window.SecretMemo.onNotesInput(task,_dtNotesTA);}catch(_e2){}});}
+  }
   const dtLinkBtnEl=document.getElementById('dt-link-btn');
   if(dtLinkBtnEl)dtLinkBtnEl.addEventListener('click',e=>{
     e.stopPropagation();
@@ -12251,6 +12258,10 @@ setupSB();
 })();
 </script>
 
-  
+<!-- シークレットメモ（E2EE フェーズ1）。純関数の暗号ユーティリティを別モジュールに分離。
+     secret_note は検索・AI・LINE通知の対象外。詳細は src/secret-memo.js / src/lib/crypto.js 参照。 -->
+<script type="module" src="src/secret-memo.js"></script>
+
+
 </body>
 </html>
