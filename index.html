@@ -1983,14 +1983,20 @@ async function openPlanAdmin(){
   // プラン管理タブの状態
   const PLAN_PAGE_SIZE=20;
   let planFilter={email:'',plan:''};
+  let planSort='created_desc'; // 既定：登録日が新しい順（新規ユーザーを把握しやすく）
   let planPage=0;
 
   function getFilteredPlans(){
-    return planRows.filter(r=>{
+    const list=planRows.filter(r=>{
       if(planFilter.email&&!r.email.includes(planFilter.email))return false;
       if(planFilter.plan&&r.plan!==planFilter.plan)return false;
       return true;
     });
+    const ts=r=>{const t=new Date(r.created_at).getTime();return isNaN(t)?0:t;};
+    if(planSort==='created_desc')list.sort((a,b)=>ts(b)-ts(a));
+    else if(planSort==='created_asc')list.sort((a,b)=>ts(a)-ts(b));
+    else if(planSort==='email_asc')list.sort((a,b)=>a.email.localeCompare(b.email));
+    return list;
   }
 
   function buildPlanTable(list){
@@ -2057,10 +2063,13 @@ async function openPlanAdmin(){
       const pagedP=filteredP.slice(planPage*PLAN_PAGE_SIZE,(planPage+1)*PLAN_PAGE_SIZE);
       const planFilterOpts='<option value="">すべてのプラン</option>'
         +Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(planFilter.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('');
+      const planSortOpts=[['created_desc','登録日が新しい順'],['created_asc','登録日が古い順'],['email_asc','メール順（A→Z）']]
+        .map(o=>'<option value="'+o[0]+'"'+(planSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('');
       wrap.innerHTML=''
         +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
           +'<input id="plan-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(planFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
           +'<select id="plan-filter-plan" class="finput fselect" style="width:120px;font-size:12px;padding:5px 8px">'+planFilterOpts+'</select>'
+          +'<select id="plan-sort" class="finput fselect" style="width:150px;font-size:12px;padding:5px 8px" title="並び替え">'+planSortOpts+'</select>'
           +'<button class="btn btn-ghost" id="plan-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
         +'</div>'
         +buildPlanTable(pagedP)
@@ -2137,9 +2146,11 @@ async function openPlanAdmin(){
     // フィルタ
     const emailInp=document.getElementById('plan-filter-email');
     const planSel=document.getElementById('plan-filter-plan');
+    const sortSel=document.getElementById('plan-sort');
     const clearBtn=document.getElementById('plan-filter-clear');
     if(emailInp){let _t;emailInp.oninput=()=>{clearTimeout(_t);_t=setTimeout(()=>{planFilter.email=emailInp.value.trim();planPage=0;renderModal();},300);};}
     if(planSel){planSel.onchange=()=>{planFilter.plan=planSel.value;planPage=0;renderModal();};}
+    if(sortSel){sortSel.onchange=()=>{planSort=sortSel.value;planPage=0;renderModal();};}
     if(clearBtn){clearBtn.onclick=()=>{planFilter={email:'',plan:''};planPage=0;renderModal();};}
     // ページネーション
     document.querySelectorAll('.plan-page-btn').forEach(btn=>{
