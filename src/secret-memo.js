@@ -1,18 +1,26 @@
 // =====================================================================
-// Taskra シークレットメモ（E2EE）フェーズ1 — UI/UX & 連携モジュール
+// Taskra シークレットメモ（E2EE）— UI/UX & 連携モジュール（タスク／ノート共通）
 //
-// このモジュールは index.html（巨大な単一ファイル）への影響を最小化するため、
-// シークレットメモの状態・DBアクセス・UI（ボトムシート/解錠/マスク表示など）を
-// すべて自己完結で持つ。index.html 側は次の2フックを呼ぶだけ：
+// index.html（巨大な単一ファイル）への影響を最小化するため、状態・DBアクセス・
+// UI（ボトムシート/解錠/マスク表示など）をすべて自己完結で持つ。
+// index.html 側は次のフックだけを呼ぶ：
 //   window.SecretMemo.mountTaskSection(task)  … タスク詳細にセクションを差し込む
-//   window.SecretMemo.onNotesInput(task, el)  … 平文メモの入力を監視し検知チップ表示
+//   window.SecretMemo.mountNoteSection(note)  … ノート詳細にセクションを差し込む
+//   window.SecretMemo.onNotesInput(el)        … 平文メモの入力を監視し検知チップ表示
+//   window.SecretMemo.moveSecret(fromKind,fromId,toKind,toId) … タスク⇔ノート変換時の移行
+//   window.SecretMemo.onEntityDeleted(kind,id) … 削除時の暗号文クリーンアップ
 //
 // 【重要・仕様上の制約】
 //   secret_note は「検索対象外・AIアシスタント連携対象外・LINE通知対象外」。
-//   これらの機能はこのモジュール／task_secret_notes テーブルを参照しないこと。
-//   平文・パスフレーズ・リカバリーコード・マスター鍵・導出鍵は
-//   サーバーへ送信しない／localStorage・sessionStorage にも保存しない。
-//   マスター鍵はこのモジュールスコープ変数 _masterKey にのみ（メモリ上）保持する。
+//   平文・パスフレーズ・リカバリーコード・マスター鍵・導出鍵はサーバーへ送信しない／
+//   localStorage・sessionStorage にも保存しない。マスター鍵はモジュールスコープ変数
+//   _masterKey にのみ（メモリ上）保持する。
+//
+// 【鍵の共有設計】
+//   鍵素材 secret_key_material は user_id 単位（1ユーザー＝1マスター鍵）。よって
+//   合言葉・復元コードはタスクとノートで共通。タスク⇔ノート変換は、暗号文blobを
+//   task_secret_notes ⇔ note_secret_notes 間でそのまま移し替えるだけで成立する
+//   （AES-GCMのblobは対象idに束縛されないため復号不要・ロック中でも移行可能）。
 // =====================================================================
 
 import * as C from './lib/crypto.js';
@@ -22,18 +30,25 @@ let _masterKey = null;          // Uint8Array | null（解錠中のみ非null）
 let _material = null;           // 鍵素材のキャッシュ（暗号文のみ。単体では復号不可）
 let _materialLoadedFor = null;  // どのユーザーの鍵素材をロード済みか
 let _clipboardTimer = null;
-let _mountedTask = null;        // 現在ドロワーに表示中のタスク（復帰時の再描画用）
+let _mountedEntity = null;      // 現在ドロワーに表示中のエンティティ {kind,id,ownerId}
 
 const SB = () => window._SB;
 const uid = () => (window._currentUser && window._currentUser.id) || null;
 const toast = (m) => { if (typeof window.toast === 'function') window.toast(m); };
 
-// タスクの所有者判定（共有タスクで所有者以外にはセクション自体を出さない）
-function isOwner(task) {
-  const owner = task && (task.user_id || task.userId);
-  if (!owner) return true; // 未保存の新規タスクは自分のもの
-  return !!uid() && owner === uid();
+// エンティティ種別 → テーブル/主キー列の対応
+function tableFor(kind) {
+  return kind === 'note'
+    ? { table: 'note_secret_notes', idCol: 'note_id' }
+    : { table: 'task_secret_notes', idCol: 'task_id' };
 }
+
+// 所有者判定（共有時に所有者以外にはセクション自体を出さない）
+function isOwner(ownerId) {
+  if (!ownerId) return true; // 未保存の新規は自分のもの
+  return !!uid() && ownerId === uid();
+}
+function ownerIdOf(obj) { return obj && (obj.user_id || obj.userId); }
 
 function isUnlocked() { return _masterKey != null; }
 
@@ -62,27 +77,45 @@ async function saveMaterial(material) {
   _materialLoadedFor = uid();
 }
 
-async function loadSecretBlob(taskId) {
+async function loadSecretBlob(kind, id) {
   if (!uid()) return null;
+  const { table, idCol } = tableFor(kind);
   const { data, error } = await SB()
-    .from('task_secret_notes')
-    .select('secret_note')
-    .eq('task_id', taskId)
-    .eq('user_id', uid())
-    .maybeSingle();
+    .from(table).select('secret_note').eq(idCol, id).eq('user_id', uid()).maybeSingle();
   if (error) { console.error('secret: loadSecretBlob', error); return null; }
   return data ? data.secret_note : null;
 }
 
-async function saveSecretBlob(taskId, blob) {
-  const row = { task_id: taskId, user_id: uid(), secret_note: blob, updated_at: new Date().toISOString() };
-  const { error } = await SB().from('task_secret_notes').upsert(row, { onConflict: 'task_id' });
+async function saveSecretBlob(kind, id, blob) {
+  const { table, idCol } = tableFor(kind);
+  const row = { [idCol]: id, user_id: uid(), secret_note: blob, updated_at: new Date().toISOString() };
+  const { error } = await SB().from(table).upsert(row, { onConflict: idCol });
   if (error) { console.error('secret: saveSecretBlob', error); throw error; }
 }
 
-async function deleteSecretBlob(taskId) {
-  const { error } = await SB().from('task_secret_notes').delete().eq('task_id', taskId).eq('user_id', uid());
+async function deleteSecretBlob(kind, id) {
+  const { table, idCol } = tableFor(kind);
+  const { error } = await SB().from(table).delete().eq(idCol, id).eq('user_id', uid());
   if (error) console.error('secret: deleteSecretBlob', error);
+}
+
+// タスク⇔ノート変換時の暗号文移行（復号不要。blobをそのまま移し替え）
+async function moveSecret(fromKind, fromId, toKind, toId) {
+  if (!uid()) return false;
+  try {
+    const blob = await loadSecretBlob(fromKind, fromId);
+    if (!blob) return false;                 // シークレットが無ければ何もしない
+    await saveSecretBlob(toKind, toId, blob); // 先に移送先へコピー
+    await deleteSecretBlob(fromKind, fromId); // 成功後に移送元を削除
+    return true;
+  } catch (e) { console.error('secret: moveSecret', e); return false; }
+}
+
+// エンティティ削除時のクリーンアップ（暗号文の迷子を防ぐ）。
+// 鍵素材が存在すると分かっている場合のみ実行し、無駄なネットワーク往復を避ける。
+async function onEntityDeleted(kind, id) {
+  if (!uid() || !_material) return;
+  await deleteSecretBlob(kind, id);
 }
 
 // =====================================================================
@@ -94,7 +127,7 @@ function injectStyle() {
   s.id = 'secret-memo-style';
   s.textContent = `
   .sm-block{margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-  .sm-head{display:flex;align-items:center;gap:7px;padding:9px 11px;cursor:pointer;background:var(--bg2);font-size:13px;font-weight:600;color:var(--text)}
+  .sm-head{display:flex;align-items:center;gap:7px;padding:9px 11px;cursor:default;background:var(--bg2);font-size:13px;font-weight:600;color:var(--text)}
   .sm-head .sm-key{font-size:14px}
   .sm-badge{font-size:10px;color:#7c5cff;background:rgba(124,92,255,.12);border-radius:4px;padding:1px 6px;font-weight:700}
   .sm-body{padding:11px}
@@ -171,7 +204,6 @@ function strengthView(pw) {
 // =====================================================================
 function openSetup(onDone) {
   openSheet((sheet, close) => {
-    // ---- ステップ1: パスフレーズ ----
     sheet.innerHTML = `
       <h3>🔒 あなただけのメモを作る</h3>
       <p class="sm-lead">ここに書いた内容は暗号化され、合言葉を知っているあなただけが読めます。<br>
@@ -384,39 +416,38 @@ function downloadText(filename, text) {
 }
 
 // =====================================================================
-// タスク詳細のセクション描画
+// 詳細セクション描画（タスク／ノート共通）
 // =====================================================================
-const OWNER_NOTE = 'このメモはあなた専用です。タスクを共有しても相手には表示されません。検索・AI・LINE通知の対象外です。';
+const OWNER_NOTE = 'このメモはあなた専用です。共有しても相手には表示されません。検索・AI・LINE通知の対象外です。';
 
 function sectionEl() { return document.getElementById('secret-memo-section'); }
 
-async function renderSection(task) {
+async function renderSection(entity) {
   const host = sectionEl();
   if (!host) return;
   const material = await loadMaterial();
 
   if (!material) {
-    // 未設定：初回タップでセットアップ（利用を強制しない）
     host.innerHTML = block(`
       <p class="sm-note">パスワードやIDなど、あなただけが読めるメモを追加できます。端末の中で暗号化され、あなただけが読めます。</p>
       <button class="sm-btn" id="sm-setup">🔒 シークレットメモを設定</button>
     `);
-    host.querySelector('#sm-setup').addEventListener('click', () => openSetup(() => renderSection(task)));
+    host.querySelector('#sm-setup').addEventListener('click', () => openSetup(() => renderSection(entity)));
     return;
   }
 
   if (!isUnlocked()) {
     host.innerHTML = block(`
-      <p class="sm-note">合言葉で解錠すると、このタスクのシークレットメモが読めます。</p>
+      <p class="sm-note">合言葉で解錠すると、このシークレットメモが読めます。</p>
       <button class="sm-btn" id="sm-unlock">🔒 タップして解錠</button>
     `);
-    host.querySelector('#sm-unlock').addEventListener('click', () => openUnlock(() => renderSection(task)));
+    host.querySelector('#sm-unlock').addEventListener('click', () => openUnlock(() => renderSection(entity)));
     return;
   }
 
   // 解錠済み：本文を取得・復号してマスク表示
   let plain = '';
-  const blob = await loadSecretBlob(task.id);
+  const blob = await loadSecretBlob(entity.kind, entity.id);
   if (blob) {
     try { plain = await C.decryptNote(_masterKey, blob); }
     catch (e) { console.error('secret: decrypt', e); plain = ''; }
@@ -443,16 +474,14 @@ async function renderSection(task) {
 
   editBtn.addEventListener('click', async () => {
     if (edit.style.display === 'none') {
-      // 編集モードへ
       edit.value = plain; edit.style.display = 'block'; view.style.display = 'none';
       editBtn.textContent = '保存'; edit.focus();
     } else {
-      // 保存（暗号化して task_secret_notes に upsert）
       editBtn.disabled = true;
       const val = edit.value;
       try {
-        if (val.trim() === '') { await deleteSecretBlob(task.id); }
-        else { await saveSecretBlob(task.id, await C.encryptNote(_masterKey, val)); }
+        if (val.trim() === '') { await deleteSecretBlob(entity.kind, entity.id); }
+        else { await saveSecretBlob(entity.kind, entity.id, await C.encryptNote(_masterKey, val)); }
         plain = val;
         edit.style.display = 'none'; view.style.display = '';
         renderMaskedLines(view, plain);
@@ -465,8 +494,8 @@ async function renderSection(task) {
     }
   });
   copyBtn.addEventListener('click', () => { copyText(plain, true); toast('コピーしました（30秒後に自動消去）'); });
-  host.querySelector('#sm-changepass').addEventListener('click', () => openChangePass(() => renderSection(task)));
-  host.querySelector('#sm-lockbtn').addEventListener('click', () => { lock(); renderSection(task); });
+  host.querySelector('#sm-changepass').addEventListener('click', () => openChangePass(() => renderSection(entity)));
+  host.querySelector('#sm-lockbtn').addEventListener('click', () => { lock(); renderSection(entity); });
 
   updateSecretBadge(!!plain);
 }
@@ -491,7 +520,7 @@ function renderMaskedLines(view, plain) {
 
 function block(inner) {
   return `<div class="sm-block">
-    <div class="sm-head" id="sm-toggle"><span class="sm-key">🔒</span><span>シークレットメモ</span><span class="sm-badge" id="sm-has-badge" style="display:none">あり</span></div>
+    <div class="sm-head"><span class="sm-key">🔒</span><span>シークレットメモ</span><span class="sm-badge" id="sm-has-badge" style="display:none">あり</span></div>
     <div class="sm-body">${inner}</div>
   </div>`;
 }
@@ -504,7 +533,6 @@ function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&am
 // =====================================================================
 // 平文メモ内のパスワードらしきパターン検知（ローカル完結・送信禁止）
 // =====================================================================
-// キーワード：pass / PW / パスワード / passcode / 暗証 / ID+記号列 等
 const PW_PATTERNS = [
   /pass(word|code)?\s*[:：=]/i,
   /\bPW\s*[:：=]/i,
@@ -521,9 +549,11 @@ function detectSensitiveLine(text) {
   return null;
 }
 
-// index.html から呼ばれる：平文メモ入力を監視して提案チップを出す
-function onNotesInput(task, notesEl) {
-  if (!isOwner(task) || !notesEl) return;
+// index.html から呼ばれる：平文メモ入力を監視して提案チップを出す。
+// 対象エンティティは現在マウント中のもの（_mountedEntity）を用いる。
+function onNotesInput(notesEl) {
+  const entity = _mountedEntity;
+  if (!entity || !notesEl) return;
   const host = sectionEl();
   if (!host) return;
   const hit = detectSensitiveLine(notesEl.value);
@@ -539,33 +569,32 @@ function onNotesInput(task, notesEl) {
   chip.innerHTML = `<span>🔒 パスワードらしき行を見つけました。シークレットメモに移動しますか？</span>
     <button id="sm-chip-move">移動</button><button class="sm-chip-x" id="sm-chip-x">×</button>`;
   chip.querySelector('#sm-chip-x').addEventListener('click', () => chip.remove());
-  chip.querySelector('#sm-chip-move').addEventListener('click', () => moveLineToSecret(task, notesEl, hit, chip));
+  chip.querySelector('#sm-chip-move').addEventListener('click', () => moveLineToSecret(entity, notesEl, hit, chip));
 }
 
 // 検知した行を平文メモから除去し、シークレットメモへ移動＋暗号化保存（ワンタップ）
-async function moveLineToSecret(task, notesEl, line, chip) {
+async function moveLineToSecret(entity, notesEl, line, chip) {
   const doMove = async () => {
     try {
-      const cur = await loadSecretBlob(task.id);
+      const cur = await loadSecretBlob(entity.kind, entity.id);
       let plain = '';
       if (cur) { try { plain = await C.decryptNote(_masterKey, cur); } catch (_e) {} }
       const merged = (plain ? plain + '\n' : '') + line;
-      await saveSecretBlob(task.id, await C.encryptNote(_masterKey, merged));
-      // 平文メモから該当行を1件だけ除去
+      await saveSecretBlob(entity.kind, entity.id, await C.encryptNote(_masterKey, merged));
       const lines = notesEl.value.split('\n');
       const idx = lines.indexOf(line);
       if (idx >= 0) lines.splice(idx, 1);
       notesEl.value = lines.join('\n');
       notesEl.dispatchEvent(new Event('input', { bubbles: true })); // 既存autosaveを発火
       if (chip) chip.remove();
-      await renderSection(task);
+      await renderSection(entity);
       updateSecretBadge(true);
       toast('シークレットメモに移動しました');
     } catch (e) { console.error(e); toast('移動に失敗しました'); }
   };
   const material = await loadMaterial();
-  if (!material) { openSetup(doMove); return; }   // 未設定ならセットアップ後に移動
-  if (!isUnlocked()) { openUnlock(doMove); return; } // ロック中なら解錠後に移動
+  if (!material) { openSetup(doMove); return; }
+  if (!isUnlocked()) { openUnlock(doMove); return; }
   await doMove();
 }
 
@@ -579,39 +608,50 @@ function lock() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     lock();
-    // 表示中の平文行を隠す（DOMに残さない）
     const host = sectionEl();
-    if (host) host.innerHTML = '';
+    if (host) host.innerHTML = ''; // 表示中の平文行をDOMに残さない
   } else if (document.visibilityState === 'visible') {
-    // 復帰時：ドロワーがまだ開いていればロック状態のセクションを再描画
-    if (sectionEl() && _mountedTask) renderSection(_mountedTask);
+    if (sectionEl() && _mountedEntity) renderSection(_mountedEntity);
   }
 });
 
 // =====================================================================
-// index.html から呼ばれるエントリ
+// マウント（タスク／ノート共通の内部関数 + 種別ごとのラッパ）
 // =====================================================================
-function mountTaskSection(task) {
+function mountSection(entity, anchorEl) {
   injectStyle();
-  // 既存のセクション/チップを掃除
   const old = sectionEl(); if (old) old.remove();
   const oldChip = document.getElementById('sm-detect-chip'); if (oldChip) oldChip.remove();
 
-  // 共有タスクで所有者以外には「読めない欄」を一切見せない（UIレベルで非表示）
-  if (!isOwner(task)) { _mountedTask = null; return; }
-  _mountedTask = task;
+  // 共有時、所有者以外には「読めない欄」を一切見せない（UIレベルで非表示）
+  if (!isOwner(entity.ownerId)) { _mountedEntity = null; return; }
+  _mountedEntity = entity;
 
-  // メモセクションの直後に差し込む（描画文字列は触らずDOMで挿入）
-  const memo = document.getElementById('memo-section');
   const host = document.createElement('div');
   host.id = 'secret-memo-section';
   host.style.marginBottom = '10px';
-  if (memo && memo.parentNode) memo.parentNode.insertBefore(host, memo.nextSibling);
+  if (anchorEl && anchorEl.parentNode) anchorEl.parentNode.insertBefore(host, anchorEl.nextSibling);
   else {
     const body = document.querySelector('#drawer .drawer-body');
     if (body) body.appendChild(host); else return;
   }
-  renderSection(task);
+  renderSection(entity);
 }
 
-window.SecretMemo = { mountTaskSection, onNotesInput, lock };
+function mountTaskSection(task) {
+  const entity = { kind: 'task', id: task.id, ownerId: ownerIdOf(task) };
+  mountSection(entity, document.getElementById('memo-section'));
+}
+
+function mountNoteSection(note) {
+  // ノートのメモ欄（#nt-body）を含むブロックの直後に差し込む
+  const bodyEl = document.getElementById('nt-body');
+  const anchor = bodyEl ? bodyEl.closest('.drawer-body > div') || bodyEl.parentNode : null;
+  const entity = { kind: 'note', id: note.id, ownerId: ownerIdOf(note) };
+  mountSection(entity, anchor);
+}
+
+window.SecretMemo = {
+  mountTaskSection, mountNoteSection, onNotesInput,
+  moveSecret, onEntityDeleted, lock,
+};
