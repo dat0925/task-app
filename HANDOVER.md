@@ -4,6 +4,39 @@
 
 ---
 
+## シークレットメモのボトムシート: スマホでキーボードが入力欄を隠すバグを修正（2026-08-03）
+
+### 概要
+スマホ（主にiOS Safari）でシークレットメモのボトムシート内の入力欄（例:「合言葉をもう一度入力」）に
+カーソルを当てるとソフトキーボードが出て、下部の入力欄や「次へ」ボタンが**キーボードに隠れて見えなく
+なる**バグを修正。
+
+### 原因
+ボトムシート `.sm-overlay` は `position:fixed; inset:0` ＋ `align-items:flex-end` で画面**下端**に固定。
+`position:fixed` はレイアウトビューポート基準なので、キーボード表示で**実際に見えている領域（visual
+viewport）が縮んでも縮まず**、シート下部がキーボードの裏に回り込んでいた。
+
+### 修正（`src/secret-memo.js`）
+- 全シート共通の入口 `openSheet` に **VisualViewport 追従**を追加。`visualViewport` の
+  `resize`/`scroll` を購読し、オーバーレイの `top/left/width/height` を可視領域に合わせて更新
+  （`bottom/right` は `auto` で打ち消し）。これでシートが常にキーボードの上に収まる。シート閉時に
+  リスナーを解除。
+- `focusin` で入力欄（INPUT/TEXTAREA）を `scrollIntoView({block:'center'})` し、フォーカス直後にも
+  可視領域中央へスクロール。
+- CSS: `.sm-sheet` の `max-height` を `90dvh` → `min(90dvh,100%)`（オーバーレイ＝可視領域を超えない）、
+  慣性スクロール用に `-webkit-overflow-scrolling:touch` を追加。
+- 対象は `openSheet` 経由の全シート（初回セットアップ / 解錠 / 復元 / 合言葉変更）に一括適用。
+
+### 影響範囲・セキュリティ
+- **UIのみの変更**。認証・決済・DB/RLS・暗号ロジック（`src/lib/crypto.js`）には一切非該当・無改変。
+- `index.html` は `src/secret-memo.js` を `<script type="module">` で直接読み込み（ビルド不要）。
+
+### 次にやるべきこと
+- 実機（iOS Safari / Android Chrome）でセットアップ画面の2つ目の入力欄・「次へ」がキーボード上に
+  出ることを確認。
+
+---
+
 ## シークレットメモをノート(Note)にも対応＋タスク⇔ノート変換の暗号文移行（2026-08-03）
 
 ### 概要

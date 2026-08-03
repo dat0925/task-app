@@ -154,7 +154,7 @@ function injectStyle() {
   .sm-chip .sm-chip-x{background:none;color:var(--text3);margin-left:4px;padding:6px 4px}
   .sm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9998;display:flex;align-items:flex-end;justify-content:center}
   @media(min-width:560px){.sm-overlay{align-items:center}}
-  .sm-sheet{background:var(--bg);width:100%;max-width:460px;border-radius:18px 18px 0 0;padding:20px;box-sizing:border-box;max-height:90dvh;overflow-y:auto;box-shadow:0 -8px 40px rgba(0,0,0,.25)}
+  .sm-sheet{background:var(--bg);width:100%;max-width:460px;border-radius:18px 18px 0 0;padding:20px;box-sizing:border-box;max-height:min(90dvh,100%);overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 -8px 40px rgba(0,0,0,.25)}
   @media(min-width:560px){.sm-sheet{border-radius:18px}}
   .sm-sheet h3{font-size:17px;font-weight:800;margin:0 0 6px;color:var(--text)}
   .sm-sheet p.sm-lead{font-size:12.5px;color:var(--text2);line-height:1.7;margin:0 0 14px}
@@ -175,8 +175,49 @@ function openSheet(buildInner) {
   const sheet = document.createElement('div');
   sheet.className = 'sm-sheet';
   overlay.appendChild(sheet);
-  const close = () => overlay.remove();
+
+  // ---- キーボード対策（iOS/Android） -------------------------------------
+  // ボトムシートは画面下端に固定されるため、ソフトキーボードが出ると下部の
+  // 入力欄やボタンが隠れてしまう。position:fixed はレイアウトビューポート基準
+  // なのでキーボード分は縮まない。VisualViewport（実際に見えている領域）へ
+  // オーバーレイを追従させ、シートが常にキーボードの上に来るようにする。
+  const vv = window.visualViewport;
+  const syncViewport = () => {
+    if (!vv) return;
+    overlay.style.top = vv.offsetTop + 'px';
+    overlay.style.left = vv.offsetLeft + 'px';
+    overlay.style.width = vv.width + 'px';
+    overlay.style.height = vv.height + 'px';
+  };
+  if (vv) {
+    // inset:0 の bottom/right を打ち消してから可視領域に合わせる
+    overlay.style.bottom = 'auto';
+    overlay.style.right = 'auto';
+    syncViewport();
+    vv.addEventListener('resize', syncViewport);
+    vv.addEventListener('scroll', syncViewport);
+  }
+
+  const close = () => {
+    if (vv) {
+      vv.removeEventListener('resize', syncViewport);
+      vv.removeEventListener('scroll', syncViewport);
+    }
+    overlay.remove();
+  };
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  // 入力欄にフォーカスが移ったら、その欄を可視領域の中央付近へスクロールして
+  // キーボードに隠れないようにする（VisualViewport 追従と併用）。
+  sheet.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (t && typeof t.scrollIntoView === 'function' && /^(INPUT|TEXTAREA)$/.test(t.tagName)) {
+      setTimeout(() => {
+        try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_e) {}
+      }, 150);
+    }
+  });
+
   document.body.appendChild(overlay);
   buildInner(sheet, close);
   return { overlay, sheet, close };
