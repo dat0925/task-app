@@ -2839,7 +2839,7 @@ async function saveNote(n){
   if((n.title||'').length>CHAR_LIMITS.noteTitle){toast('ノートタイトルは'+CHAR_LIMITS.noteTitle+'文字以内で入力してください');throw new Error('char_limit');}
   if((n.body||'').length>CHAR_LIMITS.noteBody){toast('ノート本文は'+CHAR_LIMITS.noteBody+'文字以内で入力してください');throw new Error('char_limit');}
   showSaveStatus('saving');try{window._lastSelfSave = Date.now();n.updatedAt=now();await dbPut('notes',n);const i=S.notes.findIndex(x=>x.id===n.id);i>=0?S.notes[i]=n:S.notes.push(n);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
-async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id)}
+async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id);if(window.SecretMemo){try{window.SecretMemo.onEntityDeleted('note',id);}catch(_e){}}}
 function mkNote(o={}){return{id:uid(),title:'',body:'',tagIds:[],createdAt:now(),updatedAt:now(),...o}}
 // プロジェクト内の最上部sort_orderを返す
 function topOrderInProject(projId){
@@ -2851,7 +2851,7 @@ async function saveTask(t){
   if((t.title||'').length>CHAR_LIMITS.taskTitle){toast('タスクタイトルは'+CHAR_LIMITS.taskTitle+'文字以内で入力してください');throw new Error('char_limit');}
   if((t.notes||'').length>CHAR_LIMITS.taskNotes){toast('タスクメモは'+CHAR_LIMITS.taskNotes+'文字以内で入力してください');throw new Error('char_limit');}
   showSaveStatus('saving');try{window._lastSelfSave = Date.now(); t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
-async function delTask(id){const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id);await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id)}
+async function delTask(id){const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id);await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);if(window.SecretMemo){try{window.SecretMemo.onEntityDeleted('task',id);}catch(_e){}}}
 async function saveProject(p){showSaveStatus('saving');try{p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function saveTag(t){await dbPut('tags',t);const i=S.tags.findIndex(x=>x.id===t.id);i>=0?S.tags[i]=t:S.tags.push(t)}
 async function deleteProject(id){
@@ -6224,6 +6224,13 @@ function renderNoteDrawer(){
   makeResizable(bodyEl);
   bodyEl._stampFocused=false;
   bodyEl.addEventListener('focus',()=>{bodyEl._stampFocused=true;});
+
+  // シークレットメモ（E2EE）：ノートにもタスクと同じ本人専用セクションを差し込み、
+  // 平文メモ入力中のパスワード検知も行う。鍵素材はuser_id単位でタスクと共有。
+  if(window.SecretMemo){
+    try{window.SecretMemo.mountNoteSection(note);}catch(_e){console.error('SecretMemo mount(note)',_e);}
+    if(bodyEl){bodyEl.addEventListener('input',()=>{try{window.SecretMemo.onNotesInput(bodyEl);}catch(_e2){}});}
+  }
   const ntLinkBtn=document.getElementById('nt-link-btn');
   if(ntLinkBtn)ntLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(ntLinkBtn,'nt-body',!bodyEl._stampFocused);});
   // プレビュー切替
@@ -6832,7 +6839,7 @@ function renderDrawer(){
   // 平文メモ入力中のパスワードらしきパターンを検知して移動提案する（ローカル完結・サーバー送信なし）。
   if(window.SecretMemo){
     try{window.SecretMemo.mountTaskSection(task);}catch(_e){console.error('SecretMemo mount',_e);}
-    if(_dtNotesTA){_dtNotesTA.addEventListener('input',()=>{try{window.SecretMemo.onNotesInput(task,_dtNotesTA);}catch(_e2){}});}
+    if(_dtNotesTA){_dtNotesTA.addEventListener('input',()=>{try{window.SecretMemo.onNotesInput(_dtNotesTA);}catch(_e2){}});}
   }
   const dtLinkBtnEl=document.getElementById('dt-link-btn');
   if(dtLinkBtnEl)dtLinkBtnEl.addEventListener('click',e=>{
@@ -8498,6 +8505,8 @@ else if(a==='scroll-to-comments'){
         async()=>{
           const t=mkTask({title:note.title||'無題',notes:note.body||'',tagIds:[...(note.tagIds||[])],createdAt:note.createdAt,updatedAt:now()});
           await saveTask(t);
+          // シークレットメモ（暗号文）をノート→タスクへ移行（同一マスター鍵のため復号不要）
+          if(window.SecretMemo){try{await window.SecretMemo.moveSecret('note',note.id,'task',t.id);}catch(_e){console.error('SecretMemo move',_e);}}
           await delNote(note.id);
           S.noteOpen=false;S.noteId=null;
           S.taskId=t.id;S.drawerOpen=true;
@@ -8918,6 +8927,8 @@ else if(a==='scroll-to-comments'){
         async()=>{
           const n=mkNote({title:task.title||'無題',body:task.notes||'',tagIds:[...(task.tagIds||[])],createdAt:task.createdAt,updatedAt:now()});
           await saveNote(n);
+          // シークレットメモ（暗号文）をタスク→ノートへ移行（同一マスター鍵のため復号不要）
+          if(window.SecretMemo){try{await window.SecretMemo.moveSecret('task',task.id,'note',n.id);}catch(_e){console.error('SecretMemo move',_e);}}
           await delTask(task.id);
           S.drawerOpen=false;S.taskId=null;
           S.noteId=n.id;S.noteOpen=true;

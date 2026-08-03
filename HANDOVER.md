@@ -1,6 +1,54 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-08-02
+最終更新: 2026-08-03
+
+---
+
+## シークレットメモをノート(Note)にも対応＋タスク⇔ノート変換の暗号文移行（2026-08-03）
+
+### 概要
+これまでタスク専用だったシークレットメモ（E2EE）を **Note にも対応**。合言葉・復元コードは
+タスクと**共通**（鍵素材 `secret_key_material` は user_id 単位なので元々1ユーザー1マスター鍵）。
+併せて「タスク→Note変換 / Note→タスク変換」でシークレットメモが失われる問題・暗号文が迷子に
+なる問題を解消した。
+
+### DB（Supabase）★セキュリティ状態
+- **新規テーブル `note_secret_notes`（note_id 主キー）を追加。適用済み・実確認済み**
+  （`rls_enabled=true`・ポリシー4件）。マイグレーション: `supabase/migrations/20260803_note_secret_notes.sql`。
+  構造・RLSは `task_secret_notes` と同一（**所有者のみ** `user_id = auth.uid()`）。
+- `secret_note` は base64(iv+AES-GCM暗号文)。検索・AI・LINE通知の対象外（タスク側と同じ扱い）。
+
+### 変換時の暗号文移行（キモ）
+- `encryptNote` は AES-GCM を **AAD なし**で使うため、暗号文blobは対象id（task_id/note_id）に
+  **束縛されない**。かつマスター鍵は user 単位で共通。→ タスク⇔ノート変換は
+  **blobをテーブル間でそのまま移し替えるだけ**（`SecretMemo.moveSecret(fromKind,fromId,toKind,toId)`）。
+  **復号不要・ロック中でも移行可能**。変換で新idが振られてもblob文字列をコピーするだけ。
+- 実装フック（index.html）:
+  - `task-to-note`（8912付近）: `saveNote` 後に `moveSecret('task',task.id,'note',n.id)`。
+  - `note-to-task`（8492付近）: `saveTask` 後に `moveSecret('note',note.id,'task',t.id)`。
+  - `delTask` / `delNote`: `onEntityDeleted(kind,id)` で暗号文をクリーンアップ（迷子防止・best-effort）。
+  - Note詳細 `renderNoteDrawer`（`#nt-body` 直後）に `mountNoteSection(note)` と検知フックを追加。
+
+### モジュール構成（`src/secret-memo.js`）
+- タスク/ノート両対応の**エンティティ汎用**化（`{kind:'task'|'note', id, ownerId}`）。
+  公開API: `mountTaskSection` / `mountNoteSection` / `onNotesInput(el)` / `moveSecret` /
+  `onEntityDeleted` / `lock`。`onNotesInput` は現在マウント中のエンティティ(`_mountedEntity`)を対象にする。
+- 暗号ユーティリティ `src/lib/crypto.js` は**無改変**（元々 user 単位のマスター鍵設計だったため）。
+
+### テスト
+- `node --test src/lib/crypto.test.js` … 13件パス（暗号ロジック無改変）。
+- Chromium（Playwright, スタブDB）で E2E 確認：セットアップ→タスクに書込→**task→note移行**→
+  Note側で解錠すると**元の平文が復元**（同一鍵でblobが復号可能）→**note→task逆移行**→削除クリーンアップ→
+  Note側の検知チップ→非所有者への非表示、を全項目パス。
+
+### 影響範囲・触っていない箇所
+- index.html は純追加のフックのみ（既存のタスク/ノートCRUD・変換・共有ロジックは無改変）。
+- 認証・決済フローの変更なし。`tasks`/`notes` 本体テーブルには手を入れていない。
+
+### 次にやるべきこと
+- 本番（app.taskra.jp）で実ログイン下の確認：Noteでのシークレットメモ設定・表示、
+  タスク⇔ノート変換でシークレットメモが引き継がれること、変換後に相手（共有）へ露出しないこと。
+- フェーズ2: WebAuthn PRF による生体認証解錠（鍵ラップ方式を1つ追加するだけで対応可能な設計）。
 
 ---
 
