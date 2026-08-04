@@ -2323,6 +2323,8 @@ renderContent = function() {
 - **`user_id=null` レコード**: `importFromIndexedDB` で古いデータを取り込む際に発生しうる。現在はRLSで保護されているが要注意
 - **dt-memo-toggle重複**: 以前ハンドラが2箇所定義されていてチェックなし側が先に実行されるバグがあった（修正済み）
 - **FAST TAP × drawer**: drawerが開いている時にFAST TAPがdrawer背後の要素を誤クリックする問題（修正済み・上記セクション参照）
+- **Forecastグリッドの日付1日ずれ**: `renderForecast()` の日付生成が `new Date(today()+'T00:00:00').toISOString().slice(0,10)` で、UTC変換により先頭セルが「昨日」にずれていた（JST/UTC+環境で1日前になる）。ローカル日付基準の生成に修正し、先頭を確実に今日に固定（修正済み）。**同種の `toISOString().slice(0,10)` はコード内の他箇所にも残存しており、`today()`（ローカル基準）と混在させると同じズレが起きうるので注意。**
+- **Forecast 期限切れバー**: 過去タスクを未来グリッドに混ぜず、グリッド上部に折りたたみバー「⚠️期限切れ N件」として集約。`getForecastOverdue()` で件数取得、`S.fcOverdueOpen` で開閉、「まとめて今日へ」（全件 dueAt を今日に）と「Overdueで整理→」を提供。設計思想＝時間軸を過去(清算)/今日(実行)/未来(計画)に分離。
 
 ---
 
