@@ -374,6 +374,28 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .fc-tasks{padding:6px}
 .fc-task{font-size:11px;padding:3px 5px;border-radius:4px;margin-bottom:2px;cursor:pointer;transition:background .12s;display:flex;align-items:center;gap:4px}
 @media(pointer:fine){.fc-task:hover{background:var(--bg2)}}
+/* Forecast: 期限切れ 折りたたみバー（過去は「対等な列」にせず1箇所に畳む） */
+.fc-ov-wrap{padding:16px 16px 0}
+.fc-overdue{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--p1);border-radius:10px;overflow:hidden}
+.fc-ov-head{width:100%;display:flex;align-items:center;gap:9px;padding:11px 14px;background:none;border:none;cursor:pointer;text-align:left;font:inherit;color:var(--text)}
+@media(pointer:fine){.fc-ov-head:hover{background:var(--bg2)}}
+.fc-ov-icon{font-size:15px;line-height:1}
+.fc-ov-title{font-size:14px;font-weight:600}
+.fc-ov-badge{padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700;background:rgba(239,68,68,.12);color:var(--p1)}
+.fc-ov-hint{margin-left:auto;font-size:12px;color:var(--text3);display:flex;align-items:center;gap:3px;white-space:nowrap}
+.fc-ov-chev{transition:transform .18s}
+.fc-overdue.open .fc-ov-chev{transform:rotate(180deg)}
+.fc-ov-body{border-top:1px solid var(--border);padding:6px 8px 10px}
+.fc-ov-item{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text2)}
+@media(pointer:fine){.fc-ov-item:hover{background:var(--bg2)}}
+.fc-ov-item .fc-ov-bang{color:var(--p1);font-weight:800}
+.fc-ov-item .fc-ov-ttl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc-ov-item .fc-ov-date{font-size:11px;color:var(--p1);white-space:nowrap;font-weight:600}
+.fc-ov-more{padding:6px;font-size:12px;color:var(--text3);text-align:center}
+.fc-ov-foot{display:flex;flex-wrap:wrap;gap:8px;padding:8px 6px 2px;margin-top:4px;border-top:1px solid var(--border)}
+.fc-ov-act{padding:8px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid transparent}
+.fc-ov-act.primary{background:var(--accent);color:#fff}
+.fc-ov-act.ghost{background:none;color:var(--accent);border-color:var(--border)}
 
 /* Review */
 .rv-wrap{padding:16px}
@@ -5935,13 +5957,55 @@ function attachDashboardEvents(){
   }
 }
 
+// Forecastの「期限切れ」対象を、グリッドと同じフィルタ条件で取得（過去を1箇所に集約するため）
+// 完了・アーカイブは除外。期限が過ぎた順（古い＝より緊急が上）に並べる。
+function getForecastOverdue(){
+  let tasks=S.tasks.filter(t=>t.status!=='archived'&&t.status!=='completed');
+  if(S.hideNotStarted){tasks=tasks.filter(x=>!isNotStartedTask(x));}
+  if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
+  return tasks.filter(t=>isOv(t.dueAt)).sort((a,b)=>a.dueAt<b.dueAt?-1:(a.dueAt>b.dueAt?1:0));
+}
 function renderForecast(){
-  const days=Array.from({length:14},(_,i)=>{const d=new Date(today()+'T00:00:00');d.setDate(d.getDate()+i);return d.toISOString().slice(0,10)});
+  // ローカル日付基準で生成（toISOStringはUTC変換で先頭が「昨日」にずれるため使わない）。先頭を確実に今日に固定する。
+  const days=Array.from({length:14},(_,i)=>{const d=new Date(today()+'T00:00:00');d.setDate(d.getDate()+i);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')});
   let tasks=S.tasks.filter(t=>t.status!=='archived');
   if(!S.showCompleted)tasks=tasks.filter(t=>t.status!=='completed');
   if(S.hideNotStarted){tasks=tasks.filter(x=>!isNotStartedTask(x));}
   if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
-  let h='<div class="fc-grid">';
+  // ── 期限切れバー（未来グリッドの上に畳んで置く。件数＝痛みの総量は常に見せ、開くと清算モードへ）──
+  const ov=getForecastOverdue();
+  let ovBar='';
+  if(ov.length){
+    const open=!!S.fcOverdueOpen;
+    ovBar='<div class="fc-ov-wrap"><div class="fc-overdue'+(open?' open':'')+'">'
+      +'<button class="fc-ov-head" data-a="tog-fc-overdue">'
+        +'<span class="fc-ov-icon">⚠️</span>'
+        +'<span class="fc-ov-title">期限切れ</span>'
+        +'<span class="fc-ov-badge">'+ov.length+'件</span>'
+        +'<span class="fc-ov-hint">'+(open?'閉じる':'タップで整理')
+          +'<svg class="fc-ov-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>'
+        +'</span>'
+      +'</button>';
+    if(open){
+      const cap=15;
+      ovBar+='<div class="fc-ov-body">';
+      ov.slice(0,cap).forEach(t=>{
+        ovBar+='<div class="fc-ov-item" data-a="sel-edit" data-id="'+t.id+'">'
+          +'<span class="fc-ov-bang">!</span>'
+          +'<span class="fc-ov-ttl">'+esc(t.title||'無題')+'</span>'
+          +'<span class="fc-ov-date">'+fmtDate(t.dueAt)+'</span>'
+        +'</div>';
+      });
+      if(ov.length>cap)ovBar+='<div class="fc-ov-more">他 '+(ov.length-cap)+' 件</div>';
+      ovBar+='<div class="fc-ov-foot">'
+        +'<button class="fc-ov-act primary" data-a="fc-overdue-today">まとめて今日へ（'+ov.length+'）</button>'
+        +'<button class="fc-ov-act ghost" data-a="view" data-v="overdue">Overdueで整理 →</button>'
+      +'</div>';
+      ovBar+='</div>';
+    }
+    ovBar+='</div></div>';
+  }
+  let h=ovBar+'<div class="fc-grid">';
   days.forEach(day=>{
     const d=new Date(day+'T00:00:00');
     const wd=['日','月','火','水','木','金','土'][d.getDay()];
@@ -8034,6 +8098,19 @@ document.addEventListener('click',async e=>{
 
   if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob){playSE('toggle');_tappingView=el.dataset.v;if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{_tappingView=null;S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
   else if(a==='forecast-day'){if(_touchMoved)return;S.view='forecast-day';S.forecastDate=el.dataset.date;S.projId=null;S.tagId=null;render();}
+  else if(a==='tog-fc-overdue'){if(_touchMoved)return;S.fcOverdueOpen=!S.fcOverdueOpen;render();}
+  else if(a==='fc-overdue-today'){
+    if(_touchMoved)return;
+    const ov=getForecastOverdue();
+    if(!ov.length)return;
+    if(!confirm('期限切れの '+ov.length+' 件の期限を、すべて今日（'+today()+'）に変更します。よろしいですか？'))return;
+    (async()=>{
+      showSaveStatus('saving');
+      try{for(const t of ov){await saveTask({...t,dueAt:today()});}toast(ov.length+'件を今日に移動しました');}
+      catch(_e){toast('移動中にエラーが発生しました');}
+      render();
+    })();
+  }
   else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
