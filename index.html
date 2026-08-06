@@ -7662,19 +7662,20 @@ async function handleBulkEdit(field){
       +'</div>'
       // 開始時間
       +'<div class="fg"><label class="flabel">開始時間</label>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:3px;margin-bottom:3px">'
-          +'<button class="date-adj-btn" id="bulk-stime-900">9:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-1200">12:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-1500">15:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-1800">18:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-m00">分00</button>'
-        +'</div>'
-        +'<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">'
+        +'<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap;margin-bottom:3px">'
           +'<input type="time" id="bulk-stime-inp" class="finput" style="font-size:14px;min-height:34px;width:110px;flex-shrink:0">'
           +'<button class="date-clr-btn" id="bulk-stime-clr" title="クリア">✕</button>'
           +'<button class="date-adj-btn" id="bulk-stime-m10">+10m</button>'
           +'<button class="date-adj-btn" id="bulk-stime-h1">+1h</button>'
           +'<button class="date-adj-btn" id="bulk-stime-h3">+3h</button>'
+        +'</div>'
+        +'<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">'
+          +'<button class="date-adj-btn" id="bulk-stime-m1">+1m</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-m00">分00</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-900">9:00</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-1200">12:00</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-1500">15:00</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-1800">18:00</button>'
         +'</div>'
       +'</div>'
       // 期限
@@ -7753,15 +7754,19 @@ async function handleBulkEdit(field){
     }
     ov.querySelector('#bulk-stime-h1').onclick=()=>adjBulkTime(1);
     ov.querySelector('#bulk-stime-h3').onclick=()=>adjBulkTime(3);
-    ov.querySelector('#bulk-stime-m10').onclick=()=>{
+    // 分加算ヘルパー（空欄なら現在時刻を基準にする）
+    function adjBulkMin(min){
       const cur=stimeInp.value;
       let hh=0,mm=0;
       if(cur){const[a,b]=cur.split(':');hh=parseInt(a);mm=parseInt(b);}
       else{const n=new Date();hh=n.getHours();mm=n.getMinutes();}
-      mm+=10;if(mm>=60){hh=(hh+1)%24;mm-=60;}
+      mm+=min;
+      while(mm>=60){hh=(hh+1)%24;mm-=60;}
       stimeInp.value=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
       stimeCleared=false;
-    };
+    }
+    ov.querySelector('#bulk-stime-m1').onclick=()=>adjBulkMin(1);
+    ov.querySelector('#bulk-stime-m10').onclick=()=>adjBulkMin(10);
     ov.querySelector('#bulk-stime-m00').onclick=()=>{
       if(stimeInp.value){const[h]=stimeInp.value.split(':');stimeInp.value=h+':00';}
       else{const n=new Date();stimeInp.value=String(n.getHours()).padStart(2,'0')+':00';}
