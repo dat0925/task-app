@@ -2087,6 +2087,15 @@ async function openPlanAdmin(){
         +Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(planFilter.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('');
       const planSortOpts=[['created_desc','登録日が新しい順'],['created_asc','登録日が古い順'],['email_asc','メール順（A→Z）']]
         .map(o=>'<option value="'+o[0]+'"'+(planSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('');
+      const planPager=''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:12px;color:var(--text2)">'
+          +'<span>'+filteredP.length+'件中 '+(filteredP.length?planPage*PLAN_PAGE_SIZE+1:0)+'〜'+Math.min((planPage+1)*PLAN_PAGE_SIZE,filteredP.length)+'件</span>'
+          +'<div style="display:flex;gap:4px">'
+            +'<button class="btn btn-ghost plan-page-btn" data-page="'+(planPage-1)+'" style="font-size:12px;padding:4px 10px"'+(planPage===0?' disabled':'')+'>◀</button>'
+            +'<span style="padding:4px 8px;align-self:center">'+(planPage+1)+' / '+totalPagesP+'</span>'
+            +'<button class="btn btn-ghost plan-page-btn" data-page="'+(planPage+1)+'" style="font-size:12px;padding:4px 10px"'+(planPage>=totalPagesP-1?' disabled':'')+'>▶</button>'
+          +'</div>'
+        +'</div>';
       wrap.innerHTML=''
         +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
           +'<input id="plan-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(planFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
@@ -2094,15 +2103,8 @@ async function openPlanAdmin(){
           +'<select id="plan-sort" class="finput fselect" style="width:150px;font-size:12px;padding:5px 8px" title="並び替え">'+planSortOpts+'</select>'
           +'<button class="btn btn-ghost" id="plan-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
         +'</div>'
+        +planPager
         +buildPlanTable(pagedP)
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--text2)">'
-          +'<span>'+filteredP.length+'件中 '+(filteredP.length?planPage*PLAN_PAGE_SIZE+1:0)+'〜'+Math.min((planPage+1)*PLAN_PAGE_SIZE,filteredP.length)+'件</span>'
-          +'<div style="display:flex;gap:4px">'
-            +'<button class="btn btn-ghost plan-page-btn" data-page="'+(planPage-1)+'" style="font-size:12px;padding:4px 10px"'+(planPage===0?' disabled':'')+'>◀</button>'
-            +'<span style="padding:4px 8px;align-self:center">'+(planPage+1)+' / '+totalPagesP+'</span>'
-            +'<button class="btn btn-ghost plan-page-btn" data-page="'+(planPage+1)+'" style="font-size:12px;padding:4px 10px"'+(planPage>=totalPagesP-1?' disabled':'')+'>▶</button>'
-          +'</div>'
-        +'</div>'
         +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px">'
           +'<input id="admin-new-email" class="finput" placeholder="追加するメールアドレス" style="flex:1;min-width:200px">'
           +'<select id="admin-new-plan" class="finput fselect" style="width:140px">'+planOptions+'</select>'
@@ -2116,15 +2118,8 @@ async function openPlanAdmin(){
       const paged=filtered.slice(usagePage*USAGE_PAGE_SIZE,(usagePage+1)*USAGE_PAGE_SIZE);
       const planFilterOptions='<option value="">すべてのプラン</option>'
         +Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(usageFilter.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('');
-      wrap.innerHTML=''
-        +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
-          +'<input id="usage-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(usageFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
-          +'<select id="usage-filter-month" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+getMonthOptions()+'</select>'
-          +'<select id="usage-filter-plan" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+planFilterOptions+'</select>'
-          +'<button class="btn btn-ghost" id="usage-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
-        +'</div>'
-        +buildUsageTable(paged)
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--text2)">'
+      const usagePager=''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:12px;color:var(--text2)">'
           +'<span>'+filtered.length+'件中 '+(filtered.length?usagePage*USAGE_PAGE_SIZE+1:0)+'〜'+Math.min((usagePage+1)*USAGE_PAGE_SIZE,filtered.length)+'件</span>'
           +'<div style="display:flex;gap:4px">'
             +'<button class="btn btn-ghost usage-page-btn" data-page="'+(usagePage-1)+'" style="font-size:12px;padding:4px 10px"'+(usagePage===0?' disabled':'')+'>◀</button>'
@@ -2132,6 +2127,15 @@ async function openPlanAdmin(){
             +'<button class="btn btn-ghost usage-page-btn" data-page="'+(usagePage+1)+'" style="font-size:12px;padding:4px 10px"'+(usagePage>=totalPages-1?' disabled':'')+'>▶</button>'
           +'</div>'
         +'</div>';
+      wrap.innerHTML=''
+        +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
+          +'<input id="usage-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(usageFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
+          +'<select id="usage-filter-month" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+getMonthOptions()+'</select>'
+          +'<select id="usage-filter-plan" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+planFilterOptions+'</select>'
+          +'<button class="btn btn-ghost" id="usage-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
+        +'</div>'
+        +usagePager
+        +buildUsageTable(paged);
       bindUsageEvents();
     }
     document.querySelectorAll('.admin-tab-btn').forEach(b=>{
@@ -2150,7 +2154,11 @@ async function openPlanAdmin(){
       +'<button class="admin-tab-btn" data-tab="usage" style="background:none;border:none;border-bottom:2px solid transparent;padding:8px 16px;font-size:13px;font-weight:400;color:var(--text);cursor:pointer">AI利用状況</button>'
     +'</div>'
     +'<div id="admin-content-wrap"></div>'
-    +'<div class="modal-foot"><button class="btn btn-ghost" id="admin-close">閉じる</button></div>'
+    +'<div class="modal-foot" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +'<a class="btn btn-ghost" href="https://flowra.taskra.jp/admin.html" target="_blank" rel="noopener" style="font-size:12px;padding:5px 10px;text-decoration:none">🔗 Flowra管理画面</a>'
+      +'<a class="btn btn-ghost" href="https://tavera.taskra.jp/admin.html" target="_blank" rel="noopener" style="font-size:12px;padding:5px 10px;text-decoration:none">🔗 Tavera管理画面</a>'
+      +'<button class="btn btn-ghost" id="admin-close" style="margin-left:auto">閉じる</button>'
+    +'</div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
   renderModal();
