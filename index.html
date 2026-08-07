@@ -376,6 +376,28 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .fc-tasks{padding:6px}
 .fc-task{font-size:11px;padding:3px 5px;border-radius:4px;margin-bottom:2px;cursor:pointer;transition:background .12s;display:flex;align-items:center;gap:4px}
 @media(pointer:fine){.fc-task:hover{background:var(--bg2)}}
+/* Forecast: 期限切れ 折りたたみバー（過去は「対等な列」にせず1箇所に畳む） */
+.fc-ov-wrap{padding:16px 16px 0}
+.fc-overdue{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--p1);border-radius:10px;overflow:hidden}
+.fc-ov-head{width:100%;display:flex;align-items:center;gap:9px;padding:11px 14px;background:none;border:none;cursor:pointer;text-align:left;font:inherit;color:var(--text)}
+@media(pointer:fine){.fc-ov-head:hover{background:var(--bg2)}}
+.fc-ov-icon{font-size:15px;line-height:1}
+.fc-ov-title{font-size:14px;font-weight:600}
+.fc-ov-badge{padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700;background:rgba(239,68,68,.12);color:var(--p1)}
+.fc-ov-hint{margin-left:auto;font-size:12px;color:var(--text3);display:flex;align-items:center;gap:3px;white-space:nowrap}
+.fc-ov-chev{transition:transform .18s}
+.fc-overdue.open .fc-ov-chev{transform:rotate(180deg)}
+.fc-ov-body{border-top:1px solid var(--border);padding:6px 8px 10px}
+.fc-ov-item{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text2)}
+@media(pointer:fine){.fc-ov-item:hover{background:var(--bg2)}}
+.fc-ov-item .fc-ov-bang{color:var(--p1);font-weight:800}
+.fc-ov-item .fc-ov-ttl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc-ov-item .fc-ov-date{font-size:11px;color:var(--p1);white-space:nowrap;font-weight:600}
+.fc-ov-more{padding:6px;font-size:12px;color:var(--text3);text-align:center}
+.fc-ov-foot{display:flex;flex-wrap:wrap;gap:8px;padding:8px 6px 2px;margin-top:4px;border-top:1px solid var(--border)}
+.fc-ov-act{padding:8px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid transparent}
+.fc-ov-act.primary{background:var(--accent);color:#fff}
+.fc-ov-act.ghost{background:none;color:var(--accent);border-color:var(--border)}
 
 /* Review */
 .rv-wrap{padding:16px}
@@ -392,7 +414,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 /* Modal */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.open{opacity:1;pointer-events:all}
-.modal{background:var(--surface);border-radius:12px;padding:22px;max-width:420px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal{background:var(--surface);border-radius:12px;padding:22px;max-width:420px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch}
 .modal-title{font-size:16px;font-weight:600;margin-bottom:14px}
 .modal-foot{display:flex;justify-content:flex-end;gap:7px;margin-top:18px}
 
@@ -892,6 +914,28 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .admin-table tr:last-child td{border-bottom:none}
 .admin-table tr:hover td{background:var(--bg2)}
 .admin-plan-sel{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;color:var(--text);cursor:pointer}
+/* スマホ：テーブルを「1レコード＝1カード」に再構成（列比較UIより単一レコードの参照＋編集に最適化） */
+@media(max-width:560px){
+  .admin-table,.admin-table tbody{display:block;width:100%}
+  .admin-table thead{display:none} /* カードでは各値にラベルを添えるので見出し行は不要 */
+  .admin-table tr{display:block;position:relative;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--bg)}
+  .admin-table tr:hover td{background:transparent}
+  .admin-table td{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:none;min-height:36px}
+  .admin-table td::before{content:attr(data-label);font-size:11px;font-weight:600;color:var(--text3);white-space:nowrap;flex:0 0 auto}
+  /* メール＝カードの見出し（識別子を主役に昇格） */
+  .admin-table td.ad-title{display:block;font-size:14px;font-weight:600;color:var(--text);padding:0 34px 8px 0;margin-bottom:4px;border-bottom:1px solid var(--border);word-break:break-all;min-height:0}
+  .admin-table td.ad-title::before{display:none}
+  /* 削除＝カード右上に固定（誤爆しにくく、値行と分離） */
+  .admin-table td.ad-act{position:absolute;top:8px;right:6px;padding:0;min-height:0;justify-content:flex-end}
+  .admin-table td.ad-act::before{display:none}
+  /* リセット＝カード下部に全幅で（利用状況カード用） */
+  .admin-table td.ad-reset{display:block;padding:10px 0 0;margin-top:4px;border-top:1px solid var(--border)}
+  .admin-table td.ad-reset::before{display:none}
+  .admin-table td.ad-reset .btn{width:100%}
+  /* 操作要素はタップしやすいサイズに */
+  .admin-table td .admin-plan-sel{min-width:132px;min-height:34px;font-size:13px;padding:6px 8px}
+  .admin-table td .admin-note-inp{flex:1;text-align:right}
+}
 .admin-del-btn{opacity:.5;transition:opacity .15s}
 .admin-del-btn:hover{opacity:1;color:var(--p1)!important}
 /* ===== GANTT VIEW ===== */
@@ -1950,29 +1994,44 @@ async function openPlanAdmin(){
   }
   await loadData();
 
+  // 登録日フォーマッタ（created_at を日本時間で YYYY/MM/DD 表示）
+  function fmtRegDate(s){
+    if(!s)return'—';
+    const d=new Date(s);
+    if(isNaN(d.getTime()))return'—';
+    return d.toLocaleDateString('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
+  }
+
   const planOptions=Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'">'+PLAN_DEFS[k].label+'</option>').join('');
 
   // プラン管理タブの状態
   const PLAN_PAGE_SIZE=20;
   let planFilter={email:'',plan:''};
+  let planSort='created_desc'; // 既定：登録日が新しい順（新規ユーザーを把握しやすく）
   let planPage=0;
 
   function getFilteredPlans(){
-    return planRows.filter(r=>{
+    const list=planRows.filter(r=>{
       if(planFilter.email&&!r.email.includes(planFilter.email))return false;
       if(planFilter.plan&&r.plan!==planFilter.plan)return false;
       return true;
     });
+    const ts=r=>{const t=new Date(r.created_at).getTime();return isNaN(t)?0:t;};
+    if(planSort==='created_desc')list.sort((a,b)=>ts(b)-ts(a));
+    else if(planSort==='created_asc')list.sort((a,b)=>ts(a)-ts(b));
+    else if(planSort==='email_asc')list.sort((a,b)=>a.email.localeCompare(b.email));
+    return list;
   }
 
   function buildPlanTable(list){
     if(!list.length)return'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">登録なし</div>';
-    return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>プラン</th><th>メモ</th><th></th></tr></thead><tbody>'
+    return'<table class="admin-table"><thead><tr><th>メールアドレス</th><th>プラン</th><th>登録日</th><th>メモ</th><th></th></tr></thead><tbody>'
       +list.map(r=>'<tr data-id="'+esc(r.id)+'">'
-        +'<td style="font-size:13px">'+esc(r.email)+'</td>'
-        +'<td><select class="admin-plan-sel" data-id="'+esc(r.id)+'">'+Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(r.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('')+'</select></td>'
-        +'<td><input class="admin-note-inp" data-id="'+esc(r.id)+'" value="'+esc(r.note||'')+'" placeholder="メモ" style="width:100%;background:none;border:none;outline:none;font-size:12px;color:var(--text2)"></td>'
-        +'<td><button class="admin-del-btn icon-btn" data-id="'+esc(r.id)+'" title="削除" style="color:var(--text3)">✕</button></td>'
+        +'<td class="ad-title" style="font-size:13px">'+esc(r.email)+'</td>'
+        +'<td data-label="プラン"><select class="admin-plan-sel" data-id="'+esc(r.id)+'">'+Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(r.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('')+'</select></td>'
+        +'<td data-label="登録日" style="font-size:12px;color:var(--text2);white-space:nowrap">'+fmtRegDate(r.created_at)+'</td>'
+        +'<td data-label="メモ"><input class="admin-note-inp" data-id="'+esc(r.id)+'" value="'+esc(r.note||'')+'" placeholder="メモ" style="width:100%;background:none;border:none;outline:none;font-size:12px;color:var(--text2)"></td>'
+        +'<td class="ad-act"><button class="admin-del-btn icon-btn" data-id="'+esc(r.id)+'" title="削除" style="color:var(--text3)">✕</button></td>'
       +'</tr>').join('')
     +'</tbody></table>';
   }
@@ -2002,12 +2061,12 @@ async function openPlanAdmin(){
         const pct=Math.min(100,Math.round(r.count/limit*100));
         const color=pct>=100?'var(--p1)':pct>=80?'#f59e0b':'var(--green)';
         return'<tr>'
-          +'<td style="font-size:12px">'+esc(r.email)+'</td>'
-          +'<td style="font-size:12px;color:var(--text2)">'+esc(planLabel)+'</td>'
-          +'<td>'+esc(r.month)+'</td>'
-          +'<td><span style="font-weight:600;color:'+color+'">'+r.count+'</span></td>'
-          +'<td>'+limit+'</td>'
-          +'<td><button class="usage-reset-btn btn btn-ghost" data-id="'+r.id+'" data-email="'+esc(r.email)+'" data-month="'+esc(r.month)+'" style="font-size:11px;padding:2px 8px">リセット</button></td>'
+          +'<td class="ad-title" style="font-size:12px">'+esc(r.email)+'</td>'
+          +'<td data-label="プラン" style="font-size:12px;color:var(--text2)">'+esc(planLabel)+'</td>'
+          +'<td data-label="月">'+esc(r.month)+'</td>'
+          +'<td data-label="利用回数"><span style="font-weight:600;color:'+color+'">'+r.count+'</span></td>'
+          +'<td data-label="上限">'+limit+'</td>'
+          +'<td class="ad-reset"><button class="usage-reset-btn btn btn-ghost" data-id="'+r.id+'" data-email="'+esc(r.email)+'" data-month="'+esc(r.month)+'" style="font-size:11px;padding:2px 8px">リセット</button></td>'
         +'</tr>';
       }).join('')
     +'</tbody></table>';
@@ -2028,21 +2087,26 @@ async function openPlanAdmin(){
       const pagedP=filteredP.slice(planPage*PLAN_PAGE_SIZE,(planPage+1)*PLAN_PAGE_SIZE);
       const planFilterOpts='<option value="">すべてのプラン</option>'
         +Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(planFilter.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('');
-      wrap.innerHTML=''
-        +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
-          +'<input id="plan-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(planFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
-          +'<select id="plan-filter-plan" class="finput fselect" style="width:120px;font-size:12px;padding:5px 8px">'+planFilterOpts+'</select>'
-          +'<button class="btn btn-ghost" id="plan-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
-        +'</div>'
-        +buildPlanTable(pagedP)
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--text2)">'
+      const planSortOpts=[['created_desc','登録日が新しい順'],['created_asc','登録日が古い順'],['email_asc','メール順（A→Z）']]
+        .map(o=>'<option value="'+o[0]+'"'+(planSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('');
+      const planPager=''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:12px;color:var(--text2)">'
           +'<span>'+filteredP.length+'件中 '+(filteredP.length?planPage*PLAN_PAGE_SIZE+1:0)+'〜'+Math.min((planPage+1)*PLAN_PAGE_SIZE,filteredP.length)+'件</span>'
           +'<div style="display:flex;gap:4px">'
             +'<button class="btn btn-ghost plan-page-btn" data-page="'+(planPage-1)+'" style="font-size:12px;padding:4px 10px"'+(planPage===0?' disabled':'')+'>◀</button>'
             +'<span style="padding:4px 8px;align-self:center">'+(planPage+1)+' / '+totalPagesP+'</span>'
             +'<button class="btn btn-ghost plan-page-btn" data-page="'+(planPage+1)+'" style="font-size:12px;padding:4px 10px"'+(planPage>=totalPagesP-1?' disabled':'')+'>▶</button>'
           +'</div>'
+        +'</div>';
+      wrap.innerHTML=''
+        +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
+          +'<input id="plan-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(planFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
+          +'<select id="plan-filter-plan" class="finput fselect" style="width:120px;font-size:12px;padding:5px 8px">'+planFilterOpts+'</select>'
+          +'<select id="plan-sort" class="finput fselect" style="width:150px;font-size:12px;padding:5px 8px" title="並び替え">'+planSortOpts+'</select>'
+          +'<button class="btn btn-ghost" id="plan-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
         +'</div>'
+        +planPager
+        +buildPlanTable(pagedP)
         +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px">'
           +'<input id="admin-new-email" class="finput" placeholder="追加するメールアドレス" style="flex:1;min-width:200px">'
           +'<select id="admin-new-plan" class="finput fselect" style="width:140px">'+planOptions+'</select>'
@@ -2056,15 +2120,8 @@ async function openPlanAdmin(){
       const paged=filtered.slice(usagePage*USAGE_PAGE_SIZE,(usagePage+1)*USAGE_PAGE_SIZE);
       const planFilterOptions='<option value="">すべてのプラン</option>'
         +Object.keys(PLAN_DEFS).map(k=>'<option value="'+k+'"'+(usageFilter.plan===k?' selected':'')+'>'+PLAN_DEFS[k].label+'</option>').join('');
-      wrap.innerHTML=''
-        +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
-          +'<input id="usage-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(usageFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
-          +'<select id="usage-filter-month" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+getMonthOptions()+'</select>'
-          +'<select id="usage-filter-plan" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+planFilterOptions+'</select>'
-          +'<button class="btn btn-ghost" id="usage-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
-        +'</div>'
-        +buildUsageTable(paged)
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--text2)">'
+      const usagePager=''
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:12px;color:var(--text2)">'
           +'<span>'+filtered.length+'件中 '+(filtered.length?usagePage*USAGE_PAGE_SIZE+1:0)+'〜'+Math.min((usagePage+1)*USAGE_PAGE_SIZE,filtered.length)+'件</span>'
           +'<div style="display:flex;gap:4px">'
             +'<button class="btn btn-ghost usage-page-btn" data-page="'+(usagePage-1)+'" style="font-size:12px;padding:4px 10px"'+(usagePage===0?' disabled':'')+'>◀</button>'
@@ -2072,6 +2129,15 @@ async function openPlanAdmin(){
             +'<button class="btn btn-ghost usage-page-btn" data-page="'+(usagePage+1)+'" style="font-size:12px;padding:4px 10px"'+(usagePage>=totalPages-1?' disabled':'')+'>▶</button>'
           +'</div>'
         +'</div>';
+      wrap.innerHTML=''
+        +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
+          +'<input id="usage-filter-email" class="finput" placeholder="メールで絞り込み" value="'+esc(usageFilter.email)+'" style="flex:1;min-width:150px;font-size:12px;padding:5px 8px">'
+          +'<select id="usage-filter-month" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+getMonthOptions()+'</select>'
+          +'<select id="usage-filter-plan" class="finput fselect" style="width:110px;font-size:12px;padding:5px 8px">'+planFilterOptions+'</select>'
+          +'<button class="btn btn-ghost" id="usage-filter-clear" style="font-size:12px;padding:5px 10px">クリア</button>'
+        +'</div>'
+        +usagePager
+        +buildUsageTable(paged);
       bindUsageEvents();
     }
     document.querySelectorAll('.admin-tab-btn').forEach(b=>{
@@ -2090,7 +2156,11 @@ async function openPlanAdmin(){
       +'<button class="admin-tab-btn" data-tab="usage" style="background:none;border:none;border-bottom:2px solid transparent;padding:8px 16px;font-size:13px;font-weight:400;color:var(--text);cursor:pointer">AI利用状況</button>'
     +'</div>'
     +'<div id="admin-content-wrap"></div>'
-    +'<div class="modal-foot"><button class="btn btn-ghost" id="admin-close">閉じる</button></div>'
+    +'<div class="modal-foot" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +'<a class="btn btn-ghost" href="https://flowra.taskra.jp/admin.html" target="_blank" rel="noopener" style="font-size:12px;padding:5px 10px;text-decoration:none">🔗 Flowra管理画面</a>'
+      +'<a class="btn btn-ghost" href="https://tavera.taskra.jp/admin.html" target="_blank" rel="noopener" style="font-size:12px;padding:5px 10px;text-decoration:none">🔗 Tavera管理画面</a>'
+      +'<button class="btn btn-ghost" id="admin-close" style="margin-left:auto">閉じる</button>'
+    +'</div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
   renderModal();
@@ -2108,9 +2178,11 @@ async function openPlanAdmin(){
     // フィルタ
     const emailInp=document.getElementById('plan-filter-email');
     const planSel=document.getElementById('plan-filter-plan');
+    const sortSel=document.getElementById('plan-sort');
     const clearBtn=document.getElementById('plan-filter-clear');
     if(emailInp){let _t;emailInp.oninput=()=>{clearTimeout(_t);_t=setTimeout(()=>{planFilter.email=emailInp.value.trim();planPage=0;renderModal();},300);};}
     if(planSel){planSel.onchange=()=>{planFilter.plan=planSel.value;planPage=0;renderModal();};}
+    if(sortSel){sortSel.onchange=()=>{planSort=sortSel.value;planPage=0;renderModal();};}
     if(clearBtn){clearBtn.onclick=()=>{planFilter={email:'',plan:''};planPage=0;renderModal();};}
     // ページネーション
     document.querySelectorAll('.plan-page-btn').forEach(btn=>{
@@ -2332,6 +2404,8 @@ function makePreviewResizable(el){
 function now(){return new Date().toISOString()}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function searchTerms(q){return String(q||'').toLowerCase().split(/\s+/).filter(Boolean)}
+function matchesSearch(text,terms){if(!terms.length)return false;const t=String(text||'').toLowerCase();return terms.every(w=>t.includes(w))}
 
 function wdStr(d){
   if(!d)return'';
@@ -2797,7 +2871,7 @@ async function saveNote(n){
   if((n.title||'').length>CHAR_LIMITS.noteTitle){toast('ノートタイトルは'+CHAR_LIMITS.noteTitle+'文字以内で入力してください');throw new Error('char_limit');}
   if((n.body||'').length>CHAR_LIMITS.noteBody){toast('ノート本文は'+CHAR_LIMITS.noteBody+'文字以内で入力してください');throw new Error('char_limit');}
   showSaveStatus('saving');try{window._lastSelfSave = Date.now();n.updatedAt=now();await dbPut('notes',n);const i=S.notes.findIndex(x=>x.id===n.id);i>=0?S.notes[i]=n:S.notes.push(n);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
-async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id)}
+async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id);if(window.SecretMemo){try{window.SecretMemo.onEntityDeleted('note',id);}catch(_e){}}}
 function mkNote(o={}){return{id:uid(),title:'',body:'',tagIds:[],createdAt:now(),updatedAt:now(),...o}}
 // プロジェクト内の最上部sort_orderを返す
 function topOrderInProject(projId){
@@ -2809,7 +2883,7 @@ async function saveTask(t){
   if((t.title||'').length>CHAR_LIMITS.taskTitle){toast('タスクタイトルは'+CHAR_LIMITS.taskTitle+'文字以内で入力してください');throw new Error('char_limit');}
   if((t.notes||'').length>CHAR_LIMITS.taskNotes){toast('タスクメモは'+CHAR_LIMITS.taskNotes+'文字以内で入力してください');throw new Error('char_limit');}
   showSaveStatus('saving');try{window._lastSelfSave = Date.now(); t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
-async function delTask(id){const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id);await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id)}
+async function delTask(id){const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id);await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);if(window.SecretMemo){try{window.SecretMemo.onEntityDeleted('task',id);}catch(_e){}}}
 async function saveProject(p){showSaveStatus('saving');try{p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function saveTag(t){await dbPut('tags',t);const i=S.tags.findIndex(x=>x.id===t.id);i>=0?S.tags[i]=t:S.tags.push(t)}
 async function deleteProject(id){
@@ -2845,7 +2919,7 @@ function getTasks(){
   else if(S.view==='completed')tasks=tasks.filter(x=>x.status==='completed');
   else if(S.view==='project')tasks=tasks.filter(x=>x.projectId===S.projId&&(S.showCompleted||x.status!=='completed'));
   else if(S.view==='tag')tasks=tasks.filter(x=>S.tagId==='__none__'?(!x.tagIds||x.tagIds.length===0)&&(S.showCompleted||x.status!=='completed'):x.tagIds&&x.tagIds.includes(S.tagId)&&(S.showCompleted||x.status!=='completed'));
-  if(S.search){const q=S.search.toLowerCase();tasks=tasks.filter(x=>x.title.toLowerCase().includes(q)||(x.notes||'').toLowerCase().includes(q))}
+  if(S.search){const terms=searchTerms(S.search);if(terms.length)tasks=tasks.filter(x=>matchesSearch(x.title+' '+(x.notes||''),terms))}
   if(S.hideNotStarted&&S.view!=='inbox'&&S.view!=='completed'){tasks=tasks.filter(x=>!isNotStartedTask(x))} // Inboxは捕捉・整理用の受信箱なので「現在」フィルタを適用しない（開始日が未来のタスクが消えバッジ件数と不一致になる問題の修正）
   if(!S.showShared&&(S.view==='today')){const spids=new Set(S.projects.filter(p=>p.workspaceId).map(p=>p.id));tasks=tasks.filter(x=>!spids.has(x.projectId));}
   if(S.filterTagIds&&S.filterTagIds.length&&S.view!=='tag')tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
@@ -5381,9 +5455,9 @@ function setupSectionDrag(){
 
 // ノート検索時: 検索ボックスを再生成せずリスト部分だけ更新
 function renderNoteListOnly(){
-  const q=S.noteSearch.toLowerCase();
+  const terms=searchTerms(S.noteSearch);
   const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
-  let notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q));
+  let notes=[...S.notes].filter(n=>!terms.length||matchesSearch(n.title+n.body,terms));
   if(S.filterTagIds&&S.filterTagIds.length){
     if(S.filterTagIds.includes('__none__'))notes=notes.filter(n=>!n.tagIds||n.tagIds.length===0);
     else notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
@@ -5391,7 +5465,7 @@ function renderNoteListOnly(){
   notes.sort((a,b)=>b[sortKey].localeCompare(a[sortKey]));
   let h='';
   if(!notes.length){
-    h='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
+    h='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(terms.length?'該当なし':'メモなし')+'</div></div>';
   } else {
     notes.forEach(n=>{h+=renderNoteRow(n);});
   }
@@ -5400,7 +5474,7 @@ function renderNoteListOnly(){
 }
 
 function renderList(){
-  const showSubsInView=['today','flagged','overdue','assigned'].includes(S.view); // assigned追加: 担当サブタスクがバッジには数えられるのにリストに出ず件数不一致になる問題の修正
+  const showSubsInView=['today','flagged','overdue','assigned','forecast-day'].includes(S.view); // forecast-day追加: Forecastの日付タップ時、該当タスクがサブタスクだと一覧が空になる問題の修正
   const tasks=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId);
   if(!tasks.length)return renderEmpty();
   let h='<div class="tlist">';
@@ -5893,13 +5967,55 @@ function attachDashboardEvents(){
   }
 }
 
+// Forecastの「期限切れ」対象を、グリッドと同じフィルタ条件で取得（過去を1箇所に集約するため）
+// 完了・アーカイブは除外。期限が過ぎた順（古い＝より緊急が上）に並べる。
+function getForecastOverdue(){
+  let tasks=S.tasks.filter(t=>t.status!=='archived'&&t.status!=='completed');
+  if(S.hideNotStarted){tasks=tasks.filter(x=>!isNotStartedTask(x));}
+  if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
+  return tasks.filter(t=>isOv(t.dueAt)).sort((a,b)=>a.dueAt<b.dueAt?-1:(a.dueAt>b.dueAt?1:0));
+}
 function renderForecast(){
-  const days=Array.from({length:14},(_,i)=>{const d=new Date(today()+'T00:00:00');d.setDate(d.getDate()+i);return d.toISOString().slice(0,10)});
+  // ローカル日付基準で生成（toISOStringはUTC変換で先頭が「昨日」にずれるため使わない）。先頭を確実に今日に固定する。
+  const days=Array.from({length:14},(_,i)=>{const d=new Date(today()+'T00:00:00');d.setDate(d.getDate()+i);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')});
   let tasks=S.tasks.filter(t=>t.status!=='archived');
   if(!S.showCompleted)tasks=tasks.filter(t=>t.status!=='completed');
   if(S.hideNotStarted){tasks=tasks.filter(x=>!isNotStartedTask(x));}
   if(S.filterTagIds&&S.filterTagIds.length)tasks=tasks.filter(x=>S.filterTagIds.every(id=>x.tagIds&&x.tagIds.includes(id)));
-  let h='<div class="fc-grid">';
+  // ── 期限切れバー（未来グリッドの上に畳んで置く。件数＝痛みの総量は常に見せ、開くと清算モードへ）──
+  const ov=getForecastOverdue();
+  let ovBar='';
+  if(ov.length){
+    const open=!!S.fcOverdueOpen;
+    ovBar='<div class="fc-ov-wrap"><div class="fc-overdue'+(open?' open':'')+'">'
+      +'<button class="fc-ov-head" data-a="tog-fc-overdue">'
+        +'<span class="fc-ov-icon">⚠️</span>'
+        +'<span class="fc-ov-title">期限切れ</span>'
+        +'<span class="fc-ov-badge">'+ov.length+'件</span>'
+        +'<span class="fc-ov-hint">'+(open?'閉じる':'タップで整理')
+          +'<svg class="fc-ov-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>'
+        +'</span>'
+      +'</button>';
+    if(open){
+      const cap=15;
+      ovBar+='<div class="fc-ov-body">';
+      ov.slice(0,cap).forEach(t=>{
+        ovBar+='<div class="fc-ov-item" data-a="sel-edit" data-id="'+t.id+'">'
+          +'<span class="fc-ov-bang">!</span>'
+          +'<span class="fc-ov-ttl">'+esc(t.title||'無題')+'</span>'
+          +'<span class="fc-ov-date">'+fmtDate(t.dueAt)+'</span>'
+        +'</div>';
+      });
+      if(ov.length>cap)ovBar+='<div class="fc-ov-more">他 '+(ov.length-cap)+' 件</div>';
+      ovBar+='<div class="fc-ov-foot">'
+        +'<button class="fc-ov-act primary" data-a="fc-overdue-today">まとめて今日へ（'+ov.length+'）</button>'
+        +'<button class="fc-ov-act ghost" data-a="view" data-v="overdue">Overdueで整理 →</button>'
+      +'</div>';
+      ovBar+='</div>';
+    }
+    ovBar+='</div></div>';
+  }
+  let h=ovBar+'<div class="fc-grid">';
   days.forEach(day=>{
     const d=new Date(day+'T00:00:00');
     const wd=['日','月','火','水','木','金','土'][d.getDay()];
@@ -5996,9 +6112,9 @@ function renderNoteRow(n){
   +'</div>';
 }
 function renderNoteList(){
-  const q=S.noteSearch.toLowerCase();
+  const terms=searchTerms(S.noteSearch);
   const sortKey=S.noteSortUpdated!==false?'updatedAt':'createdAt';
-  let notes=[...S.notes].filter(n=>!q||(n.title+n.body).toLowerCase().includes(q));
+  let notes=[...S.notes].filter(n=>!terms.length||matchesSearch(n.title+n.body,terms));
   if(S.filterTagIds&&S.filterTagIds.length){
     if(S.filterTagIds.includes('__none__'))notes=notes.filter(n=>!n.tagIds||n.tagIds.length===0);
     else notes=notes.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
@@ -6015,7 +6131,7 @@ function renderNoteList(){
       +'<button class="toggle-completed-btn" data-a="note-bulk-cancel" style="margin-left:auto">✕ 終了</button>'
     +'</div>';
   } else {
-    const _isFiltered=!!(q||(S.filterTagIds&&S.filterTagIds.length));
+    const _isFiltered=!!(terms.length||(S.filterTagIds&&S.filterTagIds.length));
     const _countLabel=_isFiltered?(notes.length+'件 / 全'+S.notes.length+'件'):(S.notes.length+'件');
     h+='<div style="padding:10px 0 6px;display:flex;flex-direction:column;gap:4px">'
       +'<div style="display:flex;gap:6px;align-items:center">'
@@ -6033,7 +6149,7 @@ function renderNoteList(){
   }
   h+='<div id="note-list-items">';
   if(!notes.length){
-    h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(q?'該当なし':'メモなし')+'</div></div>';
+    h+='<div class="empty"><div class="empty-ico">📝</div><div class="empty-t">'+(terms.length?'該当なし':'メモなし')+'</div></div>';
   } else {
     notes.forEach(n=>{h+=renderNoteRow(n);});
   }
@@ -6182,6 +6298,13 @@ function renderNoteDrawer(){
   makeResizable(bodyEl);
   bodyEl._stampFocused=false;
   bodyEl.addEventListener('focus',()=>{bodyEl._stampFocused=true;});
+
+  // シークレットメモ（E2EE）：ノートにもタスクと同じ本人専用セクションを差し込み、
+  // 平文メモ入力中のパスワード検知も行う。鍵素材はuser_id単位でタスクと共有。
+  if(window.SecretMemo){
+    try{window.SecretMemo.mountNoteSection(note);}catch(_e){console.error('SecretMemo mount(note)',_e);}
+    if(bodyEl){bodyEl.addEventListener('input',()=>{try{window.SecretMemo.onNotesInput(bodyEl);}catch(_e2){}});}
+  }
   const ntLinkBtn=document.getElementById('nt-link-btn');
   if(ntLinkBtn)ntLinkBtn.addEventListener('click',e=>{e.stopPropagation();showLinkPopover(ntLinkBtn,'nt-body',!bodyEl._stampFocused);});
   // プレビュー切替
@@ -6330,13 +6453,13 @@ function renderSearchFilterBar(){
 }
 function renderSearchResults(q){
   const tagActive=!!(S.filterTagIds&&S.filterTagIds.length);
-  if(!q){
+  if(!q||!q.trim()){
     if(tagActive)return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div><div class="empty-d">タグフィルタが適用された状態で検索されます</div></div>';
     return'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">キーワードを入力</div></div>';
   }
-  const ql=q.toLowerCase();
-  const matchTask=t=>t.status!=='archived'&&(S.showCompleted||t.status!=='completed')&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql));
-  const matchNote=n=>(n.title+n.body).toLowerCase().includes(ql);
+  const terms=searchTerms(q);
+  const matchTask=t=>t.status!=='archived'&&(S.showCompleted||t.status!=='completed')&&matchesSearch(t.title+' '+(t.notes||''),terms);
+  const matchNote=n=>matchesSearch(n.title+' '+n.body,terms);
   const tasksAll=S.tasks.filter(matchTask);
   const notesAll=S.notes.filter(matchNote);
   let tasks=tasksAll,notes=notesAll;
@@ -6735,18 +6858,27 @@ function renderDrawer(){
     clearTimeout(autosave._t);
     autosave._t=setTimeout(async()=>{
       const t2=S.tasks.find(x=>x.id===S.taskId);if(!t2)return;
+      // 【重要】400msのデバウンス待ちの間にドロワーが閉じる・別タスク/ノートに切り替わる・
+      // render()でDOMが作り直されると、入力欄が取得できなくなる。
+      // 以前はその場合でも ?.value||'' / ||null が無条件に代入され、タイトル・メモ・期限・
+      // 開始日・プロジェクト・繰り返しルールが一斉に空で保存される全損事故が起きていた
+      // （2026-08-01に繰り返しタスクが1件全損。詳細はHANDOVER.md参照）。
+      // ドロワーが対象タスクを表示中でなければ保存自体を行わない
+      const drEl=document.getElementById('drawer');
+      if(!drEl||drEl._taskId!==t2.id||!document.getElementById('dt-title')){setInd('');return;}
       const prevStatus=t2.status;
       const prevProjectId=t2.projectId;
-      t2.title=document.getElementById('dt-title')?.value||'';
-      t2.notes=document.getElementById('dt-notes')?.value||'';
-      t2.dueAt=document.getElementById('dt-due')?.value||null;
-      t2.startAt=document.getElementById('dt-start')?.value||null;
-      t2.plannedStartAt=document.getElementById('dt-planned-start')?.value||null;
-      t2.startTime=document.getElementById('dt-start-time')?.value||null;
-      t2.projectId=document.getElementById('dt-proj')?.value||null;
+      // 各入力欄は「存在する場合のみ」反映する（拡大モーダル側のsaveと同じガード方針に統一）
+      const _elTitle=document.getElementById('dt-title');if(_elTitle)t2.title=_elTitle.value;
+      const _elNotes=document.getElementById('dt-notes');if(_elNotes)t2.notes=_elNotes.value;
+      const _elDue=document.getElementById('dt-due');if(_elDue)t2.dueAt=_elDue.value||null;
+      const _elStart=document.getElementById('dt-start');if(_elStart)t2.startAt=_elStart.value||null;
+      const _elPlanned=document.getElementById('dt-planned-start');if(_elPlanned)t2.plannedStartAt=_elPlanned.value||null;
+      const _elStartTime=document.getElementById('dt-start-time');if(_elStartTime)t2.startTime=_elStartTime.value||null;
+      const _elProj=document.getElementById('dt-proj');if(_elProj)t2.projectId=_elProj.value||null;
       if(t2.projectId)addRecentProject(t2.projectId);
-      t2.assigneeId=document.getElementById('dt-assignee')?.value||null;
-      t2.repeatRule=getRepeatRule();
+      const _elAssignee=document.getElementById('dt-assignee');if(_elAssignee)t2.assigneeId=_elAssignee.value||null;
+      if(document.getElementById('dt-repeat'))t2.repeatRule=getRepeatRule();
       if(t2.projectId&&t2.status==='inbox')t2.status='active';
 
       // Inboxからプロジェクトに初めて割り当てられた場合、sort_orderをプロジェクト最上部に設定
@@ -6776,6 +6908,13 @@ function renderDrawer(){
   const _dtNotesTA=document.getElementById('dt-notes');
   makeResizable(_dtNotesTA);
   if(_dtNotesTA){_dtNotesTA._stampFocused=false;_dtNotesTA.addEventListener('focus',()=>{_dtNotesTA._stampFocused=true;});}
+
+  // シークレットメモ（E2EE）：メモセクション直後に本人専用セクションを差し込み、
+  // 平文メモ入力中のパスワードらしきパターンを検知して移動提案する（ローカル完結・サーバー送信なし）。
+  if(window.SecretMemo){
+    try{window.SecretMemo.mountTaskSection(task);}catch(_e){console.error('SecretMemo mount',_e);}
+    if(_dtNotesTA){_dtNotesTA.addEventListener('input',()=>{try{window.SecretMemo.onNotesInput(_dtNotesTA);}catch(_e2){}});}
+  }
   const dtLinkBtnEl=document.getElementById('dt-link-btn');
   if(dtLinkBtnEl)dtLinkBtnEl.addEventListener('click',e=>{
     e.stopPropagation();
@@ -7559,19 +7698,20 @@ async function handleBulkEdit(field){
       +'</div>'
       // 開始時間
       +'<div class="fg"><label class="flabel">開始時間</label>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:3px;margin-bottom:3px">'
-          +'<button class="date-adj-btn" id="bulk-stime-900">9:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-1200">12:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-1500">15:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-1800">18:00</button>'
-          +'<button class="date-adj-btn" id="bulk-stime-m00">分00</button>'
-        +'</div>'
-        +'<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">'
+        +'<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap;margin-bottom:3px">'
           +'<input type="time" id="bulk-stime-inp" class="finput" style="font-size:14px;min-height:34px;width:110px;flex-shrink:0">'
           +'<button class="date-clr-btn" id="bulk-stime-clr" title="クリア">✕</button>'
           +'<button class="date-adj-btn" id="bulk-stime-m10">+10m</button>'
           +'<button class="date-adj-btn" id="bulk-stime-h1">+1h</button>'
           +'<button class="date-adj-btn" id="bulk-stime-h3">+3h</button>'
+        +'</div>'
+        +'<div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap">'
+          +'<button class="date-adj-btn" id="bulk-stime-m1">+1m</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-m00">分00</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-900">9:00</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-1200">12:00</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-1500">15:00</button>'
+          +'<button class="date-adj-btn" id="bulk-stime-1800">18:00</button>'
         +'</div>'
       +'</div>'
       // 期限
@@ -7650,15 +7790,19 @@ async function handleBulkEdit(field){
     }
     ov.querySelector('#bulk-stime-h1').onclick=()=>adjBulkTime(1);
     ov.querySelector('#bulk-stime-h3').onclick=()=>adjBulkTime(3);
-    ov.querySelector('#bulk-stime-m10').onclick=()=>{
+    // 分加算ヘルパー（空欄なら現在時刻を基準にする）
+    function adjBulkMin(min){
       const cur=stimeInp.value;
       let hh=0,mm=0;
       if(cur){const[a,b]=cur.split(':');hh=parseInt(a);mm=parseInt(b);}
       else{const n=new Date();hh=n.getHours();mm=n.getMinutes();}
-      mm+=10;if(mm>=60){hh=(hh+1)%24;mm-=60;}
+      mm+=min;
+      while(mm>=60){hh=(hh+1)%24;mm-=60;}
       stimeInp.value=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
       stimeCleared=false;
-    };
+    }
+    ov.querySelector('#bulk-stime-m1').onclick=()=>adjBulkMin(1);
+    ov.querySelector('#bulk-stime-m10').onclick=()=>adjBulkMin(10);
     ov.querySelector('#bulk-stime-m00').onclick=()=>{
       if(stimeInp.value){const[h]=stimeInp.value.split(':');stimeInp.value=h+':00';}
       else{const n=new Date();stimeInp.value=String(n.getHours()).padStart(2,'0')+':00';}
@@ -7996,6 +8140,19 @@ document.addEventListener('click',async e=>{
   if(a==='open-folder-path'){if(_touchMoved)return;e.stopPropagation();openFolderPathAction(el.dataset.path||'');}
   else if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob){playSE('toggle');_tappingView=el.dataset.v;if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{_tappingView=null;S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
   else if(a==='forecast-day'){if(_touchMoved)return;S.view='forecast-day';S.forecastDate=el.dataset.date;S.projId=null;S.tagId=null;render();}
+  else if(a==='tog-fc-overdue'){if(_touchMoved)return;S.fcOverdueOpen=!S.fcOverdueOpen;render();}
+  else if(a==='fc-overdue-today'){
+    if(_touchMoved)return;
+    const ov=getForecastOverdue();
+    if(!ov.length)return;
+    if(!confirm('期限切れの '+ov.length+' 件の期限を、すべて今日（'+today()+'）に変更します。よろしいですか？'))return;
+    (async()=>{
+      showSaveStatus('saving');
+      try{for(const t of ov){await saveTask({...t,dueAt:today()});}toast(ov.length+'件を今日に移動しました');}
+      catch(_e){toast('移動中にエラーが発生しました');}
+      render();
+    })();
+  }
   else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
@@ -8467,6 +8624,8 @@ else if(a==='scroll-to-comments'){
         async()=>{
           const t=mkTask({title:note.title||'無題',notes:note.body||'',tagIds:[...(note.tagIds||[])],createdAt:note.createdAt,updatedAt:now()});
           await saveTask(t);
+          // シークレットメモ（暗号文）をノート→タスクへ移行（同一マスター鍵のため復号不要）
+          if(window.SecretMemo){try{await window.SecretMemo.moveSecret('note',note.id,'task',t.id);}catch(_e){console.error('SecretMemo move',_e);}}
           await delNote(note.id);
           S.noteOpen=false;S.noteId=null;
           S.taskId=t.id;S.drawerOpen=true;
@@ -8887,6 +9046,8 @@ else if(a==='scroll-to-comments'){
         async()=>{
           const n=mkNote({title:task.title||'無題',body:task.notes||'',tagIds:[...(task.tagIds||[])],createdAt:task.createdAt,updatedAt:now()});
           await saveNote(n);
+          // シークレットメモ（暗号文）をタスク→ノートへ移行（同一マスター鍵のため復号不要）
+          if(window.SecretMemo){try{await window.SecretMemo.moveSecret('task',task.id,'note',n.id);}catch(_e){console.error('SecretMemo move',_e);}}
           await delTask(task.id);
           S.drawerOpen=false;S.taskId=null;
           S.noteId=n.id;S.noteOpen=true;
@@ -9101,14 +9262,17 @@ else if(a==='scroll-to-comments'){
     if(S.view==='nextview'){
       S.selectedIds=getNextViewRows().map(r=>r.task.id);
     }else if(S.view==='search'){
-      const ql=(S.search||'').toLowerCase();
-      if(ql){
-        S.selectedIds=S.tasks.filter(t=>t.status!=='archived'&&!t.parentTaskId&&(t.title.toLowerCase().includes(ql)||(t.notes||'').toLowerCase().includes(ql))).map(t=>t.id);
+      const terms=searchTerms(S.search);
+      if(terms.length){
+        S.selectedIds=S.tasks.filter(t=>t.status!=='archived'&&!t.parentTaskId&&matchesSearch(t.title+' '+(t.notes||''),terms)).map(t=>t.id);
       }else{
         S.selectedIds=[];
       }
     }else{
-      S.selectedIds=getTasks().filter(t=>!t.parentTaskId).map(t=>t.id);
+      // renderList()の表示条件と揃える（サブタスクも一覧表示されるビューでは全選択にも含める。
+      // 従来は常にサブタスク除外だったため、Overdue等で表示中タスクがサブタスクばかりだと0件選択になり「機能しない」ように見えていた）
+      const showSubsInView=['today','flagged','overdue','assigned','forecast-day'].includes(S.view);
+      S.selectedIds=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId).map(t=>t.id);
     }
     renderTaskFilters();renderContent();
   }
@@ -9225,8 +9389,8 @@ else if(a==='scroll-to-comments'){
   else if(a==='note-tog-select-mode'){S.noteSelectMode=true;S.selectedNoteIds=[];renderContent();}
   else if(a==='note-bulk-cancel'){S.noteSelectMode=false;S.selectedNoteIds=[];renderContent();}
   else if(a==='note-bulk-sel-all'){
-    const _q=S.noteSearch.toLowerCase();
-    let _ns=[...S.notes].filter(n=>!_q||(n.title+n.body).toLowerCase().includes(_q));
+    const _terms=searchTerms(S.noteSearch);
+    let _ns=[...S.notes].filter(n=>!_terms.length||matchesSearch(n.title+n.body,_terms));
     if(S.filterTagIds&&S.filterTagIds.length)_ns=_ns.filter(n=>S.filterTagIds.every(id=>n.tagIds&&n.tagIds.includes(id)));
     S.selectedNoteIds=_ns.map(n=>n.id);renderContent();
   }
@@ -12224,6 +12388,10 @@ setupSB();
 })();
 </script>
 
-  
+<!-- シークレットメモ（E2EE フェーズ1）。純関数の暗号ユーティリティを別モジュールに分離。
+     secret_note は検索・AI・LINE通知の対象外。詳細は src/secret-memo.js / src/lib/crypto.js 参照。 -->
+<script type="module" src="src/secret-memo.js"></script>
+
+
 </body>
 </html>
