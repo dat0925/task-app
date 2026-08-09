@@ -1338,6 +1338,7 @@ let S={
   _commentCache:{},
   _noteCommentCache:{},
   commentCounts:{},   // {taskId: コメント件数}（一覧の💬バッジ表示用）
+  _attCache:{},       // {parentId: [attachment行]}（タスク/ノート添付のセッション内キャッシュ）
 };
 
 // ===== PLAN SYSTEM =====
@@ -2873,7 +2874,7 @@ async function saveNote(n){
   if((n.title||'').length>CHAR_LIMITS.noteTitle){toast('ノートタイトルは'+CHAR_LIMITS.noteTitle+'文字以内で入力してください');throw new Error('char_limit');}
   if((n.body||'').length>CHAR_LIMITS.noteBody){toast('ノート本文は'+CHAR_LIMITS.noteBody+'文字以内で入力してください');throw new Error('char_limit');}
   showSaveStatus('saving');try{window._lastSelfSave = Date.now();n.updatedAt=now();await dbPut('notes',n);const i=S.notes.findIndex(x=>x.id===n.id);i>=0?S.notes[i]=n:S.notes.push(n);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
-async function delNote(id){await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id);if(window.SecretMemo){try{window.SecretMemo.onEntityDeleted('note',id);}catch(_e){}}}
+async function delNote(id){await _attPurgeForParent('note',id);await dbDel('notes',id);S.notes=S.notes.filter(n=>n.id!==id);if(window.SecretMemo){try{window.SecretMemo.onEntityDeleted('note',id);}catch(_e){}}}
 function mkNote(o={}){return{id:uid(),title:'',body:'',tagIds:[],createdAt:now(),updatedAt:now(),...o}}
 // プロジェクト内の最上部sort_orderを返す
 function topOrderInProject(projId){
@@ -2885,7 +2886,7 @@ async function saveTask(t){
   if((t.title||'').length>CHAR_LIMITS.taskTitle){toast('タスクタイトルは'+CHAR_LIMITS.taskTitle+'文字以内で入力してください');throw new Error('char_limit');}
   if((t.notes||'').length>CHAR_LIMITS.taskNotes){toast('タスクメモは'+CHAR_LIMITS.taskNotes+'文字以内で入力してください');throw new Error('char_limit');}
   showSaveStatus('saving');try{window._lastSelfSave = Date.now(); t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
-async function delTask(id){const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id);await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);if(window.SecretMemo){try{window.SecretMemo.onEntityDeleted('task',id);}catch(_e){}}}
+async function delTask(id){const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id);await _attPurgeForParent('task',id);await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);if(window.SecretMemo){try{window.SecretMemo.onEntityDeleted('task',id);}catch(_e){}}}
 async function saveProject(p){showSaveStatus('saving');try{p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
 async function saveTag(t){await dbPut('tags',t);const i=S.tags.findIndex(x=>x.id===t.id);i>=0?S.tags[i]=t:S.tags.push(t)}
 async function deleteProject(id){
@@ -6213,6 +6214,7 @@ function renderNoteDrawer(){
       +(S.tags.length?'<div><div class="dt-label">タグ</div><div class="tag-wrap">'
         +S.tags.map(t=>'<span class="topt'+(note.tagIds&&note.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-note="'+note.id+'" data-tag="'+t.id+'" style="'+(note.tagIds&&note.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
         +'</div></div>':'')
+      +_attSectionHTML('note',note.id)
       +'<div class="cm-section" id="ncm-section" data-note-id="'+note.id+'">'
         +'<div class="cm-section-head">'
           +'<span class="cm-section-label">コメント</span>'
@@ -6376,6 +6378,8 @@ function renderNoteDrawer(){
   renderNtPreview();
   // コメントセクションを非同期ロード
   initNoteComments(note.id);
+  // 添付セクションを非同期ロード
+  initAttachments('note',note.id);
 }
 
 function getNextViewRows(){
@@ -6754,7 +6758,7 @@ function renderDrawer(){
         +'</div>';
       })()
       +'</div>'    +'</div>'      +'<div class="dt-schedule-block" id="memo-section" style="margin-bottom:10px">'      +'<div class="dt-section-head'+(task.notes?'':' closed')+'" data-a="dt-memo-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>'          +' メモ'          +(task.notes?'<span id="memo-preview-badge" style="font-size:10px;color:var(--accent);background:var(--accent-bg,var(--bg2));border-radius:4px;padding:1px 6px;font-weight:600">あり</span>':'')        +'</span>'        +'<span class="dt-section-chev'+(task.notes?'':' closed')+'" id="dt-memo-chev">▼</span>'      +'</div>'      +'<div id="memo-collapse" class="dt-section-body"'+(task.notes?'':' style="display:none"')+'>'        +'<div id="memo-toolbar" style="display:flex;align-items:center;gap:6px;padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:8px;flex-wrap:nowrap">'+'<button class="note-copy-btn" id="dt-link-btn" title="リンク挿入">リンク</button>'          +'<button class="note-copy-btn" data-a="stamp" data-type="datetimeweek" title="日時スタンプ">日時</button>'          +'<button class="note-copy-btn" data-a="copy-task-notes" title="メモ内容をコピー">コピー</button>'          +'<button class="note-copy-btn" id="dt-preview-btn">編集</button>'        +'</div>'        +'<textarea class="finput ftextarea" id="dt-notes" rows="12" style="resize:vertical;font-size:14px;line-height:1.7;display:none" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'        +'<div id="dt-preview-area" style="font-size:14px;color:var(--text);line-height:1.8;word-break:break-word;max-height:320px;overflow:hidden;position:relative"></div>'        +'<button id="memo-expand-btn" style="display:none;width:100%;margin-top:4px;font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">▼ もっと見る</button>'        +'<button id="memo-collapse-btn" style="display:none;width:100%;margin-top:2px;font-size:12px;color:var(--text3);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">▲ 閉じる</button>'      +'</div>'    +'</div>'      +(!task.parentTaskId?'<div class="dt-schedule-block" style="margin-bottom:10px">'      +'<div class="dt-section-head" data-a="dt-subs-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'          +' サブタスク'          +(subs.length?'<span style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">'+subs.length+'件</span>':'')        +'</span>'        +'<span class="dt-section-chev" id="dt-subs-chev">▼</span>'      +'</div>'      +'<div id="dt-subs-body" class="dt-section-body">'        +'<div id="subs">'+(()=>{const actSubs=subs.sort((a,b)=>a.order-b.order).filter(s=>s.status!=='completed');const doneSubs=subs.filter(s=>s.status==='completed');const rs=s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">' +esc(s.title)+'</button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>';let h=actSubs.map(rs).join('');if(doneSubs.length){h+='<button class="cm-show-all-btn" id="subs-done-toggle" style="margin-top:4px">✓ 完了済み '+doneSubs.length+'件を表示</button>';h+='<div id="subs-done-list" style="display:none">'+doneSubs.map(rs).join('')+'</div>';}return h;})()+'</div>'        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;margin-bottom:4px"><button class="note-stamp-btn" id="sub-parent-btn" title="親タスクのタイトルを入力欄に挿入">📌 親タスクのタイトル</button></div>'        +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…">'      +'</div>'    +'</div>':'')
-      +'<div class="dt-schedule-block" id="cm-section" data-task-id="'+task.id+'" style="margin-bottom:10px">'      +'<div class="dt-section-head" data-a="dt-cm-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'          +' コメント'          +'<span class="cm-count" id="cm-count" style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">…</span>'        +'</span>'        +'<span class="dt-section-chev" id="dt-cm-chev">▼</span>'      +'</div>'      +'<div id="dt-cm-body" class="dt-section-body">'        +'<div class="cm-list" id="cm-list"><div class="cm-loading">読み込み中…</div></div>'        +'<div style="display:flex;gap:4px;margin-bottom:5px">'          +'<button class="note-copy-btn" id="cm-link-btn">リンク</button>'          +'<button class="note-copy-btn" data-a="cm-stamp" data-type="datetimeweek">日時</button>'        +'</div>'        +'<div id="cm-mention-bar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>'        +'<div class="cm-input-row">'          +'<textarea class="cm-textarea" id="cm-input" placeholder="コメントを追加… (Cmd+Enterで送信)" rows="1"></textarea>'          +'<button class="cm-send-btn" id="cm-send" disabled>送信</button>'        +'</div>'      +'</div>'    +'</div>'    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'      +'<div class="muted xs" style="line-height:2">'
+      +_attSectionHTML('task',task.id)      +'<div class="dt-schedule-block" id="cm-section" data-task-id="'+task.id+'" style="margin-bottom:10px">'      +'<div class="dt-section-head" data-a="dt-cm-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'          +' コメント'          +'<span class="cm-count" id="cm-count" style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">…</span>'        +'</span>'        +'<span class="dt-section-chev" id="dt-cm-chev">▼</span>'      +'</div>'      +'<div id="dt-cm-body" class="dt-section-body">'        +'<div class="cm-list" id="cm-list"><div class="cm-loading">読み込み中…</div></div>'        +'<div style="display:flex;gap:4px;margin-bottom:5px">'          +'<button class="note-copy-btn" id="cm-link-btn">リンク</button>'          +'<button class="note-copy-btn" data-a="cm-stamp" data-type="datetimeweek">日時</button>'        +'</div>'        +'<div id="cm-mention-bar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>'        +'<div class="cm-input-row">'          +'<textarea class="cm-textarea" id="cm-input" placeholder="コメントを追加… (Cmd+Enterで送信)" rows="1"></textarea>'          +'<button class="cm-send-btn" id="cm-send" disabled>送信</button>'        +'</div>'      +'</div>'    +'</div>'    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'      +'<div class="muted xs" style="line-height:2">'
           +'<div>作成: '+new Date(task.createdAt).toLocaleString('ja-JP')+' </div>'
           +'<div>更新: '+new Date(task.updatedAt).toLocaleString('ja-JP')+' </div>'
         +'</div>'
@@ -7129,6 +7133,8 @@ function renderDrawer(){
   }
   // コメントセクションを非同期ロード（パフォーマンス: メインのloadAllには含めない）
   initComments(task.id);
+  // 添付セクションを非同期ロード
+  initAttachments('task',task.id);
 }
 
 // ===== COMMENTS =====
@@ -7232,6 +7238,155 @@ function _cmRenderList(comments){
       _cmRenderList(comments);
     });
   }
+}
+
+// ===== 添付ファイル (attachments) =====
+// 保存先: Supabase Storage の private バケット 'attachments'
+//   パス命名: {user_id}/{attachment_id}/{filename}
+//   タスク添付は共有プロジェクト配下なら他メンバーも閲覧可（RLSで制御）。
+//   ノート添付は個人のみ。表示は毎回 createSignedUrl(有効期限付き)。
+const _attUrlCache=new Map(); // storage_path -> {url, exp}
+const ATT_ACCEPT='image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip';
+const ATT_MIME_BY_EXT={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',heic:'image/heic',heif:'image/heif',pdf:'application/pdf',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xls:'application/vnd.ms-excel',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',ppt:'application/vnd.ms-powerpoint',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',txt:'text/plain',csv:'text/csv',zip:'application/zip'};
+
+// file.type が空でも拡張子からMIMEを補完（バケットのMIME制限で弾かれないように）
+function _attResolveMime(file){
+  if(file.type)return file.type;
+  const ext=(file.name||'').split('.').pop().toLowerCase();
+  return ATT_MIME_BY_EXT[ext]||'application/octet-stream';
+}
+// プラン別の単体ファイルサイズ上限（クライアント一次防御。実効防御はバケット側 file_size_limit）
+function _attSizeLimit(){return getUserPlan()==='free'?10*1024*1024:25*1024*1024;}
+function _attFmtSize(n){n=Number(n)||0;if(n<1024)return n+'B';if(n<1048576)return Math.round(n/1024)+'KB';return (n/1048576).toFixed(1)+'MB';}
+
+// 添付セクションのHTML（タスク詳細/ノート詳細で共通利用）
+function _attSectionHTML(scope,parentId){
+  return '<div class="dt-schedule-block" id="att-section" data-att-scope="'+scope+'" data-att-parent="'+esc(parentId)+'" style="margin-bottom:10px">'
+    +'<div class="dt-section-head" data-a="dt-att-toggle">'
+      +'<span class="dt-section-label">'
+        +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>'
+        +' 添付'
+        +'<span class="cm-count" id="att-count" style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">…</span>'
+      +'</span>'
+      +'<span class="dt-section-chev" id="att-chev">▼</span>'
+    +'</div>'
+    +'<div id="att-body" class="dt-section-body">'
+      +'<div id="att-dropzone" data-a="att-pick" ondragover="_attDragOver(event)" ondragleave="_attDragLeave(event)" ondrop="_attDrop(event)" style="border:1.5px dashed var(--border);border-radius:10px;padding:14px;text-align:center;font-size:12.5px;color:var(--text3);cursor:pointer">'
+        +'📎 ここにドラッグ＆ドロップ / タップして選択'
+        +'<input type="file" id="att-file-input" multiple accept="'+ATT_ACCEPT+'" onchange="_attOnPick(this)" style="display:none">'
+      +'</div>'
+      +'<div id="att-list" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"><div class="cm-loading">読み込み中…</div></div>'
+    +'</div>'
+  +'</div>';
+}
+
+// インラインハンドラ（拡大モーダルへ innerHTML コピーされても動くよう window に公開）
+window._attOnPick=function(input){
+  const sec=input.closest('#att-section');if(!sec)return;
+  const scope=sec.dataset.attScope,parent=sec.dataset.attParent;
+  [...input.files].forEach(f=>_attUpload(scope,parent,f));
+  input.value='';
+};
+window._attDragOver=function(e){e.preventDefault();e.currentTarget.style.background='var(--bg2)';};
+window._attDragLeave=function(e){e.currentTarget.style.background='';};
+window._attDrop=function(e){
+  e.preventDefault();const zone=e.currentTarget;zone.style.background='';
+  const sec=zone.closest('#att-section');if(!sec)return;
+  const scope=sec.dataset.attScope,parent=sec.dataset.attParent;
+  [...(e.dataTransfer?.files||[])].forEach(f=>_attUpload(scope,parent,f));
+};
+
+// 署名付きURL（メモリキャッシュ。期限30秒前で再発行）
+async function attSignedUrl(path){
+  const c=_attUrlCache.get(path);
+  if(c&&c.exp>Date.now()+30000)return c.url;
+  const{data,error}=await window._SB.storage.from('attachments').createSignedUrl(path,3600);
+  if(error){console.error('att signedUrl',error);return '';}
+  _attUrlCache.set(path,{url:data.signedUrl,exp:Date.now()+3600*1000});
+  return data.signedUrl;
+}
+
+async function _attRenderList(scope,parentId,rows){
+  const list=document.getElementById('att-list');if(!list)return;
+  const cnt=document.getElementById('att-count');if(cnt)cnt.textContent=rows.length||'0';
+  if(!rows.length){list.innerHTML='<div class="muted xs" style="font-size:12px;color:var(--text3);padding:4px 0">添付なし</div>';return;}
+  const parts=await Promise.all(rows.map(async a=>{
+    const url=await attSignedUrl(a.storage_path);
+    const inner=a.kind==='image'
+      ?'<img src="'+url+'" loading="lazy" style="max-width:120px;max-height:120px;border-radius:8px;object-fit:cover;display:block">'
+      :'<span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text)">📄 '+esc(a.file_name)+'</span>';
+    return '<div class="att-chip" style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px">'
+      +'<a href="'+url+'" target="_blank" rel="noopener" title="'+esc(a.file_name)+'" style="flex:1;min-width:0;overflow:hidden;text-decoration:none">'+inner+'</a>'
+      +'<span style="font-size:10px;color:var(--text3);flex-shrink:0">'+_attFmtSize(a.size_bytes)+'</span>'
+      +'<button class="icon-btn" data-a="att-del" data-id="'+esc(a.id)+'" data-path="'+esc(a.storage_path)+'" data-scope="'+scope+'" data-parent="'+esc(parentId)+'" title="削除" style="width:24px;height:24px;color:var(--text3);flex-shrink:0">'+ICONS.x+'</button>'
+    +'</div>';
+  }));
+  list.innerHTML=parts.join('');
+}
+
+// ドロワー描画後に呼ぶ：キャッシュ即描画→Supabaseから取得（共有分はRLS経由で返る）
+async function initAttachments(scope,parentId){
+  if(S._attCache[parentId])_attRenderList(scope,parentId,S._attCache[parentId]);
+  const SB=window._SB;
+  if(!SB||!window._currentUser){
+    if(!S._attCache[parentId]){const l=document.getElementById('att-list');if(l)l.innerHTML='<div class="muted xs">添付なし</div>';}
+    return;
+  }
+  const col=scope==='task'?'task_id':'note_id';
+  const{data,error}=await SB.from('attachments').select('*').eq(col,parentId).order('created_at',{ascending:true});
+  if(error){console.error('att load',error);const l=document.getElementById('att-list');if(l)l.innerHTML='<div class="muted xs">読み込みに失敗しました</div>';return;}
+  const rows=data||[];
+  S._attCache[parentId]=rows;
+  const stillOpen=scope==='task'?(S.taskId===parentId&&S.drawerOpen):(S.noteId===parentId&&S.noteOpen);
+  if(stillOpen)_attRenderList(scope,parentId,rows);
+}
+
+// アップロード本体：Storage直アップロード→attachments行挿入（失敗時はロールバック）
+async function _attUpload(scope,parentId,file){
+  const SB=window._SB,user=window._currentUser;
+  if(!SB||!user){toast('ログインが必要です');return;}
+  if(!scope||!parentId||!file)return;
+  const LIMIT=_attSizeLimit();
+  if(file.size>LIMIT){toast('ファイルは'+Math.floor(LIMIT/1048576)+'MBまでです');return;}
+  const id=uid();
+  const safe=(file.name||'file').replace(/[^\w.\-]+/g,'_').slice(-100)||'file';
+  const path=user.id+'/'+id+'/'+safe;
+  const mime=_attResolveMime(file);
+  const kind=mime.startsWith('image/')?'image':'file';
+  // 「アップロード中」プレースホルダ
+  const list=document.getElementById('att-list');
+  let ph=null;
+  if(list){
+    const m=list.querySelector('.muted');if(m)list.innerHTML='';
+    ph=document.createElement('div');
+    ph.style.cssText='display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;opacity:.6;font-size:12px;color:var(--text3)';
+    ph.textContent='⏳ '+(file.name||'file')+' をアップロード中…';
+    list.appendChild(ph);
+  }
+  const{error:upErr}=await SB.storage.from('attachments').upload(path,file,{contentType:mime,upsert:false});
+  if(upErr){ph?.remove();console.error('att upload',upErr);toast('アップロード失敗: '+(upErr.message||''));return;}
+  const row={id,user_id:user.id,file_name:file.name||'file',mime_type:mime,size_bytes:file.size,storage_path:path,kind,created_at:new Date().toISOString()};
+  row[scope==='task'?'task_id':'note_id']=parentId;
+  const{error:insErr}=await SB.from('attachments').insert(row);
+  if(insErr){ph?.remove();console.error('att insert',insErr);toast('保存失敗: '+(insErr.message||''));await SB.storage.from('attachments').remove([path]);return;}
+  S._attCache[parentId]=[...(S._attCache[parentId]||[]),row];
+  _attRenderList(scope,parentId,S._attCache[parentId]);
+  toast('添付しました');
+}
+
+// タスク/ノート本体削除時に添付の実体(Storage)も掃除する（FK CASCADEは行のみ消し実体は残るため）
+async function _attPurgeForParent(scope,parentId){
+  const SB=window._SB;
+  if(SB&&parentId){
+    try{
+      const col=scope==='task'?'task_id':'note_id';
+      const{data}=await SB.from('attachments').select('storage_path').eq(col,parentId);
+      const paths=(data||[]).map(r=>r.storage_path).filter(Boolean);
+      if(paths.length)await SB.storage.from('attachments').remove(paths);
+      paths.forEach(p=>_attUrlCache.delete(p));
+    }catch(e){console.error('att purge',e);}
+  }
+  delete S._attCache[parentId];
 }
 
 async function initComments(taskId){
@@ -8726,6 +8881,33 @@ else if(a==='scroll-to-comments'){
     const chev=(ctx&&ctx.querySelector('#dt-cm-chev'))||document.getElementById('dt-cm-chev');
     const head=el.closest('.dt-section-head')||el;
     if(body){const open=body.style.display==='none';body.style.display=open?'':'none';chev?.classList.toggle('closed',!open);head.classList.toggle('closed',!open);}
+  }
+  else if(a==='dt-att-toggle'){
+    if(_touchMoved)return;
+    if(window._drawerScrolledRecently&&window._drawerScrolledRecently())return; // 慣性スクロール止めタップ対策
+    const ctx=el.closest('.expand-modal,#drawer');
+    const body=(ctx&&ctx.querySelector('#att-body'))||document.getElementById('att-body');
+    const chev=(ctx&&ctx.querySelector('#att-chev'))||document.getElementById('att-chev');
+    const head=el.closest('.dt-section-head')||el;
+    if(body){const open=body.style.display==='none';body.style.display=open?'':'none';chev?.classList.toggle('closed',!open);head.classList.toggle('closed',!open);}
+  }
+  else if(a==='att-pick'){
+    if(_touchMoved)return;
+    if(window._drawerScrolledRecently&&window._drawerScrolledRecently())return; // 慣性スクロール止めタップ対策
+    const inp=el.querySelector('#att-file-input')||el.closest('#att-section')?.querySelector('#att-file-input');
+    inp?.click();
+  }
+  else if(a==='att-del'){
+    if(!confirm('この添付を削除しますか？'))return;
+    const id=el.dataset.id,path=el.dataset.path,scope=el.dataset.scope,parent=el.dataset.parent;
+    const SB=window._SB;if(!SB)return;
+    const{error}=await SB.from('attachments').delete().eq('id',id);
+    if(error){console.error('att del',error);toast('削除に失敗しました');return;}
+    await SB.storage.from('attachments').remove([path]);
+    _attUrlCache.delete(path);
+    S._attCache[parent]=(S._attCache[parent]||[]).filter(x=>x.id!==id);
+    _attRenderList(scope,parent,S._attCache[parent]);
+    toast('削除しました');
   }
   else if(a==='dt-sched-toggle'){
     if(_touchMoved)return;

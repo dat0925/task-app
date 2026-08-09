@@ -4,6 +4,57 @@
 
 ---
 
+## 画像・ファイル添付機能（タスク詳細 / ノート）（2026-08-09）
+
+### 背景・方針決定
+「タスク詳細とノートに画像・ファイルを添付したい。ただしTaskra側に保存せずユーザーのGoogleアカウント（Drive）に保存したい（自社負担を減らす目的）」という要望から出発。
+プロダクトデザイナー観点で前提を検証した結果、**Google Drive保存は不採用**とした（理由：現ログインは `email/profile` スコープのみで Drive書込には追加OAuth同意＋provider tokenのサーバー保持基盤が新規に必要／共有ワークスペースで他メンバーにファイルが見えず破綻／Drive側削除でリンクが即壊れる／節約できるストレージ費用に対し恒久的な複雑さとUX劣化が大きい）。
+ユーザー合意のうえで **保存先 = Supabase Storage（private バケット）／添付は共有ワークスペースで他メンバーにも共有する** 方針に決定。
+
+### 実装内容
+**DB（マイグレーション `supabase/migrations/20260810_attachments.sql`／ライブ適用済み）**
+- 新規テーブル `attachments`（`id` text PK / `task_id` text FK→tasks(id) ON DELETE CASCADE / `note_id` text FK→notes(id) ON DELETE CASCADE / `user_id` uuid=auth.uid() / `file_name` / `mime_type` / `size_bytes` / `storage_path` unique / `kind` 'image'|'file' / `width` / `height` / `created_at`）。`task_id`・`note_id` は XOR 制約（`num_nonnulls(task_id,note_id)=1`）で必ず片方のみ紐付く。
+- Storage private バケット `attachments`（`public=false` / `file_size_limit=25MB` / 画像・PDF・Office・txt/csv/zip の MIME 許可リスト）。パス命名規約 `{user_id}/{attachment_id}/{filename}`。
+- 権限：`anon` は全権 REVOKE、`authenticated`/`service_role` のみ GRANT。
+
+**RLS（既存 tasks/notes の可視性ルールを厳密にミラー）**
+- `attachments` 4ポリシー：
+  - SELECT = 自分の添付 OR 共有プロジェクト配下タスクの添付（`task_id IN (…workspace_id IN (select auth_user_workspace_ids()))`）。
+  - INSERT = `user_id=auth.uid()` かつ 対象が「自分のノート」or「自分の/共有タスク」。
+  - UPDATE = 自分のみ。DELETE = 自分 OR 共有タスクのワークスペース owner。
+- `storage.objects` 3ポリシー（バケット `attachments` 限定）：
+  - INSERT = `(storage.foldername(name))[1] = auth.uid()::text`（自分の枠にのみ書ける）。
+  - SELECT/DELETE = 自分の枠 OR `exists(select 1 from attachments a where a.storage_path=name …)`。**このサブクエリが `attachments` の RLS を受けるため、共有可視性を storage 側に再実装せず attachments に委譲**している。→ **`attachments` 側ポリシーと storage 側は常にセットで変更すること**（片方を緩めると storage 可視性も連動する）。
+
+**仕様上の非対称（重要）**
+- **タスク添付＝共有対象**（共有プロジェクト配下なら他メンバーも閲覧・追加可）。
+- **ノート添付＝個人のみ**（`notes` にワークスペース概念が無いため）。将来 notes を共有化する際に合わせて拡張すること。
+
+**フロント（`index.html`）**
+- 添付関数群を新規追加（コメント関数群の直前）：`_attSectionHTML` / `initAttachments` / `_attRenderList` / `_attUpload` / `attSignedUrl` / `_attPurgeForParent`、および拡大モーダルでも動くインラインハンドラ `window._attOnPick/_attDragOver/_attDragLeave/_attDrop`。
+- `renderDrawer`（タスク詳細）・`renderNoteDrawer`（ノート詳細）にコメント欄の直前で `_attSectionHTML(scope,id)` を挿入し、描画後に `initAttachments(scope,id)` を呼ぶ（コメント欄と同じ遅延ロード方式）。
+- `handleAction`（`document` click 委譲）に `dt-att-toggle`（開閉）/`att-pick`（ファイル選択）/`att-del`（削除）分岐を追加。
+- アップロードは**クライアント直** `SB.storage.from('attachments').upload()` → `attachments.insert()`。insert 失敗時は `storage.remove()` でロールバック。表示は毎回 `createSignedUrl(3600)`（メモリキャッシュ、期限30秒前で再発行）。画像はサムネイル、他はファイルチップ。
+- プラン別の単体サイズ上限をクライアント一次チェック（free=10MB / それ以外=25MB。`getUserPlan()` 参照）。実効上限はバケット `file_size_limit`。
+- タスク/ノート本体削除時（`delTask`/`delNote`）に `_attPurgeForParent` で Storage 実体を掃除（FK CASCADE は行のみ削除し実体は残るため）。
+
+### セキュリティチェック結果（該当：個人データを扱う新規テーブル）
+- `attachments` は CREATE と同一マイグレーション内で RLS 有効化＋4ポリシーをセットで作成（CLAUDE.md 規約遵守）。`rls_enabled=true` を実確認。
+- Supabase MCP でライブ RLS 検証（すべてトランザクション内 ROLLBACK・本番データ無変更）：
+  - 本人＝自タスク/自ノートへの添付 INSERT 成功・SELECT 可視。
+  - 他人＝本人の個人タスク/ノート添付は SELECT 0件・INSERT は RLS 拒否。
+  - 共有タスク＝メンバーは所有者分＋自分分の添付を閲覧可・自分名義 INSERT 可。非メンバーは SELECT 0件・INSERT 拒否。
+- `get_advisors`（security）で **新規 `attachments` 起因の WARN はゼロ**（既存の他アプリ由来 `housecleaning_*`/`reno_*`/`kotobakake_*` 等の WARN のみ残存＝スコープ外）。
+- 認証・決済フローは変更なし（`getUserPlan()` を参照するのみ）。Google OAuth スコープ追加も不要。anonキー露出前提・service role はサーバー側のみの原則は不変。
+
+### 触れなかった / 今後の課題
+- **プラン別の総容量クォータ**は未実装（現状は単体サイズ上限のみ）。厳格化が必要なら `attachments` に BEFORE INSERT トリガを追加し `user_plans` と突合する。
+- **孤児掃除の cron**（Storage実体と `attachments` 行の不整合を service role で突合・掃除）は任意の follow-up。`supabase/functions/cron-cleanup-notifications` が雛形。
+- 拡大モーダル（PC最大化）では ID 重複により添付リストのライブ更新が主ドロワー側を指す既知の制約あり（コメント欄と同じ挙動）。アップロード自体は成立し、再オープンで反映される。
+- HEIC 等モバイル写真は MIME 許可リストに含めたが、必要なら将来クライアントで jpeg 変換を検討。
+
+---
+
 ## 決済（Stripe）セキュリティ監査・穴埋め（2026-08-09）
 
 ### 背景
