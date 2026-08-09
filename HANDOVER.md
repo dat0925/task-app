@@ -53,6 +53,22 @@
 - 拡大モーダル（PC最大化）では ID 重複により添付リストのライブ更新が主ドロワー側を指す既知の制約あり（コメント欄と同じ挙動）。アップロード自体は成立し、再オープンで反映される。
 - HEIC 等モバイル写真は MIME 許可リストに含めたが、必要なら将来クライアントで jpeg 変換を検討。
 
+### 追記: 添付を「有料プラン限定」に変更（2026-08-09）
+ユーザー要望で、添付機能を**有料プラン（standard以上）限定**にした。方針：**アップロード(追加)のみ有料限定／閲覧・ダウンロード・削除は全プラン可**（コスト要因＝保存のみ抑制。共有ワークスペースの無料メンバーも、有料メンバーが付けた既存の添付は閲覧・DLできる）。
+
+- **マイグレーション `supabase/migrations/20260811_attachments_paid_only.sql`（ライブ適用済み）**
+  - ヘルパー関数 `auth_is_paid()` を新設：`user_plans`（email主キー）を `auth.jwt()->>'email'` で引き `plan <> 'free'` を返す。**SECURITY INVOKER**（本人行はuser_plansのRLSで読めるためDEFINER不要・再帰リスク無し）、`search_path=public` 固定、anonへEXECUTE付与なし → **security系advisorを一切出さない**。
+  - `attachments` INSERT ポリシーと `storage.objects`（バケットattachments）INSERT ポリシーに `auth_is_paid()` を必須条件として追加（drop→recreate）。**SELECT/UPDATE/DELETE は変更せず**＝閲覧・DL・削除は据え置き。
+- **フロント（`index.html`）**
+  - `showUpgradeModal` の cfg に `attachments` キー追加（`1738`付近）。
+  - `_attSectionHTML()` を `isPlanFree()`（=`!getPlanDef().team`。free だけ team=false ＝「非free＝有料」判定）で分岐。無料は🔒ロック表示＋`data-a="att-upsell"`（file input/ドラッグ無効）、有料は通常ドロップゾーン。**att-list は両方描画**（無料でも既存/共有添付を閲覧・DL可）。
+  - `_attUpload()` 先頭に `if(isPlanFree()){showUpgradeModal('attachments');return;}`（ドラッグ&ドロップ経路の防御）、`handleAction` に `att-upsell` 分岐追加。
+- **セキュリティ検証（Supabase MCP・全てトランザクション内 ROLLBACK・本番無変更）**
+  - free ユーザーの添付 INSERT → **RLS拒否**。premium ユーザー → 許可。
+  - 共有タスクで：premium所有者はアップロード可／**無料メンバーはアップロード不可**かつ**既存の共有添付は閲覧可（SELECT据え置きを実証、count=1）**。
+  - `get_advisors`(security)：**`auth_is_paid` 由来の新規WARNゼロ**（SECURITY INVOKER＋search_path固定＋anon剥奪により該当なし）。既存の他アプリ由来WARNのみ残存。
+- **注意**：クライアント判定はUX用で、実防御はRLS。無料ユーザーはAPI直叩きでも添付INSERT不可（サーバー側で強制）。`user_plans` を新規プランに拡張しても `plan <> 'free'` 判定なので自動的に有料扱いになる。
+
 ---
 
 ## 決済（Stripe）セキュリティ監査・穴埋め（2026-08-09）
