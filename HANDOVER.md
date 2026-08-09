@@ -1,6 +1,55 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-08-03
+最終更新: 2026-08-09
+
+---
+
+## 決済（Stripe）セキュリティ監査・穴埋め（2026-08-09）
+
+### 背景
+「セキュリティ攻撃が多い、決済はStripe」との依頼で、決済まわりに絞ってコードベース＋ライブDBを監査。
+組み込みスキル `/security-review`（差分レビュー）に加え、CLAUDE.mdの決済チェック項目＋Supabase MCPでの
+ライブ検証を組み合わせて実施した。
+
+### 監査結果サマリ
+**問題なし（変更せず）**
+- Webhook署名検証：`supabase/functions/stripe-webhook/index.ts` で `constructEventAsync` により生ボディ検証・失敗時400。正しい実装。
+- 秘密鍵：`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`SB_SERVICE_ROLE_KEY` はすべて `Deno.env.get()` 経由。リポジトリ・フロントにハードコードなし。フロント露出はanonキーのみ（設計上OK）。
+- カード情報：Stripe Payment Links / 顧客ポータルでStripe側処理。アプリを通らない。
+- `stripe-portal` のJWT検証：`getUser()` により本人の `stripe_customer_id` のみ操作。
+- `admin_update_plan` 等のSECURITY DEFINER関数：内部で `mstd0520@gmail.com` にガード済みかつ操作対象は別アプリ(献立)の `menu_*` テーブル。Taskraスコープ外・安全。
+
+**発見して修正した穴**
+1. ★**プラン改ざん（無償プレミアム化）**：`user_plans` の INSERT ポリシー `users insert own plan` が `plan` カラムを制約しておらず、行未作成の新規ユーザーが匿名API経由で `{email:自分, plan:'premium'}` を直接INSERT可能だった（ライブで再現確認）。さらに `user_plans`/`ai_usage` は `anon`/`authenticated` に全DML権限が付与され、防御がRLS一本頼りだった。
+2. 管理者allowlistに誤り：DBポリシー・フロント両方に `masamune.endo@gmail.com`（誤）と `mstd0520@gmail.com`（正）の2件がハードコードされていた。
+3. `stripe-portal` のCORSが `Access-Control-Allow-Origin: '*'`（ワイルドカード）だった。
+
+### 実施した変更
+**DB（マイグレーション `supabase/migrations/20260809_harden_user_plans_security.sql`／ライブ適用済み）**
+- `user_plans` INSERTポリシーを `email = auth.jwt()->>'email' AND plan = 'free'` に制約（プラン昇格を封鎖。正規の初回free登録は影響なし）。
+- `user_plans` 管理者ポリシー `admin full access` を **`mstd0520@gmail.com` の単一アカウント**に限定。
+- `anon` から `user_plans`/`ai_usage` の全権限を `REVOKE`（未ログインからのアクセス遮断）。
+- 検証：一般ユーザーJWTでの premium 自己INSERT／他人emailでのINSERTはRLSで拒否、本人 `free` INSERTは成功をライブ確認。
+
+**Edge Function（`supabase/functions/stripe-portal/index.ts`／ライブ deploy 済み version35）**
+- CORSを許可オリジン `https://app.taskra.jp` のみに限定（`verify_jwt:true` は維持）。プリフライトで非許可オリジンにマッチ値を返さないことを確認。
+
+**フロント（`index.html`）**
+- `ADMIN_EMAILS`（1359行付近）を `['mstd0520@gmail.com']` に修正。クライアント判定はUI表示用で、実防御はDB側RLSにある旨コメント追記。
+
+### テーブルとRLSの状態（変更後）
+- `user_plans`：RLS有効。ポリシー3件（SELECT=本人 / INSERT=本人かつfree / ALL=管理者mstd0520のみ）。GRANT=authenticated,service_roleのみ（anon剥奪）。
+- `ai_usage`：RLS有効。ポリシー2件（管理者のみSELECT/UPDATE）。GRANT=authenticated,service_roleのみ（anon剥奪）。
+
+### 触れなかった / 触ってはいけないと判断した箇所
+- Webhook署名検証ロジック、secret/service roleの取り扱い（現状維持）。
+- 別アプリ由来テーブル（`housecleaning_*`/`kotobakake_*`/`reno_*`/`menu_*` 等）と `admin_*` RPC（Taskraスコープ外。ただしadvisorに `rls_enabled_no_policy` や `function_search_path_mutable` 等のWARNが多数残っている。別途対応を推奨）。
+- 本番Stripe Price ID / Payment Link URLの実値。
+
+### 次にやるべきこと
+- Supabase Auth の「Leaked Password Protection」有効化（advisor WARN。ただし本アプリはGoogle OAuthのみのため優先度低）。
+- スコープ外テーブルのRLSポリシー整備（別セッションで対応推奨）。
+- 実機でプラン管理画面（管理者）とプラン購入→Webhook→プラン反映の一連が正常動作するか確認。
 
 ---
 

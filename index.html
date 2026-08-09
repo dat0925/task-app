@@ -1356,7 +1356,9 @@ const PLAN_DEFS={
 const CHAR_LIMITS={taskTitle:500,taskNotes:50000,noteTitle:500,noteBody:200000};
 // メール貼り付け機能のうち、Word/PDF/画像の添付解析はプレミアム限定・月次回数上限あり（原価を見て今後調整）
 const FILE_EXTRACT_LIMIT=30;
-const ADMIN_EMAILS=['masamune.endo@gmail.com','mstd0520@gmail.com'];
+// 管理者はDB側RLSポリシー(user_plans/ai_usage)でも同一アドレスに限定済み。
+// クライアント判定はUI表示用であり、実際の防御はサーバ側(RLS)にある。
+const ADMIN_EMAILS=['mstd0520@gmail.com'];
 
 window._userPlan='free'; // Supabase読み込み前のデフォルト
 
