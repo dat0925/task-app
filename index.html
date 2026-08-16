@@ -564,11 +564,16 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .pc-nav-step{display:flex}
 }
 
+/* サイドバーのプロジェクト/タグも、ホバー表示はマウス環境限定にする。
+   タッチ（iPad）でホバー表示にすると1タップ目が飲み込まれて2タップ必要になるため、
+   タッチ環境では常時表示（スマホと同じ扱い）にする。 */
 .proj-item .proj-actions{display:none;align-items:center;gap:1px;flex-shrink:0}
-.proj-item:hover .proj-actions{display:flex}
+@media(pointer:fine){.proj-item:hover .proj-actions{display:flex}}
+@media(pointer:coarse){.proj-item .proj-actions{display:flex}}
 @media(max-width:768px){.proj-item .proj-actions{display:flex}}
 .tag-item .tag-actions{display:none;align-items:center;gap:1px;flex-shrink:0}
-.tag-item:hover .tag-actions{display:flex}
+@media(pointer:fine){.tag-item:hover .tag-actions{display:flex}}
+@media(pointer:coarse){.tag-item .tag-actions{display:flex}}
 @media(max-width:768px){.tag-item .tag-actions{display:flex}}
 @media(max-width:768px){.trow-edit-btn{display:flex !important}}
 .proj-action-btn{width:24px;height:24px;border-radius:4px;font-size:13px;color:var(--text3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,color .15s;background:none;border:none;cursor:pointer;padding:0;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:rgba(0,0,0,0)}
@@ -636,18 +641,37 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .xs{font-size:11px}.muted{color:var(--text3)}.flex{display:flex}.items-c{align-items:center}.gap-1{gap:4px}.gap-2{gap:8px}
 
 /* PC expand button on rows */
+/* ===== タッチ環境でホバー表示を使わない理由（iPadの2タップ問題対策） =====
+   iPadOS Safari は「タップした要素のホバースタイルで見た目が変わる」場合、
+   1回目のタップをホバー適用だけで消費して click を発火させない（＝2タップ必要）。
+   幅769px以上のiPadはPCレイアウト分岐に入るため、行のホバー表示ボタンが
+   この判定に引っかかり、タスクをタップしても詳細が切り替わらなかった。
+   → ホバーで出す挙動は pointer:fine（マウス/トラックパッド）限定にし、
+     pointer:coarse（タッチ）では常時薄く表示してホバー依存をなくす。 */
 .trow-expand-btn{display:none}
 @media(min-width:769px){
-  .trow-expand-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;color:var(--text3);border-radius:5px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity .12s}
-  .trow:hover .trow-expand-btn{opacity:1}
-  .trow-expand-btn:hover{background:var(--bg2);color:var(--text)}
+  .trow-expand-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;color:var(--text3);border-radius:5px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity .12s;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation}
+  @media(pointer:fine){
+    .trow:hover .trow-expand-btn{opacity:1}
+    .trow-expand-btn:hover{background:var(--bg2);color:var(--text)}
+  }
+  @media(pointer:coarse){
+    .trow-expand-btn{opacity:.45}
+    .trow-expand-btn:active{background:var(--bg2);color:var(--accent);opacity:1}
+  }
 }
 /* Copy title button */
 .trow-copy-btn{display:none}
 @media(min-width:769px){
-  .trow-copy-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;color:var(--text3);border-radius:5px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity .12s}
-  .trow:hover .trow-copy-btn{opacity:1}
-  .trow-copy-btn:hover{background:var(--bg2);color:var(--text)}
+  .trow-copy-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;color:var(--text3);border-radius:5px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity .12s;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation}
+  @media(pointer:fine){
+    .trow:hover .trow-copy-btn{opacity:1}
+    .trow-copy-btn:hover{background:var(--bg2);color:var(--text)}
+  }
+  @media(pointer:coarse){
+    .trow-copy-btn{opacity:.45}
+    .trow-copy-btn:active{background:var(--bg2);color:var(--accent);opacity:1}
+  }
 }
 @media(max-width:768px){
   .trow-copy-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;color:var(--text3);border-radius:6px;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation}
@@ -781,7 +805,8 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   opacity:0;transition:opacity .15s;user-select:none;align-self:center;
   touch-action:none;-webkit-user-select:none;
 }
-.trow:hover .task-drag-handle{opacity:.45}
+/* ホバーでの濃度変化もマウス環境限定（タッチではiPadの2タップ問題の原因になる） */
+@media(pointer:fine){.trow:hover .task-drag-handle{opacity:.45}}
 .task-drag-handle:active{cursor:grabbing}
 /* モバイルではドラッグハンドルを薄く常時表示 */
 @media (hover:none),(pointer:coarse){
