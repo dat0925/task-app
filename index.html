@@ -6398,7 +6398,7 @@ function renderNoteDrawer(){
   // デフォルトはプレビューモード
   ntEnterPreview();
   // 長押しで編集モードへ
-  if(ntPreviewArea){(function(){let _t=null,_mv=false,_x=0,_y=0;ntPreviewArea.addEventListener('touchstart',e=>{_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;ntExitPreview();},600);},{passive:true});ntPreviewArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};ntPreviewArea.addEventListener('touchend',end,{passive:true});ntPreviewArea.addEventListener('touchcancel',end,{passive:true});})();}
+  if(ntPreviewArea){(function(){let _t=null,_mv=false,_x=0,_y=0;ntPreviewArea.addEventListener('touchstart',e=>{if(_isCopyOnlyTarget(e.target))return;_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;ntExitPreview();},600);},{passive:true});ntPreviewArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};ntPreviewArea.addEventListener('touchend',end,{passive:true});ntPreviewArea.addEventListener('touchcancel',end,{passive:true});})();}
   let nt;
   function schedSave(){
     clearTimeout(nt);
@@ -7087,7 +7087,8 @@ function renderDrawer(){
   // プレビューエリアタップで編集へ（長押し不要にしてシングルタップで編集へ）
   if(dtPreviewArea){
     dtPreviewArea.addEventListener('click',e=>{
-      if(e.target.tagName==='A')return; // リンククリックは通す
+      // リンク・フォルダパスチップ（コピー専用）は編集モードへ入らない
+      if(_isCopyOnlyTarget(e.target))return;
       dtExitPreview();
     });
   }
@@ -7237,6 +7238,12 @@ function _pathifyLine(escLine){
 }
 function _pathifyText(escapedText){
   return escapedText.split('\n').map(_pathifyLine).join('\n');
+}
+// プレビュー領域内で「コピー専用」扱いにする要素（フォルダパスチップ・リンク）
+// これらをタップしたときは編集モードへ切り替えない
+function _isCopyOnlyTarget(t){
+  if(!t||!t.closest)return false;
+  return !!t.closest('.note-path-chip,a');
 }
 function openFolderPathAction(rawPath){
   const isMac=/Mac|iPhone|iPad|iPod/.test(navigator.platform||navigator.userAgent||'');
@@ -9841,7 +9848,7 @@ function reattachModalEvents(modal, type, onClose){
       dtPvBtn.addEventListener('click',()=>{dtPvMode?dtExitPv():dtEnterPv();});
       makePreviewResizable(dtPvArea);
       dtEnterPv();
-      (function(){let _t=null,_mv=false,_x=0,_y=0;dtPvArea.addEventListener('touchstart',e=>{_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;dtExitPv();},600);},{passive:true});dtPvArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};dtPvArea.addEventListener('touchend',end,{passive:true});dtPvArea.addEventListener('touchcancel',end,{passive:true});})();
+      (function(){let _t=null,_mv=false,_x=0,_y=0;dtPvArea.addEventListener('touchstart',e=>{if(_isCopyOnlyTarget(e.target))return;_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;dtExitPv();},600);},{passive:true});dtPvArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};dtPvArea.addEventListener('touchend',end,{passive:true});dtPvArea.addEventListener('touchcancel',end,{passive:true});})();
     }
     // メモ：リンク挿入ボタン
     const dtLinkBtnM=modal.querySelector('#dt-link-btn');
@@ -9903,7 +9910,7 @@ function reattachModalEvents(modal, type, onClose){
       ntPvBtn.addEventListener('click',()=>{ntPvMode?ntExitPv():ntEnterPv();});
       makePreviewResizable(ntPvArea);
       ntEnterPv();
-      (function(){let _t=null,_mv=false,_x=0,_y=0;ntPvArea.addEventListener('touchstart',e=>{_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;ntExitPv();},600);},{passive:true});ntPvArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};ntPvArea.addEventListener('touchend',end,{passive:true});ntPvArea.addEventListener('touchcancel',end,{passive:true});})();
+      (function(){let _t=null,_mv=false,_x=0,_y=0;ntPvArea.addEventListener('touchstart',e=>{if(_isCopyOnlyTarget(e.target))return;_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;ntExitPv();},600);},{passive:true});ntPvArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};ntPvArea.addEventListener('touchend',end,{passive:true});ntPvArea.addEventListener('touchcancel',end,{passive:true});})();
     }
     let _c=false,nt2;
     const save=()=>{clearTimeout(nt2);nt2=setTimeout(async()=>{note.title=titleEl?.value||'';note.body=bodyEl?.value||'';await saveNote(note);const h=modal.querySelector('.drawer-head div div:last-child');if(h)h.textContent=note.title||'無題';},600);};
