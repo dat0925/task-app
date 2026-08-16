@@ -1,6 +1,54 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-08-09
+最終更新: 2026-08-16
+
+---
+
+## iPadでコメント入力欄が画面最上部へ飛ぶ問題の修正（2026-08-16）
+
+### 症状
+iPad（PWA全画面・横向き）でタスク詳細のコメント入力欄にカーソルを置いた瞬間、入力欄が画面右上の最上部へ移動し、ドロワーのヘッダも周囲のコメントも消えて巨大な空白だけが残る。iPhoneでは再現しない。
+
+### 原因（3つの複合）
+1. **シェルが高さ固定・スクロール不可の設計**
+   `.layout{height:100dvh;overflow:hidden}` で、スクロールを担うのは `.drawer-body` など内部要素のみ。window/body のスクロール位置は常に0であるべき構造。
+2. **iPadOSはキーボードでレイアウトビューポートを縮めない**
+   `window.innerHeight` も `100dvh` も変化せず（`dvh` は仕様上キーボードを勘定に入れない）、変わるのは `visualViewport.height` / `offsetTop` だけ。アプリは「まだ画面いっぱい使える」と思ったまま可視領域だけが縮み、WebKit がキャレットを見せようとページ全体を上へずらす → ドロワーのヘッダごと画面外へ。
+   iPhoneで再現しないのは、幅769px以上でPCレイアウト分岐に入る（ドロワーが `position:fixed` 全画面ではなく `.layout` のフレックス子になる）経路をiPhoneが通らないため。フローティング/最小化キーボードを持つのもiPadだけ。
+3. **スクロール補正が4か所で競合**
+   グローバル `focusin`（480pxスペーサー＋150/350/600msタイマー）／`visualViewport.resize`／`_cmSetupInput` の `onfocus`／`scroll-to-comments` が同じ「入力欄を見せる」処理を各自実行。しかも `getBoundingClientRect()`（レイアウトビューポート基準）と `visualViewport`（ビジュアルビューポート基準）で座標系が食い違うため、ページがずれた状態では「まだ隠れている」と誤判定して押し続け、480pxスペーサーが常に押せる余白を供給するせいで止まらなかった。キャプチャの巨大な空白はこのスペーサーそのもの。
+
+### 対処（index.html のみ・4点）
+1. **コメント入力欄一式を `.cm-composer` で包み `position:sticky; bottom` 固定**（CSS `.cm-composer`）
+   会話UIの定石どおり入力欄を本文と一緒にスクロールさせない。これで「フォーカス時に入力欄まで自動スクロールする」処理自体が不要になり、暴走の起点が消える。タスク詳細（`#cm-input`）とノート（`#ncm-input`）の両方に適用。
+   - `position:sticky` は `overflow:hidden` な祖先があると無効化されるため `#cm-section{overflow:visible}` で解除し、クリッピングで担っていた角丸は `.dt-section-head` 側に明示指定して見た目を維持。
+   - sticky の停止位置がスクロールコンテナの内容ボックス下端になる都合で、`.drawer-body` の下パディング(14px)分だけ背後のコメントが覗く。`bottom` を負に振り `padding-bottom` で戻す（CSS変数 `--cm-composer-bleed`）ことで塞いだ。
+2. **CSS変数 `--app-h` でシェルの高さを `visualViewport` に従属させる**
+   キーボード表示中だけ JS が `--app-h: <visualViewport.height>px` を `:root` に設定し、`body` / `.layout` / `.main` / `.drawer` / `.expand-overlay` がそれに追従する。最初からキーボードの上に正しく収まるので、WebKit がページをずらす動機自体がなくなる。
+   - `@supports (height:100dvh)` で囲ってある。dvh未対応ブラウザで `var(--app-h,100dvh)` のフォールバック値が invalid になり `height:auto` へ落ちるのを防ぐため。**この @supports は外さないこと。**
+   - キーボード判定は `window.innerHeight - visualViewport.height > 90`（`KB_MIN`）かつ入力欄フォーカス中。ピンチズームでの誤作動を避けるためフォーカス条件は必須。
+3. **旧補正の撤去**：480pxスペーサー、150/350/600msタイマー、`adjustScroll`、`_cmSetupInput`/`_ncmSetupInput` の `onfocus`、`scroll-to-comments` の入れ子スクロール補正をすべて削除。`resetOuterScroll()`（window/bodyのスクロールを0へ戻す保険。外部キーボード接続時にも効く）だけ新ブロックへ統合して残した。
+4. `focus({preventScroll:true})` に統一。
+
+正味 +116 / −137 行でコード量は減っている。
+
+### 検証
+- Chromium(Playwright, iPad Pro 11" 相当 1194×834)で `.cm-composer` の `position:sticky` 実効、`#cm-section` の `overflow:visible`、ヘッダ角丸7pxの維持を確認。
+- スクロール位置（先頭／途中／コメント中盤／最下部）と `--app-h=420px`（キーボード表示相当）の全条件で、**入力欄が常に可視**かつ **composerの下にコメントが透けない**ことをアサーション付きで確認（全PASS）。
+- 本体 `index.html` をブラウザで実ロードし、アプリ由来のJSエラーがゼロであること、デスクトップ（キーボードなし）では `--app-h` が未設定のまま `.layout` が従来どおり全画面高になる（回帰なし）ことを確認。
+- **未検証：実機iPadOS Safari/PWA。** Chromium は iPadOS のキーボード挙動を再現できないため、実機での最終確認が必要。特に「フローティング/最小化キーボード」と「Split View / Stage Manager」時の `KB_MIN=90` の妥当性は実機で見てほしい。
+
+### セキュリティ関連の状態
+- **本変更は認証・決済・個人情報のいずれにも該当しない**（CSS と描画/イベント処理のみ、`index.html` 単一ファイル）。
+- 新規/変更したテーブル：**なし**。RLSポリシーの変更：**なし**。マイグレーション追加：**なし**。
+- 認証フロー（Google OAuth・`email/profile` スコープ）変更なし。決済フロー（Stripe Webhook・Edge Function・`user_plans`）変更なし。
+- 触っていない箇所：`supabase/` 配下すべて、`sw.js`、`manifest.json`、Edge Function 群。
+- 秘匿情報の混入なし（diffは `index.html` の CSS/HTML/JS のみ）。
+
+### 次にやるべきこと
+- 実機iPadで再現確認。直っていない場合、まず `document.documentElement.style.getPropertyValue('--app-h')` がフォーカス時に入るかを見る（入らなければ `KB_MIN` の閾値、入るのにズレるなら WebKit 側のページシフトが残っている）。
+- 同種の「フォーカス時に隠れる入力欄」は他にもある（`#sub-inp`、`#dt-notes`、AIパネルの `#ai-input-wrap`）。`--app-h` で改善するはずだが、必要なら同じ sticky 化を検討。
+- `#ai-panel{height:75vh}` は `--app-h` 未対応のまま。キーボードとの相性を実機で確認のこと。
 
 ---
 

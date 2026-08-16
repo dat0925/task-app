@@ -52,6 +52,14 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
    しない設計のため、はみ出した分＝タスク詳細フッターの完了/…/×ボタン等が画面外に隠れて
    見えなくなる）。100dvh（動的viewport高さ）を追加指定し、対応ブラウザではそちらを優先させる */
 .layout{display:flex;height:100vh;height:100dvh;overflow:hidden}
+/* --app-h: ソフトウェアキーボード表示中だけJS側が visualViewport.height を入れる。
+   未設定時は 100dvh にフォールバックする。詳細は同名の対策コメント（JS側）を参照。
+   @supports で囲うのは、dvh未対応ブラウザで var() のフォールバック値が
+   invalid になり height:auto に落ちるのを防ぐため。 */
+@supports (height:100dvh){
+  body{min-height:var(--app-h,100vh)}
+  .layout{height:var(--app-h,100dvh)}
+}
 
 /* Sidebar */
 .sidebar{
@@ -500,6 +508,13 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
   .sidebar.open{transform:translateX(0)}
   .layout{display:block;height:100vh;height:100dvh;overflow:hidden}
   .main{height:100vh;height:100dvh;width:100%}
+  /* キーボード表示中は可視領域に合わせて縮める（--app-h の説明は :root 付近を参照）。
+     top/bottom/height が同時指定になると bottom が無視されるため、
+     --app-h 未設定時は height:auto で従来どおり top/bottom から高さが決まる。 */
+  @supports (height:100dvh){
+    .main{height:var(--app-h,100dvh)}
+    .drawer{height:var(--app-h,auto)}
+  }
   .drawer{
     position:fixed !important;
     top:0;left:0;right:0;bottom:0;
@@ -641,6 +656,11 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 /* Expand modal overlay */
 .expand-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;animation:tin .15s ease}
 .expand-modal{background:var(--surface);border-radius:14px;width:min(90vw,860px);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 60px rgba(0,0,0,.25);position:relative}
+/* 拡大モーダルもキーボード表示中は可視領域に収める（--app-h） */
+@supports (height:100dvh){
+  .expand-overlay{height:var(--app-h,auto)}
+  .expand-modal{max-height:min(92vh,100%)}
+}
 @media(min-width:769px){
 }
 .expand-modal .drawer-head{border-radius:14px 14px 0 0}
@@ -983,6 +1003,28 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .cm-del{background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);padding:2px 4px;border-radius:4px;margin-left:4px;flex-shrink:0;opacity:0;transition:opacity .15s}
 .cm-item:hover .cm-del{opacity:1}
 .cm-input-row{display:flex;gap:6px;align-items:flex-end}
+/* ===== コメント入力欄（コンポーザ）をスクロール下端に固定 =====
+   会話UIの定石どおり、入力欄は本文と一緒にスクロールさせず常に可視に保つ。
+   これにより「フォーカス時に入力欄まで自動スクロールする」補正処理そのものが
+   不要になり、iPad等でその補正が暴走してレイアウトが崩れる問題を根本から断つ。 */
+.cm-composer{
+  /* sticky の停止位置はスクロールコンテナの「内容ボックス」下端になるため、
+     .drawer-body の下パディング(14px)ぶんだけ背後のコメントが覗いてしまう。
+     bottom を負に振って背景をコンテナ内側の端まで伸ばし、その分を
+     padding-bottom で戻すことで、入力欄の見た目の位置は変えずに隙間を塞ぐ。 */
+  --cm-composer-bleed:14px;
+  position:sticky;bottom:calc(-1 * var(--cm-composer-bleed));z-index:5;
+  display:flex;flex-direction:column;gap:6px;
+  background:var(--surface);
+  padding:8px 0 calc(10px + var(--cm-composer-bleed));
+  border-top:1px solid var(--border);
+}
+/* position:sticky は overflow:hidden な祖先があると、その祖先自身が
+   スクロールコンテナ扱いになり無効化される。コメントセクションだけ解除し、
+   クリッピングで担っていた角丸はヘッダ側に明示指定して見た目を保つ。 */
+#cm-section{overflow:visible}
+#cm-section>.dt-section-head{border-radius:7px 7px 0 0}
+#cm-section>.dt-section-head.closed{border-radius:7px}
 .cm-textarea{flex:1;min-width:0;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;font-family:var(--font);line-height:1.5;resize:none;background:var(--bg);color:var(--text);transition:border-color .15s;min-height:38px;max-height:120px;overflow-y:auto}
 .cm-textarea:focus{outline:none;border-color:var(--accent)}
 .cm-send-btn{height:36px;padding:0 14px;border-radius:9px;background:var(--accent);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;transition:opacity .15s}
@@ -6222,13 +6264,15 @@ function renderNoteDrawer(){
           +'<span class="cm-count" id="ncm-count">…</span>'
         +'</div>'
         +'<div class="cm-list" id="ncm-list"><div class="cm-loading">読み込み中…</div></div>'
-        +'<div style="display:flex;gap:4px;margin-bottom:5px">'
-          +'<button class="note-copy-btn" id="ncm-link-btn">リンク</button>'
-          +'<button class="note-copy-btn" data-a="ncm-stamp" data-type="datetimeweek">日時</button>'
-        +'</div>'
-        +'<div class="cm-input-row">'
-          +'<textarea class="cm-textarea" id="ncm-input" placeholder="コメントを追加… (Cmd+Enterで送信)" rows="1"></textarea>'
-          +'<button class="cm-send-btn" id="ncm-send" disabled>送信</button>'
+        +'<div class="cm-composer">'
+          +'<div style="display:flex;gap:4px">'
+            +'<button class="note-copy-btn" id="ncm-link-btn">リンク</button>'
+            +'<button class="note-copy-btn" data-a="ncm-stamp" data-type="datetimeweek">日時</button>'
+          +'</div>'
+          +'<div class="cm-input-row">'
+            +'<textarea class="cm-textarea" id="ncm-input" placeholder="コメントを追加… (Cmd+Enterで送信)" rows="1"></textarea>'
+            +'<button class="cm-send-btn" id="ncm-send" disabled>送信</button>'
+          +'</div>'
         +'</div>'
       +'</div>'
     +'</div>'
@@ -6759,7 +6803,7 @@ function renderDrawer(){
         +'</div>';
       })()
       +'</div>'    +'</div>'      +'<div class="dt-schedule-block" id="memo-section" style="margin-bottom:10px">'      +'<div class="dt-section-head'+(task.notes?'':' closed')+'" data-a="dt-memo-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>'          +' メモ'          +(task.notes?'<span id="memo-preview-badge" style="font-size:10px;color:var(--accent);background:var(--accent-bg,var(--bg2));border-radius:4px;padding:1px 6px;font-weight:600">あり</span>':'')        +'</span>'        +'<span class="dt-section-chev'+(task.notes?'':' closed')+'" id="dt-memo-chev">▼</span>'      +'</div>'      +'<div id="memo-collapse" class="dt-section-body"'+(task.notes?'':' style="display:none"')+'>'        +'<div id="memo-toolbar" style="display:flex;align-items:center;gap:6px;padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:8px;flex-wrap:nowrap">'+'<button class="note-copy-btn" id="dt-link-btn" title="リンク挿入">リンク</button>'          +'<button class="note-copy-btn" data-a="stamp" data-type="datetimeweek" title="日時スタンプ">日時</button>'          +'<button class="note-copy-btn" data-a="copy-task-notes" title="メモ内容をコピー">コピー</button>'          +'<button class="note-copy-btn" id="dt-preview-btn">編集</button>'        +'</div>'        +'<textarea class="finput ftextarea" id="dt-notes" rows="12" style="resize:vertical;font-size:14px;line-height:1.7;display:none" placeholder="メモ…">'+esc(task.notes||'')+'</textarea>'        +'<div id="dt-preview-area" style="font-size:14px;color:var(--text);line-height:1.8;word-break:break-word;max-height:320px;overflow:hidden;position:relative"></div>'        +'<button id="memo-expand-btn" style="display:none;width:100%;margin-top:4px;font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">▼ もっと見る</button>'        +'<button id="memo-collapse-btn" style="display:none;width:100%;margin-top:2px;font-size:12px;color:var(--text3);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">▲ 閉じる</button>'      +'</div>'    +'</div>'      +(!task.parentTaskId?'<div class="dt-schedule-block" style="margin-bottom:10px">'      +'<div class="dt-section-head" data-a="dt-subs-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'          +' サブタスク'          +(subs.length?'<span style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">'+subs.length+'件</span>':'')        +'</span>'        +'<span class="dt-section-chev" id="dt-subs-chev">▼</span>'      +'</div>'      +'<div id="dt-subs-body" class="dt-section-body">'        +'<div id="subs">'+(()=>{const actSubs=subs.sort((a,b)=>a.order-b.order).filter(s=>s.status!=='completed');const doneSubs=subs.filter(s=>s.status==='completed');const rs=s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><button class="sub-title" data-a="sel-edit" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">' +esc(s.title)+'</button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>';let h=actSubs.map(rs).join('');if(doneSubs.length){h+='<button class="cm-show-all-btn" id="subs-done-toggle" style="margin-top:4px">✓ 完了済み '+doneSubs.length+'件を表示</button>';h+='<div id="subs-done-list" style="display:none">'+doneSubs.map(rs).join('')+'</div>';}return h;})()+'</div>'        +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;margin-bottom:4px"><button class="note-stamp-btn" id="sub-parent-btn" title="親タスクのタイトルを入力欄に挿入">📌 親タスクのタイトル</button></div>'        +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…">'      +'</div>'    +'</div>':'')
-      +_attSectionHTML('task',task.id)      +'<div class="dt-schedule-block" id="cm-section" data-task-id="'+task.id+'" style="margin-bottom:10px">'      +'<div class="dt-section-head" data-a="dt-cm-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'          +' コメント'          +'<span class="cm-count" id="cm-count" style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">…</span>'        +'</span>'        +'<span class="dt-section-chev" id="dt-cm-chev">▼</span>'      +'</div>'      +'<div id="dt-cm-body" class="dt-section-body">'        +'<div class="cm-list" id="cm-list"><div class="cm-loading">読み込み中…</div></div>'        +'<div style="display:flex;gap:4px;margin-bottom:5px">'          +'<button class="note-copy-btn" id="cm-link-btn">リンク</button>'          +'<button class="note-copy-btn" data-a="cm-stamp" data-type="datetimeweek">日時</button>'        +'</div>'        +'<div id="cm-mention-bar" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>'        +'<div class="cm-input-row">'          +'<textarea class="cm-textarea" id="cm-input" placeholder="コメントを追加… (Cmd+Enterで送信)" rows="1"></textarea>'          +'<button class="cm-send-btn" id="cm-send" disabled>送信</button>'        +'</div>'      +'</div>'    +'</div>'    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'      +'<div class="muted xs" style="line-height:2">'
+      +_attSectionHTML('task',task.id)      +'<div class="dt-schedule-block" id="cm-section" data-task-id="'+task.id+'" style="margin-bottom:10px">'      +'<div class="dt-section-head" data-a="dt-cm-toggle">'        +'<span class="dt-section-label">'          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'          +' コメント'          +'<span class="cm-count" id="cm-count" style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600">…</span>'        +'</span>'        +'<span class="dt-section-chev" id="dt-cm-chev">▼</span>'      +'</div>'      +'<div id="dt-cm-body" class="dt-section-body">'        +'<div class="cm-list" id="cm-list"><div class="cm-loading">読み込み中…</div></div>'        +'<div class="cm-composer">'          +'<div style="display:flex;gap:4px">'          +'<button class="note-copy-btn" id="cm-link-btn">リンク</button>'          +'<button class="note-copy-btn" data-a="cm-stamp" data-type="datetimeweek">日時</button>'        +'</div>'        +'<div id="cm-mention-bar" style="display:none;flex-wrap:wrap;gap:4px"></div>'        +'<div class="cm-input-row">'          +'<textarea class="cm-textarea" id="cm-input" placeholder="コメントを追加… (Cmd+Enterで送信)" rows="1"></textarea>'          +'<button class="cm-send-btn" id="cm-send" disabled>送信</button>'        +'</div>'      +'</div>'      +'</div>'    +'</div>'    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'      +'<div class="muted xs" style="line-height:2">'
           +'<div>作成: '+new Date(task.createdAt).toLocaleString('ja-JP')+' </div>'
           +'<div>更新: '+new Date(task.updatedAt).toLocaleString('ja-JP')+' </div>'
         +'</div>'
@@ -7439,22 +7483,8 @@ function _cmSetupInput(taskId,comments){
   // Linkボタン（onclickで上書き）
   const cmLinkBtn=document.getElementById('cm-link-btn');
   if(cmLinkBtn)cmLinkBtn.onclick=e=>{e.stopPropagation();showLinkPopover(cmLinkBtn,'cm-input',false);};
-  // 送信ボタンの活性制御（onclickで上書き）
-  inp.onfocus=()=>{
-    // iPadOS/iOS でフォーカス時にページが最上部へ飛ぶのを防ぐ
-    // drawer-body内でcm-inputが見えるよう、drawer-body側をスクロール
-    requestAnimationFrame(()=>{
-      setTimeout(()=>{
-        const drBody=document.getElementById('drawer')?.querySelector('.drawer-body');
-        if(!drBody)return;
-        const inputRect=inp.getBoundingClientRect();
-        const bodyRect=drBody.getBoundingClientRect();
-        if(inputRect.bottom>bodyRect.bottom-10){
-          drBody.scrollTop+=inputRect.bottom-bodyRect.bottom+24;
-        }
-      },350); // キーボードアニメーション待ち
-    });
-  };
+  // 入力欄は .cm-composer で position:sticky 固定されており常に可視なため、
+  // フォーカス時のスクロール補正（旧 inp.onfocus）は不要になった。
   inp.oninput=()=>{
     btn.disabled=!inp.value.trim();
     inp.style.height='auto';
@@ -7726,17 +7756,8 @@ function _ncmSetupInput(noteId){
   inp._ncmNoteId=noteId;
   const ncmLinkBtn=document.getElementById('ncm-link-btn');
   if(ncmLinkBtn)ncmLinkBtn.onclick=e=>{e.stopPropagation();showLinkPopover(ncmLinkBtn,'ncm-input',false);};
-  inp.onfocus=()=>{
-    requestAnimationFrame(()=>{
-      setTimeout(()=>{
-        const drBody=document.getElementById('drawer')?.querySelector('.drawer-body');
-        if(!drBody)return;
-        const inputRect=inp.getBoundingClientRect();
-        const bodyRect=drBody.getBoundingClientRect();
-        if(inputRect.bottom>bodyRect.bottom-10){drBody.scrollTop+=inputRect.bottom-bodyRect.bottom+24;}
-      },350);
-    });
-  };
+  // 入力欄は .cm-composer で position:sticky 固定されており常に可視なため、
+  // フォーカス時のスクロール補正（旧 inp.onfocus）は不要になった。
   inp.oninput=()=>{
     btn.disabled=!inp.value.trim();
     inp.style.height='auto';
@@ -8581,20 +8602,8 @@ else if(a==='scroll-to-comments'){
     const jumpCount=document.getElementById('cm-jump-count');
     const isZero=jumpCount&&(jumpCount.textContent==='0'||jumpCount.textContent==='…');
     if(isZero&&cmInput){
-      setTimeout(()=>{
-        cmInput.focus({preventScroll:true});
-        // フォーカス後、drawer-body内でcm-inputが見えるようスクロール
-        setTimeout(()=>{
-          const drBody2=document.getElementById('drawer')?.querySelector('.drawer-body');
-          if(drBody2){
-            const inputRect=cmInput.getBoundingClientRect();
-            const bodyRect=drBody2.getBoundingClientRect();
-            if(inputRect.bottom>bodyRect.bottom-10){
-              drBody2.scrollTop+=inputRect.bottom-bodyRect.bottom+20;
-            }
-          }
-        },100);
-      },300);
+      // 入力欄は sticky で常に可視なので、フォーカス後の追加スクロール補正は不要
+      setTimeout(()=>cmInput.focus({preventScroll:true}),300);
     } else {
       cmSection.style.transition='background .3s';
       cmSection.style.background='var(--accent-bg)';
@@ -12026,104 +12035,74 @@ function waitForSBAndRecover(){
   },2000);
 }
 
-// ===== iOS/iPadOS: input/textareaフォーカス時にページ全体(window)が
-//      意図せず最上部へスクロールしてしまう問題への対策 =====
-// 本アプリは .layout が height:100vh;overflow:hidden 設計のため、
-// window/body レベルのスクロールは常に0であるべき（スクロールは全て
-// .drawer-body や .content など内部の要素が担う）。
-// しかしWebKitは、入れ子のoverflow:autoコンテナ内にあるinput/textareaへ
-// フォーカスした際、ネイティブの「フォーカス要素を可視領域に入れる」処理で
-// 誤ってwindow/body側をスクロールしてしまうことがある。
-// オンスクリーンキーボード使用時はキーボード出現によるレイアウト変化と
-// タイミングが重なって目立たないことがあるが、外部キーボード接続時は
-// オンスクリーンキーボードが出ないためこの誤スクロールがそのまま視認されてしまう
-// （タスク詳細のコメント欄フォーカス時に画面が最上部へ飛ぶ不具合の原因）。
-// 対策: input/textarea/contenteditableへのフォーカスのたびに、
-// window/body/documentElementのスクロール位置を強制的に0へ戻す。
+// ===== iOS/iPadOS: ソフトウェアキーボード表示時のレイアウト崩れ対策 =====
+// 【背景】
+// 本アプリは .layout が height:100dvh / overflow:hidden の「シェル固定・内部だけ
+// スクロール」設計（スクロールは .drawer-body 等の内部要素が担い、window/body
+// レベルのスクロール位置は常に0であるべき）。
+// ところが iPadOS はソフトウェアキーボードが出てもレイアウトビューポート
+// （window.innerHeight / 100dvh）を縮めない。アプリは「まだ画面いっぱい使える」と
+// 思ったまま、実際の可視領域（visualViewport）だけが縮む。その状態で WebKit が
+// キャレットを見せようとページ全体を上へずらすため、ドロワーのヘッダごと画面外へ
+// 押し上げられる。これが「iPadでコメント入力時に入力欄が右上最上部へ飛ぶ」正体。
+//
+// 【方針】
+// 「見えている高さの真実は visualViewport ただ一つ」と決め、シェルの高さを
+// CSS変数 --app-h 経由でそれに従属させる。最初からキーボードの上に正しく収まって
+// いれば、WebKit がページをずらす動機自体がなくなる。
+//
+// 【撤去したもの】
+// 以前はフォーカスのたびに .drawer-body へ 480px のスペーサーを差し込み、
+// 150/350/600ms のタイマーで scrollTop を押し返していた。しかし
+// getBoundingClientRect()（レイアウトビューポート基準）と visualViewport
+// （ビジュアルビューポート基準）は座標系が異なるため、ページがずれている状態では
+// 「まだ隠れている」と誤判定して押し続け、スペーサーが常に押せる余白を供給する
+// せいで止まらなかった。イベント駆動の高さ制御に一本化してすべて撤去した。
+// あわせて入力欄自体を position:sticky でスクロール下端に固定したため
+// （CSS .cm-composer）、そもそも「入力欄まで自動スクロールする」処理が不要になった。
 (function(){
-  function _resetOuterScroll(){
+  const vv=window.visualViewport;
+  const root=document.documentElement;
+  // キーボードとみなす最小の縮み量。iPadのフローティング/最小化キーボードでも
+  // 100px程度は縮むので、ツールバー等の微小な変動とは区別できる。
+  const KB_MIN=90;
+
+  function isEditable(el){
+    return !!el&&(el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.isContentEditable);
+  }
+  // WebKitが誤ってページ全体をずらした場合に備えた保険。
+  // 外部キーボード接続時（オンスクリーンキーボードが出ないケース）にも効く。
+  function resetOuterScroll(){
     if(window.scrollY!==0)window.scrollTo(0,0);
-    if(document.documentElement.scrollTop!==0)document.documentElement.scrollTop=0;
+    if(root.scrollTop!==0)root.scrollTop=0;
     if(document.body.scrollTop!==0)document.body.scrollTop=0;
   }
-  document.addEventListener('focusin',e=>{
-    const t=e.target;
-    if(!t||(t.tagName!=='INPUT'&&t.tagName!=='TEXTAREA'&&!t.isContentEditable))return;
-    _resetOuterScroll();
-    requestAnimationFrame(_resetOuterScroll);
-    setTimeout(_resetOuterScroll,350);
-  },true);
-})();
-
-// iOS PWA: コメント入力欄など「drawer-body内の一番下の要素」はスクロールしても
-// これ以上下に余地がなく、キーボードに隠れたままになる問題への対策。
-// フォーカス中だけ一時的な余白(スペーサー)をコンテナ末尾に追加し、
-// スクロールできる余地を作った上で、強制的にスクロール位置を調整する。
-(function(){
-  let spacer=null, savedContainer=null, savedScrollTop=null;
-  function ensureSpacer(container){
-    if(spacer&&spacer.parentNode===container)return;
-    clearSpacer();
-    savedContainer=container;
-    savedScrollTop=container.scrollTop;
-    spacer=document.createElement('div');
-    spacer.setAttribute('data-kb-spacer','1');
-    spacer.style.cssText='height:480px;flex-shrink:0;pointer-events:none';
-    container.appendChild(spacer);
-  }
-  function clearSpacer(){
-    if(spacer&&spacer.parentNode)spacer.parentNode.removeChild(spacer);
-    spacer=null;
-    if(savedContainer){
-      const c=savedContainer, st=savedScrollTop;
-      requestAnimationFrame(()=>{ if(st!=null)c.scrollTop=Math.min(st,c.scrollHeight); });
+  function apply(){
+    if(!vv)return;
+    const hidden=window.innerHeight-vv.height;
+    if(hidden>KB_MIN&&isEditable(document.activeElement)){
+      // キーボード表示中：シェルの高さを実際の可視領域に合わせる
+      root.style.setProperty('--app-h',Math.round(vv.height)+'px');
+    }else{
+      // 通常時：CSS側の 100dvh / 100vh フォールバックへ戻す
+      root.style.removeProperty('--app-h');
     }
-    savedContainer=null; savedScrollTop=null;
+    resetOuterScroll();
   }
-  function adjustScroll(el,container){
-    const vv=window.visualViewport;
-    const viewBottom=vv?vv.offsetTop+vv.height:window.innerHeight;
-    const elRect=el.getBoundingClientRect();
-    const gap=24; // 入力欄の下に最低24pxの余白
-    if(elRect.bottom+gap>viewBottom){
-      container.scrollTop+=elRect.bottom+gap-viewBottom;
-    }
+  if(vv){
+    vv.addEventListener('resize',apply);
+    vv.addEventListener('scroll',apply);
   }
   document.addEventListener('focusin',e=>{
-    const t=e.target;
-    if(!t||(t.tagName!=='INPUT'&&t.tagName!=='TEXTAREA'&&!t.isContentEditable))return;
-    const container=t.closest('.drawer-body,.expand-modal,.calc-drawer-body,.tlist-wrap');
-    if(!container)return;
-    ensureSpacer(container);
-    // visualViewportのresizeイベントに頼らず、キーボードのアニメーション完了を
-    // 見込んだ複数タイミングで強制的にスクロール調整する（フォールバック）
-    [150,350,600].forEach(delay=>{
-      setTimeout(()=>{
-        if(document.activeElement!==t)return;
-        adjustScroll(t,container);
-      },delay);
-    });
+    if(!isEditable(e.target))return;
+    resetOuterScroll();
+    apply();
   },true);
   document.addEventListener('focusout',()=>{
-    setTimeout(()=>{
-      const active=document.activeElement;
-      if(active&&(active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.isContentEditable))return;
-      clearSpacer();
-    },80);
+    // フォーカスが別の入力欄へ移る場合は縮めたままにしたいので、次tickで判定する
+    setTimeout(apply,0);
   },true);
-  if(window.visualViewport){
-    let _prevH=window.visualViewport.height;
-    window.visualViewport.addEventListener('resize',()=>{
-      const h=window.visualViewport.height;
-      if(h>=_prevH){_prevH=h;return;} // キーボードが閉じた
-      _prevH=h;
-      const el=document.activeElement;
-      if(!el||(el.tagName!=='INPUT'&&el.tagName!=='TEXTAREA'&&!el.isContentEditable))return;
-      const container=el.closest('.drawer-body,.expand-modal,.calc-drawer-body,.tlist-wrap');
-      if(!container)return;
-      requestAnimationFrame(()=>adjustScroll(el,container));
-    });
-  }
+  window.addEventListener('orientationchange',()=>setTimeout(apply,0));
 })();
 
 
