@@ -4,6 +4,87 @@
 
 ---
 
+## iPadでタスクのワンタップが効かず2タップ必要だった問題の修正（2026-08-16）
+
+### 症状
+iPad（PWA横向き）でタスク行をワンタップしても、行の右側に「最大化（⤢）」ボタンが現れるだけで、
+右ペインのタスク詳細がタップしたタスクに切り替わらない。もう一度タップすると切り替わる。
+つまり毎回2タップを強いられていた。
+
+### 原因
+**iPadOS Safari の「1回目のタップ＝ホバー」判定**に、行のホバー表示ボタンが引っかかっていた。
+
+WebKit は、タップされた要素がホバースタイルによって見た目を変える場合、
+1回目のタップを「ホバーを当てる」だけで消費し `click` を発火させない（2回目で発火）。
+これは「hover でメニューが出るサイトをタッチでも使えるようにする」ための昔からの互換挙動。
+
+Taskra は幅769px以上でPCレイアウト分岐に入る設計のため、iPad（横1194px等）はPC扱いになり、
+以下の**ホバーで見た目が変わるルールが `.trow`（タスク行）に効いていた**：
+
+| 場所 | ルール | pointer:fine ガード |
+|---|---|---|
+| index.html:155 | `.trow:hover{background;border-color}` | あり（対策済みだった） |
+| index.html:642 | `.trow:hover .trow-expand-btn{opacity:1}` | **なし ← 主犯** |
+| index.html:649 | `.trow:hover .trow-copy-btn{opacity:1}` | **なし** |
+| index.html:784 | `.trow:hover .task-drag-handle{opacity:.45}` | **なし** |
+
+行の背景色だけは既に `@media(pointer:fine)` で隔離済みだったが、
+ボタンの出現（opacity 0→1）が隔離されていなかったため、そこで判定に引っかかっていた。
+スクリーンショットで「タップすると最大化ボタンだけが出る」のは、まさにこのホバー適用の瞬間。
+
+JS側（`data-a="sel"` ハンドラ、index.html:8493〜）には問題なし。`click` が来れば正しく詳細を切り替える。
+
+### 対処（index.html のみ・CSSのみ）
+**方針：ホバーで出す挙動は `pointer:fine`（マウス/トラックパッド）限定にし、
+`pointer:coarse`（タッチ）ではホバーに依存せず常時薄く表示する。**
+既存の `.trow:hover` / `.chk:hover` が `@media(pointer:fine)` で書かれているのと同じ流儀に揃えた。
+
+1. `.trow-expand-btn` / `.trow-copy-btn`（index.html:641〜）
+   - `@media(min-width:769px)` の中を `pointer:fine` と `pointer:coarse` に分岐。
+   - fine：従来どおり `opacity:0` →ホバーで `1`。
+   - coarse：`opacity:.45` で常時表示＋`:active` でフィードバック。`touch-action:manipulation` と
+     `-webkit-tap-highlight-color` も付与。
+2. `.task-drag-handle`（index.html:806）
+   - `.trow:hover .task-drag-handle{opacity:.45}` を `@media(pointer:fine)` で囲んだ。
+     タッチ環境では既存の `@media(hover:none),(pointer:coarse){opacity:.25}` が常時効くので見た目は維持。
+3. サイドバーの `.proj-item` / `.tag-item`（index.html:567〜）※同種の欠陥の横展開
+   - `:hover .proj-actions{display:flex}` も同じ理由でiPadのプロジェクト切り替えが2タップになっていた。
+     `pointer:fine` 限定にし、`pointer:coarse` では常時 `display:flex`（スマホと同じ扱い）に。
+
+**この「ホバーで要素を出す」書き方は、今後 `pointer:fine` ガードなしで足すと同じ2タップ問題が再発する。**
+行やリスト項目など「タップして選ぶもの」の中にホバー表示要素を置くときは必ずガードすること。
+
+### 検証
+Chromium(Playwright) で `index.html` を実ロードし、行のマークアップを挿入して計測（全PASS）。
+- **iPad相当（1194×834 / hasTouch=true → pointer:coarse）**：
+  ホバー前後で行の背景色・ボーダー色・展開ボタン・コピーボタン・ドラッグハンドルの
+  computed style が**一切変化しない**ことをアサート。
+  かつ展開ボタンが `opacity:.45 / display:flex` でホバーなしに見えていることを確認。
+- **デスクトップ回帰（1440×900 / hasTouch=false → pointer:fine）**：
+  非ホバー時 `opacity:0` →ホバーで `1`、行背景が変化、ハンドルが `0→.45` と、従来挙動を維持。
+- サイドバーも同様に、iPadで常時 `display:flex` / PCで `none→flex` を確認。
+- JSエラーゼロ。
+- **未検証：実機iPadOS Safari/PWA。** Chromium は WebKit のこのタップ判定自体を再現できないため、
+  「ホバーで見た目が変わらなくなったこと」を代理指標として検証している。実機での最終確認が必要。
+
+### セキュリティ関連の状態
+- **本変更は認証・決済・個人情報のいずれにも該当しない**（`index.html` のCSSのみ、JS・HTML構造の変更なし）。
+- 新規/変更したテーブル：**なし**。RLSポリシーの変更：**なし**。マイグレーション追加：**なし**。
+- 認証フロー（Google OAuth）・決済フロー（Stripe Webhook・Edge Function・`user_plans`）ともに変更なし。
+- 触っていない箇所：`supabase/` 配下すべて、`sw.js`、`manifest.json`、Edge Function 群、
+  および `index.html` 内のJavaScript全域。
+- 秘匿情報の混入なし（diffはCSSブロックとコメントのみ）。
+
+### 次にやるべきこと
+- 実機iPadでワンタップ切り替えを確認。まだ2タップなら、他にホバーで見た目が変わる要素が
+  行の中に残っていないかを疑う（`grep -n "hover" index.html | grep -E "trow|ttitle|tmeta|\.mc"`）。
+- 未対処で残した同種のルール：`.cm-item:hover .cm-del{opacity:1}`（index.html:1004 付近）。
+  コメント自体はタップ対象ではないので実害は出ていないが、コメントにタップ操作を足すなら要ガード。
+- タッチiPadで展開/コピーボタンが常時見えるようになったため、行の右端をタップしたときの
+  誤タップ感がないか実機で確認してほしい（濃度 `.45` は調整可能）。
+
+---
+
 ## iPadでコメント入力欄が画面最上部へ飛ぶ問題の修正（2026-08-16）
 
 ### 症状
