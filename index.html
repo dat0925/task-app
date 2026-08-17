@@ -515,6 +515,15 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
     .main{height:var(--app-h,100dvh)}
     .drawer{height:var(--app-h,auto)}
   }
+  /* ===== キーボード表示中（html.kb-open）の省スペース化 =====
+     スマホでキーボードが出ると可視領域は300〜350px程度しか残らない。そこへ
+     下部アクションバー（完了/•••/×）がキーボードと一緒にせり上がって居座ると、
+     入力欄に使える高さがさらに50px以上削られ「入力欄が見えない・押しづらい」状態になる。
+     入力中に使うボタンではないので、キーボードが出ている間だけ隠す（閉じれば即復帰）。 */
+  html.kb-open .mob-action-bar{display:none}
+  /* 背の高いメモ用textarea（rows=12/6）は、そのままだと縮んだ可視領域を1つで
+     食い尽くしてしまう。キーボード表示中だけ可視領域の半分を上限にする。 */
+  html.kb-open #dt-notes,html.kb-open #nt-body{max-height:calc(var(--app-h,100dvh) * .5)}
   .drawer{
     position:fixed !important;
     top:0;left:0;right:0;bottom:0;
@@ -12090,14 +12099,28 @@ function waitForSBAndRecover(){
 // （ビジュアルビューポート基準）は座標系が異なるため、ページがずれている状態では
 // 「まだ隠れている」と誤判定して押し続け、スペーサーが常に押せる余白を供給する
 // せいで止まらなかった。イベント駆動の高さ制御に一本化してすべて撤去した。
-// あわせて入力欄自体を position:sticky でスクロール下端に固定したため
-// （CSS .cm-composer）、そもそも「入力欄まで自動スクロールする」処理が不要になった。
+// あわせて入力欄自体を position:sticky でスクロール下端に固定した（CSS .cm-composer）。
+//
+// 【スクロール補正を最小構成で復活させた理由（2026-08-17）】
+// 上記だけでは足りなかった。シェルが縮んでも「スクロールコンテナの中身の位置」は
+// そのままなので、キーボード出現前は見えていた入力欄が、縮んだ分だけ下へはみ出して
+// 隠れる。スマホは可視領域が300px前後しか残らないため実害が大きい
+// （タスク詳細のコメント・日時・メモが軒並みキーボードの裏に入って入力できない）。
+// sticky が効くのはコメント入力欄だけで、しかもコメントセクション自体が可視領域の
+// 下に出てしまえば止まらない。日時・メモにはそもそも効かない。
+// そこで ensureFocusedVisible() を追加する。旧実装の暴走要因は取り除いてある：
+//   - スペーサーを入れない（＝押せる余白を無限供給しない）
+//   - スクロール量を実際のスクロール可能範囲でクランプする
+//   - --app-h でシェル高＝visualViewport高、resetOuterScroll でページオフセット0を
+//     保証しているので、getBoundingClientRect だけで判定でき座標系の食い違いが起きない
 (function(){
   const vv=window.visualViewport;
   const root=document.documentElement;
   // キーボードとみなす最小の縮み量。iPadのフローティング/最小化キーボードでも
   // 100px程度は縮むので、ツールバー等の微小な変動とは区別できる。
   const KB_MIN=90;
+  // キーボード表示中かどうか。CSS（html.kb-open）とスクロール補正の実行条件を兼ねる。
+  let kbOpen=false;
 
   function isEditable(el){
     return !!el&&(el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.isContentEditable);
@@ -12109,32 +12132,85 @@ function waitForSBAndRecover(){
     if(root.scrollTop!==0)root.scrollTop=0;
     if(document.body.scrollTop!==0)document.body.scrollTop=0;
   }
+  // 実際にスクロールを担っている最も近い祖先を返す。
+  // クラス名（.drawer-body 等）を列挙すると、拡大モーダルや将来追加される
+  // スクロール領域を取りこぼすため、計算済みスタイルから判定する。
+  function scrollParent(el){
+    let n=el.parentElement;
+    while(n&&n!==document.body){
+      const ov=getComputedStyle(n).overflowY;
+      if((ov==='auto'||ov==='scroll')&&n.scrollHeight>n.clientHeight+1)return n;
+      n=n.parentElement;
+    }
+    return null;
+  }
+  // フォーカス中の入力欄がキーボードの裏に隠れていたら、そのスクロールコンテナを
+  // 必要な分だけ動かして可視領域に入れる。キーボード表示中のみ実行する。
+  function ensureFocusedVisible(){
+    if(!kbOpen)return;
+    const el=document.activeElement;
+    if(!isEditable(el))return;
+    const box=scrollParent(el);
+    if(!box)return;
+    const br=box.getBoundingClientRect();
+    const er=el.getBoundingClientRect();
+    const GAP=8;
+    let d=0;
+    if(er.bottom+GAP>br.bottom){
+      // 下にはみ出している分だけ下へスクロール。ただし入力欄の上端がコンテナ上端より
+      // 上へ抜けない範囲までに制限する（メモのような背の高いtextareaで
+      // 書き出し位置ごと画面外へ送ってしまわないため）。
+      d=Math.min(er.bottom+GAP-br.bottom,Math.max(0,er.top-br.top-GAP));
+    }else if(er.top<br.top){
+      d=er.top-br.top-GAP; // 上にはみ出している場合は上へ戻す
+    }
+    if(!d)return;
+    // 実際にスクロールできる範囲へクランプ。これがあるため、旧実装のように
+    // 「隠れている」と誤判定し続けても際限なく動くことはない。
+    const lo=-box.scrollTop;
+    const hi=box.scrollHeight-box.clientHeight-box.scrollTop;
+    box.scrollTop+=Math.max(lo,Math.min(d,hi));
+  }
   function apply(){
     if(!vv)return;
     const hidden=window.innerHeight-vv.height;
-    if(hidden>KB_MIN&&isEditable(document.activeElement)){
+    kbOpen=hidden>KB_MIN&&isEditable(document.activeElement);
+    if(kbOpen){
       // キーボード表示中：シェルの高さを実際の可視領域に合わせる
       root.style.setProperty('--app-h',Math.round(vv.height)+'px');
     }else{
       // 通常時：CSS側の 100dvh / 100vh フォールバックへ戻す
       root.style.removeProperty('--app-h');
     }
+    // CSS側で下部アクションバーの一時退避などに使う（.mob-action-bar / #dt-notes）
+    root.classList.toggle('kb-open',kbOpen);
     resetOuterScroll();
   }
+  // 高さ確定（--app-h の反映）を待ってからスクロール補正する。
+  function applyThenReveal(){
+    apply();
+    requestAnimationFrame(ensureFocusedVisible);
+  }
   if(vv){
-    vv.addEventListener('resize',apply);
+    vv.addEventListener('resize',applyThenReveal);
     vv.addEventListener('scroll',apply);
   }
   document.addEventListener('focusin',e=>{
     if(!isEditable(e.target))return;
     resetOuterScroll();
     apply();
+    requestAnimationFrame(ensureFocusedVisible);
+    // キーボードが既に出ている状態で別の入力欄へ移った場合は visualViewport の
+    // resize が発生しないため、focusin 側でも遅延して一度だけ補正する。
+    // （キーボードのせり上がりアニメーションと、下部アクションバーが消えて
+    //   レイアウトが変わるのを待つ）
+    setTimeout(ensureFocusedVisible,300);
   },true);
   document.addEventListener('focusout',()=>{
     // フォーカスが別の入力欄へ移る場合は縮めたままにしたいので、次tickで判定する
     setTimeout(apply,0);
   },true);
-  window.addEventListener('orientationchange',()=>setTimeout(apply,0));
+  window.addEventListener('orientationchange',()=>setTimeout(applyThenReveal,0));
 })();
 
 
