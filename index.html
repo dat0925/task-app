@@ -9742,9 +9742,9 @@ function openExpandModal(type){
   renderInto();
   ov.addEventListener('click',e=>{if(e.target===ov){ov.remove();}});
   document.addEventListener('keydown',function escKey(e){if(e.key==='Escape'){ov.remove();document.removeEventListener('keydown',escKey);}});
-  _syncExpandWithCalc();
-  const _syncObs=new MutationObserver(()=>{if(!document.contains(ov)){_syncObs.disconnect();_syncExpandWithCalc();}});
-  _syncObs.observe(document.body,{childList:true});
+  // ここにあった _syncExpandWithCalc()（電卓ドロワーとの同時表示調整）は
+  // 電卓機能の削除（d1b2ebb）で定義が消えたのに呼び出しだけ残り、
+  // openExpandModal のたびに ReferenceError を投げていたため削除。
 }
 
 function reattachModalEvents(modal, type, onClose){

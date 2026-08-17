@@ -55,11 +55,48 @@ function _isCopyOnlyTarget(t){
 ### セキュリティ影響
 なし。DBスキーマ・RLS・認証・決済いずれにも変更なし（UIイベントの分岐のみ）。
 
-### 未対処（本件とは別の既知バグ）
-`openExpandModal()`（index.html:9745）が**未定義関数 `_syncExpandWithCalc()` を呼んでいて例外を投げる**。
-モーダル本体の生成・イベント再アタッチ（9742の`renderInto()`）は完了済みのため実害は
-「モーダルを閉じたときのカレンダー再同期用 MutationObserver が登録されない」程度だが、
-コンソールに `ReferenceError` が出る。今回の変更とは無関係で、既存 main にも存在。要対応。
+### 関連して修正した既存バグ
+下の「拡大モーダルの `_syncExpandWithCalc` ReferenceError」を参照（同日中に対処済み）。
+
+---
+
+## 拡大モーダルで `_syncExpandWithCalc is not defined` が出る問題の修正（2026-08-17）
+
+### 症状
+「最大化」ボタンでタスク／NOTEの拡大モーダルを開くたびに、コンソールに
+`ReferenceError: _syncExpandWithCalc is not defined`（index.html:9745）が出ていた。
+
+### 原因
+`_syncExpandWithCalc()` は **電卓ドロワーと拡大モーダルの同時表示を調整する関数**として
+`faa2e60`（2026-05-05「PC: 電卓ドロワーとexpandモーダルの同時表示に対応」）で追加されたもの。
+その後 `d1b2ebb`「feat: 電卓機能を完全削除」で**定義側だけが削除され、
+`openExpandModal()` 内の呼び出し2箇所が消し忘れられていた**。
+
+実害は限定的だった（モーダル生成とイベント再アタッチは例外発生前の `renderInto()` で完了済み。
+失われるのは電卓連動の後始末だけで、電卓自体がもう存在しないため無意味）が、
+例外で毎回コンソールが汚れ、後続のデバッグを妨げるため対処。
+
+### 対処（index.html:9745）
+呼び出しと、それを再実行するためだけの MutationObserver をまとめて削除（電卓連動専用のため復元不要）。
+
+```js
+  // 削除前
+  _syncExpandWithCalc();
+  const _syncObs=new MutationObserver(()=>{if(!document.contains(ov)){_syncObs.disconnect();_syncExpandWithCalc();}});
+  _syncObs.observe(document.body,{childList:true});
+```
+
+### 動作確認（ローカル、SW/Cache破棄後）
+- 拡大モーダルを開く：例外なし・`window.onerror` も0件
+- モーダル内のメモプレビュー・フォルダパスチップのタップ（コピーのみ）：正常
+- モーダル内でタイトル編集 → `S.tasks` に反映される（`reattachModalEvents` は生きている）
+- Escキー／オーバーレイクリックで閉じる：どちらも正常
+
+### 残っている電卓機能の残骸（未対処・別件）
+`d1b2ebb` の取りこぼしが index.html にまだある。いずれもJSからの参照はなく無害だが、掃除候補：
+- 1188〜1192行：`<!-- Calculator drawer -->` 配下の**孤立した `</div>` 2つ**と
+  `#calc-head-tonote-btn` ボタン、`#calc-drawer-body` の空div（開始タグ側は削除済みで構造が壊れている）
+- CSS：`.calc-topbar-btn` / `.calc-top-scroll` / `.calc-mid-section` / `.calc-label-*` など（238〜309行付近）
 
 ---
 
