@@ -5078,9 +5078,32 @@ function scrollGanttToToday(){
   });
 }
 
+// ===== VIEW別フィルタ既定値 =====
+// Nextビューは「今やる次のアクション」を見るビューなので、開いた時点のフィルタ既定を
+// 現在ON（開始前を除外）／共有OFF（共有PJを除外）にする。
+// フィルタ状態（hideNotStarted / showShared）は全ビュー共通のグローバル状態なので、
+// Nextに入る直前の値を退避し、Nextから離れたときに元へ戻す（他ビューへ副作用を残さない）。
+let _vfLastView=null;
+let _vfSavedFilter=null;
+function applyViewFilterDefaults(v){
+  if(v===_vfLastView)return;
+  const prev=_vfLastView;
+  _vfLastView=v;
+  if(v==='nextview'){
+    if(prev!=='nextview')_vfSavedFilter={hideNotStarted:S.hideNotStarted,showShared:S.showShared};
+    S.hideNotStarted=true;
+    S.showShared=false;
+  }else if(prev==='nextview'&&_vfSavedFilter){
+    S.hideNotStarted=_vfSavedFilter.hideNotStarted;
+    S.showShared=_vfSavedFilter.showShared;
+    _vfSavedFilter=null;
+  }
+}
+
 // ===== RENDER CONTENT =====
 function renderContent(){
   const el=document.getElementById('content');
+  applyViewFilterDefaults(S.view);
   const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',overdue:'Overdue',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Logbook',notes:'Notes',nextview:'Next',gantt:'Gantt',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||'',
@@ -8246,6 +8269,7 @@ function hasUnsavedDraft(){
 
 // ===== RENDER APP =====
 function render(){
+  applyViewFilterDefaults(S.view); // サイドバーのバッジ計算より前にビュー既定フィルタを反映
   localStorage.setItem('focus_view_state',JSON.stringify({view:S.view,projId:S.projId||null,tagId:S.tagId||null}));
   if(S.dark)document.documentElement.setAttribute('data-dark','');
   else document.documentElement.removeAttribute('data-dark');
