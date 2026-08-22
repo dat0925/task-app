@@ -74,12 +74,17 @@ Notifications)→Pub/Sub→新Edge Functionでの解約・返金・猶予期間�
 **⚠️ ここに `<a>` やクリックで遷移する要素を足してはいけない。**「リンクを張らないテキスト告知」で
 あることが手数料0%の条件。追加するとGoogleへの手数料（定期購入10%）が発生する。
 
-**4. `.nojekyll` を追加**
+**4. `.nojekyll` は今回入れていない（意図的に見送り）**
 
 TWAをURLバーなしで全画面起動するにはDigital Asset Links検証が必要で、
 `https://app.taskra.jp/.well-known/assetlinks.json` を配信しなければならない。
-GitHub Pages（Jekyll）は `.` で始まるディレクトリを publish しないため `.nojekyll` が必要。
-**ファイル本体はまだ置いていない**（署名鍵のSHA-256フィンガープリントが未確定のため）。
+GitHub Pages（Jekyll）は `.` で始まるディレクトリを publish しないため `.nojekyll` が必要になるが、
+**assetlinks.json 本体を置くまでは不要**で、Web版に対する変更を1バイトも入れない方針にしたため
+今回は見送った。次に入れるときは assetlinks.json と同時に追加すること。
+
+なお `.nojekyll` 追加時の安全性は事前確認済み：`index.html` / `devs.html` / `debug.html` /
+`test.html` / `id-check.html` に **Liquid構文（`{{` `{%`）は0件**。したがってJekyllを無効化しても
+配信されるHTMLは変わらない。
 
 ### 動作確認（Playwright + Chromium、iPhone相当のモバイルエミュレーション、33項目すべてパス）
 
@@ -102,6 +107,49 @@ GitHub Pages（Jekyll）は `.` で始まるディレクトリを publish しな
 
 inline script 3ブロックすべて `node --check` 通過。
 
+### Web版に一切影響しないことの検証（回帰テスト）
+
+「これまでのWeb版の機能には一切影響しないように」という要件に対し、
+**旧版（HEAD~1）と新版のHTML出力をバイト単位で全比較**した。
+
+**1. 生成HTMLの全比較 — 40種類すべて完全一致（差分0件）**
+
+旧版 `index.html` と新版を同一オリジンに並べて配信し、Web版の条件（`?src=`なし・
+referrer偽装なし）で以下が生成するHTMLを文字列比較した。
+
+| 対象 | 組み合わせ | 結果 |
+|---|---|---|
+| `showUpgradeModal()` | 3プラン × 11 featureキー（`tasks`/`banner`/`projects`/`notes`/`ai`/`fileExtract`/`team`/`repeat`/`gantt`/`attachments`＋未知キー） | 33種すべて一致 |
+| `openMyPlan()` | 3プラン | 3種すべて一致 |
+| `showUserMenu()` | 3プラン | 3種すべて一致 |
+| localStorage / sessionStorage のキー一覧 | — | 旧版・新版ともに空（`{ls:[],ss:[]}`） |
+
+旧版・新版ともJSエラー0件。**新版はWeb版でストレージへの書き込みを一切行わない**
+（`IS_PLAY_APP` の判定ロジックは、Web版では `read()` しか通らず `write()` に到達しない）。
+
+**2. Web版の実利用条件で誤検知しないこと — 11ケースすべてパス**
+
+すべて「判定=false・購入リンク2本・ストレージ書き込み0・JSエラー0」を期待値として確認。
+
+| ケース | 結果 |
+|---|---|
+| 通常のPC Chrome | OK |
+| **PWA standalone（ホーム画面から起動）** ※普段の使い方 | OK |
+| iPhone Safari UA / Android Chrome UA | OK |
+| referrer = google.com / 同一オリジン / 空 | OK |
+| 他アプリのreferrer（Gmail / LINE） | OK |
+| 無関係なクエリ付き（`?view=today&task=abc123`） | OK |
+| 未知の `?src=newsletter` | OK |
+
+判定ロジックは `display-mode: standalone` や `navigator.standalone` を**見ていない**ため、
+ブラウザからホーム画面に追加したPWAは影響を受けない（TaskraはPWAとして使われているので重要）。
+
+**3. 追加した識別子の衝突なし**
+
+`PLAY_APP_PACKAGE` / `PLAY_APP_FLAG` / `IS_PLAY_APP` / `playBillingNoticeHtml` /
+`window._isPlayApp` / sessionStorageキー `taskra_src_twa` は、いずれも既存コードに
+同名の識別子が存在しないことを確認済み。`?src=` パラメータも既存機能では未使用。
+
 ### セキュリティ関連の状態
 - **新規/変更したテーブル：なし。** マイグレーション追加なし。RLSの状態に変更なし
   （`user_plans` はRLS有効・ポリシー3件のまま）。
@@ -120,7 +168,8 @@ inline script 3ブロックすべて `node --check` 通過。
 2. applicationId を **`jp.taskra.app`** にする（`index.html` の `PLAY_APP_PACKAGE` と一致必須）
 3. launch URL に **`?src=twa`** を付ける（referrer判定のフォールバック）
 4. `bubblewrap build` で生成した署名鍵のSHA-256フィンガープリントを取得し、
-   `.well-known/assetlinks.json` をこのリポジトリに追加してpush（`.nojekyll` は済）：
+   **`.nojekyll` と `.well-known/assetlinks.json` をセットで**このリポジトリに追加してpush
+   （`.nojekyll` がないとGitHub Pagesが `.well-known/` を配信しない）：
    ```json
    [{"relation":["delegate_permission/common.handle_all_urls"],
      "target":{"namespace":"android_app","package_name":"jp.taskra.app",
