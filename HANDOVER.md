@@ -82,9 +82,36 @@ GitHub Pages（Jekyll）は `.` で始まるディレクトリを publish しな
 **assetlinks.json 本体を置くまでは不要**で、Web版に対する変更を1バイトも入れない方針にしたため
 今回は見送った。次に入れるときは assetlinks.json と同時に追加すること。
 
-なお `.nojekyll` 追加時の安全性は事前確認済み：`index.html` / `devs.html` / `debug.html` /
-`test.html` / `id-check.html` に **Liquid構文（`{{` `{%`）は0件**。したがってJekyllを無効化しても
-配信されるHTMLは変わらない。
+なお `.nojekyll` 追加時の安全性は事前確認済み：`grep -nE '\{[%{]' *.html` が
+`index.html` / `devs.html` / `debug.html` / `test.html` / `id-check.html` すべてで**0件**
+（＝Jekyllのテンプレート記法を含まない）。したがってJekyllを無効化しても配信されるHTMLは変わらない。
+
+### ⚠️ HANDOVER.md / CLAUDE.md に書いてはいけない文字列（Pagesビルドが落ちる）
+
+**このファイルは GitHub Pages の Jekyll が Liquid テンプレートとして処理する。**
+`.md` 内にテンプレート記法の開き記号（波括弧2連、および波括弧＋パーセント）を生で書くと、
+閉じ記号がないため **Pagesビルドがエラーで落ち、deployジョブがskipされて本番に反映されない。**
+
+実際に 2026-08-22 の `653f8c1` で踏んだ（皮肉にも「Liquid構文は0件」と書いた文章自体が原因）：
+
+```
+Error: Liquid syntax error (line 86): Variable '...' was not properly terminated with regexp: /\}\}/
+```
+
+このとき本番は無傷（deployがskipされ旧版が配信され続けた）だが、変更は一切反映されなかった。
+
+**書き方のルール**
+- 説明で言及したいときは、生の2文字並びが現れない書き方にする。文字クラスを使った
+  `\{[%{]` の形が安全。**バックスラッシュを挟むだけの書き方では漏れる**：
+  波括弧をエスケープしてもバックスラッシュは波括弧の前に付くだけなので、
+  直後にパーセントが続くパターンは生の2文字並びが残ってしまう（実際にこれで1回踏んだ）。
+- コードブロック（``` で囲む）でも**回避できない**。LiquidはMarkdownより先に処理される。
+  どうしても生で書く必要があれば `raw` / `endraw` タグで囲むか、`.nojekyll` を導入する。
+- コミット前チェック：`grep -nE '\{[%{]' *.md` が0件であること。
+
+将来 `.nojekyll` を入れればこの制約自体が消える（Jekyllが動かなくなるため）。
+このリポジトリは `_config.yml` もレイアウトも持たず、Jekyllは `.md` をテーマHTMLに変換している
+だけで誰も見ていないので、`.nojekyll` 導入はこの地雷を恒久的に取り除く意味でも合理的。
 
 ### 動作確認（Playwright + Chromium、iPhone相当のモバイルエミュレーション、33項目すべてパス）
 
