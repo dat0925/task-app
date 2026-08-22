@@ -1,6 +1,148 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-08-21
+最終更新: 2026-08-22
+
+---
+
+## Google Play公開に向けた課金導線の出し分け（A案：アプリ内課金導線なし）（2026-08-22）
+
+### 背景・調査結果
+「Google Playに公開した場合、今のStripeがそのまま使えるか」の調査。結論は以下。
+
+- **Web版（app.taskra.jp）はStripeのまま一切変更不要。**
+- Google Playの決済ポリシーが規制するのは「**アプリ内でデジタルコンテンツを購入させる**」行為。
+  Taskraは生産性アプリのサブスクなので免除カテゴリ（物理商品・保険・1対1レッスン等）に該当しない。
+- ただし「**他所で購入した権利をアプリ内で利用させるだけ**」（＝消費専用アプリ）はGoogleが公式に許容。
+- 2025-12-18の**スマホ新法**（スマホソフトウェア競争促進法）全面施行で、日本ではアプリ内から
+  外部決済へのリンクアウトも公式に可能になった。ただし**リンクを置くとGoogleへの手数料が発生する**
+  （定期購入10% / 単発20%。リンククリック後**24時間**以内のWeb購入が手数料対象。日本での新手数料
+  体系の適用開始は2026-09-30）。**リンクを張らないテキスト告知のみなら手数料0%。**
+
+検討した3案：
+
+| 案 | 内容 | Googleへの手数料 | 実装コスト |
+|---|---|---|---|
+| **A（採用）** | アプリ内に課金導線を置かない。Webで契約→アプリで利用 | **0%** | 小 |
+| B | 外部リンクプログラムに登録しStripeへリンクアウト | 定期10% / 単発20% | 中 |
+| C | Google Play Billingを併用（TWA + Digital Goods API） | 定期10% + 請求手数料5% | 大 |
+
+C案は `user_plans` がemail主キー・Stripe前提のため、課金経路カラム追加＋RTDN(Real-time Developer
+Notifications)→Pub/Sub→新Edge Functionでの解約・返金・猶予期間・アカウント保留のハンドリングが
+必要で重い。まずA案、伸びたらB案、C案は最後。
+
+### 実装（`index.html` のみ）
+
+**1. Playアプリ（TWA）判定：`IS_PLAY_APP`（`PAYMENT_LINKS` の直後に定義）**
+
+判定シグナルは2つ。どちらかがヒットすればPlayアプリ扱い。
+
+1. `document.referrer === 'android-app://' + PLAY_APP_PACKAGE`（TWA起動時にChromeが付与）
+2. 起動URLに `?src=twa`（BubblewrapのlaunchURLに設定しておく／保険）
+
+**★ハマりどころ（実装中に踏んだ）**
+
+| 罠 | なぜダメか | 対処 |
+|---|---|---|
+| `referrer.startsWith('android-app://')` で判定 | Chromeは**他のAndroidアプリ内リンクから開かれた場合も** `android-app://com.google.android.gm` 等を referrer に入れる。Gmail・LINE・Slackのリンクから来た**Web版ユーザーの購入ボタンが消える** | `PLAY_APP_PACKAGE`（`jp.taskra.app`）との**完全一致**で判定 |
+| フラグを `localStorage` に保存 | TWAは同一端末のChromeブラウザと**同一オリジンのストレージを共有する**。TWAで立てたフラグがWeb版に残り、**Web版で購入できなくなる** | `sessionStorage` に保存（TWAセッションとブラウザタブは分離される） |
+| `?src=twa` だけに依存 | 初期化コード（12300行台）が `history.replaceState` でURLパラメータを削除するため、**リロードで判定が消える** | sessionStorageで保持 |
+
+- `PLAY_APP_PACKAGE='jp.taskra.app'` は **Play Consoleに登録するapplicationIdと必ず一致させること。**
+  変えたらこの定数も変える（不一致だとTWA内で購入導線が表示され、ポリシー違反になる）。
+- 誤検知で購入できなくなった場合の逃げ道：`?src=web` を付けて開く。解除はそのセッション中、
+  referrerの再ヒットより優先される（sessionStorageに `'0'` を記録）。
+- `window._isPlayApp` に判定結果を公開してある（Chrome DevToolsのリモートデバッグ用・参照専用）。
+
+**2. 課金導線の出し分け（4ヶ所）**
+
+| 箇所 | Web版 | Playアプリ内 |
+|---|---|---|
+| `showUpgradeModal()` スタンダード→プレミアム | 「アップグレード →」（Payment Link） | ボタンなし＋テキスト告知 |
+| `showUpgradeModal()` フリー→2プラン選択 | 各カードに「選択する →」 | ボタンなし＋テキスト告知（**プラン比較の表示自体は残す**） |
+| `openMyPlan()` プランカード | Payment Link / ポータル経由アップグレード | ボタンなし |
+| `openMyPlan()`「プランの管理・解約はこちら →」 | Stripeカスタマーポータル | **非表示**＋テキスト告知 |
+| ユーザーメニューのCTA | 「✦ アップグレード →」 | 「✦ プランを見る」 |
+
+カスタマーポータルもPlayアプリ内では出さない。**ポータルからは上位プランへの変更＝購入ができる**ため。
+
+**3. テキスト告知：`playBillingNoticeHtml()`**
+
+> プランのお申し込み・変更・解約は、ブラウザで Taskra のWebサイト（app.taskra.jp）を開いて行えます。
+> Webサイトでお申し込みいただいたプランは、同じGoogleアカウントでログインすればこのアプリでも
+> そのままご利用いただけます。
+
+**⚠️ ここに `<a>` やクリックで遷移する要素を足してはいけない。**「リンクを張らないテキスト告知」で
+あることが手数料0%の条件。追加するとGoogleへの手数料（定期購入10%）が発生する。
+
+**4. `.nojekyll` を追加**
+
+TWAをURLバーなしで全画面起動するにはDigital Asset Links検証が必要で、
+`https://app.taskra.jp/.well-known/assetlinks.json` を配信しなければならない。
+GitHub Pages（Jekyll）は `.` で始まるディレクトリを publish しないため `.nojekyll` が必要。
+**ファイル本体はまだ置いていない**（署名鍵のSHA-256フィンガープリントが未確定のため）。
+
+### 動作確認（Playwright + Chromium、iPhone相当のモバイルエミュレーション、33項目すべてパス）
+
+`document.referrer` を `Object.defineProperty` で偽装してTWA起動を再現。
+
+| ケース | 結果 |
+|---|---|
+| Web版 free：購入リンク2本が出る / 告知は出ない | ✅ |
+| Web版 premium：解約ポータルボタンあり | ✅ |
+| Web版 standard：アップグレードリンク1本＋ポータル経由アップグレードあり | ✅ |
+| TWA(`?src=twa`) free：購入リンク0本・**overlay内の`<a href>`が0個**・告知あり | ✅ |
+| TWA free：localStorageを汚さない（`null`）/ sessionStorageに保持（`'1'`） | ✅ |
+| TWA free：**リロード後も判定維持**（URLからパラメータが消えても） | ✅ |
+| TWA(referrer) premium：解約ポータルボタンなし・購入リンク0本・告知あり | ✅ |
+| TWA standard：アップグレードリンク0本・ポータル経由アップグレードなし | ✅ |
+| **誤検知なし**：`android-app://com.google.android.gm` / `jp.naver.line.android` / `com.Slack` → いずれも判定false・購入リンク2本 | ✅ |
+| 自パッケージ `android-app://jp.taskra.app/`（末尾スラッシュ）→ true | ✅ |
+| `?src=web` で解除、セッション中はreferrer再ヒットより優先 | ✅ |
+| JSエラー | 0件 |
+
+inline script 3ブロックすべて `node --check` 通過。
+
+### セキュリティ関連の状態
+- **新規/変更したテーブル：なし。** マイグレーション追加なし。RLSの状態に変更なし
+  （`user_plans` はRLS有効・ポリシー3件のまま）。
+- **認証フローの変更：なし。**
+- **決済フローの変更：サーバー側は一切なし。** `stripe-webhook` / `stripe-portal` Edge Function、
+  Stripe Price ID、Payment Link URLは未変更。変更したのは**フロントエンドの導線表示のみ**。
+- 権限判定は従来どおり `user_plans` を正とするサーバー側（RLS）で、今回の出し分けは**UI表示のみ**。
+  仮にPlayアプリ内で判定を回避してPayment Linkを開いたとしても、購入・権限付与の経路は変わらない。
+- 触っていない箇所：`supabase/` 配下すべて、`src/`、`sw.js`、管理者向け `openPlanAdmin()`。
+- diffに秘匿情報（APIキー・トークン・パスワード）が含まれないことを確認済み。
+
+### 次にやるべきこと
+
+**TWAのパッケージング（未着手・リポジトリ外の作業）**
+1. `npx @bubblewrap/cli init --manifest https://app.taskra.jp/manifest.json`
+2. applicationId を **`jp.taskra.app`** にする（`index.html` の `PLAY_APP_PACKAGE` と一致必須）
+3. launch URL に **`?src=twa`** を付ける（referrer判定のフォールバック）
+4. `bubblewrap build` で生成した署名鍵のSHA-256フィンガープリントを取得し、
+   `.well-known/assetlinks.json` をこのリポジトリに追加してpush（`.nojekyll` は済）：
+   ```json
+   [{"relation":["delegate_permission/common.handle_all_urls"],
+     "target":{"namespace":"android_app","package_name":"jp.taskra.app",
+               "sha256_cert_fingerprints":["<署名鍵のSHA-256>"]}}]
+   ```
+   ※Play Console の「アプリ署名」でGoogleが再署名するので、**Play Consoleに表示される
+   アプリ署名鍵のフィンガープリント**を使うこと（ローカルのupload鍵ではない）
+5. Play Console でデータセーフティ・プライバシーポリシー・料金体系の申告
+   （「アプリ内購入なし」で申告する。Webで課金することは申告フォームの対象外）
+
+**実機確認**
+- TWAで起動して `window._isPlayApp === true` になるか（Chrome DevToolsのリモートデバッグ）
+- アップグレードモーダル・マイプランに購入ボタンが出ないこと
+- **同じ端末のChromeブラウザで app.taskra.jp を開いたとき、購入ボタンが出ること**（最重要の回帰確認）
+- Web版で契約したプレミアムがTWA側に反映されること
+
+**別途対応が必要（今回のスコープ外・前回調査で見つけた懸念）**
+- `PAYMENT_LINKS` のコメントが「テスト用。本番切り替え時はURLを差し替え」のまま（`index.html:1421` 付近）。
+  URLは `buy.stripe.com/test_...` ではないので本番リンクに見えるが、コメントが実態と乖離している。要確認。
+- `loadUserPlan()` はログイン時にしか走らないため、決済完了後にアプリへ戻ってもプランが即時反映されない
+  可能性がある。A案ではアプリ内で買わないので優先度は下がるが、Web版では体感に影響する。
+  `visibilitychange` での再取得を検討。
 
 ---
 

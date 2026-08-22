@@ -1423,6 +1423,64 @@ const PAYMENT_LINKS={
   standard:'https://buy.stripe.com/4gM4gycwbdi2aiu8ArfQI00',
   premium:'https://buy.stripe.com/28E8wO7bR2DofCObMDfQI01',
 };
+
+// ===== Google Play（Androidアプリ）判定 =====
+// Google Playで配布するTWA（Trusted Web Activity）の中で開かれているかを判定する。
+// Google Playの決済ポリシーが規制するのは「アプリ内でデジタルコンテンツを購入させる」行為で、
+// 他所で購入した権利をアプリ内で利用させること（＝消費専用）は明示的に認められている。
+// そこでアプリ内では課金導線（Stripe Payment Link・カスタマーポータル）を一切出さず、
+// リンクを張らないテキスト告知に差し替える。リンクを設置しなければGoogleへの
+// 外部決済手数料は発生しない（リンクを置くとクリック後24時間の購入が手数料対象になる）。
+//
+// 判定シグナル（どちらかがヒットすればPlayアプリ扱い）:
+//   1. document.referrer が 'android-app://<自分のパッケージ名>'（TWA起動時にChromeが付与）
+//   2. 起動URLに ?src=twa が付いている（Bubblewrapのlaunch URLに設定しておく／保険）
+//
+// ★1で「android-app:// で始まる」だけを見てはいけない。Chromeは他のAndroidアプリ内の
+//   リンクから開かれた場合も referrer に android-app://com.google.android.gm 等を入れるため、
+//   Gmail・LINE・Slackのリンクから来たWeb版ユーザーを誤ってPlayアプリ扱いし、
+//   購入ボタンを消してしまう。必ず自分のパッケージ名と完全一致で判定する。
+//
+// 保持先が sessionStorage なのは意図的。localStorageにすると同一端末のChromeブラウザ
+// （＝Web版）とストレージを共有してしまい、Web版でも購入ボタンが消えてしまう。
+// 誤検知で購入できなくなった場合は ?src=web を付けて開けばそのセッションの間は解除できる。
+//
+// PLAY_APP_PACKAGE は Play Console に登録する applicationId と必ず一致させること。
+// （Bubblewrapの初期値は app.taskra.jp を反転した jp.taskra.app）
+const PLAY_APP_PACKAGE='jp.taskra.app';
+const PLAY_APP_FLAG='taskra_src_twa';
+const IS_PLAY_APP=(function(){
+  const ss=(function(){try{return window.sessionStorage;}catch(_){return null;}})();
+  const read=function(){try{return ss?ss.getItem(PLAY_APP_FLAG):null;}catch(_){return null;}};
+  const write=function(v){try{if(ss)ss.setItem(PLAY_APP_FLAG,v);}catch(_){}};
+
+  let src=null;
+  try{src=new URLSearchParams(location.search).get('src');}catch(_){}
+
+  // ?src=web は明示的な解除。以降このセッションでは判定シグナルより優先する。
+  if(src==='web'){write('0');return false;}
+  if(read()==='0')return false;
+
+  const ref=document.referrer||'';
+  const fromOurApp=ref==='android-app://'+PLAY_APP_PACKAGE
+                 ||ref.indexOf('android-app://'+PLAY_APP_PACKAGE+'/')===0;
+  if(src==='twa'||fromOurApp){write('1');return true;}
+
+  return read()==='1';
+})();
+// 実機（Chrome DevTools リモートデバッグ）から判定結果を確認できるように公開する。
+// 判定に使うのは常に IS_PLAY_APP 側。こちらは参照専用。
+window._isPlayApp=IS_PLAY_APP;
+
+// アプリ内に決済リンクを置かないための告知。
+// 「リンクを張らないテキスト告知」であることが手数料0%の条件なので、
+// ここに <a> やクリックで遷移する要素を足してはいけない。
+function playBillingNoticeHtml(){
+  return '<div style="font-size:12px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;line-height:1.75">'
+    +'プランのお申し込み・変更・解約は、ブラウザで Taskra のWebサイト（app.taskra.jp）を開いて行えます。'
+    +'Webサイトでお申し込みいただいたプランは、同じGoogleアカウントでログインすればこのアプリでもそのままご利用いただけます。'
+    +'</div>';
+}
 // プラン定義: 将来のプラン追加はここにキーを足すだけ
 const PLAN_DEFS={
   free:    {label:'フリー',     taskLimit:Infinity, projectLimit:10,       noteLimit:100, aiLimit:10,  ai:false, repeat:true,  team:false},
@@ -1847,9 +1905,11 @@ function showUpgradeModal(feature){
       +'</div>'
       +'<div class="upgrade-price">¥780<span>/月</span></div>'
       +'<div class="upgrade-price-note">月額・いつでもキャンセル可</div>'
+      // Playアプリ内では購入リンクを出さず、テキスト告知に差し替える
+      +(IS_PLAY_APP?playBillingNoticeHtml():'')
       +'<div class="modal-foot">'
         +'<button class="btn btn-ghost" id="upg-cancel">閉じる</button>'
-        +'<a href="'+_payUrl(PAYMENT_LINKS.premium)+'" target="_blank" class="btn btn-primary" style="text-decoration:none">アップグレード →</a>'
+        +(IS_PLAY_APP?'':'<a href="'+_payUrl(PAYMENT_LINKS.premium)+'" target="_blank" class="btn btn-primary" style="text-decoration:none">アップグレード →</a>')
       +'</div>'
     +'</div>';
   } else {
@@ -1865,7 +1925,7 @@ function showUpgradeModal(feature){
           +'<div style="font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;flex:1">'
             +['タスク無制限','プロジェクト無制限','ノート300件','繰り返しタスク','チーム共有','AI（200回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
           +'</div>'
-          +'<a href="'+_payUrl(PAYMENT_LINKS.standard)+'" target="_blank" class="btn btn-ghost" style="text-decoration:none;text-align:center;margin-top:4px;font-size:13px">選択する →</a>'
+          +(IS_PLAY_APP?'':'<a href="'+_payUrl(PAYMENT_LINKS.standard)+'" target="_blank" class="btn btn-ghost" style="text-decoration:none;text-align:center;margin-top:4px;font-size:13px">選択する →</a>')
         +'</div>'
         // プレミアムカード
         +'<div style="border:2px solid var(--accent);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--accent-bg)">'
@@ -1874,10 +1934,12 @@ function showUpgradeModal(feature){
           +'<div style="font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;flex:1">'
             +['タスク無制限','プロジェクト無制限','ノート無制限','繰り返しタスク','チーム共有','AI（400回/月）'].map(f=>'<span>✓ '+f+'</span>').join('')
           +'</div>'
-          +'<a href="'+_payUrl(PAYMENT_LINKS.premium)+'" target="_blank" class="btn btn-primary" style="text-decoration:none;text-align:center;margin-top:4px;font-size:13px">選択する →</a>'
+          +(IS_PLAY_APP?'':'<a href="'+_payUrl(PAYMENT_LINKS.premium)+'" target="_blank" class="btn btn-primary" style="text-decoration:none;text-align:center;margin-top:4px;font-size:13px">選択する →</a>')
         +'</div>'
       +'</div>'
       +'<div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:8px">月額・いつでもキャンセル可</div>'
+      // Playアプリ内では購入リンクを出さず、テキスト告知に差し替える
+      +(IS_PLAY_APP?'<div style="margin-bottom:12px">'+playBillingNoticeHtml()+'</div>':'')
       +'<div class="modal-foot"><button class="btn btn-ghost" id="upg-cancel">閉じる</button></div>'
     +'</div>';
   }
@@ -1960,7 +2022,9 @@ async function openMyPlan(){
     // 有料プラン→上位プランはカスタマーポータル経由（二重課金防止）
     const usePortal=currentPlan!=='free'&&isUpgrade;
     let btnHtml='';
-    if(isUpgrade){
+    // Playアプリ内では購入導線（Payment Link・カスタマーポータル）を一切出さない。
+    // プラン比較の表示自体は残す（何が使えるようになるかは伝えて良い）。
+    if(isUpgrade&&!IS_PLAY_APP){
       if(usePortal){
         btnHtml='<button class="btn btn-primary" id="plan-upgrade-portal-btn" style="width:100%;font-size:14px;padding:10px">'+p.btnLabel+'</button>';
       } else if(p.btnUrl){
@@ -2008,8 +2072,12 @@ async function openMyPlan(){
         +'</div>'
         +'<div style="font-size:11px;color:var(--text3);text-align:center">月額・いつでもキャンセル可</div>'
 
+        // Playアプリ内ではWebサイトで手続きする旨をテキストで告知（リンクは張らない）
+        +(IS_PLAY_APP?playBillingNoticeHtml():'')
+
         // プラン変更・解約（有料プランのみ表示）
-        +(currentPlan!=='free'
+        // カスタマーポータルは上位プランへの変更＝購入もできるため、Playアプリ内では出さない。
+        +(currentPlan!=='free'&&!IS_PLAY_APP
           ?'<div>'
             +'<button class="btn btn-ghost" id="my-plan-portal-btn" style="width:100%;font-size:13px;color:var(--text2)">プランの管理・解約はこちら →</button>'
           +'</div>'
@@ -4550,7 +4618,7 @@ function showUserMenu(){
       <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:3px">📋 フリープラン</div>
       <div style="font-size:10px;color:var(--text3);margin-bottom:5px">タスク ${_tc} / ${_pd.taskLimit} 件</div>
       <div style="height:3px;background:var(--bg3);border-radius:2px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:2px"></div></div>
-      <button class="user-menu-item" style="margin-top:8px;padding:7px 0;font-size:12px;font-weight:700;color:var(--accent);justify-content:center" id="um-upgrade">✦ アップグレード →</button>
+      <button class="user-menu-item" style="margin-top:8px;padding:7px 0;font-size:12px;font-weight:700;color:var(--accent);justify-content:center" id="um-upgrade">${IS_PLAY_APP?'✦ プランを見る':'✦ アップグレード →'}</button>
     </div>`;
   } else {
     planHtml=`<div style="padding:8px 16px;border-bottom:1px solid var(--border);font-size:11px;color:var(--accent);font-weight:600">✦ ${_pd.label}プラン</div>`;
