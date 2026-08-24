@@ -699,6 +699,13 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .expand-modal .drawer-head{border-radius:14px 14px 0 0}
 .expand-modal .drawer-body{flex:1;overflow-y:auto}
 .expand-modal .drawer-foot{border-radius:0 0 14px 14px}
+/* 拡大表示は #drawer 要素そのものをモーダルへ移動する（DOMをコピーしない）。
+   移動先ではサイドパネル用の固定幅・左境界線を解除して、モーダルいっぱいに広げる。 */
+.expand-modal>.drawer{
+  width:100%;min-width:0;max-width:none;
+  border-left:0;border-radius:14px;
+  flex:1;min-height:0;
+}
 /* Note title inline edit in list */
 .note-title-edit-inp{width:100%;font:inherit;font-size:13.5px;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:1px 6px;color:var(--text);outline:none;box-sizing:border-box}
 /* NOTE一覧スワイプ削除 */
@@ -6330,9 +6337,10 @@ function renderNoteList(){
 function renderNoteDrawer(){
   const dr=document.getElementById('drawer');
   const _ct2=document.getElementById('content');
-  if(!S.noteOpen||!S.noteId){dr.style.display='none';dr.classList.remove('open');if(_ct2)_ct2.style.overflow='';renderTaskFilters();return}
+  // 拡大表示中に閉じる場合は、先にドロワー要素を元の位置へ戻す（空のモーダルが残るのを防ぐ）
+  if(!S.noteOpen||!S.noteId){closeExpandModal(false);dr.style.display='none';dr.classList.remove('open');if(_ct2)_ct2.style.overflow='';renderTaskFilters();return}
   const note=S.notes.find(n=>n.id===S.noteId);
-  if(!note){dr.style.display='none';dr.classList.remove('open');if(_ct2)_ct2.style.overflow='';renderTaskFilters();return}
+  if(!note){closeExpandModal(false);dr.style.display='none';dr.classList.remove('open');if(_ct2)_ct2.style.overflow='';renderTaskFilters();return}
   // 再描画（バックグラウンド同期など）で入力途中の内容が消えないよう、未保存の下書きを退避
   // （同じノートを開いたままの再描画時のみ。復元は innerHTML 再構築後）
   let _draft=null;
@@ -7078,6 +7086,9 @@ function _dtFoot(c){
 function renderDrawer(){
   const dr=document.getElementById('drawer');
   if(!S.drawerOpen||!S.taskId||S.view==='notes'){
+    // 拡大表示中にドロワーを閉じる場合は、先にドロワー要素を元の位置へ戻す
+    // （モーダル内で display:none にすると空のモーダルが残る）
+    if(!S.noteOpen)closeExpandModal(false);
     if(!S.noteOpen){dr.style.display='none';dr.classList.remove('open');history.replaceState(null,'',location.pathname);const _m=document.querySelector('.main');if(_m)_m.style.maxWidth='';}
     return;
   }
@@ -7085,7 +7096,7 @@ function renderDrawer(){
   const _drBody=dr.querySelector('.drawer-body');
   const _scrollY=_drBody?_drBody.scrollTop:0;
   const task=S.tasks.find(t=>t.id===S.taskId);
-  if(!task){dr.style.display='none';dr.classList.remove('open');const _mr=document.querySelector('.main');if(_mr)_mr.style.maxWidth='';return}
+  if(!task){closeExpandModal(false);dr.style.display='none';dr.classList.remove('open');const _mr=document.querySelector('.main');if(_mr)_mr.style.maxWidth='';return}
   // 再描画（バックグラウンド同期など）で入力途中の内容が消えないよう、未保存の下書きを退避
   // （同じタスクを開いたままの再描画時のみ。復元は innerHTML 再構築後）
   let _draft=null;
@@ -7098,7 +7109,9 @@ function renderDrawer(){
   // タスクのプロジェクトをrecentに記録
   if(task.projectId)addRecentProject(task.projectId);
   dr.style.display='flex';
-  const _mainEl=document.querySelector('.main');if(_mainEl&&window.innerWidth>768){const _sbW=document.getElementById('sidebar')?.getBoundingClientRect().width||0;const _drW=dr.getBoundingClientRect().width||336;_mainEl.style.maxWidth=(window.innerWidth-_sbW-_drW)+'px';}
+  // 拡大表示中はドロワーがレイアウトから外れているので幅制限を計算しない
+  // （モーダルの幅 860px を引いてしまい main が潰れる）
+  const _mainEl=document.querySelector('.main');if(_mainEl&&window.innerWidth>768&&!isExpandOpen()){const _sbW=document.getElementById('sidebar')?.getBoundingClientRect().width||0;const _drW=dr.getBoundingClientRect().width||336;_mainEl.style.maxWidth=(window.innerWidth-_sbW-_drW)+'px';}
   dr.classList.add('open');
   const subs=S.tasks.filter(t=>t.parentTaskId===task.id);
   const done=task.status==='completed';
@@ -7381,7 +7394,10 @@ function renderDrawer(){
     if((_aDn&&_aDn.value!==(task.notes||''))||(_aDt&&_aDt.value!==(task.title||'')))autosave(true);
   }
   // 日付・セレクトはcomposition不要
-  ['dt-due','dt-start','dt-start-time','dt-proj','dt-assignee','dt-repeat'].forEach(id=>{
+  // dt-planned-start（計画開始日／ガント開始日）は autosave の保存対象には入っていたが
+  // この変更リストから漏れていたため、この欄だけを変更して閉じると値が保存されずに消えていた
+  // （他の欄を触ったときに一緒に保存されるので、気づきにくい形で消える）。
+  ['dt-due','dt-start','dt-planned-start','dt-start-time','dt-proj','dt-assignee','dt-repeat'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('change',()=>{
       if(id==='dt-repeat'&&el.value&&isPlanFree()){
@@ -7414,8 +7430,8 @@ function renderDrawer(){
         }
       }
       autosave(true);
-      if(id==='dt-due'||id==='dt-start'){
-        const wd=document.getElementById('dt-'+( id==='dt-due'?'due':'start')+'-wd');
+      if(id==='dt-due'||id==='dt-start'||id==='dt-planned-start'){
+        const wd=document.getElementById(id+'-wd');
         if(wd){wd.textContent='('+(wdStr(el.value).replace('曜','')||'　')+')';wd.style.color=wdColor(el.value);}
         applyDateInputStyleFixed(el,el.value);
       }
@@ -8989,7 +9005,7 @@ else if(a==='scroll-to-comments'){
     t.parentTaskId=null;await saveTask(t);
     toast('独立したタスクにしました');renderDrawer();renderContent();
   }
-  else if(a==='close-drawer'){S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent()}
+  else if(a==='close-drawer'){closeExpandModal(false);S.drawerOpen=false;S.taskId=null;_drawerClosedAt=Date.now();renderDrawer();renderContent()}
   else if(a==='cm-del'){
     const cmId=el.dataset.cmid;
     if(cmId&&S.taskId){
@@ -9056,6 +9072,7 @@ else if(a==='scroll-to-comments'){
     renderContent();
   }
   else if(a==='close-note'){
+    closeExpandModal(false);
     S.noteOpen=false;S.noteId=null;
     renderNoteDrawer();renderContent();
   }
@@ -9453,7 +9470,6 @@ else if(a==='scroll-to-comments'){
       await saveTask(task);
       S.taskId=tid;S.drawerOpen=true;
       renderDrawer();
-      syncExpandModal(el.closest('.expand-modal'));
     }
   }
   else if(a==='pri-cycle'){
@@ -9468,7 +9484,6 @@ else if(a==='scroll-to-comments'){
       await saveTask(task);
       S.taskId=tid;S.drawerOpen=true;
       renderDrawer();
-      syncExpandModal(el.closest('.expand-modal'));
     }
   }
   else if(a==='tog-tag'){
@@ -9492,12 +9507,10 @@ else if(a==='scroll-to-comments'){
         const already=task.tagIds&&task.tagIds.includes(tid);
         task.tagIds=already?[]:[tid];
         playSE('toggle');
-        const modal=el.closest('.expand-modal');
-        const drBody=modal?modal.querySelector('.drawer-body'):document.querySelector('#drawer .drawer-body');
+        const drBody=document.querySelector('#drawer .drawer-body');
         const scrollY=drBody?drBody.scrollTop:0;
         await saveTask(task);renderDrawer();
-        syncExpandModal(modal);
-        if(!modal){const drBody2=document.querySelector('#drawer .drawer-body');if(drBody2)drBody2.scrollTop=scrollY;}
+        const drBody2=document.querySelector('#drawer .drawer-body');if(drBody2)drBody2.scrollTop=scrollY;
       }
     }
   }
@@ -9969,10 +9982,12 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='drawer-expand'){
     e.stopPropagation();
-    openExpandModal('task');
+    // モーダル内にも同じボタンが出るので、開いているときは閉じる
+    if(isExpandOpen())closeExpandModal(); else openExpandModal('task');
   }
   else if(a==='note-expand'){
     e.stopPropagation();
+    if(isExpandOpen()&&S.noteId===el.dataset.id){closeExpandModal();return;}
     const id=el.dataset.id;
     S.noteId=id;S.noteOpen=true;
     openExpandModal('note');
@@ -9988,9 +10003,33 @@ else if(a==='scroll-to-comments'){
 document.getElementById('sov').addEventListener('click',()=>{S.sidebarOpen=false;render()});
 
 // ===== GLOBAL CALCULATOR DRAWER =====
-// ===== PC EXPAND MODAL =====
+// ===== PC 拡大表示 =====
+// 【従来】dr.innerHTML をモーダルへコピーし、reattachModalEvents で配線を貼り直していた。
+// その結果 id が document 内に2つ存在する状態になり、renderDrawer 側の
+// document.getElementById(...) はドロワー側を掴む。だからモーダル用にもう一度
+// 同じ配線を書く必要があり、書き写し漏れがそのまま機能差になっていた
+// （計画開始日が保存されない／サブタスクの並び替えが効かない／
+//   「📌 親タスクのタイトル」が反応しない／曜日表示の色が付かない 等）。
+//
+// 【現在】ドロワー要素そのものをモーダルへ *移動* する。id は一意のままなので、
+// renderDrawer が付けた配線と非同期ロード（コメント・添付・シークレットメモ）が
+// そのまま効く。モーダル専用の配線は不要になった。
+let _expandState=null;
+
+function isExpandOpen(){return !!_expandState}
+
 function openExpandModal(type){
+  // 既に開いていれば、まずドロワーを元の位置へ戻してから開き直す
+  closeExpandModal(false);
+  // 状態を持たない残骸のオーバーレイがあれば掃除する
   document.querySelectorAll('.expand-overlay').forEach(el=>el.remove());
+
+  const dr=document.getElementById('drawer');
+  if(!dr)return;
+  if(type==='task')renderDrawer(); else renderNoteDrawer();
+  // 描画側で閉じられた（対象が見つからない等）場合は開かない
+  if(dr.style.display==='none')return;
+
   const ov=document.createElement('div');
   ov.className='expand-overlay';
   const modal=document.createElement('div');
@@ -9998,261 +10037,33 @@ function openExpandModal(type){
   ov.appendChild(modal);
   document.body.appendChild(ov);
 
-  function renderInto(){
-    if(type==='task'){
-      renderDrawer();
-      const dr=document.getElementById('drawer');
-      if(dr){
-        modal.innerHTML=dr.innerHTML;
-        // re-attach events by cloning drawer logic into modal
-        modal.querySelectorAll('[data-a="close-drawer"]').forEach(b=>{b.addEventListener('click',()=>{ov.remove();S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent();});});
-      }
-    } else {
-      renderNoteDrawer();
-      const dr=document.getElementById('drawer');
-      if(dr){
-        modal.innerHTML=dr.innerHTML;
-        modal.querySelectorAll('[data-a="close-note"]').forEach(b=>{b.addEventListener('click',()=>{ov.remove();S.noteOpen=false;S.noteId=null;renderNoteDrawer();renderContent();});});
-      }
-    }
-    // wire modal inner buttons via event delegation
-    reattachModalEvents(modal, type, ()=>{ov.remove();renderContent();renderDrawer();});
-  }
-  renderInto();
-  ov.addEventListener('click',e=>{if(e.target===ov){ov.remove();}});
-  document.addEventListener('keydown',function escKey(e){if(e.key==='Escape'){ov.remove();document.removeEventListener('keydown',escKey);}});
-  // ここにあった _syncExpandWithCalc()（電卓ドロワーとの同時表示調整）は
-  // 電卓機能の削除（d1b2ebb）で定義が消えたのに呼び出しだけ残り、
-  // openExpandModal のたびに ReferenceError を投げていたため削除。
+  // 元の位置を覚えてから移動する（閉じるときにここへ戻す）
+  _expandState={ov,type,parent:dr.parentNode,next:dr.nextSibling};
+  modal.appendChild(dr);
+  // ドロワーがレイアウトから外れるので、main の幅制限を解除する
+  const _m=document.querySelector('.main');if(_m)_m.style.maxWidth='';
+
+  ov.addEventListener('click',e=>{if(e.target===ov)closeExpandModal()});
+  document.addEventListener('keydown',_expandEsc);
 }
 
-function reattachModalEvents(modal, type, onClose){
-  // textarea / input autosave inside modal
-  if(type==='task'){
-    const titleEl=modal.querySelector('#dt-title');
-    const notesEl=modal.querySelector('#dt-notes');
-    const dueEl=modal.querySelector('#dt-due');
-    const startEl=modal.querySelector('#dt-start');
-    const projEl=modal.querySelector('#dt-proj');
-    const repeatEl=modal.querySelector('#dt-repeat');
-    const indEl=modal.querySelector('#autosave-ind');
-    const setInd=(s)=>{if(!indEl)return;indEl.className='autosave-ind '+s;indEl.textContent=s==='saving'?'保存中…':s==='saved'?'保存済み ✓':'自動保存 ✓'};
-    let _c=false;
-    const save=(force)=>{
-      if(_c&&!force)return;
-      setInd('saving');
-      clearTimeout(save._t);
-      save._t=setTimeout(async()=>{
-        const t=S.tasks.find(x=>x.id===S.taskId);if(!t)return;
-        const prevProjectId=t.projectId;
-        if(titleEl)t.title=titleEl.value;
-        if(notesEl)t.notes=notesEl.value;
-        if(dueEl)t.dueAt=dueEl.value||null;
-        if(startEl)t.startAt=startEl.value||null;
-        const startTimeEl2=modal.querySelector('#dt-start-time');if(startTimeEl2)t.startTime=startTimeEl2.value||null;
-        if(projEl)t.projectId=projEl.value||null;
-        if(repeatEl)t.repeatRule=getRepeatRule();
-        await saveTask(t);
-        if(!t.parentTaskId&&t.projectId!==prevProjectId){
-          const children=S.tasks.filter(c=>c.parentTaskId===t.id);
-          for(const child of children){child.projectId=t.projectId;await saveTask(child);}
-        }
-        setInd('saved');
-      },400);
-    };
-    ['dt-title','dt-notes'].forEach(id=>{
-      const el=modal.querySelector('#'+id);if(!el)return;
-      el.addEventListener('compositionstart',()=>{_c=true});
-      el.addEventListener('compositionend',()=>{_c=false;save(true);});
-      el.addEventListener('input',()=>save());
-    });
-    ['dt-due','dt-start','dt-start-time','dt-proj','dt-assignee','dt-repeat'].forEach(id=>{
-      const el=modal.querySelector('#'+id);
-      if(el)el.addEventListener('change',()=>{
-        // 開始日を直接変更した場合は開始時間をクリア
-        if(id==='dt-start'){
-          const stiEl=modal.querySelector('#dt-start-time');
-          if(stiEl){stiEl.value='';}
-          const task=S.tasks.find(t=>t.id===S.taskId);
-          if(task){task.startTime=null;}
-        }
-        // 開始日・期限日の矛盾を自動修正
-        if(id==='dt-start'&&el.value){
-          const dueEl2=modal.querySelector('#dt-due');
-          if(dueEl2&&dueEl2.value&&el.value>dueEl2.value){
-            dueEl2.value=el.value;
-            const wdD2=modal.querySelector('#dt-due-wd');
-            if(wdD2)wdD2.textContent=wdStr(el.value);
-          }
-        }
-        if(id==='dt-due'&&el.value){
-          const startEl2=modal.querySelector('#dt-start');
-          if(startEl2&&startEl2.value&&el.value<startEl2.value){
-            startEl2.value=el.value;
-            const wdS2=modal.querySelector('#dt-start-wd');
-            if(wdS2)wdS2.textContent=wdStr(el.value);
-          }
-        }
-        save(true);
-        if(id==='dt-due'||id==='dt-start'){
-          const wd=modal.querySelector('#dt-'+( id==='dt-due'?'due':'start')+'-wd');
-          if(wd)wd.textContent=wdStr(el.value);
-        }
-      });
-    });
-    const subInp=modal.querySelector('#sub-inp');
-    if(subInp)subInp.addEventListener('keydown',async e=>{
-      if(e.key==='Enter'&&subInp.value.trim()){
-        const _pt2=S.tasks.find(t=>t.id===S.taskId);const s=mkTask({title:subInp.value.trim(),parentTaskId:S.taskId,status:'active',priority:_pt2?.priority??4,projectId:_pt2?.projectId??null,tagIds:_pt2?.tagIds?[..._pt2.tagIds]:[],startAt:_pt2?.startAt??null,dueAt:_pt2?.dueAt??null});
-        await saveTask(s);subInp.value='';
-        // re-render subs
-        const subsEl=modal.querySelector('#subs');
-        if(subsEl){const subs=S.tasks.filter(t=>t.parentTaskId===S.taskId);subsEl.innerHTML=subs.map(s=>'<div class="sub-item" data-id="'+s.id+'"><span class="sub-drag-handle" title="並び替え">⠿</span><button class="chk'+(s.status==='completed'?' done':'')+'" data-a="chk" data-id="'+s.id+'">'+(s.status==='completed'?'✓':'')+'</button><span class="sub-title" data-id="'+s.id+'" style="'+(s.status==='completed'?'text-decoration:line-through;color:var(--text3)':'')+'">'+esc(s.title)+'</span><button class="icon-btn" data-a="sel-edit" data-id="'+s.id+'" title="詳細を開く" style="width:24px;height:24px;color:var(--text3)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button><button class="icon-btn" data-a="del" data-id="'+s.id+'" style="width:24px;height:24px;color:var(--text3)">'+ICONS.x+'</button></div>').join('');}
-      }
-    });
-    makeResizable(modal.querySelector('#dt-notes'));
-    // プレビュー切替
-    const dtPvBtn=modal.querySelector('#dt-preview-btn');
-    const dtPvArea=modal.querySelector('#dt-preview-area');
-    if(dtPvBtn&&dtPvArea){
-      let dtPvMode=false;
-      const renderDtPv=()=>{
-        if(!notesEl)return;
-        dtPvArea.innerHTML=_memoLinkify(esc(notesEl.value));
-      };
-      const dtEnterPv=()=>{renderDtPv();notesEl.style.display='none';dtPvArea.style.display='block';dtPvBtn.textContent='編集';dtPvMode=true;};
-      const dtExitPv=()=>{notesEl.style.display='';dtPvArea.style.display='none';dtPvBtn.textContent='プレビュー';dtPvMode=false;};
-      dtPvBtn.addEventListener('click',()=>{dtPvMode?dtExitPv():dtEnterPv();});
-      makePreviewResizable(dtPvArea);
-      dtEnterPv();
-      (function(){let _t=null,_mv=false,_x=0,_y=0;dtPvArea.addEventListener('touchstart',e=>{if(_isCopyOnlyTarget(e.target))return;_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;dtExitPv();},600);},{passive:true});dtPvArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};dtPvArea.addEventListener('touchend',end,{passive:true});dtPvArea.addEventListener('touchcancel',end,{passive:true});})();
-    }
-    // メモ：リンク挿入ボタン
-    const dtLinkBtnM=modal.querySelector('#dt-link-btn');
-    if(dtLinkBtnM){
-      dtLinkBtnM.addEventListener('click',e=>{
-        e.stopPropagation();
-        const _mcM=modal.querySelector('#memo-collapse');
-        if(_mcM&&_mcM.style.display==='none'){_mcM.style.display='';_mcM.classList.remove('hidden');}
-        showLinkPopover(dtLinkBtnM,'dt-notes',!(notesEl&&notesEl._stampFocused),modal);
-      });
-    }
-    // メモ：もっと見る／閉じるボタン
-    const memoExpandBtnM=modal.querySelector('#memo-expand-btn');
-    const memoCollapseBtnM=modal.querySelector('#memo-collapse-btn');
-    const dtPvAreaForExpand=modal.querySelector('#dt-preview-area');
-    if(memoExpandBtnM){
-      memoExpandBtnM.addEventListener('click',()=>{
-        if(dtPvAreaForExpand){dtPvAreaForExpand.style.maxHeight='none';dtPvAreaForExpand.style.overflow='visible';}
-        memoExpandBtnM.style.display='none';
-        if(memoCollapseBtnM)memoCollapseBtnM.style.display='block';
-      });
-    }
-    if(memoCollapseBtnM){
-      memoCollapseBtnM.addEventListener('click',()=>{
-        if(dtPvAreaForExpand){dtPvAreaForExpand.style.maxHeight='320px';dtPvAreaForExpand.style.overflow='hidden';}
-        memoCollapseBtnM.style.display='none';
-        if(memoExpandBtnM){
-          const isOverflow=dtPvAreaForExpand&&dtPvAreaForExpand.scrollHeight>324;
-          memoExpandBtnM.style.display=isOverflow?'block':'none';
-        }
-        if(dtPvAreaForExpand)dtPvAreaForExpand.scrollTop=0;
-      });
-    }
-    // copy url btn
-    const copyUrlBtn=modal.querySelector('#copy-url-btn');
-    if(copyUrlBtn){
-      const taskUrl=location.origin+location.pathname+'#task/'+S.taskId;
-      copyUrlBtn.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(taskUrl);toast('URLをコピーしました 🔗');}catch(e){toast(taskUrl);}});
-    }
-  } else {
-    const titleEl=modal.querySelector('#nt-title');
-    const bodyEl=modal.querySelector('#nt-body');
-    const note=S.notes.find(n=>n.id===S.noteId);
-    if(!note)return;
-    makeResizable(bodyEl);
-    // プレビュー切替
-    const ntPvBtn=modal.querySelector('#nt-preview-btn');
-    const ntPvArea=modal.querySelector('#nt-preview-area');
-    if(ntPvBtn&&ntPvArea){
-      let ntPvMode=false;
-      const renderNtPv=()=>{
-        if(!bodyEl)return;
-        ntPvArea.innerHTML=_pathifyText(esc(bodyEl.value))
-          .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>')
-          .replace(/\n/g,'<br>');
-      };
-      const ntEnterPv=()=>{renderNtPv();bodyEl.style.display='none';ntPvArea.style.display='block';ntPvBtn.textContent='編集';ntPvMode=true;};
-      const ntExitPv=()=>{bodyEl.style.display='';ntPvArea.style.display='none';ntPvBtn.textContent='プレビュー';ntPvMode=false;};
-      ntPvBtn.addEventListener('click',()=>{ntPvMode?ntExitPv():ntEnterPv();});
-      makePreviewResizable(ntPvArea);
-      ntEnterPv();
-      (function(){let _t=null,_mv=false,_x=0,_y=0;ntPvArea.addEventListener('touchstart',e=>{if(_isCopyOnlyTarget(e.target))return;_mv=false;_x=e.touches[0].clientX;_y=e.touches[0].clientY;_t=setTimeout(()=>{if(_mv)return;ntExitPv();},600);},{passive:true});ntPvArea.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-_x)>8||Math.abs(e.touches[0].clientY-_y)>8){_mv=true;clearTimeout(_t);_t=null;}},{passive:true});const end=()=>{if(_t){clearTimeout(_t);_t=null;}};ntPvArea.addEventListener('touchend',end,{passive:true});ntPvArea.addEventListener('touchcancel',end,{passive:true});})();
-    }
-    let _c=false,nt2;
-    const save=()=>{clearTimeout(nt2);nt2=setTimeout(async()=>{note.title=titleEl?.value||'';note.body=bodyEl?.value||'';await saveNote(note);const h=modal.querySelector('.drawer-head div div:last-child');if(h)h.textContent=note.title||'無題';},600);};
-    titleEl?.addEventListener('compositionstart',()=>{_c=true});titleEl?.addEventListener('compositionend',()=>{_c=false;save()});titleEl?.addEventListener('input',()=>{if(!_c)save()});
-    bodyEl?.addEventListener('compositionstart',()=>{_c=true});bodyEl?.addEventListener('compositionend',()=>{_c=false;save()});bodyEl?.addEventListener('input',()=>{if(!_c)save()});
-    bodyEl?.addEventListener('focus',()=>{if(bodyEl)bodyEl._stampFocused=true;});
-    bodyEl?.addEventListener('blur',()=>{if(bodyEl)bodyEl._stampFocused=false;});
+function _expandEsc(e){if(e.key==='Escape')closeExpandModal()}
 
-    // プレビュー切替
-    const mPvBtn=modal.querySelector('#nt-preview-btn');
-    const mPvArea=modal.querySelector('#nt-preview-area');
-    let mPvMode=false;
-    const mRenderPv=()=>{if(!bodyEl||!mPvArea)return;mPvArea.innerHTML=_pathifyText(esc(bodyEl.value)).replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>').replace(/(^|[\s\n>])((https?:\/\/)[^\s<&"]+)/g,'$1<a href="$2" target="_blank" style="color:var(--accent)">$2</a>').replace(/\n/g,'<br>');};
-    const mEnterPv=()=>{mRenderPv();if(bodyEl)bodyEl.style.display='none';if(mPvArea)mPvArea.style.display='block';if(mPvBtn)mPvBtn.textContent='編集';mPvMode=true;};
-    const mExitPv=()=>{if(bodyEl)bodyEl.style.display='';if(mPvArea)mPvArea.style.display='none';if(mPvBtn)mPvBtn.textContent='プレビュー';mPvMode=false;};
-    if(mPvBtn)mPvBtn.addEventListener('click',()=>{mPvMode?mExitPv():mEnterPv();});
-    mEnterPv();
-
-    // data-ns スタンプボタン（日時等）
-    const _days=['日','月','火','水','木','金','土'];
-    const _pad=n=>String(n).padStart(2,'0');
-    modal.querySelectorAll('[data-ns]').forEach(btn=>{
-      btn.addEventListener('click',e=>{
-        e.stopPropagation();
-        if(mPvMode)mExitPv();
-        if(!bodyEl)return;
-        const d=new Date();
-        const dateBase=d.getFullYear()+'/'+_pad(d.getMonth()+1)+'/'+_pad(d.getDate());
-        const timeBase=_pad(d.getHours())+':'+_pad(d.getMinutes());
-        const map={date:dateBase,time:timeBase,datetime:dateBase+' '+timeBase,datetimeweek:dateBase+'（'+_days[d.getDay()]+'） '+timeBase+'\n',sep:'—————————————'};
-        const ins=map[btn.dataset.ns]||'';
-        if(!ins)return;
-        if(!bodyEl._stampFocused){
-          const sep=ins.endsWith('\n')?'':'\n';
-          bodyEl.value=ins+sep+bodyEl.value;
-          bodyEl.selectionStart=bodyEl.selectionEnd=ins.length+sep.length;
-        }else{
-          const s=bodyEl.selectionStart,e2=bodyEl.selectionEnd;
-          bodyEl.value=bodyEl.value.slice(0,s)+ins+bodyEl.value.slice(e2);
-          bodyEl.selectionStart=bodyEl.selectionEnd=s+ins.length;
-        }
-        bodyEl.focus();save();
-      });
-    });
-
-    // Linkボタン
-    const mLinkBtn=modal.querySelector('#nt-link-btn');
-    if(mLinkBtn)mLinkBtn.addEventListener('click',e=>{
-      e.stopPropagation();
-      if(mPvMode)mExitPv();
-      showLinkPopover(mLinkBtn,'nt-body',!bodyEl?._stampFocused,modal);
-    });
+// rerender=false は「畳むだけ（描画は呼び出し側でやる）」。
+// renderDrawer/renderNoteDrawer の内部から呼ぶ場合は再帰させないため必ず false。
+function closeExpandModal(rerender=true){
+  const st=_expandState;
+  if(!st)return;
+  _expandState=null;
+  document.removeEventListener('keydown',_expandEsc);
+  const dr=document.getElementById('drawer');
+  // 【重要】オーバーレイを消す前に必ずドロワーを元へ戻す。
+  // 戻さずに remove するとドロワー要素ごと DOM から消える。
+  if(dr&&st.parent)st.parent.insertBefore(dr,st.next);
+  st.ov.remove();
+  if(rerender){
+    if(st.type==='task')renderDrawer(); else renderNoteDrawer();
   }
-}
-
-// ===== EXPAND MODAL SYNC =====
-function syncExpandModal(modal){
-  if(!modal)return;
-  const dr=document.getElementById('drawer');if(!dr)return;
-  const scrollEl=modal.querySelector('.drawer-body');
-  const sy=scrollEl?scrollEl.scrollTop:0;
-  modal.innerHTML=dr.innerHTML;
-  reattachModalEvents(modal,'task',()=>{modal.closest('.expand-overlay')?.remove();renderContent();renderDrawer();});
-  const newScrollEl=modal.querySelector('.drawer-body');
-  if(newScrollEl)newScrollEl.scrollTop=sy;
 }
 
 // ===== NOTE TITLE INLINE EDIT =====
