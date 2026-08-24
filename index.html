@@ -688,7 +688,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 }
 /* ===== 集中モード（最大化） =====
    「大きくなったモーダル」ではなく、一覧の上に重なる専用画面として扱う。
-   属性は左レールに寄せ、空いた中央をメモとサブタスクに渡し、右にコメントを立てる3ゾーン。
+   メモとサブタスクを左に置き、中央にコメントを立て、属性は右レールに寄せる3ゾーン。
    ゾーンの折り返しはウィンドウ幅ではなく .drawer-body.fz のコンテナ幅で決めるので、
    iPad の分割表示やウィンドウのリサイズにそのまま追従する。 */
 .expand-overlay{position:fixed;inset:0;background:rgba(9,12,20,.58);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;animation:tin .15s ease}
@@ -714,19 +714,20 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   display:flex;flex-direction:column;gap:0;
   container-type:inline-size;
 }
-/* 見出し帯：タイトルと優先度・タグは列に入れず、全幅で最初に読ませる */
+/* 見出し帯：タイトルは列に入れず、全幅で最初に読ませる（優先度とタグは属性列の先頭へ移した） */
 .fz-band{flex-shrink:0;padding:14px 20px 8px;border-bottom:1px solid var(--border);background:var(--bg)}
 .fz-band>*:last-child{margin-bottom:0}
 .fz-band #dt-title,.fz-band #nt-title{font-size:17px;font-weight:600;padding:9px 12px}
 .fz-cols{
   flex:1;min-height:0;
-  display:grid;grid-template-columns:296px minmax(0,1fr) 376px;
+  display:grid;grid-template-columns:minmax(0,1fr) 376px 296px;
   align-items:stretch;
 }
 .fz-zone{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;min-width:0}
-.fz-rail{background:var(--bg);border-right:1px solid var(--border)}
+.fz-rail{background:var(--bg);border-left:1px solid var(--border)}
 .fz-side{border-left:1px solid var(--border)}
-/* 列の役割を示す道标。列が3本あることを一目で伝える */
+/* 列の役割を示す道標。メモ列とコメント列は中身のセクション見出しが兼ねるので、
+   このラベルを出すのは属性列だけ（見出しを二重に見せない） */
 .fz-zone-label{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text3);display:block;margin:0 0 10px}
 /* メモ：中央列の高さを使い切らせる。
    ドロワの「max-height:320px ＋ もっと見る」は広い画面では逆に邪魔なので外す。 */
@@ -744,12 +745,12 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .fz-side #dt-cm-body{flex:1;min-height:0;display:flex;flex-direction:column}
 .fz-side .cm-list{flex:1;min-height:0;margin-bottom:0}
 /* ----- コンテナ幅による折り返し ----- */
-/* 1180px 未満：コメントを中央の下へ落として2列にする（レール＋本文を優先） */
+/* 1180px 未満：コメントをメモの下へ落として2列にする（メモ＋属性レールを優先） */
 @container (max-width:1180px){
-  .fz-cols{grid-template-columns:296px minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,44%)}
-  .fz-rail{grid-column:1;grid-row:1 / span 2}
-  .fz-main{grid-column:2;grid-row:1}
-  .fz-side{grid-column:2;grid-row:2;border-left:0;border-top:1px solid var(--border)}
+  .fz-cols{grid-template-columns:minmax(0,1fr) 296px;grid-template-rows:minmax(0,1fr) minmax(0,44%)}
+  .fz-main{grid-column:1;grid-row:1}
+  .fz-side{grid-column:1;grid-row:2;border-left:0;border-top:1px solid var(--border)}
+  .fz-rail{grid-column:2;grid-row:1 / span 2}
 }
 /* 860px 未満：1列に戻す。この幅では列分けの利きがないので素直に縦積みへ */
 @container (max-width:860px){
@@ -6473,9 +6474,9 @@ function renderNoteDrawer(){
       ?'<div class="drawer-body fz">'
         +'<div class="fz-band">'+_ntTitle+'</div>'
         +'<div class="fz-cols">'
+          +'<div class="fz-zone fz-main">'+_ntMemo+'</div>'
+          +'<div class="fz-zone fz-side">'+_ntCm+'</div>'
           +'<div class="fz-zone fz-rail"><span class="fz-zone-label">属性</span>'+_ntTags+_ntAtt+'</div>'
-          +'<div class="fz-zone fz-main"><span class="fz-zone-label">本文</span>'+_ntMemo+'</div>'
-          +'<div class="fz-zone fz-side"><span class="fz-zone-label">やりとり</span>'+_ntCm+'</div>'
         +'</div>'
       +'</div>'
       :'<div class="drawer-body" style="display:flex;flex-direction:column;gap:12px">'
@@ -6914,15 +6915,23 @@ function _dtTitleField(c){
 }
 
 // 優先度とタグ
-function _dtPriTags(c){
+// mode 省略（1列のドロワ）: 優先度ボタンとタグを1行に並べる。出力は従来と同一
+// mode='rail'（集中モードの属性列）: 296px の列に収めるため、他の属性と同じ体裁で
+//   ラベルを付けて縦に積む。属性エリアの最上部に置く前提。
+function _dtPriTags(c,mode){
   const {task,subs,done,pLabels}=c;
+  const _pri='<button class="pri-cycle-btn" data-a="pri-cycle" data-id="'+task.id+'" data-p="'+(task.priority||4)+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><span>'+pLabels[task.priority||4]+'</span></button>';
+  const _tags=S.tags.map(t=>'<span class="topt'+(task.tagIds&&task.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-task="'+task.id+'" data-tag="'+t.id+'" style="'+(task.tagIds&&task.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')+(S.tags.length===0?'<span class="muted xs">タグなし</span>':'');
+  if(mode==='rail')return ''
+      +'<div class="dt-schedule-block" style="margin-bottom:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px">'
+        +'<div class="fg" style="margin-bottom:0"><label class="flabel">優先度</label>'+_pri+'</div>'
+        +'<div class="fg" style="margin-bottom:0"><label class="flabel">タグ</label><div class="tag-wrap" style="margin-bottom:0">'+_tags+'</div></div>'
+      +'</div>'
+  ;
   return ''
       +'<div class="fg" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
-        +'<button class="pri-cycle-btn" data-a="pri-cycle" data-id="'+task.id+'" data-p="'+(task.priority||4)+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><span>'+pLabels[task.priority||4]+'</span></button>'
-        +'<div class="tag-wrap" style="margin-bottom:0;flex:1;min-width:0">'
-          +S.tags.map(t=>'<span class="topt'+(task.tagIds&&task.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-task="'+task.id+'" data-tag="'+t.id+'" style="'+(task.tagIds&&task.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
-          +(S.tags.length===0?'<span class="muted xs">タグなし</span>':'')
-        +'</div>'
+        +_pri
+        +'<div class="tag-wrap" style="margin-bottom:0;flex:1;min-width:0">'+_tags+'</div>'
       +'</div>'
   ;
 }
@@ -7224,24 +7233,22 @@ function renderDrawer(){
         +'<div class="fz-band">'
           +_dtParentRow(c)
           +_dtTitleField(c)
-          +_dtPriTags(c)
         +'</div>'
         +'<div class="fz-cols">'
-          +'<div class="fz-zone fz-rail">'
-            +'<span class="fz-zone-label">属性</span>'
-            +_dtProject(c)
-            +_dtSchedule(c)
-            +_dtMeta(c)
-          +'</div>'
           +'<div class="fz-zone fz-main">'
-            +'<span class="fz-zone-label">本文</span>'
             +_dtMemo(c)
             +_dtSubs(c)
             +_attSectionHTML('task',task.id)
           +'</div>'
           +'<div class="fz-zone fz-side">'
-            +'<span class="fz-zone-label">やりとり</span>'
             +_dtComments(c)
+          +'</div>'
+          +'<div class="fz-zone fz-rail">'
+            +'<span class="fz-zone-label">属性</span>'
+            +_dtPriTags(c,'rail')
+            +_dtProject(c)
+            +_dtSchedule(c)
+            +_dtMeta(c)
           +'</div>'
         +'</div>'
       +'</div>'
