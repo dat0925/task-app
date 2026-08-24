@@ -686,25 +686,77 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   .trow-copy-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;flex-shrink:0;color:var(--text3);border-radius:6px;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation}
   .trow-copy-btn:active{background:var(--bg2);color:var(--accent)}
 }
-/* Expand modal overlay */
-.expand-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;animation:tin .15s ease}
-.expand-modal{background:var(--surface);border-radius:14px;width:min(90vw,860px);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 60px rgba(0,0,0,.25);position:relative}
+/* ===== 集中モード（最大化） =====
+   「大きくなったモーダル」ではなく、一覧の上に重なる専用画面として扱う。
+   属性は左レールに寄せ、空いた中央をメモとサブタスクに渡し、右にコメントを立てる3ゾーン。
+   ゾーンの折り返しはウィンドウ幅ではなく .drawer-body.fz のコンテナ幅で決めるので、
+   iPad の分割表示やウィンドウのリサイズにそのまま追従する。 */
+.expand-overlay{position:fixed;inset:0;background:rgba(9,12,20,.58);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;animation:tin .15s ease}
+.expand-modal{background:var(--surface);border-radius:16px;width:min(97vw,1560px);height:min(94vh,1040px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.34);position:relative}
 /* 拡大モーダルもキーボード表示中は可視領域に収める（--app-h） */
 @supports (height:100dvh){
   .expand-overlay{height:var(--app-h,auto)}
-  .expand-modal{max-height:min(92vh,100%)}
+  .expand-modal{max-height:min(94vh,100%)}
 }
-@media(min-width:769px){
-}
-.expand-modal .drawer-head{border-radius:14px 14px 0 0}
-.expand-modal .drawer-body{flex:1;overflow-y:auto}
-.expand-modal .drawer-foot{border-radius:0 0 14px 14px}
+.expand-modal .drawer-head{border-radius:16px 16px 0 0}
+.expand-modal .drawer-foot{border-radius:0 0 16px 16px}
 /* 拡大表示は #drawer 要素そのものをモーダルへ移動する（DOMをコピーしない）。
    移動先ではサイドパネル用の固定幅・左境界線を解除して、モーダルいっぱいに広げる。 */
 .expand-modal>.drawer{
   width:100%;min-width:0;max-width:none;
-  border-left:0;border-radius:14px;
+  border-left:0;border-radius:16px;
   flex:1;min-height:0;
+}
+/* ----- 3ゾーンの器（fz = focus zone）-----
+   ドロワの1列レイアウトと共存させるため、集中モード側だけに付くクラスで切り替える。 */
+.drawer-body.fz{
+  flex:1;min-height:0;padding:0;overflow:hidden;
+  display:flex;flex-direction:column;gap:0;
+  container-type:inline-size;
+}
+/* 見出し帯：タイトルと優先度・タグは列に入れず、全幅で最初に読ませる */
+.fz-band{flex-shrink:0;padding:14px 20px 8px;border-bottom:1px solid var(--border);background:var(--bg)}
+.fz-band>*:last-child{margin-bottom:0}
+.fz-band #dt-title,.fz-band #nt-title{font-size:17px;font-weight:600;padding:9px 12px}
+.fz-cols{
+  flex:1;min-height:0;
+  display:grid;grid-template-columns:296px minmax(0,1fr) 376px;
+  align-items:stretch;
+}
+.fz-zone{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;min-width:0}
+.fz-rail{background:var(--bg);border-right:1px solid var(--border)}
+.fz-side{border-left:1px solid var(--border)}
+/* 列の役割を示す道标。列が3本あることを一目で伝える */
+.fz-zone-label{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text3);display:block;margin:0 0 10px}
+/* メモ：中央列の高さを使い切らせる。
+   ドロワの「max-height:320px ＋ もっと見る」は広い画面では逆に邪魔なので外す。 */
+.fz-main #dt-preview-area{max-height:none!important;overflow:visible!important}
+.fz-main #memo-expand-btn,.fz-main #memo-collapse-btn{display:none!important}
+.fz-main #dt-notes,.fz-main #nt-body{min-height:340px}
+/* ツールバーのボタンは flex:1 で行を埋める設定。336px のドロワでは正しいが、
+   900px の列では1つが鳥のように広がるので、集中モードでは内容幅に戻す。 */
+.drawer-body.fz #memo-toolbar .note-copy-btn,
+.drawer-body.fz #nt-toolbar .note-copy-btn,
+.drawer-body.fz .cm-composer .note-copy-btn{flex:0 0 auto;padding:6px 16px}
+.fz-main #nt-preview-area{min-height:340px}
+/* コメント：列いっぱいに立て、入力欄を列の下端に貼り付ける */
+.fz-side #cm-section,.fz-side #ncm-section{margin-bottom:0;margin-top:0;padding-top:0;border-top:0;display:flex;flex-direction:column;min-height:100%}
+.fz-side #dt-cm-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.fz-side .cm-list{flex:1;min-height:0;margin-bottom:0}
+/* ----- コンテナ幅による折り返し ----- */
+/* 1180px 未満：コメントを中央の下へ落として2列にする（レール＋本文を優先） */
+@container (max-width:1180px){
+  .fz-cols{grid-template-columns:296px minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,44%)}
+  .fz-rail{grid-column:1;grid-row:1 / span 2}
+  .fz-main{grid-column:2;grid-row:1}
+  .fz-side{grid-column:2;grid-row:2;border-left:0;border-top:1px solid var(--border)}
+}
+/* 860px 未満：1列に戻す。この幅では列分けの利きがないので素直に縦積みへ */
+@container (max-width:860px){
+  .fz-cols{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;overflow-y:auto}
+  .fz-rail,.fz-main,.fz-side{grid-column:1;grid-row:auto;overflow:visible;border:0;border-bottom:1px solid var(--border)}
+  .fz-rail{background:transparent}
+  .fz-side #cm-section,.fz-side #ncm-section{min-height:0}
 }
 /* Note title inline edit in list */
 .note-title-edit-inp{width:100%;font:inherit;font-size:13.5px;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:1px 6px;color:var(--text);outline:none;box-sizing:border-box}
@@ -6358,24 +6410,12 @@ function renderNoteDrawer(){
   const _tf=document.getElementById('task-filters');
   if(_tf)_tf.style.display='none';
   const noteUrl=location.origin+location.pathname+'?note='+note.id;
-  dr.innerHTML=
-    '<div class="drawer-head">'
-      +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:2px">ノート</div>'
-        +'<div style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(note.title||'無題')+'</div>'
-      +'</div>'
-      +'<div style="display:flex;gap:4px;margin-left:8px;align-items:center;flex-shrink:0">'
-        
-        +'<button class="icon-btn hdr-btn-desktop" data-a="note-dup" data-id="'+note.id+'" title="複製"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/><rect x="11" y="11" width="11" height="11" rx="2"/></svg></button>'
-        +'<button class="icon-btn hdr-btn-desktop" data-a="note-copy-url" data-id="'+note.id+'" title="URLコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
-        +'<button class="del-btn hdr-btn-desktop" data-a="note-del" data-id="'+note.id+'" title="削除">削除</button>'
-        +(window.innerWidth>768?'<button class="icon-btn" data-a="note-expand" data-id="'+note.id+'" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
-        +'<button class="icon-btn" data-a="close-note" style="font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center">✕</button>'
-      +'</div>'
-    +'</div>'
-    +'<div class="drawer-body" style="display:flex;flex-direction:column;gap:12px">'
+  // 本文をブロック単位で組み立て、ドロワ（1列）と集中モード（3ゾーン）で置き場所を変える。
+  const _ntTitle=''
       +'<div><div class="dt-label">タイトル</div><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="nt-title" value="'+esc(note.title)+'" placeholder="タイトル" style="flex:1;min-width:0"><button class="date-clr-btn" data-a="note-copy-title" data-id="'+note.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
-      +'<div>'
+  ;
+  const _ntMemo=''
+      +'<div id="nt-memo-section">'
         +'<div class="dt-label">メモ</div>'
         +'<div id="nt-toolbar" style="display:flex;align-items:center;flex-wrap:nowrap;gap:6px;margin-bottom:6px">'
           +'<button class="note-copy-btn" id="nt-link-btn">リンク</button>'
@@ -6387,10 +6427,14 @@ function renderNoteDrawer(){
         +'<div id="nt-preview-area" style="display:none;font-size:14px;color:var(--text);line-height:1.8;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--bg);min-height:180px;word-break:break-word"></div>'
         +'<div style="font-size:11px;color:var(--text3);margin-top:4px">✏️ タップして編集 · [テキスト](URL) でリンク</div>'
       +'</div>'
+  ;
+  const _ntTags=''
       +(S.tags.length?'<div><div class="dt-label">タグ</div><div class="tag-wrap">'
         +S.tags.map(t=>'<span class="topt'+(note.tagIds&&note.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-note="'+note.id+'" data-tag="'+t.id+'" style="'+(note.tagIds&&note.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
         +'</div></div>':'')
-      +_attSectionHTML('note',note.id)
+  ;
+  const _ntAtt=_attSectionHTML('note',note.id);
+  const _ntCm=''
       +'<div class="cm-section" id="ncm-section" data-note-id="'+note.id+'">'
         +'<div class="cm-section-head">'
           +'<span class="cm-section-label">コメント</span>'
@@ -6408,7 +6452,35 @@ function renderNoteDrawer(){
           +'</div>'
         +'</div>'
       +'</div>'
+  ;
+  const _fzn=isExpandOpen();
+  dr.innerHTML=
+    '<div class="drawer-head">'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:2px">ノート</div>'
+        +'<div style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(note.title||'無題')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:4px;margin-left:8px;align-items:center;flex-shrink:0">'
+        
+        +'<button class="icon-btn hdr-btn-desktop" data-a="note-dup" data-id="'+note.id+'" title="複製"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3"/><rect x="11" y="11" width="11" height="11" rx="2"/></svg></button>'
+        +'<button class="icon-btn hdr-btn-desktop" data-a="note-copy-url" data-id="'+note.id+'" title="URLコピー"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>'
+        +'<button class="del-btn hdr-btn-desktop" data-a="note-del" data-id="'+note.id+'" title="削除">削除</button>'
+        +(window.innerWidth>768?'<button class="icon-btn" data-a="note-expand" data-id="'+note.id+'" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
+        +'<button class="icon-btn" data-a="close-note" style="font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center">✕</button>'
+      +'</div>'
     +'</div>'
+    +(_fzn
+      ?'<div class="drawer-body fz">'
+        +'<div class="fz-band">'+_ntTitle+'</div>'
+        +'<div class="fz-cols">'
+          +'<div class="fz-zone fz-rail"><span class="fz-zone-label">属性</span>'+_ntTags+_ntAtt+'</div>'
+          +'<div class="fz-zone fz-main"><span class="fz-zone-label">本文</span>'+_ntMemo+'</div>'
+          +'<div class="fz-zone fz-side"><span class="fz-zone-label">やりとり</span>'+_ntCm+'</div>'
+        +'</div>'
+      +'</div>'
+      :'<div class="drawer-body" style="display:flex;flex-direction:column;gap:12px">'
+        +_ntTitle+_ntMemo+_ntTags+_ntAtt+_ntCm
+      +'</div>')
     +'<div class="drawer-foot drawer-foot-desktop">'
       +'<button class="btn btn-ghost" data-a="close-note" style="margin-left:auto">✕ 閉じる</button>'
     +'</div>'
@@ -6809,11 +6881,19 @@ function _dtHead(c){
   ;
 }
 
-// 親タスクの表示とセクションへのジャンプ
-function _dtNav(c){
+// 親タスクの表示（1列のドロワでも集中モードでも出す）
+function _dtParentRow(c){
   const {task,subs,done,pLabels}=c;
   return ''
       +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">'+esc(pt.title||'無題')+'</button><button class="date-clr-btn" data-a="set-parent" data-id="'+task.id+'" title="親タスクを変更" style="flex-shrink:0;font-size:10px;padding:2px 6px">変更</button><button class="date-clr-btn" data-a="detach-parent" data-id="'+task.id+'" title="独立したタスクにする" style="flex-shrink:0">✕</button></div>':''})():'')
+  ;
+}
+
+// セクションへのジャンプバッジ。
+// 縦1列のドロワ専用。集中モードは全ゾーンが同時に見えているので出さない。
+function _dtJumpBadges(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
       +(task.parentTaskId?'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count" id="cm-jump-count">…</span></button></div>':'')
       +((!task.parentTaskId)?'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+(subs.length===0?'<button class="btn btn-ghost" data-a="set-parent" data-id="'+task.id+'" style="font-size:12px;height:30px;padding:0 10px">＋ サブタスクにする</button>':'')
         +(subs.length>0?(()=>{const dc=subs.filter(s=>s.status==='completed').length;return'<button class="dt-sub-badge" data-a="scroll-to-subs" title="サブタスクへ移動"><span class="dt-sub-badge-chev">▶</span><span>サブタスク</span><span class="dt-sub-badge-count">'+dc+'/'+subs.length+'</span></button>';})():'')
@@ -6822,11 +6902,22 @@ function _dtNav(c){
   ;
 }
 
-// タイトル・優先度・タグ
-function _dtIdentity(c){
+// 親タスクの表示とセクションへのジャンプ
+function _dtNav(c){return _dtParentRow(c)+_dtJumpBadges(c);}
+
+// タイトル（集中モードでは見出し帯に単独で置く）
+function _dtTitleField(c){
   const {task,subs,done,pLabels}=c;
   return ''
-      +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'      +'<div class="fg" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
+      +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
+  ;
+}
+
+// 優先度とタグ
+function _dtPriTags(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
+      +'<div class="fg" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
         +'<button class="pri-cycle-btn" data-a="pri-cycle" data-id="'+task.id+'" data-p="'+(task.priority||4)+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><span>'+pLabels[task.priority||4]+'</span></button>'
         +'<div class="tag-wrap" style="margin-bottom:0;flex:1;min-width:0">'
           +S.tags.map(t=>'<span class="topt'+(task.tagIds&&task.tagIds.includes(t.id)?' on':'')+'" data-a="tog-tag" data-task="'+task.id+'" data-tag="'+t.id+'" style="'+(task.tagIds&&task.tagIds.includes(t.id)?'border-color:'+t.color+';background:'+t.color+'1a;color:'+t.color:'')+'">#'+esc(t.name)+'</span>').join('')
@@ -6835,6 +6926,9 @@ function _dtIdentity(c){
       +'</div>'
   ;
 }
+
+// タイトル・優先度・タグ
+function _dtIdentity(c){return _dtTitleField(c)+_dtPriTags(c);}
 
 // プロジェクトと担当者
 function _dtProject(c){
@@ -7095,6 +7189,9 @@ function renderDrawer(){
   // スクロール位置を保持
   const _drBody=dr.querySelector('.drawer-body');
   const _scrollY=_drBody?_drBody.scrollTop:0;
+  // 集中モードは本体でなく列がスクロールするので、列単位で位置を控える
+  const _fzScroll={};
+  ['.fz-rail','.fz-main','.fz-side'].forEach(sel=>{const _z=dr.querySelector(sel);if(_z&&_z.scrollTop>0)_fzScroll[sel]=_z.scrollTop;});
   const task=S.tasks.find(t=>t.id===S.taskId);
   if(!task){closeExpandModal(false);dr.style.display='none';dr.classList.remove('open');const _mr=document.querySelector('.main');if(_mr)_mr.style.maxWidth='';return}
   // 再描画（バックグラウンド同期など）で入力途中の内容が消えないよう、未保存の下書きを退避
@@ -7118,8 +7215,38 @@ function renderDrawer(){
   const pLabels={1:'高',2:'中',3:'低',4:'無'};
   // セクション部品へ渡すコンテキスト（集中モードでも同じものを使う）
   const c={task,subs,done,pLabels};
-  dr.innerHTML=
-    _dtHead(c)
+  // 集中モード（最大化）とドロワで器を切り替える。
+  // 部品（_dt*）は共通で、どのゾーンに置くかだけが違う。
+  const _fz=isExpandOpen();
+  dr.innerHTML= _fz
+    ? _dtHead(c)
+      +'<div class="drawer-body fz">'
+        +'<div class="fz-band">'
+          +_dtParentRow(c)
+          +_dtTitleField(c)
+          +_dtPriTags(c)
+        +'</div>'
+        +'<div class="fz-cols">'
+          +'<div class="fz-zone fz-rail">'
+            +'<span class="fz-zone-label">属性</span>'
+            +_dtProject(c)
+            +_dtSchedule(c)
+            +_dtMeta(c)
+          +'</div>'
+          +'<div class="fz-zone fz-main">'
+            +'<span class="fz-zone-label">本文</span>'
+            +_dtMemo(c)
+            +_dtSubs(c)
+            +_attSectionHTML('task',task.id)
+          +'</div>'
+          +'<div class="fz-zone fz-side">'
+            +'<span class="fz-zone-label">やりとり</span>'
+            +_dtComments(c)
+          +'</div>'
+        +'</div>'
+      +'</div>'
+      +_dtFoot(c)
+    : _dtHead(c)
     +'<div class="drawer-body">'
       +_dtNav(c)
       +_dtIdentity(c)
@@ -7133,6 +7260,12 @@ function renderDrawer(){
     +_dtMeta(c)
     +'</div>'
     +_dtFoot(c);
+  // 集中モードは「一望できる」ことが価値なので、折りたたみは開いた状態で描画する。
+  // トグル自体は殺さない（閉じたい人は閉じられる）。
+  if(_fz){
+    dr.querySelectorAll('.dt-section-head.closed,.dt-section-chev.closed').forEach(el=>el.classList.remove('closed'));
+    dr.querySelectorAll('.dt-section-body').forEach(b=>{if(b.style.display==='none')b.style.display='';});
+  }
 
 
   // URL sync
@@ -7479,10 +7612,14 @@ function renderDrawer(){
     initSubDrag(subsEl2);
   }
   // renderDrawer内でスクロール位置を復元
-  if(_scrollY>0){
+  // （旧コードは getElementById('drawer-body') を見ていたが、その id は存在せず復元が効いていなかった）
+  if(_scrollY>0||Object.keys(_fzScroll).length){
     setTimeout(()=>{
-      const _drBody2=document.getElementById('drawer-body');
-      if(_drBody2)_drBody2.scrollTop=_scrollY;
+      const _dr2=document.getElementById('drawer');
+      if(!_dr2)return;
+      const _drBody2=_dr2.querySelector('.drawer-body');
+      if(_drBody2&&_scrollY>0)_drBody2.scrollTop=_scrollY;
+      Object.keys(_fzScroll).forEach(sel=>{const _z=_dr2.querySelector(sel);if(_z)_z.scrollTop=_fzScroll[sel];});
     },50);
   }
   // コメントセクションを非同期ロード（パフォーマンス: メインのloadAllには含めない）
@@ -10026,9 +10163,6 @@ function openExpandModal(type){
 
   const dr=document.getElementById('drawer');
   if(!dr)return;
-  if(type==='task')renderDrawer(); else renderNoteDrawer();
-  // 描画側で閉じられた（対象が見つからない等）場合は開かない
-  if(dr.style.display==='none')return;
 
   const ov=document.createElement('div');
   ov.className='expand-overlay';
@@ -10040,7 +10174,13 @@ function openExpandModal(type){
   // 元の位置を覚えてから移動する（閉じるときにここへ戻す）
   _expandState={ov,type,parent:dr.parentNode,next:dr.nextSibling};
   modal.appendChild(dr);
-  // ドロワーがレイアウトから外れるので、main の幅制限を解除する
+  // 描画はここで行う。_expandState を立てた後でないと renderDrawer 側の
+  // isExpandOpen() が false になり、1列の器で描いてから組み直す二重描画になる。
+  if(type==='task')renderDrawer(); else renderNoteDrawer();
+  // 描画側で閉じられた（対象が見つからない等）場合はここで打ち切る
+  if(!_expandState)return;
+  if(dr.style.display==='none'){closeExpandModal(false);return;}
+  // ドロワがレイアウトから外れるので、main の幅制限を解除する
   const _m=document.querySelector('.main');if(_m)_m.style.maxWidth='';
 
   ov.addEventListener('click',e=>{if(e.target===ov)closeExpandModal()});
@@ -10264,7 +10404,12 @@ renderContent=function(){
 
 // keyboard
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'&&S.drawerOpen){S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent()}
+  if(e.key==='Escape'&&S.drawerOpen){
+    // 集中モードのときの Escape は、一気に一覧まで戻らずドロワ表示に畳む。
+    // 展げたものを畳むのが Escape で、閉じるのは✕という役割分けにする。
+    if(isExpandOpen()){closeExpandModal();return;}
+    S.drawerOpen=false;S.taskId=null;renderDrawer();renderContent();
+  }
   if(e.key==='n'&&!e.target.matches('input,textarea,select')){e.preventDefault();document.getElementById('qainput')?.focus()}
   if(e.key==='f'&&(e.ctrlKey||e.metaKey)&&window.innerWidth>768){e.preventDefault();const gs=document.getElementById('global-srch');if(gs){gs.focus();gs.select();}}
   if((e.ctrlKey||e.metaKey)&&(e.key==='ArrowUp'||e.key==='ArrowDown')){

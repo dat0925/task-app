@@ -685,9 +685,13 @@ function mountTaskSection(task) {
 }
 
 function mountNoteSection(note) {
-  // ノートのメモ欄（#nt-body）を含むブロックの直後に差し込む
+  // ノートのメモ欄（#nt-body）を含むブロックの直後に差し込む。
+  // 器は id で名指しする。集中モード（.drawer-body.fz）3ゾーンのとき、
+  // '.drawer-body > div' で遡ると列の器（.fz-cols）を拾ってしまい、
+  // セクションが3列の下に全幅で飛び出る。
   const bodyEl = document.getElementById('nt-body');
-  const anchor = bodyEl ? bodyEl.closest('.drawer-body > div') || bodyEl.parentNode : null;
+  const anchor = document.getElementById('nt-memo-section')
+    || (bodyEl ? bodyEl.closest('.drawer-body > div') || bodyEl.parentNode : null);
   const entity = { kind: 'note', id: note.id, ownerId: ownerIdOf(note) };
   mountSection(entity, anchor);
 }

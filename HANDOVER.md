@@ -4,6 +4,181 @@
 
 ---
 
+## 最大化ビューの再設計：Phase 3「3ゾーンの集中モード」（2026-08-24）
+
+**ここから見た目が変わる。** Phase 1（部品化）・Phase 2（配線の一本化）は意図的に見た目を変えない
+リファクタだったので、本番で確かめても変化がないのが正常。
+全体像の提案書: https://claude.ai/code/artifact/cd6fdb02-430d-4ad9-a957-92ceba2ac6cc
+
+### 何を目指したか
+
+指摘は「最大化しても同じUIが巨大になるだけで、かえって見づらい」。
+幅を増やすこと自体に価値はないので、**幅を何に使うか**を決め直した。
+
+- 読み書きが多いのは **メモ**（長い本文）と **コメント**（会話）
+- 一度決めて後は眺めるだけなのは **属性**（優先度・タグ・プロジェクト・日程）
+
+だから属性は**細いレール**へ寄せ、空いた中央をメモに渡し、右にコメントを立てる。
+タイトルと優先度・タグは列に入れず、**全幅の見出し帯**に置いて最初に読ませる。
+
+```
++--------------------------------------------------------------+
+| タスク詳細                              🚩 ⤢  ✕              |  drawer-head
++--------------------------------------------------------------+
+| タイトル  [                                      ]           |  .fz-band
+| [高] #仕事 #個人                                             |
++------------+-------------------------------+-----------------+
+| 属性       | 本文                          | やりとり        |
+| プロジェクト | メモ（常時展開・高さ制限なし） | コメント一覧    |
+| スケジュール | シークレットメモ              | （列いっぱい）  |
+| 作成/更新   | サブタスク / 添付             | 入力欄は下端固定 |
++------------+-------------------------------+-----------------+
+| 完了  •••                                          ✕         |  フッタ
++--------------------------------------------------------------+
+```
+
+### どう作ったか
+
+**部品は共通、器だけを切り替える。** `renderDrawer` / `renderNoteDrawer` が
+`isExpandOpen()` を見て、同じ `_dt*` 部品を違う器に差し込む。
+
+```js
+const _fz=isExpandOpen();
+dr.innerHTML= _fz
+  ? _dtHead(c)+'<div class="drawer-body fz">'
+      +'<div class="fz-band">'+_dtParentRow(c)+_dtTitleField(c)+_dtPriTags(c)+'</div>'
+      +'<div class="fz-cols">'
+        +'<div class="fz-zone fz-rail">'+_dtProject(c)+_dtSchedule(c)+_dtMeta(c)+'</div>'
+        +'<div class="fz-zone fz-main">'+_dtMemo(c)+_dtSubs(c)+_attSectionHTML('task',task.id)+'</div>'
+        +'<div class="fz-zone fz-side">'+_dtComments(c)+'</div>'
+      +'</div>'
+    +'</div>'+_dtFoot(c)
+  : /* 従来の1列 */ ;
+```
+
+Phase 1 で切り出した部品をさらに2つ分けた。**連結すれば従来と同じ文字列になる**ように
+切ってあるので、1列側の出力は1バイトも変わっていない。
+
+| 分割後 | 中身 | 1列側 |
+|---|---|---|
+| `_dtParentRow` | 親タスクの行 | `_dtNav` = `_dtParentRow`+`_dtJumpBadges` |
+| `_dtJumpBadges` | ジャンプバッジ（集中モードでは出さない） | 同上 |
+| `_dtTitleField` | タイトル入力 | `_dtIdentity` = `_dtTitleField`+`_dtPriTags` |
+| `_dtPriTags` | 優先度・タグ | 同上 |
+
+ノート側（`renderNoteDrawer`）は関数化せず、本文を `_ntTitle` / `_ntMemo` / `_ntTags` /
+`_ntAtt` / `_ntCm` のローカル変数に分けて同じことをやっている。
+
+### 幅の折り返しはコンテナクエリでやる
+
+`@media` でなく `container-type:inline-size` ＋ `@container`。判定の元は
+ウィンドウ幅でなく `.drawer-body.fz` の幅なので、iPad の分割表示でも正しく畳む。
+
+| コンテナ幅 | レイアウト | 実測 |
+|---|---|---|
+| 1181px 以上 | 3列 | 1560px で 296 / 888 / 376 |
+| 861〜1180px | 2列（レールは全高、右を本文とやりとりで上下） | 1050px で 296 / 754 |
+| 860px 以下 | 1列（縦積み） | 820px で 816 幅×3段 |
+
+> [!warning] `container-type` は `contain:layout` を含む
+> これを付けた要素は `position:fixed` の子孫の含みブロックになる。
+> Taskra のポップオーバー類は**全部 `document.body.appendChild`** なので影響しないことを
+> 確かめてから付けている（`#cm-mention-pop` は CSS だけ残っている未使用セレクタ）。
+> ドロワー内に fixed 要素を追加するときはここを思い出すこと。
+
+### 併せて直したこと
+
+**Escape の役割を分けた。** 従来は集中モードで Escape を押すと一気に一覧まで戻っていた。
+グローバルの Escape ハンドラに分岐を入れ、**1回目はドロワーに畳む、2回目で閉じる**にした。
+（`_expandEsc` を capture で先に走らせて `stopPropagation` する手もあるが、他の Escape 処理を
+まとめて死なせるので採らなかった）
+
+**スクロール位置の復元が元から効いていなかった。** `getElementById('drawer-body')` を見ていたが
+その id は存在しない（クラスは `.drawer-body`）。`querySelector` に直し、あわせて
+集中モードの**列ごとの**スクロール位置も控えて戻すようにした。
+
+**`openExpandModal` の順序を入れ替えた。** 従来は描画→モーダル作成→`_expandState` 代入だったので、
+描画時点で `isExpandOpen()` が false になり、1列で描いてから組み直す二重描画になる。
+**状態を立ててから描く**順にした。
+
+**ツールバーのボタン幅。** `.note-copy-btn` は `flex:1 1 0` で行を埋める設定。336px のドロワーでは
+正しいが 900px の列では1つが鳥のように広がるので、集中モードでは内容幅に戻している。
+
+> [!danger] ノートのシークレットメモが3列の下に飛び出た
+> `src/secret-memo.js` の `mountNoteSection` が `#nt-body` から
+> `closest('.drawer-body > div')` でアンカーを探していた。集中モードではこのセレクタが
+> **列の器（`.fz-cols`）にマッチする**ので、セクションが3列の外側に全幅で入る。
+> ノートのメモブロックに `id="nt-memo-section"` を付け、**id で名指し**するように直した。
+> タスク側は元から `#memo-section` を見ていたので影響なし。
+
+### 検証したこと（ローカル実機・合成データ）
+
+1. **部品分割の等価性を node で確認。** 旧版（`4e712c2`）の `_dtNav` / `_dtIdentity` と
+   新版の連結を同じ入力4パターン（素のタスク / 子あり / 親あり / タグ0件）で実行し、
+   **8,620バイトが完全一致**
+2. 3ゾーンの実測幅と、コンテナ幅 1560/1300/1050/900/820px での折り返し
+3. **全ブレークポイントで `.fz-zone` 内の横はみ出し0件。**
+   2列時のレールを 264px にしていたときは「開始時間」の `+3h` が10px切れていたので 296px に揃えた
+4. 重複 id が0件（`dt-title` / `cm-list` / `dt-notes` / `autosave-ind` / `nt-body` 各1件）
+5. 閉じ方4種（Escape / 背景クリック / ✕ / 最大化トグル）でドロワーが `.layout` へ戻り、
+   オーバーレイが0件。二重に `openExpandModal` しても重複なし
+6. Escape 1回目で `expandOpen:false` かつ `drawerOpen:true`、2回目でドロワーも閉じる
+7. ノートの集中モードでシークレットメモが `.fz-main` 内に入る
+8. **従来のドロワー（非集中モード）の回帰**。336px、`.fz-cols` なし、ジャンプバッジあり
+9. `node --check`（index.html の全スクリプトブロックと `src/secret-memo.js`）OK
+10. コンソール例外なし（`e.target.matches is not a function` は `document` に向けて
+    合成 KeyboardEvent を流した検証側の副作用。実キー入力では起きない）
+
+> [!warning] Service Worker で古い JS を検証してしまった
+> `src/secret-memo.js` の修正が反映しなくて1回誤診した。`index.html?v=xxx` を付けても
+> **別ファイルの JS は SW キャッシュから返る**。`fetch(url,{cache:'reload'})` でもダメ。
+> ローカル検証の前にこれをやる：
+> ```js
+> for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+> for(const k of await caches.keys()) await caches.delete(k);
+> ```
+> 判定はファイルの中身でなく**関数の中身**を見るのが確実：
+> `(''+window.SecretMemo.mountNoteSection).includes('nt-memo-section')`
+
+ローカル検証はログイン画面を `document.getElementById('loginScreen').style.display='none'` で退かし、
+`S.tasks` / `S.notes` に合成データを入れて `renderDrawer()` → `openExpandModal('task')` で行う。
+再描画で下書き復元が働くので、**`dr._taskId=null` / `dr._noteId=null` にしてから**描かないと
+入れたメモが空の下書きで上書きされる。
+
+### 意図的に変えたこと
+
+- モーダルの器が `min(90vw,860px)` → `min(97vw,1560px)` × `min(94vh,1040px)` のほぼ全画面になった。
+  背景の暗幕も深くして軽い blur を入れ、**「大きいカード」でなく「専用画面」**として読ませる
+- 集中モードではアコーディオンを**開いた状態で描画**する（トグル自体は殺していない）
+- メモの `max-height:320px` ＋「もっと見る」を集中モードでは外した
+- ジャンプバッジ（コメントへ/サブタスクへ）は集中モードでは出さない。全ゾーンが同時に見えていて不要で、
+  しかもスクロールしない器をスクロールさせようとして無反応になる
+- ノートのメモブロックに `id="nt-memo-section"` が付いた（1列側の見た目は不変）
+
+### 見送ったこと（Phase 4 へ）
+
+提案書にあるうち、今回入れていないもの。**いずれも単体で入れられる。**
+
+- `<dialog>` への置き換え。top-layer と `inert` がタダで手に入るが、Escape・背景クリックは
+  Phase 2 で既に1箇所に集約されて動いているので、**今回は得とリスクが見合わない**と判断した
+- `history.pushState` でブラウザの戻るで閉じる。URL には既に `#task/<id>` があり
+  `renderDrawer` が `replaceState` しているので、**既存のハッシュルーティングとのすり合わせが必要**
+- ヘッダのパンくず（プロジェクト > 親タスク > このタスク）と前後移動（`J`/`K`）
+- メモの「編集/プレビュー」トグル廃止（クリック位置から編集）と `field-sizing:content`
+- View Transitions、iPad 向けにタップ領域を 44px 以上へ
+
+### セキュリティ関連の状態
+
+- **新規/変更したテーブル: なし。** RLS の状態に変更なし
+- **認証・決済フローの変更: なし。** Stripe の Webhook・Edge Function・料金プランに未接触
+- 保存経路は既存の `saveTask()` / `saveNote()` のまま。追加ライブラリなし。CSS と DOM の組み直しだけ
+- `src/secret-memo.js` に手を入れたが、**変えたのは差し込み先の探し方だけ**。
+  E2EE の鍵導出・暗号化・保存経路・`isOwner` の判定には一切触っていない
+- **触っていない箇所**: `initComments` / `initAttachments` / autosave の保存対象、
+  `reattachModalEvents`（Phase 2 で削除済み）
+
+---
+
 ## 最大化ビューの再設計：Phase 2「配線の一本化」（2026-08-24）
 
 Phase 1（セクションの部品化）の続き。全体像は提案書を参照:
