@@ -745,9 +745,16 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .fz-side #dt-cm-body{flex:1;min-height:0;display:flex;flex-direction:column}
 .fz-side .cm-list{flex:1;min-height:0;margin-bottom:0}
 /* ----- コンテナ幅による折り返し ----- */
-/* 1180px 未満：コメントをメモの下へ落として2列にする（メモ＋属性レールを優先） */
+/* 1180px 未満：2列に落とす前に、コメント列と属性レールを詰めて3列を維持する段を挟む。
+   iPad の横向き（Safari で 1080〜1194px、コンテナは 97vw ぶんで 1050〜1160px 前後）が
+   ここに入る。コメントを中央に立てたままにするのが狙い。
+   メモに残る幅は 980px のときでも 396px あり、読み書きに足りる。 */
 @container (max-width:1180px){
-  .fz-cols{grid-template-columns:minmax(0,1fr) 296px;grid-template-rows:minmax(0,1fr) minmax(0,44%)}
+  .fz-cols{grid-template-columns:minmax(0,1fr) 320px 264px}
+}
+/* 980px 未満：ここから先はコメントをメモの下へ落として2列にする（メモ＋属性レールを優先） */
+@container (max-width:980px){
+  .fz-cols{grid-template-columns:minmax(0,1fr) 264px;grid-template-rows:minmax(0,1fr) minmax(0,44%)}
   .fz-main{grid-column:1;grid-row:1}
   .fz-side{grid-column:1;grid-row:2;border-left:0;border-top:1px solid var(--border)}
   .fz-rail{grid-column:2;grid-row:1 / span 2}
