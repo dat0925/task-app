@@ -1,6 +1,116 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-08-23
+最終更新: 2026-08-24
+
+---
+
+## 最大化ビューの再設計：Phase 1「セクションの部品化」（2026-08-24）
+
+### 背景
+
+PC/iPad の「最大化」（`data-a="drawer-expand"` / `task-expand"` / `note-expand"`）が
+**ドロワーの縦1列レイアウトをそのまま広げるだけ**で、見やすくならないという指摘を受けての作業。
+再設計の全体像は提案書にまとめてある（設計方針・レイアウト4種・技術選定・段取り）:
+https://claude.ai/code/artifact/cd6fdb02-430d-4ad9-a957-92ceba2ac6cc
+
+診断（コード上の事実）:
+
+| 症状 | 実装上の原因 |
+|---|---|
+| 幅だけ2.7倍になり構造は同一 | `openExpandModal()` が `modal.innerHTML=dr.innerHTML` で複製。箱が `336px`→`min(90vw,860px)` になるだけ |
+| アコーディオンが閉じたまま開く | `dt-section-head`/`dt-section-body` の折りたたみ状態を引き継ぐ。一望したいのに ▼ を4回押す |
+| 一覧が暗幕で隠れる | `.expand-overlay{background:rgba(0,0,0,.45)}`。ドロワーの「一覧と併置できる」利点まで失う |
+| 機能が二重管理 | `reattachModalEvents()` が約200行、ドロワーのロジックを書き写している。2026-08-23 の URL リンク化不具合（`b16544f`）の原因はこれ |
+
+目標のレイアウト（集中モード）: **細いレール＝属性 / 広い中央＝メモ・サブタスク / 右＝コメント**。
+属性は値が短く幅を必要としないのでレールに寄せ、空いた中央をメモに渡す。
+
+### この回でやったこと
+
+**コミット `4be5a08`：`renderDrawer` の巨大1行を折り返す**
+
+`renderDrawer` 内の文字列連結が1行 5122 / 4545 / 1760 文字に潰れていて、セクション単位で
+読むことも切り出すこともできなかった。文字列リテラルの外にある「空白4つ以上 + `+`」の位置だけで
+折り返した（`+` の前に改行を入れるだけなので ASI は起きない）。
+
+**コミット `9e52714`：セクションを部品関数に切り出す**
+
+`renderDrawer` 内に一体で書かれていた HTML 生成を、セクション単位の関数へ分割した。
+`renderDrawer` はそれを連結して組み立てるだけになっている。
+
+```
+dr.innerHTML=
+  _dtHead(c)
+  +'<div class="drawer-body">'
+    +_dtNav(c) +_dtIdentity(c) +_dtProject(c) +_dtSchedule(c)
+    +_dtMemo(c) +_dtSubs(c) +_attSectionHTML('task',task.id) +_dtComments(c)
+  +_dtMeta(c)
+  +'</div>'
+  +_dtFoot(c);
+```
+
+| 部品 | 中身 |
+|---|---|
+| `_dtHead` | ヘッダ（フラグ・最大化・複製・削除） |
+| `_dtNav` | 親タスクの表示とセクションへのジャンプバッジ |
+| `_dtIdentity` | タイトル・優先度・タグ |
+| `_dtProject` | プロジェクトと担当者 |
+| `_dtSchedule` | スケジュール（開始日・開始時間・期限・計画開始日・繰り返し） |
+| `_dtMemo` | メモ |
+| `_dtSubs` | サブタスク |
+| `_dtComments` | コメント |
+| `_dtMeta` | 作成/更新日時と自動保存の表示 |
+| `_dtFoot` | フッタ（完了ボタン・モバイル操作バー） |
+
+引数は `c = {task, subs, done, pLabels}`（`renderDrawer` 内で組み立てて渡す）。
+**HTML の文字列は1文字も書き換えていない。** 連結の途中に関数境界を入れただけなので、
+出力される HTML は従来と同一。
+
+### 検証したこと
+
+1. **各領域の括弧・引用符が閉じていることを機械的に確認**（＝トップレベルの `+` で切断できている）
+2. **旧版（`4be5a08`）の式と新版の部品を node 上で同じ入力に対して実行し、出力HTMLを文字列比較。**
+   10パターン（素のタスク / 全部入り / 子タスク / 完了 / 繰り返し weekly・monthly・daily・
+   `weekdays` 互換 / スマホ幅 500px / タグ0件・案件0件 / サブタスクあり / recent なし）で
+   **バイト単位で完全一致**を確認した。
+3. 主要スクリプトブロックを `node --check` → OK
+4. ローカル（`python -m http.server`）で実際に描画。合成タスクを `S.tasks` に入れて
+   `renderDrawer()` → 全セクションが描画され、繰り返しの曜日チェック（月水金）も復元される。
+   `openExpandModal('task')` も従来どおり 860px で開く。`renderNoteDrawer()` も正常。
+   コンソールエラーなし。
+
+検証スクリプトは一時ディレクトリに置いた（リポジトリには入れていない）。同じ検証をやり直すなら、
+旧コミットの `index.html` から式の行範囲を取り出して関数化した新版と突き合わせる、という手順を再現すればよい。
+
+### 途中で踏んだ罠（次に同じことをする人向け）
+
+切り出しスクリプトが `const c={task,subs,done,pLabels};` を **`renderNoteDrawer` 側に挿入していた。**
+`dr.innerHTML=` という行が `renderNoteDrawer`（先に定義されている）にも存在するため、
+最初にマッチした方に入ってしまった。`node --check` は通る（構文としては正しい）ので、
+**構文チェックだけでは検出できない**。ノートを開いた瞬間に `ReferenceError` になるところだった。
+`renderDrawer` の関数開始位置を先に特定してから、その後ろで探すこと。
+
+### 次にやること（Phase 2 以降）
+
+- **Phase 2**: イベントの二重管理をやめる。`reattachModalEvents()`（約200行）を削除し、既存の
+  `document` レベルの `data-a` 委譲（`el.closest('.expand-modal,#drawer')` で文脈判定している）に
+  寄せる。`syncExpandModal()` は部品の差し替えに置き換える。自動保存も `renderDrawer` 側の1系統に統合。
+  ここまで終えると、ドロワーに足した機能が集中モードにも自動で入るようになる。
+- **Phase 3**: `<dialog>` ＋コンテナクエリで3ゾーンの器を作り、Phase 1 の部品を配置する。
+  集中モード側ではアコーディオンを常時展開。ヘッダにパンくずと前後移動（`↑`/`↓`、`J`/`K`）を追加。
+  URL は既に `#task/<id>` を持っているので `history.pushState` して戻るボタンで閉じられるようにする。
+- **Phase 4**（任意）: メモの「編集/プレビュー」トグル廃止（クリック位置から編集）、
+  `field-sizing:content` による自動伸長と `max-height:320px` ＋「もっと見る」の撤去、
+  View Transitions、iPad 向けにタップ領域を 44px 以上へ。
+
+### セキュリティ関連の状態
+
+- **新規/変更したテーブル: なし。** RLS の状態に変更なし。
+- **認証・決済フローの変更: なし。** Stripe の Webhook・Edge Function・料金プランに触れていない。
+- 保存経路も既存の `saveTask()` / `saveNote()` のまま。追加ライブラリなし。
+- **触っていない箇所**: `renderNoteDrawer`（ノート側の部品化は Phase 3 で扱う）、
+  `reattachModalEvents`（Phase 2 で削除予定なので今回は手を付けない）、
+  `openExpandModal` / `syncExpandModal`。
 
 ---
 
