@@ -6774,36 +6774,15 @@ async function _saveSubOrder(container){
   }
 }
 
-function renderDrawer(){
-  const dr=document.getElementById('drawer');
-  if(!S.drawerOpen||!S.taskId||S.view==='notes'){
-    if(!S.noteOpen){dr.style.display='none';dr.classList.remove('open');history.replaceState(null,'',location.pathname);const _m=document.querySelector('.main');if(_m)_m.style.maxWidth='';}
-    return;
-  }
-  // スクロール位置を保持
-  const _drBody=dr.querySelector('.drawer-body');
-  const _scrollY=_drBody?_drBody.scrollTop:0;
-  const task=S.tasks.find(t=>t.id===S.taskId);
-  if(!task){dr.style.display='none';dr.classList.remove('open');const _mr=document.querySelector('.main');if(_mr)_mr.style.maxWidth='';return}
-  // 再描画（バックグラウンド同期など）で入力途中の内容が消えないよう、未保存の下書きを退避
-  // （同じタスクを開いたままの再描画時のみ。復元は innerHTML 再構築後）
-  let _draft=null;
-  if(dr._taskId===task.id){
-    const _dCi=dr.querySelector('#cm-input');
-    const _dDn=dr.querySelector('#dt-notes');
-    const _dDt=dr.querySelector('#dt-title');
-    _draft={cm:_dCi?_dCi.value:null,notes:_dDn?_dDn.value:null,title:_dDt?_dDt.value:null};
-  }
-  // タスクのプロジェクトをrecentに記録
-  if(task.projectId)addRecentProject(task.projectId);
-  dr.style.display='flex';
-  const _mainEl=document.querySelector('.main');if(_mainEl&&window.innerWidth>768){const _sbW=document.getElementById('sidebar')?.getBoundingClientRect().width||0;const _drW=dr.getBoundingClientRect().width||336;_mainEl.style.maxWidth=(window.innerWidth-_sbW-_drW)+'px';}
-  dr.classList.add('open');
-  const subs=S.tasks.filter(t=>t.parentTaskId===task.id);
-  const done=task.status==='completed';
-  const pLabels={1:'高',2:'中',3:'低',4:'無'};
-  dr.innerHTML=
-    '<div class="drawer-head">'
+
+// ===== タスク詳細のセクション部品 =====
+// renderDrawer と集中モードの両方から同じ部品を組み立てるために切り出した。
+// 引数 c は {task, subs, done, pLabels}。HTML は元の連結順のまま。
+
+// ヘッダ（フラグ・最大化・複製・削除）
+function _dtHead(c){
+  const {task,subs,done,pLabels}=c;
+  return '<div class="drawer-head">'
       +'<button class="icon-btn" data-a="close-drawer">'+ICONS.x+'</button>'
       +'<span style="font-size:13px;font-weight:500;color:var(--text2)">タスク詳細</span>'
       +'<div style="margin-left:auto;display:flex;gap:4px;align-items:center">'
@@ -6819,13 +6798,26 @@ function renderDrawer(){
         +'<button class="del-btn hdr-btn-desktop" data-a="del-confirm-hdr" data-id="'+task.id+'" title="削除">削除</button>'
       +'</div>'
     +'</div>'
-    +'<div class="drawer-body">'
+  ;
+}
+
+// 親タスクの表示とセクションへのジャンプ
+function _dtNav(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
       +(task.parentTaskId?(()=>{const pt=S.tasks.find(t=>t.id===task.parentTaskId);return pt?'<div style="margin-bottom:12px;padding:7px 10px;background:var(--bg2);border-radius:8px;display:flex;align-items:center;gap:6px;border:1px solid var(--border)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--text3)"><polyline points="15 18 9 12 15 6"/></svg><span style="font-size:11px;font-weight:600;color:var(--text3);flex-shrink:0">親タスク</span><button class="act-btn" data-a="sel-edit" data-id="'+pt.id+'" style="flex:1;text-align:left;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">'+esc(pt.title||'無題')+'</button><button class="date-clr-btn" data-a="set-parent" data-id="'+task.id+'" title="親タスクを変更" style="flex-shrink:0;font-size:10px;padding:2px 6px">変更</button><button class="date-clr-btn" data-a="detach-parent" data-id="'+task.id+'" title="独立したタスクにする" style="flex-shrink:0">✕</button></div>':''})():'')
       +(task.parentTaskId?'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap"><button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count" id="cm-jump-count">…</span></button></div>':'')
       +((!task.parentTaskId)?'<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+(subs.length===0?'<button class="btn btn-ghost" data-a="set-parent" data-id="'+task.id+'" style="font-size:12px;height:30px;padding:0 10px">＋ サブタスクにする</button>':'')
         +(subs.length>0?(()=>{const dc=subs.filter(s=>s.status==='completed').length;return'<button class="dt-sub-badge" data-a="scroll-to-subs" title="サブタスクへ移動"><span class="dt-sub-badge-chev">▶</span><span>サブタスク</span><span class="dt-sub-badge-count">'+dc+'/'+subs.length+'</span></button>';})():'')
         +'<button class="dt-sub-badge" id="cm-jump-badge" data-a="scroll-to-comments" title="コメントへ移動"><span class="dt-sub-badge-chev">💬</span><span>コメント</span><span class="dt-sub-badge-count" id="cm-jump-count">…</span></button></div>':''
       )
+  ;
+}
+
+// タイトル・優先度・タグ
+function _dtIdentity(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
       +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'      +'<div class="fg" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
         +'<button class="pri-cycle-btn" data-a="pri-cycle" data-id="'+task.id+'" data-p="'+(task.priority||4)+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><span>'+pLabels[task.priority||4]+'</span></button>'
         +'<div class="tag-wrap" style="margin-bottom:0;flex:1;min-width:0">'
@@ -6833,7 +6825,13 @@ function renderDrawer(){
           +(S.tags.length===0?'<span class="muted xs">タグなし</span>':'')
         +'</div>'
       +'</div>'
+  ;
+}
 
+// プロジェクトと担当者
+function _dtProject(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
       +'<div class="dt-schedule-block" style="margin-bottom:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px">'
 +'<div class="fg"><label class="flabel">プロジェクト</label>'
         +'<div style="display:flex;gap:6px;align-items:center">'
@@ -6877,6 +6875,13 @@ function renderDrawer(){
           +'</div>';
       })())
       +'</div>'
+  ;
+}
+
+// スケジュール（開始日・期限・繰り返し）
+function _dtSchedule(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
       +'<div class="dt-schedule-block">'
       +'<button class="dt-section-head" data-a="dt-sched-toggle"><span class="dt-section-label">🗓 スケジュール'+(task.repeatRule?'<span style="font-size:10px;color:var(--accent);background:var(--bg2);border-radius:4px;padding:1px 6px;font-weight:600;margin-left:6px">繰り返し</span>':'')+'</span><span class="dt-section-chev" id="dt-sched-chev">▼</span></button>'
       +'<div id="dt-sched-body" class="dt-section-body">'
@@ -6950,6 +6955,13 @@ function renderDrawer(){
       })()
       +'</div>'
     +'</div>'
+  ;
+}
+
+// メモ
+function _dtMemo(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
       +'<div class="dt-schedule-block" id="memo-section" style="margin-bottom:10px">'
       +'<div class="dt-section-head'+(task.notes?'':' closed')+'" data-a="dt-memo-toggle">'
         +'<span class="dt-section-label">'
@@ -6971,6 +6983,13 @@ function renderDrawer(){
         +'<button id="memo-collapse-btn" style="display:none;width:100%;margin-top:2px;font-size:12px;color:var(--text3);background:none;border:none;cursor:pointer;padding:4px 0;text-align:center">▲ 閉じる</button>'
       +'</div>'
     +'</div>'
+  ;
+}
+
+// サブタスク
+function _dtSubs(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
       +(!task.parentTaskId?'<div class="dt-schedule-block" style="margin-bottom:10px">'
       +'<div class="dt-section-head" data-a="dt-subs-toggle">'
         +'<span class="dt-section-label">'
@@ -6986,7 +7005,13 @@ function renderDrawer(){
         +'<input class="finput" id="sub-inp" placeholder="サブタスクを追加…">'
       +'</div>'
     +'</div>':'')
-      +_attSectionHTML('task',task.id)
+  ;
+}
+
+// コメント
+function _dtComments(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
       +'<div class="dt-schedule-block" id="cm-section" data-task-id="'+task.id+'" style="margin-bottom:10px">'
       +'<div class="dt-section-head" data-a="dt-cm-toggle">'
         +'<span class="dt-section-label">'
@@ -7011,6 +7036,13 @@ function renderDrawer(){
       +'</div>'
       +'</div>'
     +'</div>'
+  ;
+}
+
+// 作成/更新日時と自動保存の表示
+function _dtMeta(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'
       +'<div class="muted xs" style="line-height:2">'
           +'<div>作成: '+new Date(task.createdAt).toLocaleString('ja-JP')+' </div>'
@@ -7018,7 +7050,13 @@ function renderDrawer(){
         +'</div>'
         +'<div class="autosave-ind" id="autosave-ind">自動保存 ✓</div>'
       +'</div>'
-    +'</div>'
+  ;
+}
+
+// フッタ（完了ボタン・モバイル操作バー）
+function _dtFoot(c){
+  const {task,subs,done,pLabels}=c;
+  return ''
     +'<div class="drawer-foot drawer-foot-desktop">'
       +(!done
         ?'<button class="btn btn-complete" data-a="complete-confirm" data-id="'+task.id+'">✓ 完了</button>'
@@ -7034,6 +7072,54 @@ function renderDrawer(){
       +'<button class="mob-btn mob-btn-ghost" id="task-more-btn" style="letter-spacing:1px">•••</button>'
       +'<button class="mob-btn-close" data-a="close-drawer">✕</button>'
     +'</div>';
+  ;
+}
+
+function renderDrawer(){
+  const dr=document.getElementById('drawer');
+  if(!S.drawerOpen||!S.taskId||S.view==='notes'){
+    if(!S.noteOpen){dr.style.display='none';dr.classList.remove('open');history.replaceState(null,'',location.pathname);const _m=document.querySelector('.main');if(_m)_m.style.maxWidth='';}
+    return;
+  }
+  // スクロール位置を保持
+  const _drBody=dr.querySelector('.drawer-body');
+  const _scrollY=_drBody?_drBody.scrollTop:0;
+  const task=S.tasks.find(t=>t.id===S.taskId);
+  if(!task){dr.style.display='none';dr.classList.remove('open');const _mr=document.querySelector('.main');if(_mr)_mr.style.maxWidth='';return}
+  // 再描画（バックグラウンド同期など）で入力途中の内容が消えないよう、未保存の下書きを退避
+  // （同じタスクを開いたままの再描画時のみ。復元は innerHTML 再構築後）
+  let _draft=null;
+  if(dr._taskId===task.id){
+    const _dCi=dr.querySelector('#cm-input');
+    const _dDn=dr.querySelector('#dt-notes');
+    const _dDt=dr.querySelector('#dt-title');
+    _draft={cm:_dCi?_dCi.value:null,notes:_dDn?_dDn.value:null,title:_dDt?_dDt.value:null};
+  }
+  // タスクのプロジェクトをrecentに記録
+  if(task.projectId)addRecentProject(task.projectId);
+  dr.style.display='flex';
+  const _mainEl=document.querySelector('.main');if(_mainEl&&window.innerWidth>768){const _sbW=document.getElementById('sidebar')?.getBoundingClientRect().width||0;const _drW=dr.getBoundingClientRect().width||336;_mainEl.style.maxWidth=(window.innerWidth-_sbW-_drW)+'px';}
+  dr.classList.add('open');
+  const subs=S.tasks.filter(t=>t.parentTaskId===task.id);
+  const done=task.status==='completed';
+  const pLabels={1:'高',2:'中',3:'低',4:'無'};
+  // セクション部品へ渡すコンテキスト（集中モードでも同じものを使う）
+  const c={task,subs,done,pLabels};
+  dr.innerHTML=
+    _dtHead(c)
+    +'<div class="drawer-body">'
+      +_dtNav(c)
+      +_dtIdentity(c)
+
+      +_dtProject(c)
+      +_dtSchedule(c)
+      +_dtMemo(c)
+      +_dtSubs(c)
+      +_attSectionHTML('task',task.id)
+      +_dtComments(c)
+    +_dtMeta(c)
+    +'</div>'
+    +_dtFoot(c);
 
 
   // URL sync
