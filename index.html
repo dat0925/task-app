@@ -2940,9 +2940,20 @@ async function loadAll(){
 }
 
 // タスク一覧に💬バッジを出すためのコメント件数集計（RLSで自分+共有ワークスペース分のみ返る）
-async function loadCommentCounts(){
+//
+// 【Disk IO 対策 2026-08-25】
+// この関数は task_comments を全件取得する。RLSが「自分のコメント OR 共有ワークスペースの
+// タスクのコメント」というOR条件なのでインデックスが効かずSeq Scanになり、実測で
+// 675バッファ・4.4ms かかる。一方、自分の投稿・削除は addComment / deleteComment が
+// S.commentCounts をローカルで加減算しているので、全件取得が要るのは「他人が付けた
+// コメントを拾う」ときだけ。120秒の同期ごとに毎回叩く必要はないので5分間隔に落とす。
+// （初回ロードは _ccLast=0 なので必ず走る）
+let _ccLast=0;
+const CC_MIN_INTERVAL=300000; // 5分
+async function loadCommentCounts(force){
   const SB=window._SB;
   if(!SB)return;
+  if(!force&&Date.now()-_ccLast<CC_MIN_INTERVAL)return;
   const PAGE=1000;
   let from=0,rows=[];
   for(;;){
@@ -2955,6 +2966,7 @@ async function loadCommentCounts(){
   const counts={};
   rows.forEach(r=>{counts[r.task_id]=(counts[r.task_id]||0)+1;});
   S.commentCounts=counts;
+  _ccLast=Date.now(); // 取得できたときだけ更新する（失敗時は次の同期で再試行させる）
 }
 
 // ===== WORKSPACE =====
@@ -12797,6 +12809,9 @@ async function setupSB(){
         // （入力途中のコメント・メモが再描画で消えるのを防ぐ。データ同期は
         //  120秒ポーリング＋visibilitychange側の _syncNow が担う）
         if(prevUser&&session?.user&&prevUser.id===session.user.id)return;
+        // ユーザーが変わったのでコメント件数の5分スロットルを解除する。
+        // これを忘れると前のユーザーのバッジが最大5分残る
+        _ccLast=0;
         hideLogin();
         if(typeof loadUserPlan==='function')loadUserPlan().then(()=>{if(typeof renderSidebar==='function')renderSidebar();}).catch(()=>{});
         if(typeof loadAll==='function'&&typeof render==='function'){
@@ -12813,6 +12828,8 @@ async function setupSB(){
         }
       } else if(event==='SIGNED_OUT'){
         window._currentUser=null;
+        _ccLast=0; // 次のサインインで必ず取り直す
+        S.commentCounts={};
         showLogin();
       }
     });
@@ -12833,10 +12850,29 @@ async function setupSB(){
     };
     // Realtimeサブスクリプションは無効化（Disk IO削減のため）
     // 120秒ポーリング＋visibilitychangeで同期を維持（60秒以内の再取得はスキップ）
+    //
+    // 【Disk IO 対策 2026-08-25】タイマーを可視状態と連動させる。
+    // 以前は setInterval を張りっぱなしにしていたため、開いたまま放置されたタブや
+    // PWAが裏で回り続け、誰も操作していない深夜でも約1,335 req/h（1日3万リクエスト）が
+    // 流れ続けていた。edge_logs で 16:00〜22:00 のリクエスト数が 1,335 / 1,336 / 1,340 と
+    // ほぼ完全に一定だったのが決定的な証拠（人が触っていれば波打つ）。
+    // 表示されていないタブを同期する意味はないので止める。復帰時は visibilitychange で
+    // 即同期するので、ユーザーから見た鮮度は落ちない。
+    let _syncTimer=null;
+    const _startSyncTimer=()=>{
+      if(_syncTimer)return; // 二重起動防止
+      _syncTimer=setInterval(()=>_syncNow(true),120000);
+    };
+    const _stopSyncTimer=()=>{
+      if(!_syncTimer)return;
+      clearInterval(_syncTimer);
+      _syncTimer=null;
+    };
     document.addEventListener('visibilitychange',()=>{
-      if(document.visibilityState==='visible')_syncNow();
+      if(document.visibilityState==='visible'){_startSyncTimer();_syncNow();}
+      else _stopSyncTimer();
     });
-    setInterval(()=>_syncNow(true),120000);
+    if(document.visibilityState==='visible')_startSyncTimer();
 
     // ===== IndexedDBからSupabaseへのインポート =====
     window.importFromIndexedDB=async()=>{

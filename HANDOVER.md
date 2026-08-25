@@ -1,6 +1,184 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-08-24
+最終更新: 2026-08-25
+
+---
+
+## Supabase「ディスクI/O予算が不足」警告の原因調査と対策（2026-08-25）
+
+Supabase から `Your Supabase Project Taskra is running out of Disk IO Budget` が届いた
+（プロジェクト参照番号 sfhtvtcmgueystyuhzvd）。調査して3方向から手を入れた。
+
+### まず「読み込みが重い」説を潰した
+
+先に測って可能性を消しておく。
+
+| 指標 | 実測値 |
+|---|---|
+| DBサイズ | **25 MB** |
+| shared_buffers | 224 MB（Micro インスタンス。max_connections 60） |
+| heap キャッシュヒット率 | **100.00 %** |
+| index キャッシュヒット率 | **99.99 %** |
+| `pg_stat_statements.shared_blks_read`（上位25クエリ） | ほぼ全て **0** |
+
+DBが shared_buffers に丸ごと乗っているので、通常クエリのディスク読み込みは事実上ゼロ。
+**「クエリが重い＝ディスクを読んでいる」ではなかった。** 犯人はリクエストの物量と
+書き込み側だった。
+
+### 原因1：誰も使っていない時間帯もリクエストが一定で流れ続けていた（主犯）
+
+`edge_logs` を1時間ごとに集計したら、これが出た。
+
+| 時刻(UTC) | 全リクエスト | tasks | task_comments |
+|---|---|---|---|
+| 16:00 | 1,335 | 363 | 304 |
+| 17:00 | 1,336 | 363 | 304 |
+| 18:00 | 1,340 | 363 | 304 |
+| 19:00 | 1,336 | 363 | 304 |
+| 20:00 | 1,335 | 363 | 304 |
+| 21:00 | 1,336 | 363 | 304 |
+| 22:00 | 1,335 | 363 | 304 |
+
+**7時間にわたって 1,335〜1,340 でほぼ完全に一定。** 人が触っていれば波打つのだから、
+これは機械が出している負荷。正体は `_syncNow` の120秒ポーリングで、
+`setInterval` を張りっぱなしにしていたため**開いたまま放置されたタブ／PWAが裏で
+回り続けていた**。1日あたり約32,000リクエスト。
+
+→ **対策**: タイマーを可視状態と連動させた（index.html 12839行目付近）。
+`visibilitychange` で hidden になったら `clearInterval`、visible で再開＋即同期。
+復帰時に即同期するので、ユーザーから見た鮮度は落ちない。
+
+### 原因2：その1リクエストが異常に高くついていた
+
+RLSポリシーが1テーブルの同一コマンドに3〜4本重複していた。PostgreSQL は同一コマンドの
+permissive ポリシーを**全部 OR で評価する**ので、`user_id = auth.uid()` が1行ごとに
+4回評価されていた。さらに `auth.uid()` を裸で書いていたため InitPlan 化されず、
+行ごとに `current_setting()` + jsonb パースが走っていた。
+加えてワークスペース共有の条件がポリシー式の中で `public.projects` を直接参照していた
+ため、projects 側のRLSが入れ子で評価されていた。
+
+performance advisor の警告: **multiple_permissive_policies 197件 / auth_rls_initplan 131件**。
+
+同一ユーザー（タスク2,197件）・同一クエリ形で、旧ポリシー式を手で再現して比較した実測:
+
+| | 旧 | 新 | |
+|---|---|---|---|
+| Planning Time | 7.306 ms | **1.320 ms** | -82% |
+| Execution Time | 13.404 ms | **2.452 ms** | -82% |
+| 合計 | 20.7 ms | **3.8 ms** | **約5.5倍速** |
+| `auth.uid()` の評価 | 行ごとに4回 | InitPlan で1回 | |
+| 走査 | Bitmap Heap Scan → 2,197行読んでソート | Index Scan（pkey順・1,000行で打ち切り） | |
+
+`task_comments` 側はプラン作成のバッファが **532 → 208（-61%）**。
+
+→ **対策**: `supabase/migrations/20260825_rls_perf_disk_io.sql`
+1. ワークスペース経由の可視範囲を SECURITY DEFINER 関数に閉じ込め、ポリシー式から
+   他テーブルのRLS入れ子評価をなくした
+   （`auth_workspace_project_ids()` / `auth_workspace_task_ids()` を新設）
+2. コマンドごとにポリシーを1本に統合（tasks は7本→4本）
+3. `auth.uid()` を全て `(select auth.uid())` に
+
+### 原因3：Realtime の publication が武装解除されていなかった
+
+この引き継ぎ書には「Realtime禁止。クライアント側Realtimeは削除済み・テーブル
+publicationも無効化済み」と書かれていたが、**実際には `supabase_realtime` publication に
+`public.sections` と `public.tags` が残っていた。**
+publication にテーブルが載っている限り、クライアントが1つでも `postgres_changes` を
+購読した瞬間に WAL polling が再開する。`pg_stat_statements` 上で
+`realtime.list_changes` は **900,181回・累計87分の実行時間**を占めており、これが
+過去にDisk IOを枯渇させた原因そのもの。
+
+→ **対策**: publication から sections / tags を外した。
+`public.idol_cheer_messages` は別アプリのテーブルなので触っていない。
+**publication が空でない限り再発の余地は残る**ので、Realtime を使わない方針を変えない
+のであれば、ここは定期的に見ておくこと。
+
+### 原因4：task_comments の全件取得を120秒ごとにやっていた
+
+`loadCommentCounts()` は一覧の💬バッジのために `task_comments` を全件取得する。
+RLSが「自分のコメント OR 共有ワークスペースのタスクのコメント」というOR条件なので
+インデックスが効かず **Seq Scan**（実測 675バッファ・4.4ms）。
+一方、自分の投稿・削除は `addComment` / `deleteComment` が `S.commentCounts` を
+ローカルで加減算しているので、全件取得が要るのは「他人が付けたコメントを拾う」ときだけ。
+
+→ **対策**: 5分のスロットルを入れた（初回ロードは `_ccLast=0` なので必ず走る）。
+他人のコメントのバッジは最大5分遅れる。
+
+### アクセス範囲が変わっていないことの検証
+
+RLSを触るので、ここは実測で担保した。**全17ユーザー × 8テーブル（136通り）**について
+`authenticated` ロールで可視行のIDリストを取り、md5ダイジェストを変更前後で突き合わせた。
+
+| | 変更前 | 変更後 |
+|---|---|---|
+| 総合ダイジェスト | `5535aaf7fada7657162b87f0b7454bfa` | `5535aaf7fada7657162b87f0b7454bfa` |
+| 可視行の合計 | 4,444 | 4,444 |
+
+**完全一致。** 加えて書き込み系の境界もロールバック付きで確認した。
+
+| テスト | 結果 |
+|---|---|
+| 自分のタスクをINSERT / UPDATE / DELETE | 成功 |
+| 他人の `user_id` でタスクをINSERT | **拒否 (42501)** |
+| 他人のタスクをUPDATE | **0件**（RLSのUSINGで除外） |
+| 他人になりすましてコメントをINSERT | **拒否 (42501)** |
+| 他人の `user_id` でノートをINSERT | **拒否 (42501)** |
+
+事後確認: 対象8テーブルすべて `rls_enabled = true`、重複permissiveポリシー **0件**、
+裸の `auth.uid()` **0件**。
+
+### セキュリティ状態のサマリー
+
+- **新規/変更したテーブル**: なし。テーブル定義・カラムは一切触っていない
+- **RLSの状態**: tasks / task_comments / projects / workspaces / workspace_members /
+  notes / tags / sections すべて有効。ポリシーを統合したが**実効アクセス範囲は不変**
+  （上記ダイジェスト一致で証明）。ポリシーの適用ロールを `authenticated` に明示した
+  （`service_role` と `postgres` は `rolbypassrls=true` なのでEdge Functionには影響なし）
+- **認証・決済フローの変更**: なし。Stripe関連（webhook・Edge Function・user_plans）は
+  一切触っていない
+- **新規関数**: `auth_workspace_project_ids()` / `auth_workspace_task_ids()`。
+  どちらも `STABLE SECURITY DEFINER` かつ `set search_path = ''`。実行権限は
+  `authenticated` のみに付与し、`public` / `anon` からは revoke 済み。
+  既存の `auth_user_workspace_ids()` にも `set search_path = ''` を追加した
+  （security advisor の `function_search_path_mutable` 対応）
+- **触らなかった箇所**: 別アプリのテーブル（foodai_* / menu_* / idol_* / mirra 等）の
+  ポリシー。同じDBに同居しており、performance advisor の警告の多くはそちら側にも
+  残っているが、今回の警告の原因ではないため対象外とした
+
+### 未対応：cron.job にサービスロールキーが平文で入っている（要対応）
+
+調査中に見つけた**別件のセキュリティ問題**。`cron.job` テーブルのコマンド文字列に
+`service_role` のJWTが**平文でハードコード**されている（jobid 1 と 5）。
+`cron.job` を読めるのは特権ロールだけなので即時の漏洩ではないが、
+DBダンプやバックアップに平文で載る。**Supabase Vault に移すべき**
+（`vault.create_secret()` で保管し、cronのコマンドからは
+`select decrypted_secret from vault.decrypted_secrets where name='...'` で引く）。
+今回の警告とは無関係なので、独立した作業として残す。
+
+### 効果の確認方法（次に読む人向け）
+
+デプロイ後、以下で効いているか確認できる。
+
+1. **リクエスト数**: `edge_logs` を1時間ごとに集計し、深夜帯（誰も使っていない時間）の
+   リクエスト数が落ちているか。原因1が効いていれば、一定値に張り付く現象が消える
+2. **1クエリのコスト**: `pg_stat_statements` の `mean_exec_time`。
+   変更前は `select tasks.* ... order by id` が **53.92ms**、
+   `select task_id from task_comments` が **27.15ms** だった
+3. Supabase ダッシュボードの Reports → Database → Disk IO Budget
+
+### 参考：ディスクI/O予算そのものについて
+
+このプロジェクトは **Micro インスタンス**（shared_buffers 224MB / max_connections 60）。
+Micro のディスクスループットはベースラインが低く、超過分をバースト予算から食う仕組みなので、
+DBが小さくても**リクエストの物量だけで予算は枯れる**。上記の対策で足りない場合は
+インスタンスサイズを上げるのが根本解になる。
+
+なお WAL 側にも気になる数字がある: `pg_stat_wal` で `wal_records` が 1,097,017 に対し
+`wal_write` が **27,219,958**、`wal_buffers_full` が **27,046,005**。
+1レコードあたり25回の write システムコールが出ている。`wal_buffers` が 3.9MB
+（492 × 8kB）と小さいのが原因と思われるが、これは Supabase 側が
+インスタンスサイズから決めている値なので、こちらからは変えられない。
+インスタンスを上げれば一緒に増える。
 
 ---
 
@@ -3526,7 +3704,7 @@ renderContent = function() {
 
 ## 既知の注意事項・過去のバグ
 
-- **Supabase Realtime 禁止**: WAL polling によりDisk IOが枯渇した。クライアント側Realtimeは削除済み・テーブルpublicationも無効化済み
+- **Supabase Realtime 禁止**: WAL polling によりDisk IOが枯渇した（`realtime.list_changes` が 900,181回・累計87分）。クライアント側Realtimeは削除済み。**publication は2026-08-25にようやく実際に空にした** — それまで `sections` と `tags` が載り続けており「無効化済み」という記述は誤りだった。`select * from pg_publication_tables where pubname='supabase_realtime'` で実際に確認すること（`public.idol_cheer_messages` は別アプリのぶん）
 - **プッシュ通知**: 過去にJSON stringify/parseミスマッチのバグあり（修正済み）
 - **Google OAuth**: callbackページがないとリダイレクトループが起きる（修正済み）
 - **`user_id=null` レコード**: `importFromIndexedDB` で古いデータを取り込む際に発生しうる。現在はRLSで保護されているが要注意
