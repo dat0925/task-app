@@ -433,6 +433,14 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .toast-undo{background:var(--accent);color:#fff;border:none;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer}
 
+/* アップデート通知バナー：ホーム画面PWAで新バージョンを検知した時だけ表示する帯。
+   常設ボタンにせず、必要な時だけ最前面に出すことでヘッダーのアイコン群を汚さない */
+.update-banner{position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:calc(env(safe-area-inset-top,0px) + 9px) 16px 9px;font-size:13px;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,.18);animation:ubIn .25s ease}
+@keyframes ubIn{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+.update-banner .ub-refresh{background:#fff;color:var(--accent);padding:5px 14px;border-radius:6px;font-weight:700;font-size:12.5px}
+.update-banner .ub-close{color:#fff;opacity:.75;font-size:18px;line-height:1;padding:0 4px}
+.update-banner .ub-close:active{opacity:1}
+
 /* Mobile bottom nav */
 .bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:80;padding-bottom:env(safe-area-inset-bottom);flex-direction:row;align-items:stretch;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .bot-nav-inner{display:flex;flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;touch-action:pan-x}
@@ -1928,11 +1936,31 @@ if('serviceWorker' in navigator){
         }
       },300);
     }
-    // 新しいSWが有効化されたら自動リロード（PWAでキャッシュが古いまま残る問題の対策）
+    // 新しいSWが有効化されたら、入力中のデータを消さないよう即リロードせず
+    // バナーで知らせてユーザーの操作で更新してもらう
     if(e.data&&e.data.type==='SW_UPDATED'){
-      window.location.reload();
+      showUpdateBanner();
     }
   });
+  // ホーム画面PWAはタブと違いバックグラウンド復帰時に自動でSW更新チェックが
+  // 走らないことがあるため、フォアグラウンド復帰のたびに明示的にチェックする
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'){
+      navigator.serviceWorker.getRegistration().then(reg=>reg&&reg.update()).catch(()=>{});
+    }
+  });
+}
+
+// ===== アップデート通知バナー =====
+function showUpdateBanner(){
+  if(document.getElementById('update-banner'))return; // 二重表示防止
+  const el=document.createElement('div');
+  el.id='update-banner';
+  el.className='update-banner';
+  el.innerHTML='<span>新しいバージョンがあります</span><button class="ub-refresh">今すぐ更新</button><button class="ub-close" aria-label="閉じる">×</button>';
+  el.querySelector('.ub-refresh').onclick=()=>window.location.reload();
+  el.querySelector('.ub-close').onclick=()=>el.remove();
+  document.body.appendChild(el);
 }
 
 function showUpgradeModal(feature){
