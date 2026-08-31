@@ -5945,7 +5945,9 @@ function renderRow(task){
   +(!S.selectMode?'</div></div>':'');
   if(subs.length){
     html+='<div class="sub-rows'+(subsOpen?' open':'')+'" id="sub-rows-'+task.id+'">';
-    html+=subs.map(s=>'<div style="padding-left:28px">'+renderRow(s)+'</div>').join('');
+    // 完了サブタスクの表示もトップレベル一覧と同じ「完了を表示」設定に従わせる（従来はサブタスクにフィルタが効かず常に全件表示されていた）
+    const visibleSubs=S.showCompleted?subs:subs.filter(s=>s.status!=='completed');
+    html+=visibleSubs.map(s=>'<div style="padding-left:28px">'+renderRow(s)+'</div>').join('');
     html+='</div>';
   }
   return html;
@@ -8789,12 +8791,12 @@ async function submitQA(){
       p.tagIds.push(nt.id);
     }
   }
-  const status=S.view==='project'?'active':'inbox';
   const _t=today();
   const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();
   if(!p.dueAt)p.dueAt=_d3;
   if(!p.startAt)p.startAt=_t;
   const _newProjId=p.projectId||(S.view==='project'?S.projId:null);
+  const status=_newProjId?'active':'inbox';// @プロジェクト指定時はビューに関わらずactiveにする（プロジェクト付きなのにInboxに残るバグの修正）
   const task=mkTask({...p,status,projectId:_newProjId,order:_newProjId?topOrderInProject(_newProjId):Date.now()});
   await saveTask(task);
   inp.value='';
