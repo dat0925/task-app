@@ -2969,20 +2969,22 @@ async function loadAll(){
 }
 
 // タスク一覧に💬バッジを出すためのコメント件数集計（RLSで自分+共有ワークスペース分のみ返る）
+// 【Egress対策】以前は task_comments を全行（select=task_id）取得してJS側で数えていたため、
+// バッジを出すだけのために毎回コメント全件（1600行超）を転送していた。集計はDB側のRPC
+// task_comment_counts() に任せ、コメントが1件以上あるタスクの行だけを受け取る。
+// RPCは SECURITY INVOKER なのでRLSは従来どおり効く（自分+共有ワークスペース分のみ）。
 async function loadCommentCounts(){
   const SB=window._SB;
   if(!SB)return;
   const PAGE=1000;
-  let from=0,rows=[];
+  let from=0;const counts={};
   for(;;){
-    const{data,error}=await SB.from('task_comments').select('task_id').range(from,from+PAGE-1);
+    const{data,error}=await SB.rpc('task_comment_counts').order('task_id',{ascending:true}).range(from,from+PAGE-1);
     if(error){console.error('loadCommentCounts',error);return;}
-    rows=rows.concat(data||[]);
+    (data||[]).forEach(r=>{counts[r.task_id]=Number(r.cnt)||0;});
     if(!data||data.length<PAGE)break;
     from+=PAGE;
   }
-  const counts={};
-  rows.forEach(r=>{counts[r.task_id]=(counts[r.task_id]||0)+1;});
   S.commentCounts=counts;
 }
 
@@ -12852,7 +12854,16 @@ async function setupSB(){
 
     // ===== Realtimeサブスクリプション =====
     window._lastSync=0;
-    const _syncNow=(force)=>{
+    // 同期用フィンガープリント。sync_fingerprint() は各テーブルの「件数＋最終更新時刻」だけを
+    // 返す軽量RPC（数百バイト）。前回取得値と一致していれば誰も何も変更していないので、
+    // 全件フェッチ（loadAll＝毎回数MB）を丸ごと省ける。
+    window._syncFp=null;
+    const _fetchSyncFp=async()=>{
+      const{data,error}=await SB.rpc('sync_fingerprint');
+      if(error){console.error('sync_fingerprint',error);return null;}
+      return data?JSON.stringify(data):null;
+    };
+    const _syncNow=async(force)=>{
       if(!window._currentUser)return;
       if(Date.now()-window._lastSelfSave<5000)return;
       if(!force&&Date.now()-window._lastSync<60000)return;
@@ -12860,16 +12871,42 @@ async function setupSB(){
       // フォーカス有無だけでなく「未保存の下書きの存在」で判定する（スクロールやアプリ切替で
       // フォーカスが外れた直後でも入力内容を守る）。次回周期で自動再試行される
       if(typeof hasUnsavedDraft==='function'&&hasUnsavedDraft())return;
-      if(typeof loadAll==='function'&&typeof render==='function'){
-        loadAll().then(()=>{window._lastSync=Date.now();render();}).catch(()=>{});
+      if(typeof loadAll!=='function'||typeof render!=='function')return;
+      // 先にfingerprintを取り、変化がなければ何も取得しない。
+      // fingerprint取得後・loadAll中に入った変更はこの値に含まれないため、
+      // 次の周期でfingerprintがさらに変わり、取りこぼさずに拾える。
+      const fp=await _fetchSyncFp();
+      if(fp===null){
+        // fpがnullなのはDB/ネットワークが応答していないとき。すぐにloadAllを投げても
+        // 失敗する上に障害中のサーバーへ負荷を上乗せするだけなので、まずは次の周期に回す。
+        // ただしRPC自体が使えない環境（関数未適用・権限不足）でも同期が永久に止まらないよう、
+        // 3回連続で失敗したら従来どおりの全件同期にフォールバックする。
+        window._syncFpFail=(window._syncFpFail||0)+1;
+        if(window._syncFpFail<3)return;
+      }else{
+        window._syncFpFail=0;
+        if(window._syncFp===fp){window._lastSync=Date.now();return;}
       }
+      try{
+        await loadAll();
+        window._syncFp=fp;
+        window._lastSync=Date.now();
+        render();
+      }catch(e){console.error('_syncNow',e);}
     };
     // Realtimeサブスクリプションは無効化（Disk IO削減のため）
     // 120秒ポーリング＋visibilitychangeで同期を維持（60秒以内の再取得はスキップ）
     document.addEventListener('visibilitychange',()=>{
       if(document.visibilityState==='visible')_syncNow();
     });
-    setInterval(()=>_syncNow(true),120000);
+    setInterval(()=>{
+      // 【Egress対策】非表示タブ（別タブ・別アプリ表示中・画面ロック中）では同期しない。
+      // 以前は force=true で可視状態に関係なく回り続けていたため、開きっぱなしのタブが
+      // 24時間ずっと2分ごとに全件フェッチしていた（誰も使っていない深夜も同量の通信）。
+      // 表示に戻った時点で上のvisibilitychangeが_syncNowを走らせるので同期は維持される。
+      if(document.visibilityState!=='visible')return;
+      _syncNow();
+    },120000);
 
     // ===== IndexedDBからSupabaseへのインポート =====
     window.importFromIndexedDB=async()=>{

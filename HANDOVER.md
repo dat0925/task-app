@@ -1,6 +1,145 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-08-31
+最終更新: 2026-09-01
+
+---
+
+## Supabase無料枠のEgress超過と、全件ポーリングの是正（2026-09-01）
+
+**この節は最優先で読むこと。** 2026-09-01 早朝にSupabaseが応答不能になった件の原因と対策。
+プロジェクトは無料プラン（org: `boqigcilnnlwyxzgsvsm`、project ref: `sfhtvtcmgueystyuhzvd`）。
+
+### 何が起きたか
+
+Supabaseダッシュボードの Usage が「**Grace period started / Egress Exceeded**」状態だった。
+
+- 前の請求サイクルでEgress（下り通信量）が無料枠5GBを超過
+- 猶予期間は **2026-09-28 まで**。それ以降はFair Use Policyが適用され、
+  制限がかかると **APIが402を返す**（＝アプリが全ユーザーで停止する）
+- 現サイクル（8/29〜9/29）は開始3日で **3.15 / 5 GB（63%）** を消費。日次で約1GB、月30GBペース
+
+Egress以外は全て余裕があった。**ネックはEgress一点**。
+
+| 項目 | 使用 | 無料枠 |
+|---|---|---|
+| **Egress** | **3.15 GB / 3日** | **5 GB / 月** |
+| Database Size | 40 MB | 500 MB |
+| Edge Function Invocations | 41 | 500,000 |
+| Monthly Active Users | 4 | 50,000 |
+| Storage / Realtime | ほぼ0 | — |
+
+同日 02:00〜07:00(JST) にAPIが 522/521/504/503 を返し続けた障害は、Egress超過による遮断（402）ではなく、
+**無料プランの共有CPU/メモリが全件フルスキャンの連打で枯渇してDBが応答不能になった**もの。
+Supabase側の再起動で復旧したが、原因は下記のポーリング設計で同じ。
+
+### 原因（ログとpg_statで特定）
+
+24時間のedge_logsは **68,144リクエスト**。一方、実際にアクセスしていたのは **2ユーザーだけ**
+（1人が42,518リクエスト／IP 8種・UA 3種＝PC・スマホ・タブレットでタブを開きっぱなし）。
+
+原因は3つ重なっていた。
+
+**1. 非表示タブでもポーリングが止まらなかった（最大の原因）**
+
+```js
+setInterval(()=>_syncNow(true),120000);   // 修正前。force=true なので可視状態を見ない
+```
+
+`force=true` は60秒スロットルを無効化するフラグで、`document.visibilityState` は一切見ていなかった。
+そのため開きっぱなしのタブが24時間ずっと2分ごとに全件フェッチしていた。
+ログ上、誰も使っていない深夜帯（JST 2〜6時）も日中と同じ 3,000〜4,000 req/h が出続けていたのがその証拠。
+
+**2. ポーリングのたびに毎回「全テーブル全件」を取得していた**
+
+`_syncNow` → `loadAll()` は変更の有無に関係なく毎回これを投げる（1周期あたり10リクエスト）:
+
+| テーブル | 行数 | 備考 |
+|---|---|---|
+| tasks | 2,480 | `select=*` 全カラム。1000行ページングで3リクエスト |
+| task_comments | 1,657 | 💬バッジの件数集計用に全行取得。2リクエスト |
+| notes / projects / tags / workspaces / workspace_members | 220 / 55 / 36 / 1 / 3 | 各1リクエスト |
+
+`pg_stat_user_tables` では tasks が `seq_scan` 81回に対し `seq_tup_read` **200,880行**
+（＝1回あたり2,480行のフルスキャン）。tasksテーブルは実体2.1MB、これをgzip後でも
+数百KB単位で2分ごとにタブ数分だけ転送していたのがEgressの正体。
+
+**3. ドロワーを開いたままだと、再描画のたびに添付・コメントを取り直す**
+
+`renderDrawer()` が末尾で `initComments()` / `initAttachments()` を呼ぶため、
+ポーリング→`render()`→`renderDrawer()` の連鎖で attachments が1日4,027リクエスト発生していた。
+
+### 対策（実施済み）
+
+**A. DB側：軽量RPCを2本追加**（マイグレーション `add_sync_fingerprint_and_comment_counts`）
+
+どちらも **SECURITY INVOKER**（＝呼び出したユーザーのRLSがそのまま効く）。
+新規テーブルは作っていないので**RLSの状態は既存から変わっていない**。
+`anon` からの実行は `revoke` 済みで、`authenticated` と `service_role` のみ実行可。
+
+- `sync_fingerprint()` — 各テーブルの「件数＋最終更新時刻」だけをjsonbで1回返す（数百バイト）
+- `task_comment_counts()` — `task_id, cnt` を返す。全1,657行 → コメントがある586行のみに減少
+
+**B. フロント側（index.html）**
+
+1. **非表示タブでは同期しない。** `setInterval` の中で `document.visibilityState!=='visible'` なら即return。
+   `force=true` も外した（120秒間隔なので60秒スロットルは実質常に通る）。
+   表示に戻った時点で既存の `visibilitychange` ハンドラが `_syncNow()` を走らせるので同期は維持される。
+2. **変更がなければ全件フェッチしない。** `_syncNow` は先に `sync_fingerprint()` を取り、
+   前回値と一致していれば `loadAll()` も `render()` も呼ばずに終わる。
+   fingerprint取得後〜loadAll完了までの間に入った変更はその値に含まれないため、
+   次の周期でfingerprintがさらに変わり取りこぼさない。
+3. **コメント件数バッジをRPC集計に変更。** `loadCommentCounts()` が `task_comments` を
+   全行取得していたのをやめ、`task_comment_counts()` の結果を使う。
+4. **フォールバック。** fingerprintが3回連続で取れない場合（RPC未適用・権限不足などの環境）は
+   従来どおりの全件同期に落とす。RPCが動かない環境で自動同期が永久に止まるのを防ぐため。
+   1〜2回目のnullはDB障害中とみなしてスキップし、落ちているサーバーに負荷を上乗せしない。
+
+**効果の見込み**: 変更が発生していない周期のリクエストは 10本・数百KB → **1本・数百バイト**。
+放置タブ由来の通信は消える。日次1GB → 数十MB規模まで下がる想定。
+
+### 確認方法（次に見る人へ）
+
+Egressの実測はダッシュボードの
+`https://supabase.com/dashboard/org/boqigcilnnlwyxzgsvsm/usage` で見る（更新は1時間ごと）。
+リクエスト数の内訳はMCPの `query_logs` で以下:
+
+```sql
+-- 時間帯別のリクエスト数とエラー数
+select toStartOfHour(timestamp) h,
+       countIf(log_attributes['response.status_code']='200') ok,
+       countIf(log_attributes['response.status_code'] in ('522','521','504','503','502')) err
+from logs where source='edge_logs' group by h order by h
+
+-- パス別の内訳
+select log_attributes['request.path'] path, count(*) cnt
+from logs where source='edge_logs' group by path order by cnt desc
+```
+
+**判断の目安**: 実利用が10人未満のうちは、edge_logsが1日1万リクエストを超えていたら
+どこかでポーリングか再取得ループが暴走していると考えてよい。
+
+### 残課題
+
+**1. cron.job に service_role key が平文で埋まっている（要対応・セキュリティ）**
+
+`cron.job` テーブルの jobid 1（`cron-cleanup-notifications`）と jobid 5（`cron-plan-reconcile`）の
+`command` に、`Authorization: Bearer <service_role JWT>` がべた書きされている。
+`cron` スキーマはPostgRESTに露出しておらず、anonキーからは読めないため直ちに漏洩する状態ではないが、
+**DB内に平文で残っている**のは望ましくない。Vault（`vault.create_secret`）に格納して
+`vault.decrypted_secrets` から参照する形に移すのが正しい。
+鍵をローテートする場合は、この2つのcronジョブの再登録も必要（消すだけでは動かなくなる）。
+
+**2. 添付ファイル取得のN+1**
+
+`renderDrawer()` が毎回 `initAttachments()` を呼ぶため、タスクごとに個別GETが走る。
+上記対策で `render()` の呼び出し自体が激減するので実害は小さくなったが、
+ドロワーを開いたまま更新が続く状況では残る。`S._attCache` を活かして
+「キャッシュがあり、かつ直近の同期でattachmentsに変更がなければ再取得しない」形にできる。
+
+**3. `tasks` の `select=*` をやめて必要カラムだけにする**
+
+description等の大きいカラムまで毎回転送している。実際に取得が走る回数は激減したが、
+1回あたりの転送量削減としてはまだ余地がある。
 
 ---
 
