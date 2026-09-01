@@ -4,6 +4,60 @@
 
 ---
 
+## タイトル横のコピーボタンを「タイトル＋URL」コピーに変更（2026-09-01）
+
+タスク詳細／Note詳細のタイトル右にあるコピーボタン（📋アイコン）の挙動を変更した。
+
+- 変更前: タイトル名だけをコピー
+- 変更後: `タイトル名` ＋ 改行 ＋ `そのタスク/NoteのURL` をコピー
+
+Slackやメールに貼ったときに、名前とリンクが1回のコピーで揃うようにするのが目的。
+
+### 実装
+
+`index.html` に共通関数を2つ追加（`// ===== TOAST =====` の直前）。
+
+| 関数 | 役割 |
+|---|---|
+| `buildItemUrl(kind,id)` | 共有URLを組み立てる。task → `<origin><pathname>#task/<id>`、note → `<origin><pathname>?note=<id>` |
+| `copyTitleWithUrl(title,url,msg)` | `title` + `
+` + `url` をコピー。Clipboard APIが無い環境は `textarea` + `execCommand('copy')` にフォールバック（改行を保つため `input` ではなく `textarea`） |
+
+差し替えたハンドラは2つ。どちらもタイトルを「編集中の入力欄 → Stateの値」の順で拾う
+（拡大モーダル内でも動くよう `el.closest('.expand-modal,#drawer')` から先に探す）。
+
+- `a==='copy-title'`（タスク。`#dt-title` 横のボタンとPCヘッダーのボタンが共用）
+- `a==='note-copy-title'`（Note。`#nt-title` 横のボタン）
+
+タイトルが空のときはURLだけをコピーする（先頭に空行が入らないようにした）。
+ツールチップは3ヶ所とも `タイトルとURLをコピー` に更新。トーストは `タイトルとURLをコピーしました 📋`。
+
+### 触っていないもの
+
+- 🔗ボタン／•••メニューの「URLをコピー」（`copy-url-btn`、`note-copy-url`、`copy-note-url`）はURL単体のままで変更なし
+- スマホ下部フッターの「コピー」ボタン（`copy-url-btn-mob`）もURL単体のまま
+- タスク一覧のダブルクリックでのタイトルコピー（PC）はタイトルのみのまま
+
+### 動作確認
+
+- 抽出したメインスクリプトを `node --check` で構文チェック → エラーなし
+- ローカル（`python -m http.server`）で index.html を開き、`navigator.clipboard.writeText` を差し替えて
+  `data-a="copy-title"` / `data-a="note-copy-title"` の合成クリックを実行。実際にコピーされた文字列を確認:
+  - `テストタスクA
+http://localhost:8899/index.html#task/tid-1`
+  - `テストノートB
+http://localhost:8899/index.html?note=nid-1`
+- ログイン後の実データでの目視確認は本番デプロイ後に行う（ローカルはGoogleサインインが必要なため）
+
+### セキュリティ
+
+DB・テーブル変更なし（新規テーブルなし、RLS変更なし）。認証・決済フローの変更なし。
+クライアント側のクリップボード処理のみ。秘匿情報の追加なし。
+
+`sw.js` の `CACHE_NAME` を `taskra-v59` → `taskra-v60` にインクリメント済み。
+
+---
+
 ## Supabase無料枠のEgress超過と、全件ポーリングの是正（2026-09-01）
 
 **この節は最優先で読むこと。** 2026-09-01 早朝にSupabaseが応答不能になった件の原因と対策。

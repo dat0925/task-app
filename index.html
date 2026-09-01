@@ -3189,6 +3189,30 @@ function counts(){
   };
 }
 
+// ===== クリップボード（タイトル＋URL）=====
+// タスク/NoteのURLを組み立てる。共有時に開けるURL形式は
+//   タスク: <origin><pathname>#task/<id>
+//   Note : <origin><pathname>?note=<id>
+function buildItemUrl(kind,id){
+  const base=location.origin+location.pathname;
+  return kind==='note'?base+'?note='+id:base+'#task/'+id;
+}
+// 「タイトル」＋改行＋「URL」をコピーする。Clipboard API が使えない環境では
+// textarea 経由の execCommand にフォールバックする（改行を保つため input ではなく textarea）。
+function copyTitleWithUrl(title,url,msg){
+  const text=title?(title+'\n'+url):url;
+  const _fb=()=>{
+    const ta=document.createElement('textarea');
+    ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,99999);
+    try{document.execCommand('copy');}catch(_){}
+    ta.remove();
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).catch(_fb);}else{_fb();}
+  if(typeof playSE==='function')playSE('toggle');
+  toast(msg||'タイトルとURLをコピーしました 📋');
+}
+
 // ===== TOAST =====
 function toast(msg,undoFn){
   const c=document.getElementById('toasts');
@@ -6453,7 +6477,7 @@ function renderNoteDrawer(){
   const noteUrl=location.origin+location.pathname+'?note='+note.id;
   // 本文をブロック単位で組み立て、ドロワ（1列）と集中モード（3ゾーン）で置き場所を変える。
   const _ntTitle=''
-      +'<div><div class="dt-label">タイトル</div><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="nt-title" value="'+esc(note.title)+'" placeholder="タイトル" style="flex:1;min-width:0"><button class="date-clr-btn" data-a="note-copy-title" data-id="'+note.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
+      +'<div><div class="dt-label">タイトル</div><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="nt-title" value="'+esc(note.title)+'" placeholder="タイトル" style="flex:1;min-width:0"><button class="date-clr-btn" data-a="note-copy-title" data-id="'+note.id+'" title="タイトルとURLをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
   ;
   const _ntMemo=''
       +'<div id="nt-memo-section">'
@@ -6913,7 +6937,7 @@ function _dtHead(c){
         +'</div>'
         
         +(window.innerWidth>768?'<button class="icon-btn" data-a="drawer-expand" title="最大化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>':'')
-        +'<button class="icon-btn hdr-btn-desktop" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>'
+        +'<button class="icon-btn hdr-btn-desktop" data-a="copy-title" data-id="'+task.id+'" title="タイトルとURLをコピー"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg></button>'
         +'<button class="icon-btn hdr-btn-desktop" id="copy-url-btn" title="URLをコピー" style="font-size:14px">🔗</button>'
         +'<button class="icon-btn hdr-btn-desktop" data-a="dup" data-id="'+task.id+'" title="複製">'+ICONS.copy+'</button>'
         +'<button class="del-btn hdr-btn-desktop" data-a="del-confirm-hdr" data-id="'+task.id+'" title="削除">削除</button>'
@@ -6950,7 +6974,7 @@ function _dtNav(c){return _dtParentRow(c)+_dtJumpBadges(c);}
 function _dtTitleField(c){
   const {task,subs,done,pLabels}=c;
   return ''
-      +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
+      +'<div class="fg"><label class="flabel">タイトル</label><div style="display:flex;gap:4px;align-items:center"><input class="finput" id="dt-title" value="'+esc(task.title)+'" placeholder="タスク名" style="flex:1;min-width:0"><button class="date-clr-btn" id="dt-title-copy" data-a="copy-title" data-id="'+task.id+'" title="タイトルとURLをコピー" style="flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>'
   ;
 }
 
@@ -9272,11 +9296,14 @@ else if(a==='scroll-to-comments'){
     e.stopPropagation();
     if(_touchMoved)return;
     const _now=Date.now();if(_now-(el._lastCopyAt||0)<600)return;el._lastCopyAt=_now;
-    const note=S.notes.find(n=>n.id===el.dataset.id);
-    const title=(note&&note.title)||'';
-    const _fb=()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();};
-    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(title).catch(_fb);}else{_fb();}
-    playSE('toggle');toast('タイトルをコピーしました 📋');
+    const id=el.dataset.id;
+    const note=S.notes.find(n=>n.id===id);
+    // 編集中の入力欄が最新なので優先（拡大モーダル内も考慮）
+    const _ctx=el.closest('.expand-modal,#drawer');
+    const titleInp=(_ctx&&_ctx.querySelector('#nt-title'))||document.getElementById('nt-title');
+    const title=(titleInp&&titleInp.value)||(note&&note.title)||'';
+    // タイトル＋改行＋NoteのURL をコピー
+    copyTitleWithUrl(title,buildItemUrl('note',id));
   }
   else if(a==='note-copy-url'){
     const id=el.dataset.id;
@@ -10152,13 +10179,14 @@ else if(a==='scroll-to-comments'){
     e.stopPropagation();
     if(_touchMoved)return;
     const _now=Date.now();if(_now-(el._lastCopyAt||0)<600)return;el._lastCopyAt=_now;
-    const task=S.tasks.find(t=>t.id===el.dataset.id);
-    const titleInp=document.getElementById('dt-title');
+    const id=el.dataset.id;
+    const task=S.tasks.find(t=>t.id===id);
+    // 編集中の入力欄が最新なので優先（拡大モーダル内も考慮）
+    const _ctx=el.closest('.expand-modal,#drawer');
+    const titleInp=(_ctx&&_ctx.querySelector('#dt-title'))||document.getElementById('dt-title');
     const title=(titleInp&&titleInp.value)||(task&&task.title)||'';
-    if(!title)return;
-    const _fb=()=>{const inp=document.createElement('input');inp.value=title;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();};
-    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(title).catch(_fb);}else{_fb();}
-    playSE('toggle');toast('タイトルをコピーしました 📋');
+    // タイトル＋改行＋タスクのURL をコピー
+    copyTitleWithUrl(title,buildItemUrl('task',id));
   }
   else if(a==='task-expand'){
     e.stopPropagation();
