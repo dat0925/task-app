@@ -6550,6 +6550,7 @@ function renderNoteDrawer(){
       +'<button class="btn btn-ghost" data-a="close-note" style="margin-left:auto">✕ 閉じる</button>'
     +'</div>'
     +'<div class="mob-action-bar">'
+      +'<button class="mob-btn mob-btn-ghost" data-a="note-copy-title" data-id="'+note.id+'"><span class="mob-btn-ico">📋</span>コピー</button>'
       +'<button class="mob-btn mob-btn-ghost" id="note-more-btn" style="letter-spacing:1px">•••</button>'
       +'<button class="mob-btn-close" data-a="close-note">✕</button>'
     +'</div>';
@@ -6562,14 +6563,13 @@ function renderNoteDrawer(){
     const menu=document.createElement('div');
     menu.id='note-more-menu';
     menu.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:9999;overflow:hidden';
-    const noteUrl=location.origin+location.pathname+'?note='+note.id;
     const items=[
       {label:'Noteを削除',action:'note-del',id:note.id,danger:true},
       {label:'タスクに変換して削除',action:'note-to-task',id:note.id},
       {label:'メモ欄をクリア',action:'clear-note-body',id:note.id},
       {label:'複製する',action:'note-dup',id:note.id},
-      {label:'NoteのURLをコピー',action:'copy-note-url',id:note.id},
     ];
+    // 「NoteのURLをコピー」は下部アクションバーの「コピー」ボタン（タイトル＋URL）に昇格したためメニューからは除外
     items.forEach((item,i)=>{
       const btn=document.createElement('button');
       btn.style.cssText='width:100%;padding:15px 18px;background:none;border:none;border-top:'+(i===0?'none':'1px solid var(--border)')+';font-size:15px;color:'+(item.danger?'#c0392b':'var(--text)')+';text-align:left;cursor:pointer;display:block'+(item.danger?';font-weight:600':'');
@@ -6577,10 +6577,6 @@ function renderNoteDrawer(){
       btn.addEventListener('click',e=>{
         e.stopPropagation();
         menu.remove();overlay.remove();
-        if(item.action==='copy-note-url'){
-          navigator.clipboard?.writeText(noteUrl).then(()=>toast('URLをコピーしました')).catch(()=>toast(noteUrl));
-          return;
-        }
         const dummy=document.createElement('button');
         dummy.dataset.a=item.action;
         dummy.dataset.id=item.id;
@@ -7244,7 +7240,7 @@ function _dtFoot(c){
       +(!done
         ?'<button class="mob-btn mob-btn-complete" data-a="complete-confirm" data-id="'+task.id+'">完了</button>'
         :'<button class="mob-btn mob-btn-ghost" data-a="uncomplete" data-id="'+task.id+'">↩ 戻す</button>')
-      +'<button class="mob-btn mob-btn-ghost" id="copy-url-btn-mob"><span class="mob-btn-ico">🔗</span>コピー</button>'
+      +'<button class="mob-btn mob-btn-ghost" data-a="copy-title" data-id="'+task.id+'"><span class="mob-btn-ico">📋</span>コピー</button>'
       +(task.projectId?'<button class="mob-btn mob-btn-ghost" data-a="move-to-top" data-id="'+task.id+'"><span class="mob-btn-ico">↑</span>最上部</button>':'')
       +'<button class="mob-btn mob-btn-ghost" id="task-more-btn" style="letter-spacing:1px">•••</button>'
       +'<button class="mob-btn-close" data-a="close-drawer">✕</button>'
@@ -7354,7 +7350,6 @@ function renderDrawer(){
     catch(e){const inp=document.createElement('input');inp.value=taskUrl;document.body.appendChild(inp);inp.select();inp.setSelectionRange(0,9999);document.execCommand('copy');inp.remove();toast('URLをコピーしました 🔗');}
   }
   document.getElementById('copy-url-btn')?.addEventListener('click',copyTaskUrl);
-  document.getElementById('copy-url-btn-mob')?.addEventListener('click',copyTaskUrl);
 
   // ••• メニュー
   document.getElementById('task-more-btn')?.addEventListener('click',e=>{

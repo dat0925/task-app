@@ -1,6 +1,53 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-09-01
+最終更新: 2026-09-02
+
+---
+
+## 詳細画面下部の「コピー」ボタンを整備（2026-09-02）
+
+スマホ下部アクションバー（`.mob-action-bar`）のコピー挙動を、タイトル横のコピーボタンと揃えた。
+
+| 場所 | 変更前 | 変更後 |
+|---|---|---|
+| タスク詳細の下部バー | 🔗コピー（URL単体、`id="copy-url-btn-mob"`） | 📋コピー（`data-a="copy-title"`／タイトル＋改行＋URL） |
+| Note詳細の下部バー | ボタンなし（•••メニューの「NoteのURLをコピー」だけ） | 📋コピーを新設（`data-a="note-copy-title"`／タイトル＋改行＋URL） |
+| Note詳細の•••メニュー | 「NoteのURLをコピー」あり | 下部ボタンに昇格したため項目を削除 |
+
+### 実装
+
+- 下部バーのボタンは独自リスナーをやめ、既存の `data-a` 委譲ハンドラ（`copy-title` / `note-copy-title`）に寄せた。
+  これでタイトル横のボタンと処理が1本化され、`buildItemUrl()` / `copyTitleWithUrl()`（2026-09-01追加）をそのまま使う。
+  ボタン内の `<span class="mob-btn-ico">` をタップしても `closest('[data-a]')` で解決されるので問題ない。
+- タスク側の `copy-url-btn-mob` 用リスナー（`copyTaskUrl` の2本目の登録）を削除。
+  `copyTaskUrl()` 自体はPCヘッダーの 🔗 ボタン（`copy-url-btn`）が使い続けるので残してある。
+- Note側の •••メニューから `copy-note-url` 分岐と未使用になった `noteUrl` 変数を削除。
+
+### 触っていないもの
+
+- PCヘッダーの 🔗（タスク `copy-url-btn`）とリンクアイコン（Note `note-copy-url`）はURL単体のままで変更なし
+- タスクの•••メニュー、共有QRの「URLをコピー」（`qr-copy-url`）も変更なし
+
+### 動作確認
+
+`python -m http.server 8899` ＋ Chromeで、`navigator.clipboard.writeText` を差し替えて実際にコピーされる文字列を確認。
+（SWが旧HTMLを返すので、確認前に `getRegistrations().unregister()` と `caches.delete()` が必要だった）
+
+- タスク下部バーの📋 → `PWAアプリのレビュー
+http://localhost:8899/index.html#task/<id>`
+- Note下部バーの📋 → `テストノートB
+http://localhost:8899/index.html?note=nid-test1`
+- `#nt-title` を書き換えてからコピー → 編集中の値が優先される（`編集中のタイトル
+…?note=…`）
+- Noteの•••メニューの項目が「Noteを削除／タスクに変換して削除／メモ欄をクリア／複製する」の4つになったことを確認
+- 抽出したスクリプトを `node --check` → エラーなし
+
+### セキュリティ
+
+DB・テーブル変更なし（新規テーブルなし、RLS変更なし）。認証・決済フローの変更なし。
+クライアント側のクリップボード処理とボタン配置のみ。秘匿情報の追加なし。
+
+`sw.js` の `CACHE_NAME` を `taskra-v60` → `taskra-v61` にインクリメント済み。
 
 ---
 
