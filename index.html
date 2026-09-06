@@ -2654,7 +2654,12 @@ function makePreviewResizable(el){
   },{passive:true});
 }
 function now(){return new Date().toISOString()}
-function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+// ローカル日付を YYYY-MM-DD にする。
+// toISOString() は UTC を返すため、JST では 00:00〜09:00 のあいだ日付が1日前にずれる。
+// 「今日」「n日後」をカレンダー上の日付として扱う場面では必ずこちらを使う。
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function ymdShift(days){const d=new Date();d.setDate(d.getDate()+days);return ymd(d)}
+function today(){return ymd(new Date())}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function searchTerms(q){return String(q||'').toLowerCase().split(/\s+/).filter(Boolean)}
 function matchesSearch(text,terms){if(!terms.length)return false;const t=String(text||'').toLowerCase();return terms.every(w=>t.includes(w))}
@@ -2744,7 +2749,7 @@ function parseQA(input){
   for(const[k,v] of Object.entries(dateMap)){
     if(title.toLowerCase().includes(k)){
       const d=new Date();d.setDate(d.getDate()+v);
-      r.dueAt=d.toISOString().slice(0,10);
+      r.dueAt=ymd(d);
       title=title.replace(new RegExp(k,'i'),'');break;
     }
   }
@@ -2757,7 +2762,7 @@ function parseQA(input){
       const hasDayAlone=!inBracket&&new RegExp('(^|\\s)'+dc+'(?=\\s|$)').test(title);
       if(hasYoubi||hasDayAlone){
         const d=new Date(),diff=(i-d.getDay()+7)%7||7;
-        d.setDate(d.getDate()+diff);r.dueAt=d.toISOString().slice(0,10);
+        d.setDate(d.getDate()+diff);r.dueAt=ymd(d);
         if(hasYoubi){title=title.replace(dc+'曜','');}
         else{title=title.replace(new RegExp('(^|\\s)'+dc+'(?=\\s|$)'),'$1');}
         break;
@@ -3148,7 +3153,7 @@ async function deleteProject(id){
   await dbDel('projects',id);
   S.projects=S.projects.filter(p=>p.id!==id);
 }
-function mkTask(o={}){const _t=today();const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();const base={id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_d3,startAt:_t,plannedStartAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o};if(!base.plannedStartAt)base.plannedStartAt=base.startAt;return base;}
+function mkTask(o={}){const _t=today();const _d3=ymdShift(3);const base={id:uid(),title:'',notes:'',status:'inbox',projectId:null,parentTaskId:null,sectionId:null,tagIds:[],priority:4,dueAt:_d3,startAt:_t,plannedStartAt:_t,deadlineAt:null,repeatRule:null,reminderAt:null,flagged:false,order:Date.now(),createdAt:now(),updatedAt:now(),completedAt:null,...o};if(!base.plannedStartAt)base.plannedStartAt=base.startAt;return base;}
 async function dupTask(task){
   const newId=uid();
   const d={...task,id:newId,title:task.title+' (コピー)',createdAt:now(),updatedAt:now(),completedAt:null,order:Date.now()};
@@ -5174,7 +5179,7 @@ function renderGantt(){
   if(scale==='week') minD.setDate(minD.getDate()-((minD.getDay()+6)%7));
   else if(scale==='month') minD.setDate(1);
   else if(scale==='year'){minD.setDate(1);minD.setMonth(0);}
-  S._ganttMinD=minD.toISOString().slice(0,10);
+  S._ganttMinD=ymd(minD);
   const timelineW=Math.max(Math.ceil((maxD-minD)/86400000*pxPerDay),400);
   const d2px=d=>(new Date(d)-minD)/86400000*pxPerDay;
   const todayX=d2px(todayD);
@@ -5187,7 +5192,7 @@ function renderGantt(){
     const cur=new Date(minD);
     while(cur<=maxD){
       const dow=cur.getDay(),isWe=dow===0||dow===6;
-      const isTod=cur.toISOString().slice(0,10)===todayD.toISOString().slice(0,10);
+      const isTod=ymd(cur)===ymd(todayD);
       headCells+=`<div class="gantt-date-cell${isWe?' gweekend':''}${isTod?' gtoday-cell':''}" style="width:${pxPerDay}px"><span style="font-size:11px">${cur.getDate()}</span><span style="font-size:9px">${DAY[dow]}</span></div>`;
       cur.setDate(cur.getDate()+1);
     }
@@ -6061,7 +6066,7 @@ async function markNotifRead(id) {
 }
 
 function renderDashboard() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = ymd(new Date());
   const uid = window._currentUser?.id;
 
   // 期限切れ
@@ -6403,7 +6408,7 @@ function renderReview(){
   // 完了タスクの一括アーカイブ
   const completedCnt=S.tasks.filter(t=>t.status==='completed').length;
   if(completedCnt>0){
-    const _def=(()=>{const d=new Date();d.setDate(d.getDate()-30);return d.toISOString().slice(0,10);})();
+    const _def=ymdShift(-30);
     h+='<div class="rv-card"><div class="rv-card-head"><span class="rv-card-title">📦 完了タスクのアーカイブ</span><span class="rv-badge" style="background:var(--bg2);color:var(--text2)">'+completedCnt+'件</span></div>'
       +'<div style="font-size:12px;color:var(--text3);padding:0 12px 8px">指定日より前に完了したタスクを非表示にします。削除ではないのでデータは残ります。</div>'
       +'<div style="display:flex;align-items:center;gap:8px;padding:4px 12px 12px;flex-wrap:wrap">'
@@ -8848,7 +8853,7 @@ async function submitQA(){
     }
   }
   const _t=today();
-  const _d3=(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10);})();
+  const _d3=ymdShift(3);
   if(!p.dueAt)p.dueAt=_d3;
   if(!p.startAt)p.startAt=_t;
   const _newProjId=p.projectId||(S.view==='project'?S.projId:null);
@@ -8887,6 +8892,12 @@ document.addEventListener('click',async e=>{
   _clickTarget = e.target;
   const el=e.target.closest('[data-a]');
   if(!el)return;
+  // FAST TAP が合成した click（isTrusted=false）の直後に来る本物の click は、
+  // 同じ指1本の操作なので捨てる。これが「1タップで2回進む」の原因だった。
+  if(e.isTrusted&&window._fastTapEl===el&&Date.now()-(window._fastTapAt||0)<700){
+    window._fastTapEl=null;
+    return;
+  }
   const a=el.dataset.a;
   // 連打防止: date-adj / start-time系 は意図的連打があるので除外
   const _noDebounce=new Set(['date-adj','date-today','start-time-adj','start-time-adj-min','start-time-zero-min','start-time-set','start-time-clear','date-clear','close-note','close-drawer','chk']);
@@ -9993,7 +10004,7 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='rv-proj'){
     const p=S.projects.find(x=>x.id===el.dataset.id);
-    if(p){const d=new Date();d.setDate(d.getDate()+(p.reviewEveryDays||7));p.nextReviewAt=d.toISOString().slice(0,10);await saveProject(p);renderContent()}
+    if(p){p.nextReviewAt=ymdShift(p.reviewEveryDays||7);await saveProject(p);renderContent()}
   }
   else if(a==='tog-completed'){S.showCompleted=!S.showCompleted;renderContent()}
   else if(a==='tog-hide-notstarted'){S.hideNotStarted=!S.hideNotStarted;renderContent()}
@@ -10959,7 +10970,7 @@ function openSettingsModal(){
     });
     const csv=headers.join(',')+'\n'+rows.join('\n');
     const d=new Date();
-    downloadCSV('tasks_'+d.toISOString().slice(0,10)+'.csv',csv);
+    downloadCSV('tasks_'+ymd(d)+'.csv',csv);
     toast('✅ タスクCSVをダウンロードしました（'+tasks.length+'件）');
     ov.remove();
   });
@@ -11040,7 +11051,7 @@ function openSettingsModal(){
     });
     const csv=headers.join(',')+'\n'+rows.join('\n');
     const d=new Date();
-    downloadCSV('notes_'+d.toISOString().slice(0,10)+'.csv',csv);
+    downloadCSV('notes_'+ymd(d)+'.csv',csv);
     toast('✅ ノートCSVをダウンロードしました（'+notes.length+'件）');
     ov.remove();
   });
@@ -11205,7 +11216,7 @@ async function seed(){
     mkTask({title:'ミーティング準備',status:'active',dueAt:t,projectId:proj.id,priority:3}),
     mkTask({title:'読書: ゼロ・トゥ・ワン',status:'inbox',tagIds:[tag2.id]}),
     mkTask({title:'運動する',status:'inbox',repeatRule:'daily',priority:3,tagIds:[tag2.id]}),
-    (()=>{const d=new Date();d.setDate(d.getDate()-2);return mkTask({title:'期限切れサンプル',status:'active',dueAt:d.toISOString().slice(0,10),priority:2})})(),
+    mkTask({title:'期限切れサンプル',status:'active',dueAt:ymdShift(-2),priority:2}),
   ];
   for(const task of tasks)await saveTask(task);
 }
@@ -11500,7 +11511,7 @@ async function aiSend(){
     if(S.view==='tag')return S.tasks.filter(x=>(x.tagIds||[]).includes(S.tagId)&&x.status!=='completed');
     return [];
   })();
-  const _completedSince=(()=>{const d=new Date();d.setDate(d.getDate()-14);return d.toISOString().slice(0,10);})();
+  const _completedSince=ymdShift(-14);
   const context={
     currentView:S.view,
     currentViewTasks:_viewTasks.map(t=>({
@@ -12260,6 +12271,12 @@ async function extractConfirm(ov){
 
 
 // ===== FAST TAP (global) =====
+// touchend の時点で el.click() を合成して、タップの反応を速くする仕組み。
+// ただしブラウザは touchend のあとに本物の click も出すので、
+// preventDefault() が効かなかった端末では「1タップ＝2アクション」になる。
+// 他のボタンは click 側の 350ms デバウンスが偶然それを吸収していたが、
+// 日付・時刻の調整ボタンはデバウンス対象外なので「+1日」が2日進んでいた。
+// 時間ではなく「合成クリックの直後に来た本物の click」を捨てて重複を消す。
 (function(){
   let _ft=false;
   document.addEventListener('touchend',function(e){
@@ -12270,9 +12287,18 @@ async function extractConfirm(ov){
     if(dr&&dr.classList.contains('open')&&!el.closest('#drawer'))return;
     // スワイプ中はproj-nav-chipのFAST TAPをキャンセル（誤タップ防止）
     if(_touchMoved&&el.dataset.a==='go-proj')return;
+    // 合成クリックを出さないときに preventDefault すると、そのタップが丸ごと消える。
+    // 判定を先に済ませてから既定動作を止める。
+    if(_ft){
+      // 合成クリックを出せなかったタップ。本物の click は止めていないので、
+      // 下の重複ガードに捨てられないよう印を外して通す（連打が消えるのを防ぐ）。
+      window._fastTapEl=null;
+      return;
+    }
     e.preventDefault();
-    if(_ft)return;
     _ft=true;
+    window._fastTapEl=el;
+    window._fastTapAt=Date.now();
     el.click();
     setTimeout(()=>{_ft=false},150);
   },{passive:false});

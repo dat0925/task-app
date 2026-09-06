@@ -1,5 +1,5 @@
-// Taskra - Service Worker v62 (stale-while-revalidate)
-const CACHE_NAME = 'taskra-v62';
+// Taskra - Service Worker v63 (stale-while-revalidate)
+const CACHE_NAME = 'taskra-v63';
 const CDN_CACHE  = 'taskra-cdn-v33';
 
 // キャッシュするアセット
