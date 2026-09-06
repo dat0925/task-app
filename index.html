@@ -965,6 +965,14 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   width:5px;height:5px;border-radius:50%;
   background:var(--accent);flex-shrink:0;margin-top:5px;
 }
+.vhelp-guide{
+  display:flex;align-items:center;justify-content:space-between;gap:6px;
+  margin-top:2px;padding:9px 12px;border-radius:9px;
+  background:var(--accent-bg);color:var(--accent);
+  font-size:12.5px;font-weight:700;text-decoration:none;
+  border:1px solid transparent;transition:border-color .15s;
+}
+.vhelp-guide:hover{border-color:var(--accent)}
 .vhelp-ov{position:fixed;inset:0;z-index:299}
 /* Login screen */
 .login-screen{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);overflow:hidden}
@@ -4353,7 +4361,33 @@ function attachProjDragListeners(){
 }
 
 // ===== VIEW HELP POPUP =====
+// オンラインマニュアル（https://taskra.jp/guide/）への対応表。
+// ビューのキーとページ名が一致しないもの（nextview→next、completed→logbook、
+// notes→note）があるので、URLはここ1ヶ所で持つ。
+const GUIDE_BASE='https://taskra.jp/guide/';
+const VIEW_GUIDE={
+  dashboard:'dashboard', inbox:'inbox', nextview:'next', today:'today', overdue:'overdue',
+  forecast:'forecast', 'forecast-day':'forecast', gantt:'gantt', flagged:'flagged',
+  assigned:'assigned', project:'project', tag:'tag', review:'review',
+  completed:'logbook', search:'search', notes:'note',
+};
+function guideUrl(v){const s=VIEW_GUIDE[v];return s?GUIDE_BASE+s+'.html':'';}
+function guideLinkHtml(v){
+  const u=guideUrl(v);
+  if(!u)return'';
+  return '<a class="vhelp-guide" href="'+u+'" target="_blank" rel="noopener">'
+    +'<span>くわしい使い方</span>'
+    +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">'
+    +'<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>'
+    +'</a>';
+}
 const VIEW_HELP={
+  dashboard:{
+    name:'Dashboard',
+    colorBg:'var(--accent-bg)',colorFg:'var(--accent)',
+    desc:'期限切れ・今日・メンション通知・自分の担当などを1画面に集めた要約です。各ビューの先頭3件を並べているだけなので、続きは「もっと見る」からそれぞれのビューで確認します。',
+    conds:['各セクションとも先頭3件まで表示','件数が0のセクションは表示されない','「今日」は期限が今日のタスクのみ（フラグ付きは含まない）']
+  },
   inbox:{
     name:'Inbox',
     colorBg:'var(--accent-bg)',colorFg:'var(--accent)',
@@ -4475,6 +4509,7 @@ function openViewHelp(triggerEl){
     <div class="vhelp-cond-title">表示条件</div>
     ${info.conds.map(c=>'<div class="vhelp-cond-row"><div class="vhelp-cond-dot"></div><div>'+c+'</div></div>').join('')}
   </div>
+  ${guideLinkHtml(S.view)}
 </div>`;
   // 水平位置: triggerEl基準でポップアップを右寄りに配置、画面外に出ないよう調整
   popup.style.display='block';
@@ -8994,9 +9029,13 @@ document.addEventListener('click',async e=>{
   else if(a==='gantt-open'){S.taskId=el.dataset.id;S.drawerOpen=true;render();}
   else if(a==='gantt-help'){
     const ov=document.createElement('div');ov.className='overlay';
+    // 以前は「サブタスクを持つタスクのみ表示」と書いていたが、renderGantt が除外するのは
+    // 繰り返しタスクだけで、サブタスクの有無は見ていない。実装に合わせて書き直した。
     ov.innerHTML='<div class="modal"><div class="modal-title">ガントチャートについて</div>'
-      +'<p style="font-size:14px;line-height:1.7;color:var(--text2);margin:0 0 16px">ガントチャートには「サブタスクを持つタスク」のみ表示されます。繰り返しタスクや単発のTodoは表示対象外です。タスクにサブタスクを追加するとガントに自動で表示されます。</p>'
-      +'<div class="modal-foot"><button class="btn btn-primary" id="gantt-help-close">閉じる</button></div>'
+      +'<p style="font-size:14px;line-height:1.7;color:var(--text2);margin:0 0 12px">開始日と期限日の両方があるタスクは横棒に、期限日だけのタスクは期限日の位置に◆で表示されます。どちらの日付も入っていないタスクは棒になりません。繰り返しタスクは表示対象外です。</p>'
+      +'<p style="font-size:14px;line-height:1.7;color:var(--text2);margin:0 0 16px">右上の「全閉」でプロジェクトを折りたたむと、案件どうしの重なりが見やすくなります。</p>'
+      +guideLinkHtml('gantt')
+      +'<div class="modal-foot" style="margin-top:16px"><button class="btn btn-primary" id="gantt-help-close">閉じる</button></div>'
       +'</div>';
     document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
     document.getElementById('gantt-help-close').onclick=()=>ov.remove();
