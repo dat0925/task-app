@@ -1892,17 +1892,17 @@ iPad（PWA全画面・横向き）でタスク詳細のコメント入力欄に�
 - 秘密鍵：`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`SB_SERVICE_ROLE_KEY` はすべて `Deno.env.get()` 経由。リポジトリ・フロントにハードコードなし。フロント露出はanonキーのみ（設計上OK）。
 - カード情報：Stripe Payment Links / 顧客ポータルでStripe側処理。アプリを通らない。
 - `stripe-portal` のJWT検証：`getUser()` により本人の `stripe_customer_id` のみ操作。
-- `admin_update_plan` 等のSECURITY DEFINER関数：内部で `mstd0520@gmail.com` にガード済みかつ操作対象は別アプリ(献立)の `menu_*` テーブル。Taskraスコープ外・安全。
+- `admin_update_plan` 等のSECURITY DEFINER関数：内部で `<管理者アカウント>` にガード済みかつ操作対象は別アプリ(献立)の `menu_*` テーブル。Taskraスコープ外・安全。
 
 **発見して修正した穴**
 1. ★**プラン改ざん（無償プレミアム化）**：`user_plans` の INSERT ポリシー `users insert own plan` が `plan` カラムを制約しておらず、行未作成の新規ユーザーが匿名API経由で `{email:自分, plan:'premium'}` を直接INSERT可能だった（ライブで再現確認）。さらに `user_plans`/`ai_usage` は `anon`/`authenticated` に全DML権限が付与され、防御がRLS一本頼りだった。
-2. 管理者allowlistに誤り：DBポリシー・フロント両方に `masamune.endo@gmail.com`（誤）と `mstd0520@gmail.com`（正）の2件がハードコードされていた。
+2. 管理者allowlistに誤り：DBポリシー・フロント両方に `<誤って混入していた別アドレス>`（誤）と `<管理者アカウント>`（正）の2件がハードコードされていた。
 3. `stripe-portal` のCORSが `Access-Control-Allow-Origin: '*'`（ワイルドカード）だった。
 
 ### 実施した変更
 **DB（マイグレーション `supabase/migrations/20260809_harden_user_plans_security.sql`／ライブ適用済み）**
 - `user_plans` INSERTポリシーを `email = auth.jwt()->>'email' AND plan = 'free'` に制約（プラン昇格を封鎖。正規の初回free登録は影響なし）。
-- `user_plans` 管理者ポリシー `admin full access` を **`mstd0520@gmail.com` の単一アカウント**に限定。
+- `user_plans` 管理者ポリシー `admin full access` を **`<管理者アカウント>` の単一アカウント**に限定。
 - `anon` から `user_plans`/`ai_usage` の全権限を `REVOKE`（未ログインからのアクセス遮断）。
 - 検証：一般ユーザーJWTでの premium 自己INSERT／他人emailでのINSERTはRLSで拒否、本人 `free` INSERTは成功をライブ確認。
 
@@ -1910,7 +1910,7 @@ iPad（PWA全画面・横向き）でタスク詳細のコメント入力欄に�
 - CORSを許可オリジン `https://app.taskra.jp` のみに限定（`verify_jwt:true` は維持）。プリフライトで非許可オリジンにマッチ値を返さないことを確認。
 
 **フロント（`index.html`）**
-- `ADMIN_EMAILS`（1359行付近）を `['mstd0520@gmail.com']` に修正。クライアント判定はUI表示用で、実防御はDB側RLSにある旨コメント追記。
+- `ADMIN_EMAILS`（1359行付近）を `['<管理者アカウント>']` に修正。クライアント判定はUI表示用で、実防御はDB側RLSにある旨コメント追記。
 
 ### テーブルとRLSの状態（変更後）
 - `user_plans`：RLS有効。ポリシー3件（SELECT=本人 / INSERT=本人かつfree / ALL=管理者mstd0520のみ）。GRANT=authenticated,service_roleのみ（anon剥奪）。
@@ -2225,7 +2225,7 @@ QRは「対面共有」を解決済みだが「遠隔共有（リンクを送る
 
 ### 報告内容
 
-「mstd0520@gmail.com のアカウントで『日報承認』というタスクが消えた。今朝10時ころまではあった」
+「<管理者アカウント> のアカウントで『日報承認』というタスクが消えた。今朝10時ころまではあった」
 
 ### 調査結果：タスクは削除されていない。中身だけが空で上書きされていた
 
@@ -2859,7 +2859,7 @@ Supabaseから「Action required: security vulnerabilities detected in your proj
 
 - Tavera側の関数だが、同一プロジェクト内の問題として合わせて対応
 - `admin_update_plan` / `admin_set_usage_overrides` / `admin_reset_usage` の3関数には
-  `IF (SELECT email FROM auth.users WHERE id = auth.uid()) IS DISTINCT FROM 'mstd0520@gmail.com' THEN RAISE EXCEPTION`
+  `IF (SELECT email FROM auth.users WHERE id = auth.uid()) IS DISTINCT FROM '<管理者アカウント>' THEN RAISE EXCEPTION`
   という認可チェックが入っていたが、`admin_get_all_users()`だけこのチェックが欠落しており、
   かつ`anon`ロールにもEXECUTE権限が付与されたままだった
 - 未ログインの第三者が`/rest/v1/rpc/admin_get_all_users`を直接叩くだけで、
@@ -2873,7 +2873,7 @@ Supabaseから「Action required: security vulnerabilities detected in your proj
 - `"Admin can read all usage"` / `"Admin can update usage"` という名前のポリシーが、
   実際には`USING (true)`かつロール指定なし（`public`扱い）＝**anon含め誰でも
   全ユーザーのAI利用状況・ファイル抽出利用状況を読み書きできる状態**だった
-- 対応: `USING`句を`(SELECT email FROM auth.users WHERE id = auth.uid()) = 'mstd0520@gmail.com'`に変更
+- 対応: `USING`句を`(SELECT email FROM auth.users WHERE id = auth.uid()) = '<管理者アカウント>'`に変更
 
 **3. `line_users` テーブルのポリシーを`service_role`限定に修正**
 
@@ -3625,7 +3625,7 @@ PostgREST（Supabase REST API）は1リクエストあたり**最大1000行**で
 `S.tasks`に存在しない＝一覧・Inbox・検索すべてに出ない（検索もS.tasks上での
 フィルタなので当然ヒットしない）。
 
-当該ユーザー（mstd0520@gmail.com / 448933d7-...）はタスク1321件（active 331・
+当該ユーザー（<管理者アカウント> / 448933d7-...）はタスク1321件（active 331・
 inbox 33・completed 957、archive 0）で、上限を321件超過していた。どの行が落ちるかは
 PostgRESTの返却順（≒物理順）依存で不定のため、消えるタスクは一見ランダムに見える。
 
