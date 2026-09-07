@@ -6867,6 +6867,16 @@ function updateSubsOnly(){
   ).join('');
   return true;
 }
+// 一覧・ドロワ共通の行操作（完了トグル・削除）のあとの再描画。
+// サブタスクのときドロワを組み直さないのは、入力途中のコメント・メモが消えるため
+// （renderDrawer は innerHTML を作り直す）。ただし updateSubsOnly() が更新するのは
+// ドロワ内のサブタスク欄だけなので、一覧の行と親の「3/5」バッジ、サイドバーのバッジは
+// 別途描き直さないと古いままになる。ここを updateSubsOnly() の戻り値で
+// render() ごと省いていたため、押しても行が変わらず何度でも完了を押せていた。
+function redrawAfterRowAction(task){
+  if(task.parentTaskId&&updateSubsOnly()){renderSidebar();renderContent();}
+  else render();
+}
 
 // ===== SUBTASK DRAG & DROP SORT =====
 function initSubDrag(container){
@@ -9203,7 +9213,7 @@ else if(a==='scroll-to-comments'){
     if(task.status==='completed'){
       task.status=task.projectId?'active':'inbox';task.completedAt=null;
       await saveTask(task);
-      if(task.parentTaskId&&updateSubsOnly()){}else render();
+      redrawAfterRowAction(task);
     } else {
       const snap=JSON.stringify(task);
       const incompleteSubs=!task.parentTaskId?S.tasks.filter(t=>t.parentTaskId===task.id&&t.status!=='completed'):[];
@@ -9218,7 +9228,14 @@ else if(a==='scroll-to-comments'){
         playSE('complete');
         if(task.repeatRule&&task.dueAt&&task.status==='completed'){ // status確認: 非同期処理中にundoされていたらnextRepeatしない
           const next=nextRepeat(task);
-          if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}
+          // 次回タスクが既にある場合は作らない。完了と完了解除を往復すると
+          // 完了するたびに同じ次回タスクが1件ずつ増えてしまう（解除側は作った分を消さない）
+          const dup=next&&S.tasks.some(t=>t.id!==task.id&&t.dueAt===next.dueAt
+            &&t.repeatRule===task.repeatRule&&(t.title||'')===(task.title||'')
+            &&(t.parentTaskId||null)===(task.parentTaskId||null)
+            &&t.status!=='completed'&&t.status!=='archived');
+          if(next&&!dup)await saveTask(next);
+          if(next)toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt));
           else toast('"'+task.title+'" 完了 ✓');
         } else {
           toast('"'+(task.title||'無題')+'" 完了 ✓',async()=>{
@@ -9230,12 +9247,8 @@ else if(a==='scroll-to-comments'){
             render();
           });
         }
-        if(task.parentTaskId){
-          if(!updateSubsOnly())render();
-        } else {
-          if(S.taskId===task.id){S.drawerOpen=false;S.taskId=null}
-          render();
-        }
+        if(!task.parentTaskId&&S.taskId===task.id){S.drawerOpen=false;S.taskId=null}
+        redrawAfterRowAction(task);
       };
       if(incompleteSubs.length>0){
         openConfirmModal('未完了のサブタスクがあります',incompleteSubs.length+'件の未完了サブタスクがあります。完了にするとサブタスクもすべて完了になります。',doComplete,'完了にする',false);
@@ -9858,7 +9871,7 @@ else if(a==='scroll-to-comments'){
     if(task.parentTaskId){
       await delTask(id);
       toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render()});
-      if(!updateSubsOnly())render();
+      redrawAfterRowAction(task);
     } else {
       const incompleteSubs=S.tasks.filter(t=>t.parentTaskId===id&&t.status!=='completed');
       const doDel=async()=>{
