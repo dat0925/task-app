@@ -5936,6 +5936,19 @@ function openSortPopup(btn){
   document.body.appendChild(pop);_tfPopupPos(pop,btn);
 }
 
+// 展開表示するサブタスクに、トップレベル一覧と同じフィルタを掛ける。
+// ・「完了を表示」（showCompleted）：全ビュー共通で適用
+// ・「現在」（hideNotStarted＝開始前を除外）：getTasks() と同じく Inbox と完了ビューでは適用しない。
+//   検索・メモビューは「現在」フィルタのUI自体を出していないので、ここでも適用しない
+//   （見えないトグルでサブタスクが消えると原因が分からなくなるため）。
+// サブタスク件数バッジ（n/m）は総数のまま。進捗表示なのでフィルタで動かさない。
+function getVisibleSubs(subs){
+  let v=S.showCompleted?subs:subs.filter(s=>s.status!=='completed');
+  const applyNow=S.hideNotStarted&&S.view!=='inbox'&&S.view!=='completed'&&S.view!=='search'&&S.view!=='notes';
+  if(applyNow)v=v.filter(s=>!isNotStartedTask(s));
+  return v;
+}
+
 function renderRow(task){
   const subs=S.tasks.filter(t=>t.parentTaskId===task.id).sort((a,b)=>(a.order||0)-(b.order||0));
   const done=task.status==='completed';
@@ -6014,9 +6027,13 @@ function renderRow(task){
   +(!S.selectMode?'</div></div>':'');
   if(subs.length){
     html+='<div class="sub-rows'+(subsOpen?' open':'')+'" id="sub-rows-'+task.id+'">';
-    // 完了サブタスクの表示もトップレベル一覧と同じ「完了を表示」設定に従わせる（従来はサブタスクにフィルタが効かず常に全件表示されていた）
-    const visibleSubs=S.showCompleted?subs:subs.filter(s=>s.status!=='completed');
+    const visibleSubs=getVisibleSubs(subs);
     html+=visibleSubs.map(s=>'<div style="padding-left:28px">'+renderRow(s)+'</div>').join('');
+    // フィルタで全部（または一部）隠れたとき、展開しても何も出ないと故障に見えるので件数を出す
+    const hiddenCount=subs.length-visibleSubs.length;
+    if(hiddenCount>0){
+      html+='<div style="padding:6px 0 6px 28px;font-size:11px;color:var(--text3)">フィルタで'+hiddenCount+'件のサブタスクを非表示</div>';
+    }
     html+='</div>';
   }
   return html;
