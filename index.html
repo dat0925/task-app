@@ -1602,6 +1602,137 @@ async function loadUserPlan(){
 function getUserPlan(){return window._userPlan||'free';}
 function getPlanDef(key){return PLAN_DEFS[key||getUserPlan()]||PLAN_DEFS.free;}
 function isPlanFree(){return!getPlanDef().team;} // チーム共有が使えないプランがFree
+
+// ===== アーカイブ済みタスク（2026-09-30）=====
+// 完了から30日たったタスクは DB の夜間処理 auto_archive_completed()（毎日 2:30）でアーカイブされ、
+// 通常の同期では読み込まない（Egress 対策。アーカイブ済みは tasks の約6割を占めていた）。
+// ログブックの末尾に件数だけ出し、スタンダード以上は押したときだけ取りに行って表示・検索・復元できる。
+// 無料プランでも件数は見え、CSV 出力には含める（データを閉じ込めた印象にしないため。2026-09-30 本人決定）。
+const ARCH_AUTO_START='2026-10-07';   // 自動アーカイブの開始日（DB 関数側にも同じ日付がある）
+const ARCH_NOTICE_UNTIL='2026-10-21'; // 告知帯を出す最終日
+const ARCH_SHOW_MAX=300;              // 一度に描画する件数（それ以上は検索で絞ってもらう）
+const _arch={count:null,loading:false,rows:null,open:false,q:''};
+async function archFetchCount(){
+  if(_arch.loading||!window._SB||!window._currentUser)return;
+  _arch.loading=true;
+  try{
+    // head:true は件数だけを返す（行は運ばない）
+    const{count,error}=await window._SB.from('tasks').select('id',{count:'exact',head:true}).eq('status','archived');
+    if(error){console.error('archFetchCount',error);_arch.count=0;}
+    else _arch.count=count||0;
+  }catch(e){console.error('archFetchCount',e);_arch.count=0;}
+  finally{_arch.loading=false;}
+  if(S.view==='completed')renderContent();
+}
+async function archFetchRows(){
+  const SB=window._SB;
+  if(!SB||!window._currentUser)return[];
+  const PAGE=1000;let from=0,out=[];
+  for(;;){
+    const{data,error}=await SB.from('tasks').select('*').eq('status','archived').order('id',{ascending:true}).range(from,from+PAGE-1);
+    if(error)throw error;
+    out=out.concat(data||[]);
+    if(!data||data.length<PAGE)break;
+    from+=PAGE;
+  }
+  const fr=window._frDB||(o=>o);
+  return out.map(fr).sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||''));
+}
+// 同期で件数が変わった可能性があるときに呼ぶ。表示中の一覧は消さない（「読み込み中」のまま止まるため）
+function archResetCache(){_arch.count=null;if(!_arch.open)_arch.rows=null;}
+function archNoticeHtml(){
+  if(today()>ARCH_NOTICE_UNTIL)return'';
+  try{if(localStorage.getItem('taskra_arch_notice_closed'))return'';}catch(e){}
+  return'<div class="arch-notice" style="margin:10px 14px 4px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:12.5px;line-height:1.65;color:var(--text2);display:flex;gap:10px;align-items:flex-start">'
+    +'<div style="flex:1"><b style="color:var(--text)">お知らせ</b><br>10月7日から、完了して30日たったタスクは毎晩自動でアーカイブされます。'
+    +'アーカイブ済みは Logbook の末尾に件数が表示され、スタンダードプラン以上で表示・検索・復元できます。CSV出力にはどのプランでも含まれます。</div>'
+    +'<button data-a="arch-notice-close" title="閉じる" style="background:none;border:none;color:var(--text3);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">×</button></div>';
+}
+function archSectionHtml(){
+  if(_arch.count===null){archFetchCount();return'';}
+  if(!_arch.count)return'';
+  const free=isPlanFree();
+  let h='<div class="arch-sec" style="margin:18px 14px 28px;border-top:1px solid var(--border);padding-top:14px">'
+    +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    +'<div style="font-size:13px;color:var(--text2)">アーカイブ済み <b style="color:var(--text)">'+_arch.count.toLocaleString()+'件</b>'
+    +'<span style="font-size:11.5px;color:var(--text3);margin-left:6px">完了から30日たったタスク</span></div>'
+    +(_arch.open
+      ?'<button class="toggle-completed-btn" data-a="arch-close" style="margin-left:auto">閉じる</button>'
+      :'<button class="toggle-completed-btn" data-a="arch-open" style="margin-left:auto">'+(free?'表示する（スタンダード以上）':'表示する')+'</button>')
+    +'</div>';
+  if(_arch.open){
+    if(!_arch.rows)h+='<div style="padding:14px 0;color:var(--text3);font-size:13px">読み込み中…</div>';
+    else h+='<input id="arch-q" type="search" placeholder="アーカイブ済みを検索" value="'+esc(_arch.q)+'" style="width:100%;box-sizing:border-box;margin:12px 0 6px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:inherit;font-size:16px">'
+      +'<div id="arch-list">'+archListHtml()+'</div>';
+  }
+  return h+'</div>';
+}
+function archListHtml(){
+  const q=(_arch.q||'').trim().toLowerCase();
+  const all=_arch.rows||[];
+  const hit=q?all.filter(t=>((t.title||'')+' '+(t.notes||'')).toLowerCase().includes(q)):all;
+  if(!hit.length)return'<div style="padding:12px 0;color:var(--text3);font-size:13px">見つかりません</div>';
+  const byId=new Map(all.map(t=>[t.id,t]));
+  let h='';
+  hit.slice(0,ARCH_SHOW_MAX).forEach(t=>{
+    const proj=S.projects.find(x=>x.id===t.projectId);
+    const parent=t.parentTaskId?(byId.get(t.parentTaskId)||S.tasks.find(x=>x.id===t.parentTaskId)):null;
+    const d=t.completedAt?fmtDate(t.completedAt.slice(0,10)):'';
+    const meta=[d&&(d+' 完了'),proj&&esc(proj.name),parent&&('親: '+esc(parent.title||''))].filter(Boolean).join(' ・ ');
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:14px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+      +(parent?'<span style="color:var(--text3)">↳ </span>':'')+esc(t.title||'(無題)')+'</div>'
+      +(meta?'<div style="font-size:11.5px;color:var(--text3);margin-top:2px">'+meta+'</div>':'')+'</div>'
+      +'<button class="toggle-completed-btn" data-a="arch-restore" data-id="'+esc(t.id)+'">戻す</button></div>';
+  });
+  if(hit.length>ARCH_SHOW_MAX)h+='<div style="padding:10px 0;color:var(--text3);font-size:12px">ほか '+(hit.length-ARCH_SHOW_MAX).toLocaleString()+'件。検索で絞り込んでください</div>';
+  return h;
+}
+async function archOpen(){
+  // 表示・検索・復元はスタンダード以上。判定は画面側だけ（自分のデータを自分で見るだけなので、外されても実害はない）
+  if(isPlanFree()){showUpgradeModal('archive');return;}
+  _arch.open=true;
+  renderContent();
+  if(_arch.rows)return;
+  try{_arch.rows=await archFetchRows();_arch.count=_arch.rows.length;}
+  catch(e){console.error('archFetchRows',e);_arch.open=false;toast('アーカイブ済みを読み込めませんでした');}
+  if(S.view==='completed')renderContent();
+}
+async function archRestore(id){
+  const SB=window._SB;
+  const rows=_arch.rows||[];
+  const t=rows.find(x=>x.id===id);
+  if(!SB||!t)return;
+  const ts=now();
+  // 本体は未完了に戻す。完了のまま戻すと、30日を過ぎているので次の夜間処理ですぐまたアーカイブされる
+  const status=t.projectId?'active':'inbox';
+  // サブタスクは完了のまま一緒に戻す（親が未完了なら夜間処理の対象外になる）。
+  // 戻すのがサブタスクで親もアーカイブ済みなら、親も完了のまま戻す（親が無いと一覧に出ない）
+  const kids=rows.filter(x=>x.parentTaskId===id);
+  const parent=t.parentTaskId?rows.find(x=>x.id===t.parentTaskId):null;
+  const others=kids.concat(parent?[parent]:[]);
+  const r1=await SB.from('tasks').update({status,completed_at:null,updated_at:ts}).eq('id',id);
+  if(r1.error){toast('戻せませんでした: '+(r1.error.message||''));return;}
+  if(others.length){
+    const r2=await SB.from('tasks').update({status:'completed',updated_at:ts}).in('id',others.map(x=>x.id));
+    if(r2.error)console.error('archRestore others',r2.error);
+  }
+  window._lastSelfSave=Date.now();
+  const back=[{...t,status,completedAt:null,updatedAt:ts}].concat(others.map(x=>({...x,status:'completed',updatedAt:ts})));
+  const ids=new Set(back.map(x=>x.id));
+  S.tasks=S.tasks.filter(x=>!ids.has(x.id)).concat(back);
+  _arch.rows=rows.filter(x=>!ids.has(x.id));
+  _arch.count=_arch.rows.length;
+  toast('「'+(t.title||'(無題)')+'」を'+(status==='inbox'?'Inbox':'プロジェクト')+'に戻しました');
+  render();
+}
+// 検索欄は一覧部分だけ描き直す（全体を描き直すと入力中のフォーカスが外れる）
+document.addEventListener('input',e=>{
+  if(!e.target||e.target.id!=='arch-q')return;
+  _arch.q=e.target.value;
+  const l=document.getElementById('arch-list');
+  if(l)l.innerHTML=archListHtml();
+});
 function isPlanPremium(){return getUserPlan()==='premium';}
 function getActiveTaskCount(){return S.tasks.filter(t=>t.status!=='archived'&&t.status!=='completed').length;}
 function getActiveProjectCount(){return S.projects.filter(p=>p.status!=='archived').length;}
@@ -1986,6 +2117,7 @@ function showUpgradeModal(feature){
     team:{title:'チーム共有機能',desc:'チーム共有・メンバー招待はスタンダードプラン以上でご利用いただける機能です。チームでタスクを共有してコメントでやり取りできます。'},
     repeat:{title:'繰り返しタスク',desc:'繰り返しタスクはスタンダードプラン以上でご利用いただける機能です。'},
     gantt:{title:'ガントチャート',desc:'ガントチャートはスタンダードプラン以上でご利用いただける機能です。プロジェクトのスケジュールを視覚的に管理できます。'},
+    archive:{title:'アーカイブ済みタスクの表示・復元',desc:'完了から30日たってアーカイブされたタスクの表示・検索・復元は、スタンダードプラン以上でご利用いただける機能です。アーカイブ済みのタスクは、CSV出力にはどのプランでも含まれます。'},
     attachments:{title:'ファイル・画像の添付',desc:'タスクやノートへのファイル・画像の添付はスタンダードプラン以上でご利用いただける機能です。（付いている添付の閲覧・ダウンロードは無料プランでも可能です）'},
   };
   const c=cfg[feature]||{title:feature,desc:'上位プランでご利用いただける機能です。'};
@@ -2980,6 +3112,7 @@ async function loadAll(){
   // 手元のデータを上書きしない。「タスクが全部消えた」ように見えるのを防ぐ
   if(window._maint&&(S.tasks||[]).length)return;
   S.tags=tags;S.notes=notes;S.tasks=tasks;S.projects=projects;
+  if(typeof archResetCache==='function')archResetCache();
   // 差分同期の起点（この時点までにサーバーで付いた synced_at の最大値）を記録する
   if(typeof window._setSyncMarks==='function')window._setSyncMarks();
   window._syncFp=_fp;
@@ -5382,7 +5515,7 @@ function renderContent(){
   // タスク詳細が消え、mainのmaxWidthだけ残って画面右側が真っ白になる（PCビュー）
   if(S.view!=='notes'&&S.view!=='search'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){const _ct3=document.getElementById('content');if(_ct3)_ct3.style.overflow='';if(!(S.drawerOpen&&S.taskId)){dr.style.display='none';dr.classList.remove('open');const _m3=document.querySelector('.main');if(_m3)_m3.style.maxWidth='';}}}
 
-  if(S.view==='dashboard'){el.innerHTML=renderDashboard();attachDashboardEvents();return}
+  if(S.view==='dashboard'){el.innerHTML=archNoticeHtml()+renderDashboard();attachDashboardEvents();return}
   renderTaskFilters();
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='forecast-day'){
@@ -5395,7 +5528,7 @@ function renderContent(){
   if(S.view==='notes'){el.innerHTML=renderNoteList();renderNoteDrawer();
     const nc=document.getElementById('note-list-items');if(nc)initNoteSwipe(nc);
     return}
-  if(S.view==='nextview'){el.innerHTML=renderNextView();renderTaskFilters();initTaskSwipe(el);return}
+  if(S.view==='nextview'){el.innerHTML=archNoticeHtml()+renderNextView();renderTaskFilters();initTaskSwipe(el);return}
   if(S.view==='gantt'){
     // ガントチャートはスタンダードプラン以上（LP記載通りにゲート）
     // ガントチャートは全プラン利用可能
@@ -5823,10 +5956,12 @@ function renderNoteListOnly(){
 function renderList(){
   const showSubsInView=['today','flagged','overdue','assigned','forecast-day'].includes(S.view); // forecast-day追加: Forecastの日付タップ時、該当タスクがサブタスクだと一覧が空になる問題の修正
   const tasks=getTasks().filter(t=>showSubsInView?true:!t.parentTaskId);
-  if(!tasks.length)return renderEmpty();
-  let h='<div class="tlist">';
+  // Logbook の末尾にアーカイブ済みの件数（と、スタンダード以上なら一覧）を出す
+  const arch=S.view==='completed'?archSectionHtml():'';
+  if(!tasks.length)return archNoticeHtml()+renderEmpty()+arch;
+  let h=archNoticeHtml()+'<div class="tlist">';
   tasks.forEach(t=>{h+=renderRow(t)});
-  h+='</div>';
+  h+='</div>'+arch;
   return h;
 }
 function renderTaskFilters(){
@@ -10057,6 +10192,13 @@ else if(a==='scroll-to-comments'){
   else if(a==='tog-filter-btn'){openFilterPopup(el);}
   else if(a==='tog-sort-btn'){openSortPopup(el);}
   else if(a==='clear-filters'){S.hideNotStarted=false;S.showCompleted=false;S.showShared=true;S.filterTagIds=[];renderTaskFilters();renderContent();}
+  else if(a==='arch-open'){archOpen();}
+  else if(a==='arch-close'){_arch.open=false;renderContent();}
+  else if(a==='arch-restore'){archRestore(el.dataset.id);}
+  else if(a==='arch-notice-close'){
+    try{localStorage.setItem('taskra_arch_notice_closed','1');}catch(e){}
+    document.querySelectorAll('.arch-notice').forEach(n=>n.remove());
+  }
   else if(a==='do-archive'){
     const dateInput=document.getElementById('archive-date-input');
     const cutoff=dateInput?dateInput.value:null;
@@ -10088,6 +10230,7 @@ else if(a==='scroll-to-comments'){
       // メモリ上からも外す。アーカイブ済みは読み込まない（dbAllNoFilter）ので、手元に残すと件数が食い違う
       const archivedIds=new Set(ids);
       S.tasks=S.tasks.filter(t=>!archivedIds.has(t.id));
+      archResetCache();
       window._lastSelfSave=Date.now();
       toast(cnt+'件をアーカイブしました');
       render();
@@ -10988,13 +11131,16 @@ function openSettingsModal(){
   function parseCsvLine(line){return parseCsv(line+'\n').rows[0]?Object.values(parseCsv('h\n'+line+'\n').rows[0]):[];}
 
   // タスク CSVエクスポート
-  addFastHandler('s-csv-task-export',()=>{
-    const tasks=S.tasks.filter(t=>t.status!=='archived');
+  addFastHandler('s-csv-task-export',async()=>{
+    // アーカイブ済みは通常読み込まないので、出力するときだけ取りに行く（どのプランでも含める）
+    let arch=[];
+    try{arch=await archFetchRows();}catch(e){console.error('csv archived',e);toast('アーカイブ済みを取得できなかったため、除いて出力します');}
+    const tasks=S.tasks.filter(t=>t.status!=='archived').concat(arch);
     const headers=['id','title','status','priority','notes','startAt','dueAt','startTime','projectName','tagNames','parentTaskTitle','flagged','repeatRule','createdAt','completedAt'];
     const rows=tasks.map(t=>{
       const proj=S.projects.find(p=>p.id===t.projectId);
       const tagNames=(t.tagIds||[]).map(tid=>{const tg=S.tags.find(x=>x.id===tid);return tg?tg.name:'';}).filter(Boolean).join('|');
-      const parent=t.parentTaskId?S.tasks.find(x=>x.id===t.parentTaskId):null;
+      const parent=t.parentTaskId?(S.tasks.find(x=>x.id===t.parentTaskId)||arch.find(x=>x.id===t.parentTaskId)):null;
       return[
         escCsv(t.id),
         escCsv(t.title),
@@ -12969,6 +13115,7 @@ async function setupSB(){
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_'))continue;r[TO[k]||k]=v;}return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
+    window._frDB=frDB; // アーカイブ済みの取得（archFetchRows）で使う
     // ===== DB操作: user_idでフィルタ =====
     let _lastErrMsg='',_lastErrTs=0;
     // PostgRESTは1リクエストあたり最大1000行で打ち切られる。タスクが1000件を超えると
@@ -13140,7 +13287,7 @@ async function setupSB(){
       const map=new Map((S[store]||[]).map(t=>[t.id,t]));
       const fresh=rows.map(frDB);
       // 差分にはアーカイブされた行も入ってくる（他の端末でのアーカイブを検知するため取る）。手元からは外す
-      fresh.forEach(r=>{if(store==='tasks'&&r.status==='archived')map.delete(r.id);else map.set(r.id,r);});
+      fresh.forEach(r=>{if(store==='tasks'&&r.status==='archived'){map.delete(r.id);archResetCache();}else map.set(r.id,r);});
       let next=[...map.values()];
       const want=_fpCount(fpVal);
       // 件数が合わなければ削除（または見えなくなった行）がある。id だけ（約75KB）取って突き合わせる。

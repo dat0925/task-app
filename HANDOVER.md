@@ -178,6 +178,30 @@ Taskra は「機能で正面から殴り合わない。開発の過程を出し�
 
 ---
 
+## 完了30日で自動アーカイブ・アーカイブ済みの表示と復元（2026-09-30）
+
+アーカイブ済みを同期しない変更（次の節）の続き。完了済みも放置すると増え続けるので、30日で自動アーカイブにした。
+
+### 仕様（2026-09-30 本人決定）
+| 項目 | 内容 |
+|---|---|
+| 自動アーカイブ | DB 関数 `auto_archive_completed()` を pg_cron `taskra-auto-archive`（毎日 17:30 UTC＝2:30 JST）で実行。**開始は 2026-10-07**（関数内の日付ガード） |
+| 対象 | 完了30日超の親タスク＋その完了済みサブタスク。親が無い／アーカイブ済みのサブタスク。**未完了のサブタスクを持つ親と、未完了の親の下のサブタスクは対象外**（「2/3 完了」表示を崩さない） |
+| Logbook（フリー） | 末尾に「アーカイブ済み N件」。「表示する」で `showUpgradeModal('archive')` |
+| Logbook（スタンダード以上） | 押したときだけ `archFetchRows()` で取得し、一覧・検索・「戻す」。**ふだんの同期では取らない** |
+| 戻す | 本体は未完了（PJあり→active／なし→inbox）へ。完了のまま戻すと翌晩また消えるため。サブタスクは完了のまま一緒に、親がアーカイブ済みなら親も完了で戻す |
+| CSV 出力 | 全プランでアーカイブ済みを含める（出力時だけ取得） |
+| 告知 | Dashboard・Next・一覧の上に告知帯（`archNoticeHtml`、10/21 まで、×で閉じると `taskra_arch_notice_closed` を localStorage に保存） |
+
+- 件数は `select('id',{count:'exact',head:true})` で取る（行は運ばない）。全件同期・差分でアーカイブ行が来たとき・手動アーカイブ時に `archResetCache()` で取り直す
+- **有料判定は画面側だけ。**自分の行は RLS で読めるので、判定を外せば見られるが、自分のデータなので実害なしと判断
+- `auto_archive_completed()` は security definer。public/anon/authenticated から EXECUTE を revoke 済み（cron だけが実行）
+- RLS・認証・決済への変更なし。新規テーブルなし
+
+### 次にやること
+- 10/7 の初回実行後に `select * from cron.job_run_details where jobid=(select jobid from cron.job where jobname='taskra-auto-archive') order by start_time desc limit 5;` で成否を確認する（初回の対象見込みは親20件＋サブ3件）
+- LP・料金表に「アーカイブ済みの表示・復元（スタンダード以上）」を載せるか検討
+
 ## アーカイブ済みタスクを同期しない・復旧見込みの表示を修正（2026-09-30）
 
 ### アーカイブ済みを読み込まない（Egress 対策の続き）
