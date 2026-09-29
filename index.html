@@ -12869,19 +12869,27 @@ async function setupSB(){
     window._maint=null; // null | 'quota' | 'down'
     // 無料枠が戻る見込み日時。402 の応答には復旧日時が入っていないため、請求サイクルの切り替え日から計算する。
     // Supabase の通知メール「quota refills during September 29, 2026」より、この org のサイクルは毎月29日（UTC）に切り替わる。
-    // 表示は「切り替え日の 23:59（日本時間）」に固定する（2026-09-29 本人指示）。
-    // 実際の切り替えは UTC 基準なので日本時間の翌朝にずれ込むことがあるが、案内は日付単位で簡潔にする。
+    // 表示は「切り替え日の翌日 09:00（日本時間）」＝ UTC の切り替え日が終わる時刻（2026-09-30 本人指示で 23:59 から変更）。
     // プランや請求日が変わったら _MT_CYCLE_DAY を直す。
     const _MT_CYCLE_DAY=29;
     const _mtRefillText=()=>{
-      // 日本時間の暦で判定する
-      const j=new Date(Date.now()+9*3600000);
-      let y=j.getUTCFullYear(),m=j.getUTCMonth();
+      // 切り替えは UTC の29日のうちに行われ、遅くとも翌日 0:00 UTC（日本時間 9:00）には戻る。
+      // 以前は日本時間の暦で判定していたため、日本時間で30日になった時点（UTC ではまだ29日）に
+      // 「今月分は過ぎた」と判定して翌月を出していた（2026-09-30 に「10月29日」と表示された）。境界は UTC で計算する。
+      const now=Date.now();
       const dayOf=(yy,mm)=>Math.min(_MT_CYCLE_DAY,new Date(Date.UTC(yy,mm+1,0)).getUTCDate()); // 月末が29日未満の2月対策
-      if(j.getUTCDate()>dayOf(y,m)){m++;if(m>11){m=0;y++;}}
-      const d=dayOf(y,m);
-      const w='日月火水木金土'[new Date(Date.UTC(y,m,d)).getUTCDay()];
-      return (m+1)+'月'+d+'日（'+w+'）23:59';
+      const edge=(yy,mm)=>Date.UTC(yy,mm,dayOf(yy,mm)+1); // 切り替え日の翌日 0:00 UTC
+      const u=new Date(now);
+      let y=u.getUTCFullYear(),m=u.getUTCMonth(),t=edge(y,m);
+      if(now>=t){
+        // 境界を過ぎても止まっているのは切り替え処理の遅れ。翌月の日付を出すと誤案内になるので3日間は「まもなく」
+        if(now-t<3*86400000)return 'まもなく';
+        m++;if(m>11){m=0;y++;}
+        t=edge(y,m);
+      }
+      const j=new Date(t+9*3600000);
+      const w='日月火水木金土'[j.getUTCDay()];
+      return (j.getUTCMonth()+1)+'月'+j.getUTCDate()+'日（'+w+'）'+String(j.getUTCHours()).padStart(2,'0')+':00';
     };
     const _mtRender=()=>{
       let el=document.getElementById('maintBanner');
