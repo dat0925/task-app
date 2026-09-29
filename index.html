@@ -437,7 +437,7 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 
 /* アップデート通知バナー：ホーム画面PWAで新バージョンを検知した時だけ表示する帯。
    常設ボタンにせず、必要な時だけ最前面に出すことでヘッダーのアイコン群を汚さない */
-.update-banner{position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:calc(env(safe-area-inset-top,0px) + 9px) 16px 9px;font-size:13px;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,.18);animation:ubIn .25s ease}
+.update-banner{position:fixed;top:0;left:0;right:0;z-index:10001;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:calc(env(safe-area-inset-top,0px) + 9px) 16px 9px;font-size:13px;font-weight:600;box-shadow:0 2px 12px rgba(0,0,0,.18);animation:ubIn .25s ease}
 @keyframes ubIn{from{transform:translateY(-100%)}to{transform:translateY(0)}}
 .update-banner .ub-refresh{background:#fff;color:var(--accent);padding:5px 14px;border-radius:6px;font-weight:700;font-size:12.5px}
 .update-banner .ub-close{color:#fff;opacity:.75;font-size:18px;line-height:1;padding:0 4px}
@@ -12856,6 +12856,8 @@ init();
 async function setupSB(){
   if(window._sbSetupDone)return; // 既に初期化済みなら何もしない（再試行時の二重リスナー登録防止）
   try{
+    const _SB_URL='https://sfhtvtcmgueystyuhzvd.supabase.co';
+    const _SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw';
     // ===== メンテナンス表示 =====
     // 2026-09-29 に無料枠の Egress 超過で API が 402 を返し続け、画面は「タスクが消えた」ように見えた。
     // Supabase への通信をすべてここで受け、サーバー側が止まっているときは画面上部に帯を出す。
@@ -12911,15 +12913,21 @@ async function setupSB(){
       window._maint=null;
       _mtRender();
       if(_mtTimer){clearInterval(_mtTimer);_mtTimer=null;}
+      // 停止中に起動した場合、トークン更新が通らず未ログイン扱いになっている（セッションは端末に残してある）。
+      // 再読み込みすれば残したセッションで入り直せる
+      if(!window._currentUser){location.reload();return;}
       // 止まっている間の画面は空か古いので、全件を取り直して描き直す
-      if(window._currentUser&&typeof loadAll==='function'&&typeof render==='function'){
+      if(typeof loadAll==='function'&&typeof render==='function'){
         loadAll().then(()=>render()).catch(e=>console.error('maint recover',e));
       }
     };
+    // 疎通確認は認証の health（数十バイト・未ログインでも呼べる）で行う。
+    // ログアウト状態のログイン画面では他に通信が起きないので、ここで叩かないと帯を出すきっかけが無い
     const _mtProbe=()=>{
-      if(document.visibilityState!=='visible'||!window._SB)return;
-      window._SB.rpc('sync_fingerprint').then(()=>{}).catch(()=>{});
+      if(document.visibilityState!=='visible')return Promise.resolve();
+      return _sbFetch(_SB_URL+'/auth/v1/health',{headers:{apikey:_SB_KEY}}).then(()=>{}).catch(()=>{});
     };
+    window._mtProbe=_mtProbe;
     const _sbFetch=async(input,init)=>{
       let res;
       try{
@@ -12929,12 +12937,20 @@ async function setupSB(){
         if(navigator.onLine!==false&&++_mtFails>=_MT_FAIL_TO_SHOW)_mtSet('down');
         throw e;
       }
-      if(res.status===402)_mtSet('quota');
-      else if(res.status>=500)(++_mtFails>=_MT_FAIL_TO_SHOW)&&_mtSet('down');
+      if(res.status===402){
+        _mtSet('quota');
+        // supabase-js はトークン更新が 402 のような「再試行不能」エラーで失敗するとセッションを消し、
+        // 利用者はログアウトされる（2026-09-29 実際に起きた）。停止は一時的なので、
+        // 認証 API の 402 は 503（再試行可能）として渡し、セッションを保ったまま復旧を待たせる。
+        const u=typeof input==='string'?input:(input&&input.url)||'';
+        if(u.includes('/auth/v1/'))return new Response(await res.text(),{status:503,statusText:'Service Unavailable',headers:res.headers});
+        return res;
+      }
+      if(res.status>=500)(++_mtFails>=_MT_FAIL_TO_SHOW)&&_mtSet('down');
       else _mtClear();
       return res;
     };
-    const SB=window.supabase.createClient('https://sfhtvtcmgueystyuhzvd.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw',{global:{fetch:_sbFetch}});
+    const SB=window.supabase.createClient(_SB_URL,_SB_KEY,{global:{fetch:_sbFetch}});
     window._SB=SB;
 
     // カラム名マッピング（JS camelCase ↔ DB snake_case）
@@ -13018,6 +13034,9 @@ async function setupSB(){
     const loadingEl=document.getElementById('login-loading');
     const switchBtn=document.getElementById('google-switch-btn');
     const _doSignIn=async(selectAccount)=>{
+      // 停止中に OAuth へ進むと Supabase の 402 エラーページに飛ばされて戻れなくなる。先に疎通を確かめる
+      await _mtProbe();
+      if(window._maint)return;
       if(signinBtn)signinBtn.disabled=true;
       if(switchBtn)switchBtn.disabled=true;
       if(loadingEl)loadingEl.style.display='flex';
@@ -13031,7 +13050,7 @@ async function setupSB(){
     // 初回セッション確認（getSession()を正とする。onAuthStateChangeのINITIAL_SESSIONは使わない）
     const{data:{session}}=await SB.auth.getSession();
     window._currentUser=session?.user||null;
-    if(window._currentUser){hideLogin();}else{showLogin();}
+    if(window._currentUser){hideLogin();}else{showLogin();_mtProbe();}
     window._sbReady=true;
 
     // 認証状態変化の監視（初回以降の変化のみ対応）
