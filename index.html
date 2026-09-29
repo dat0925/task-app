@@ -2971,8 +2971,19 @@ function addRecentProject(projectId){
 }
 
 async function loadAll(){
-  [S.tags,S.notes]=await Promise.all([dbAll('tags'),dbAll('notes')]);
-  [S.tasks,S.projects]=await Promise.all([dbAllNoFilter('tasks'),dbAllNoFilter('projects')]);
+  // 取得前に fingerprint を控え、取得後に保存する（取得中に入った変更を「反映済み」と誤記録しない順序）。
+  // 起動直後の初回同期で、変化が無いのに全件を取り直すのを防ぐ
+  const _fp=typeof window._fetchSyncFp==='function'?await window._fetchSyncFp().catch(()=>null):null;
+  const [tags,notes]=await Promise.all([dbAll('tags'),dbAll('notes')]);
+  const [tasks,projects]=await Promise.all([dbAllNoFilter('tasks'),dbAllNoFilter('projects')]);
+  // 取得中にサーバーが止まっていた（メンテナンス表示中）なら、失敗して空になった結果で
+  // 手元のデータを上書きしない。「タスクが全部消えた」ように見えるのを防ぐ
+  if(window._maint&&(S.tasks||[]).length)return;
+  S.tags=tags;S.notes=notes;S.tasks=tasks;S.projects=projects;
+  // 差分同期の起点（この時点までにサーバーで付いた synced_at の最大値）を記録する
+  if(typeof window._setSyncMarks==='function')window._setSyncMarks();
+  window._syncFp=_fp;
+  window._lastFullSync=Date.now();
   // ワークスペースは専用関数で取得（user_idフィルタではなくRLS任せ）
   await loadWorkspaces();
   // 通知キャッシュをリセット（次回ダッシュボード表示時に再取得）
@@ -12845,11 +12856,75 @@ init();
 async function setupSB(){
   if(window._sbSetupDone)return; // 既に初期化済みなら何もしない（再試行時の二重リスナー登録防止）
   try{
-    const SB=window.supabase.createClient('https://sfhtvtcmgueystyuhzvd.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw');
+    // ===== メンテナンス表示 =====
+    // 2026-09-29 に無料枠の Egress 超過で API が 402 を返し続け、画面は「タスクが消えた」ように見えた。
+    // Supabase への通信をすべてここで受け、サーバー側が止まっているときは画面上部に帯を出す。
+    //  - 402（プランの利用枠超過で Supabase が制限中）… 1回で表示
+    //  - 5xx / Cloudflare 52x / 接続失敗（522 は CORS ヘッダが無く fetch 自体が失敗する）… 2回続いたら表示
+    // 表示中は全件同期のフォールバックを止め（空データで画面を上書きしない）、60秒ごとに疎通を確かめて自動復旧する。
+    const _MT_FAIL_TO_SHOW=2;
+    let _mtFails=0,_mtTimer=null;
+    window._maint=null; // null | 'quota' | 'down'
+    const _mtRender=()=>{
+      let el=document.getElementById('maintBanner');
+      if(!window._maint){if(el)el.hidden=true;return;}
+      if(!el){
+        el=document.createElement('div');
+        el.id='maintBanner';
+        el.setAttribute('role','alert');
+        el.style.cssText='position:fixed;left:0;right:0;top:0;z-index:100000;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;background:#FFF4D6;color:#5A4300;border-bottom:1px solid #E8C766;font-size:13px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.12)';
+        document.body.appendChild(el);
+      }
+      const msg=window._maint==='quota'
+        ?'<b>メンテナンス中です</b><br>サーバーの月間利用枠に達したため、一時的に接続が止まっています。復旧までタスクの表示・保存ができません。<br>この間に入力した内容は保存されない可能性があるので、復旧まで編集は控えてください。復旧すると自動で再読み込みします。'
+        :'<b>サーバーに接続できません（メンテナンス中の可能性があります）</b><br>しばらくすると自動で再接続します。この間の変更は保存されない可能性があります。';
+      el.innerHTML=msg;
+      el.hidden=false;
+    };
+    const _mtSet=kind=>{
+      // 402 の表示は 5xx で弱めない
+      if(window._maint==='quota'&&kind==='down')return;
+      if(window._maint===kind)return;
+      window._maint=kind;
+      _mtRender();
+      if(!_mtTimer)_mtTimer=setInterval(_mtProbe,60000);
+    };
+    const _mtClear=()=>{
+      _mtFails=0;
+      if(!window._maint)return;
+      window._maint=null;
+      _mtRender();
+      if(_mtTimer){clearInterval(_mtTimer);_mtTimer=null;}
+      // 止まっている間の画面は空か古いので、全件を取り直して描き直す
+      if(window._currentUser&&typeof loadAll==='function'&&typeof render==='function'){
+        loadAll().then(()=>render()).catch(e=>console.error('maint recover',e));
+      }
+    };
+    const _mtProbe=()=>{
+      if(document.visibilityState!=='visible'||!window._SB)return;
+      window._SB.rpc('sync_fingerprint').then(()=>{}).catch(()=>{});
+    };
+    const _sbFetch=async(input,init)=>{
+      let res;
+      try{
+        res=await fetch(input,init);
+      }catch(e){
+        // 端末がオフラインなのはサーバーのメンテナンスではないので数えない
+        if(navigator.onLine!==false&&++_mtFails>=_MT_FAIL_TO_SHOW)_mtSet('down');
+        throw e;
+      }
+      if(res.status===402)_mtSet('quota');
+      else if(res.status>=500)(++_mtFails>=_MT_FAIL_TO_SHOW)&&_mtSet('down');
+      else _mtClear();
+      return res;
+    };
+    const SB=window.supabase.createClient('https://sfhtvtcmgueystyuhzvd.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmaHR2dGNtZ3VleXN0eXVoenZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Nzg0MDYsImV4cCI6MjA5MDM1NDQwNn0.qsON2xYdDf22LtU-jGd96Ubaif0xzzswC9KnzWndKNw',{global:{fetch:_sbFetch}});
     window._SB=SB;
 
     // カラム名マッピング（JS camelCase ↔ DB snake_case）
-    const TO={assigneeId:'assignee_id',projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',plannedStartAt:'planned_start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order',workspaceId:'workspace_id'};
+    const TO={assigneeId:'assignee_id',projectId:'project_id',parentTaskId:'parent_task_id',sectionId:'section_id',tagIds:'tag_ids',dueAt:'due_at',startAt:'start_at',plannedStartAt:'planned_start_at',deadlineAt:'deadline_at',repeatRule:'repeat_rule',reminderAt:'reminder_at',createdAt:'created_at',updatedAt:'updated_at',completedAt:'completed_at',reviewEveryDays:'review_every_days',nextReviewAt:'next_review_at',order:'sort_order',workspaceId:'workspace_id',_syncedAt:'synced_at'};
+    // synced_at はサーバーのトリガーが付ける差分同期用の列。JS側では _syncedAt として持ち、
+    // toDB は "_" で始まるキーを送らないので、クライアントから書き戻すことはない。
     const FR=Object.fromEntries(Object.entries(TO).map(([k,v])=>[v,k]));
     const toDB=o=>{const r={};for(const[k,v]of Object.entries(o)){if(k.startsWith('_'))continue;r[TO[k]||k]=v;}return r};
     const frDB=o=>{const r={};for(const[k,v]of Object.entries(o))r[FR[k]||k]=v;return r};
@@ -12892,7 +12967,8 @@ async function setupSB(){
         console.error('SB.dbPut error',s,error);
         const msg='⚠ 同期エラー('+s+'): '+(error.message||JSON.stringify(error)).slice(0,60);
         const now2=Date.now();
-        if(typeof toast==='function'&&(msg!==_lastErrMsg||now2-_lastErrTs>5000)){
+        // メンテナンス表示中は画面上部の帯で知らせているので、保存のたびのトーストは出さない
+        if(!window._maint&&typeof toast==='function'&&(msg!==_lastErrMsg||now2-_lastErrTs>5000)){
           toast(msg);_lastErrMsg=msg;_lastErrTs=now2;
         }
       }
@@ -12984,6 +13060,75 @@ async function setupSB(){
       if(error){console.error('sync_fingerprint',error);return null;}
       return data?JSON.stringify(data):null;
     };
+    window._fetchSyncFp=_fetchSyncFp;
+
+    // ===== 差分同期 =====
+    // 【Egress対策 2026-09-29】fingerprint が変わるたびに loadAll（約2.7MB）を丸ごと取り直していたため、
+    // 自分の保存1回でも全件転送が走り、無料枠の Egress を使い切って402で停止した。
+    // 変わったテーブルだけ、synced_at（サーバーのトリガーが付ける時刻）が前回以降の行だけを取る。
+    // 取りこぼしを防ぐため前回の最大値から一定幅さかのぼって取る（コミット遅延の吸収。重複は id で上書き）。
+    const _DELTA_MARGIN=60000;
+    const _FULL_SYNC_EVERY=3*60*60*1000;
+    window._syncMark={tasks:null,notes:null};
+    const _maxMark=(rows,cur)=>{
+      let m=cur||null;
+      for(const r of rows||[]){const v=r._syncedAt;if(v&&(!m||new Date(v)>new Date(m)))m=v;}
+      return m;
+    };
+    window._setSyncMarks=()=>{
+      window._syncMark={tasks:_maxMark(S.tasks),notes:_maxMark(S.notes)};
+    };
+    const _fpCount=v=>parseInt(String(v||'').split('/')[0],10);
+    const _byId=(a,b)=>a.id<b.id?-1:a.id>b.id?1:0;
+    // 1テーブル分の差分適用。整合が取れない（権限の範囲が変わって見える行が増えた等）ときは false を返し、
+    // 呼び出し側で全件同期にフォールバックする。
+    const _applyDelta=async(store,filterByUser,fpVal)=>{
+      const uid=window._currentUser?.id;
+      const mark=window._syncMark[store];
+      if(!uid||!mark)return false;
+      const since=new Date(new Date(mark).getTime()-_DELTA_MARGIN).toISOString();
+      const base=cols=>{let q=SB.from(store).select(cols);if(filterByUser)q=q.eq('user_id',uid);return q;};
+      const rows=await _pageAll(()=>base('*').gt('synced_at',since).order('id',{ascending:true}));
+      if(rows===null)return false;
+      const map=new Map((S[store]||[]).map(t=>[t.id,t]));
+      const fresh=rows.map(frDB);
+      fresh.forEach(r=>map.set(r.id,r));
+      let next=[...map.values()];
+      const want=_fpCount(fpVal);
+      // 件数が合わなければ削除（または見えなくなった行）がある。id だけ（約75KB）取って突き合わせる。
+      // fingerprint の件数も RLS 越しに数えているので、tasks は dbAllNoFilter、notes は自分の分と一致する。
+      if(!Number.isFinite(want))return false;
+      if(next.length!==want){
+        const ids=await _pageAll(()=>base('id').order('id',{ascending:true}));
+        if(ids===null)return false;
+        const keep=new Set(ids.map(r=>r.id));
+        // サーバーにあるのに手元に無い行＝差分では拾えない行。全件同期に回す
+        for(const id of keep)if(!map.has(id))return false;
+        next=next.filter(t=>keep.has(t.id));
+      }
+      next.sort(_byId);
+      S[store]=next;
+      window._syncMark[store]=_maxMark(fresh,mark);
+      return true;
+    };
+    const _deltaSync=async(prevStr,fpStr)=>{
+      if(!prevStr||!fpStr)return false;
+      let prev,fp;
+      try{prev=JSON.parse(prevStr);fp=JSON.parse(fpStr);}catch(e){return false;}
+      // ワークスペース・メンバーの変化は「見える範囲」そのものが変わるので差分では追えない
+      if(prev.workspaces!==fp.workspaces||prev.members!==fp.members)return false;
+      if(prev.tasks!==fp.tasks&&!(await _applyDelta('tasks',false,fp.tasks)))return false;
+      if(prev.notes!==fp.notes&&!(await _applyDelta('notes',true,fp.notes)))return false;
+      // projects（約18KB）・tags は小さいので変化があったときだけ丸ごと取り直す
+      if(prev.projects!==fp.projects)S.projects=await dbAllNoFilter('projects');
+      if(prev.tags!==fp.tags)S.tags=await dbAll('tags');
+      _notifCache=null;
+      if(prev.comments!==fp.comments){
+        loadCommentCounts().then(()=>{if(typeof renderContent==='function')renderContent();})
+          .catch(e=>console.error('loadCommentCounts',e));
+      }
+      return true;
+    };
     const _syncNow=async(force)=>{
       if(!window._currentUser)return;
       if(Date.now()-window._lastSelfSave<5000)return;
@@ -13003,13 +13148,23 @@ async function setupSB(){
         // ただしRPC自体が使えない環境（関数未適用・権限不足）でも同期が永久に止まらないよう、
         // 3回連続で失敗したら従来どおりの全件同期にフォールバックする。
         window._syncFpFail=(window._syncFpFail||0)+1;
+        // メンテナンス表示中（402・サーバー停止）は全件同期に落とさない。失敗した取得で画面が空になるため
+        if(window._maint)return;
         if(window._syncFpFail<3)return;
       }else{
         window._syncFpFail=0;
         if(window._syncFp===fp){window._lastSync=Date.now();return;}
       }
       try{
-        await loadAll();
+        // まず差分で追いつく。差分で整合が取れないとき・3時間ごとの保険だけ全件を取り直す
+        // （件数が偶然一致して見落とす組み合わせ〈削除1件＋権限で新たに見えた1件〉を定期的に拾い直す）
+        const fullDue=Date.now()-(window._lastFullSync||0)>_FULL_SYNC_EVERY;
+        let ok=false;
+        if(!fullDue)ok=await _deltaSync(window._syncFp,fp);
+        if(!ok){
+          await loadAll();
+          window._lastFullSync=Date.now();
+        }
         window._syncFp=fp;
         window._lastSync=Date.now();
         render();
