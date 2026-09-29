@@ -10085,8 +10085,9 @@ else if(a==='scroll-to-comments'){
       if(SB&&window._currentUser){
         await SB.from('tasks').update({status:'archived',updated_at:ts}).in('id',ids);
       }
-      // メモリ上のS.tasksも同期
-      targets.forEach(t=>{t.status='archived';t.updatedAt=ts;});
+      // メモリ上からも外す。アーカイブ済みは読み込まない（dbAllNoFilter）ので、手元に残すと件数が食い違う
+      const archivedIds=new Set(ids);
+      S.tasks=S.tasks.filter(t=>!archivedIds.has(t.id));
       window._lastSelfSave=Date.now();
       toast(cnt+'件をアーカイブしました');
       render();
@@ -12991,9 +12992,12 @@ async function setupSB(){
       if(rows===null){console.error('SB.dbAll',s,'page fetch failed');return[]}
       return rows.map(frDB);
     };
+    // tasks のアーカイブ済みは取らない。画面のどこにも出ないのに tasks の約6割（2026-09-30 時点で約1.3MB）を占め、
+    // 全件同期のたびに転送していた（Egress 対策）。status が NULL の古い行を落とさないよう is.null も拾う
+    const _liveTasks=q=>q.or('status.is.null,status.neq.archived');
     window.dbAllNoFilter=async s=>{
       if(!window._currentUser?.id)return[];
-      const rows=await _pageAll(()=>SB.from(s).select('*').order('id',{ascending:true}));
+      const rows=await _pageAll(()=>{const q=SB.from(s).select('*').order('id',{ascending:true});return s==='tasks'?_liveTasks(q):q;});
       if(rows===null){console.error('SB.dbAllNoFilter',s,'page fetch failed');return[]}
       return rows.map(frDB);
     };
@@ -13135,14 +13139,16 @@ async function setupSB(){
       if(rows===null)return false;
       const map=new Map((S[store]||[]).map(t=>[t.id,t]));
       const fresh=rows.map(frDB);
-      fresh.forEach(r=>map.set(r.id,r));
+      // 差分にはアーカイブされた行も入ってくる（他の端末でのアーカイブを検知するため取る）。手元からは外す
+      fresh.forEach(r=>{if(store==='tasks'&&r.status==='archived')map.delete(r.id);else map.set(r.id,r);});
       let next=[...map.values()];
       const want=_fpCount(fpVal);
       // 件数が合わなければ削除（または見えなくなった行）がある。id だけ（約75KB）取って突き合わせる。
       // fingerprint の件数も RLS 越しに数えているので、tasks は dbAllNoFilter、notes は自分の分と一致する。
+      // tasks の件数はアーカイブ済みを除いた数（20260930_fingerprint_exclude_archived.sql）なので、id の突き合わせも同じ条件で取る
       if(!Number.isFinite(want))return false;
       if(next.length!==want){
-        const ids=await _pageAll(()=>base('id').order('id',{ascending:true}));
+        const ids=await _pageAll(()=>{const q=base('id').order('id',{ascending:true});return store==='tasks'?_liveTasks(q):q;});
         if(ids===null)return false;
         const keep=new Set(ids.map(r=>r.id));
         // サーバーにあるのに手元に無い行＝差分では拾えない行。全件同期に回す
