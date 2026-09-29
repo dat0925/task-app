@@ -12865,6 +12865,25 @@ async function setupSB(){
     const _MT_FAIL_TO_SHOW=2;
     let _mtFails=0,_mtTimer=null;
     window._maint=null; // null | 'quota' | 'down'
+    // 無料枠が戻る見込み日時。402 の応答には復旧日時が入っていないため、請求サイクルの切り替え日から計算する。
+    // Supabase の通知メール「quota refills during September 29, 2026」より、この org のサイクルは毎月29日（UTC）に切り替わる。
+    // 切り替え時刻は明示されないので「その日中（UTC）」＝日本時間では当日9:00〜翌日9:00 の幅で案内する。
+    // プランや請求日が変わったら _MT_CYCLE_DAY を直す。
+    const _MT_CYCLE_DAY=29;
+    const _mtRefillText=()=>{
+      const now=new Date();
+      let y=now.getUTCFullYear(),m=now.getUTCMonth();
+      const dayOf=(yy,mm)=>Math.min(_MT_CYCLE_DAY,new Date(Date.UTC(yy,mm+1,0)).getUTCDate()); // 月末が29日未満の2月対策
+      if(now.getUTCDate()>dayOf(y,m)){m++;if(m>11){m=0;y++;}}
+      const d=dayOf(y,m);
+      const start=new Date(Date.UTC(y,m,d,0,0));   // UTC 0:00 ＝ 日本時間 9:00
+      const end=new Date(Date.UTC(y,m,d+1,0,0));   // UTC 翌0:00 ＝ 日本時間 翌9:00
+      const f=dt=>{
+        const j=new Date(dt.getTime()+9*3600000);
+        return (j.getUTCMonth()+1)+'月'+j.getUTCDate()+'日（'+'日月火水木金土'[j.getUTCDay()]+'）'+j.getUTCHours()+':00';
+      };
+      return f(start)+'〜'+f(end)+'ごろ（日本時間）';
+    };
     const _mtRender=()=>{
       let el=document.getElementById('maintBanner');
       if(!window._maint){if(el)el.hidden=true;return;}
@@ -12876,7 +12895,7 @@ async function setupSB(){
         document.body.appendChild(el);
       }
       const msg=window._maint==='quota'
-        ?'<b>メンテナンス中です</b><br>サーバーの月間利用枠に達したため、一時的に接続が止まっています。復旧までタスクの表示・保存ができません。<br>この間に入力した内容は保存されない可能性があるので、復旧まで編集は控えてください。復旧すると自動で再読み込みします。'
+        ?'<b>メンテナンス中です</b><br>サーバーの月間利用枠に達したため、一時的に接続が止まっています。復旧までタスクの表示・保存ができません。<br><b>復旧見込み: '+_mtRefillText()+'</b><br>この間に入力した内容は保存されない可能性があるので、復旧まで編集は控えてください。復旧すると自動で再読み込みします。'
         :'<b>サーバーに接続できません（メンテナンス中の可能性があります）</b><br>しばらくすると自動で再接続します。この間の変更は保存されない可能性があります。';
       el.innerHTML=msg;
       el.hidden=false;
