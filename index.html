@@ -811,6 +811,7 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .settings-row:last-child{border-bottom:none}
 .settings-label{font-size:14px;font-weight:500}
 .settings-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.s-csv-links a{color:var(--text2);text-decoration:underline;text-underline-offset:2px;padding:2px 1px}
 .tog{width:40px;height:24px;border-radius:12px;background:var(--border);position:relative;cursor:pointer;transition:background .25s cubic-bezier(.4,0,.2,1);flex-shrink:0}
 .tog.on{background:var(--accent)}
 .tog::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
@@ -1645,7 +1646,7 @@ function archNoticeHtml(){
   try{if(localStorage.getItem('taskra_arch_notice_closed'))return'';}catch(e){}
   return'<div class="arch-notice" style="margin:10px 14px 4px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:12.5px;line-height:1.65;color:var(--text2);display:flex;gap:10px;align-items:flex-start">'
     +'<div style="flex:1"><b style="color:var(--text)">お知らせ</b><br>10月7日から、完了して30日たったタスクは毎晩自動でアーカイブされます。'
-    +'アーカイブ済みは Logbook の末尾に件数が表示され、スタンダードプラン以上で表示・検索・復元できます。CSV出力にはどのプランでも含まれます。</div>'
+    +'アーカイブ済みは Logbook の末尾に件数が表示され、スタンダードプラン以上で表示・検索・復元できます。CSV出力（設定 → データの書き出し）にはどのプランでも含まれます。</div>'
     +'<button data-a="arch-notice-close" title="閉じる" style="background:none;border:none;color:var(--text3);font-size:18px;line-height:1;cursor:pointer;padding:0 2px">×</button></div>';
 }
 function archSectionHtml(){
@@ -2117,7 +2118,7 @@ function showUpgradeModal(feature){
     team:{title:'チーム共有機能',desc:'チーム共有・メンバー招待はスタンダードプラン以上でご利用いただける機能です。チームでタスクを共有してコメントでやり取りできます。'},
     repeat:{title:'繰り返しタスク',desc:'繰り返しタスクはスタンダードプラン以上でご利用いただける機能です。'},
     gantt:{title:'ガントチャート',desc:'ガントチャートはスタンダードプラン以上でご利用いただける機能です。プロジェクトのスケジュールを視覚的に管理できます。'},
-    archive:{title:'アーカイブ済みタスクの表示・復元',desc:'完了から30日たってアーカイブされたタスクの表示・検索・復元は、スタンダードプラン以上でご利用いただける機能です。アーカイブ済みのタスクは、CSV出力にはどのプランでも含まれます。'},
+    archive:{title:'アーカイブ済みタスクの表示・復元',desc:'完了から30日たってアーカイブされたタスクの表示・検索・復元は、スタンダードプラン以上でご利用いただける機能です。アーカイブ済みのタスクは、設定 → データの書き出し からCSVで保存できます（どのプランでも含まれます）。'},
     attachments:{title:'ファイル・画像の添付',desc:'タスクやノートへのファイル・画像の添付はスタンダードプラン以上でご利用いただける機能です。（付いている添付の閲覧・ダウンロードは無料プランでも可能です）'},
   };
   const c=cfg[feature]||{title:feature,desc:'上位プランでご利用いただける機能です。'};
@@ -10808,21 +10809,6 @@ async function openBackupModal(){
     +'<div class="modal-foot" style="flex-wrap:wrap;gap:8px">'
       +'<button class="btn btn-ghost" id="bk-cancel">閉じる</button>'
       +'<button class="btn btn-primary" id="bk-save">📦 今すぐバックアップ</button>'
-      +'<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">'
-        +'<div style="font-size:12px;color:var(--text3);margin-bottom:10px">CSV インポート / エクスポート</div>'
-        +'<div style="margin-bottom:8px;font-size:12px;color:var(--text2)">タスク</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px">'
-          +'<button class="pbtn" id="s-csv-task-template">Template</button>'
-          +'<button class="pbtn" id="s-csv-task-import">Import</button>'
-          +'<button class="pbtn" id="s-csv-task-export">Export</button>'
-        +'</div>'
-        +'<div style="margin-bottom:8px;font-size:12px;color:var(--text2)">ノート</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'
-          +'<button class="pbtn" id="s-csv-note-template">Template</button>'
-          +'<button class="pbtn" id="s-csv-note-import">Import</button>'
-          +'<button class="pbtn" id="s-csv-note-export">Export</button>'
-        +'</div>'
-      +'</div>'
     +'</div>'
   +'</div>';
   document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
@@ -10950,6 +10936,19 @@ function openSettingsModal(){
       +'<div><div class="settings-label">💬 LINE連携</div><div class="settings-sub" id="s-line-status">確認中...</div></div>'
       +'<div style="display:grid;grid-template-columns:1fr;gap:6px;width:100%">'
         +'<button class="pbtn" id="s-line-link">連携コードを発行</button>'
+      +'</div>'
+    +'</div>'
+    // 自動アーカイブへの不安に「ここで全部持ち出せる」と答える場所。書き出しを主役にし、取り込み・ひな形は控えめに置く
+    +'<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">'
+      +'<div><div class="settings-label">📤 データの書き出し</div><div class="settings-sub">タスクとノートをCSVで保存します。アーカイブ済みのタスクも含まれます。</div></div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%">'
+        +'<button class="pbtn" id="s-csv-task-export">タスクを書き出す</button>'
+        +'<button class="pbtn" id="s-csv-note-export">ノートを書き出す</button>'
+      +'</div>'
+      +'<div class="s-csv-links" style="font-size:12px;color:var(--text3);line-height:1.9">'
+        +'CSVから取り込む：<a href="#" id="s-csv-task-import">タスク</a>・<a href="#" id="s-csv-note-import">ノート</a>'
+        +'<span style="margin:0 8px;color:var(--border)">|</span>'
+        +'ひな形：<a href="#" id="s-csv-task-template">タスク</a>・<a href="#" id="s-csv-note-template">ノート</a>'
       +'</div>'
     +'</div>'
     +'<div class="modal-foot" style="margin-top:10px">'
