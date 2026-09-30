@@ -14,7 +14,16 @@ Deno.serve(async (req) => {
   try {
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // 90日以上経過した既読通知を削除
+    // cron だけが呼べるようにする（verify_jwt=false なので、ここで確かめないと誰でも実行できる）。
+    // 合言葉は Vault の cron_secret。照合は DB 関数 check_cron_secret()（service_role 専用）に任せる
+    const { data: authorized, error: authErr } = await sb.rpc('check_cron_secret', { p: req.headers.get('x-cron-secret') ?? '' });
+    if (authErr || authorized !== true) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 90);
 

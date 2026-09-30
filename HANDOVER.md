@@ -178,6 +178,24 @@ Taskra は「機能で正面から殴り合わない。開発の過程を出し�
 
 ---
 
+## cron 用 Edge Function に合言葉を付けた（2026-09-30）
+
+### 何があったか
+`cron-cleanup-notifications` と `cron-plan-reconcile` は `verify_jwt=false` で、関数内でも認証していなかった。
+**URL を知っていれば誰でも実行でき、`cron-plan-reconcile` は応答に修正した利用者・除外アカウントのメールアドレスを返していた。**
+cron の command にあった `Authorization: Bearer ...` は service_role を名乗るが署名が anon キーと同じ不正なトークンで、何の効果もなかった（ゲートウェイも関数も見ていない）。
+
+### 対応（`20260930_cron_secret.sql`）
+| 箇所 | 内容 |
+|---|---|
+| Vault `cron_secret` | 乱数の合言葉。**値はリポジトリにも会話にも出していない**。替えるときは `vault.update_secret` だけでよい |
+| `check_cron_secret(p text)` | security definer。**service_role だけが実行可**（public/anon/authenticated は revoke） |
+| cron 2本 | `x-cron-secret` ヘッダーを `vault.decrypted_secrets` から付けて呼ぶ形に再登録。べた書きトークンは削除 |
+| 関数2本 | 先頭で `check_cron_secret` を呼び、不一致なら 401。`cron-plan-reconcile` の応答は件数だけにし、メール・ID はログにだけ残す |
+
+- `cron-plan-reconcile` の**ソースはリポジトリに置いていない**（オーナーの LINE ID・除外アカウントを含み、GitHub Pages で公開されるため）。正は Supabase にデプロイ済みの版（v4）。直すときは `get_edge_function` で取り出して編集する
+- `cron-line-reminder` / `foodai-reminder` も `verify_jwt=false` で合言葉なし。今回は未対応（外から叩かれた場合の影響は未調査）
+
 ## 完了30日で自動アーカイブ・アーカイブ済みの表示と復元（2026-09-30）
 
 アーカイブ済みを同期しない変更（次の節）の続き。完了済みも放置すると増え続けるので、30日で自動アーカイブにした。
@@ -737,7 +755,10 @@ from logs where source='edge_logs' group by path order by cnt desc
 
 ### 残課題
 
-**1. cron.job に service_role key が平文で埋まっている（要対応・セキュリティ）**
+**1. cron.job に service_role key が平文で埋まっている → 2026-09-30 対応済み（下の「cron 用 Edge Function に合言葉」参照）**
+
+> 実際には署名が anon キーと同じ不正なトークンで、鍵の漏洩ではなかった。代わりに関数が無認証で誰でも実行できる状態だった。
+
 
 `cron.job` テーブルの jobid 1（`cron-cleanup-notifications`）と jobid 5（`cron-plan-reconcile`）の
 `command` に、`Authorization: Bearer <service_role JWT>` がべた書きされている。
