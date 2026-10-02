@@ -11392,8 +11392,9 @@ function openModal(type){
 
 // ===== SEED DATA =====
 async function seed(){
-  const ex=await dbAll('tasks');
-  if(ex.length>0)return;
+  // Supabase 接続時は1件だけ取って有無を見る（全件取得しない）
+  const has=typeof window.dbHasAny==='function'?await window.dbHasAny('tasks'):(await dbAll('tasks')).length>0;
+  if(has)return;
   const tag1=mkTag({name:'仕事',color:'#3b82f6'});
   const tag2=mkTag({name:'個人',color:'#7c3aed'});
   await saveTag(tag1);await saveTag(tag2);
@@ -13137,6 +13138,16 @@ async function setupSB(){
       const rows=await _pageAll(()=>SB.from(s).select('*').eq('user_id',uid).order('id',{ascending:true}));
       if(rows===null){console.error('SB.dbAll',s,'page fetch failed');return[]}
       return rows.map(frDB);
+    };
+    // 1件でもあるかだけを見る（seed の判定用）。dbAll で全件（アーカイブ込み約2.4MB）を取って
+    // 件数を数えていたのが、起動ごとの転送量の約半分を占めていた（2026-10-02 実測・Egress 対策）。
+    // 取得に失敗したときは「ある」と返し、サンプルデータを既存ユーザーに入れてしまわないようにする
+    window.dbHasAny=async s=>{
+      const uid=window._currentUser?.id;
+      if(!uid)return true;
+      const{data,error}=await SB.from(s).select('id').eq('user_id',uid).limit(1);
+      if(error){console.error('SB.dbHasAny',s,error);return true}
+      return (data||[]).length>0;
     };
     // tasks のアーカイブ済みは取らない。画面のどこにも出ないのに tasks の約6割（2026-09-30 時点で約1.3MB）を占め、
     // 全件同期のたびに転送していた（Egress 対策）。status が NULL の古い行を落とさないよう is.null も拾う
