@@ -93,6 +93,33 @@ input,textarea,select{font-family:var(--font);color:inherit;font-size:16px}/* 16
 .nav-item.on .badge{background:var(--accent-bg);color:var(--accent)}
 .nav-item.tapping .badge{background:var(--bg3)!important;color:var(--text3)!important}
 .pdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+/* ===== ブックマークビュー ===== */
+.bm-wrap{padding:14px 16px 40px;max-width:900px;margin:0 auto}
+.bm-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.bm-bar select,.bm-bar input[type=search]{padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;min-width:0}
+.bm-bar input[type=search]{flex:1 1 180px}
+.bm-sub{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:12px;color:var(--text3);margin-bottom:8px}
+.bm-link-btn{background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
+.bm-dir>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:7px 4px;font-size:13.5px;font-weight:600;color:var(--text);border-radius:6px;user-select:none}
+.bm-dir>summary::-webkit-details-marker{display:none}
+.bm-dir>summary::before{content:'▶';font-size:9px;color:var(--text3);transition:transform .15s}
+.bm-dir[open]>summary::before{transform:rotate(90deg)}
+@media(pointer:fine){.bm-dir>summary:hover{background:var(--bg3)}}
+.bm-cnt{font-size:11px;font-weight:400;color:var(--text3)}
+.bm-children{margin-left:14px;padding-left:8px;border-left:1px solid var(--border)}
+.bm-item{display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:6px}
+@media(pointer:fine){.bm-item:hover{background:var(--bg3)}}
+.bm-main{display:flex;flex-direction:column;min-width:0;flex:1}
+.bm-title{font-size:13.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
+a.bm-title:hover{color:var(--accent);text-decoration:underline}
+.bm-url{font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bm-del{background:none;border:none;color:var(--text3);font-size:18px;line-height:1;cursor:pointer;padding:4px 8px;border-radius:6px;flex-shrink:0}
+@media(pointer:fine){.bm-del{opacity:0}.bm-item:hover .bm-del{opacity:1}}
+.bm-del:hover{color:#dc2626}
+.bm-empty{padding:28px 8px;text-align:center;color:var(--text2);font-size:14px;line-height:1.8}
+.bm-empty ol{text-align:left;display:inline-block;margin:10px 0 0;padding-left:20px;font-size:13px;color:var(--text2)}
+.bm-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.bm-chip{border:1px solid var(--border);background:var(--bg3);color:var(--text2);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer}
 
 /* Main */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
@@ -4718,6 +4745,7 @@ function renderSidebar(){
     {v:'completed',label:'Logbook',icon:ICONS.archive,sub:'完了済みタスクの履歴・取り消し'},
     {v:'search',label:'Search',icon:ICONS.search,sub:'タスク・メモを横断検索'},
     {v:'notes',label:'Note',sub:'自由記述のメモ帳',icon:ico('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>')},
+    {v:'bookmarks',label:'Bookmark',sub:'Chromeのブックマークを取り込んで一覧',icon:ico('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>')},
     {v:'gantt',label:'Gantt',sub:'プロジェクトのスケジュール管理',icon:ico('<rect x="3" y="5" width="7" height="3" rx="1"/><rect x="7" y="11" width="9" height="3" rx="1"/><rect x="5" y="17" width="6" height="3" rx="1"/><line x1="3" y1="22" x2="21" y2="22"/>')},
   ];
   const SYS_VIEWS=ALL_SYS.map(x=>x.v);
@@ -5483,10 +5511,296 @@ function applyViewFilterDefaults(v){
 }
 
 // ===== RENDER CONTENT =====
+// ===== BOOKMARKS（Chromeブックマークの取り込みビュー）=====
+// Chrome の「ブックマークをエクスポート」HTML をブラウザ内で解析し、bookmark_profiles / bookmarks へ登録する。
+// HTML そのものはサーバーへ送らない。全体同期（dbAll・差分同期）には混ぜず、ビューを開いたときだけ取得する
+// （件数が数千になりうるので Egress 対策）。
+// プロファイル（＝Googleアカウント）はファイルから判別できないため、取り込み時に付ける名前（profile_name）で区別する。
+// 同じ名前で取り込み直すと、そのプロファイルの中身をファイルの内容へ丸ごと入れ替える（Chromeで消したものも消える）。
+// テーブル定義は supabase/migrations/20261005_bookmarks.sql。source は 'html'（今回）/ 'sync'（拡張機能・未実装）。
+const BM_ALL='__all__';
+function bmState(){
+  const u=window._currentUser?.id||'';
+  // アカウントを切り替えたら前の人のキャッシュを捨てる
+  if(!S.bm||S.bm.uid!==u)S.bm={uid:u,rows:null,profiles:[],loading:false,error:'',pk:BM_ALL,q:''};
+  return S.bm;
+}
+function bmSafeHref(u){return /^(https?|ftp):\/\//i.test(u)?u:'';}
+function bmDateIso(v){
+  const n=parseInt(v||'',10);if(!(n>0))return null;
+  // Chrome の ADD_DATE は秒。念のためミリ秒・マイクロ秒の出力にも耐える
+  const ms=n>1e14?n/1000:(n>1e11?n:n*1000);
+  const d=new Date(ms);return isNaN(d.getTime())?null:d.toISOString();
+}
+// 戻り値: {items:[{folder:[...],title,url,addedAt,pos}], excluded:取り込まなかった件数（javascript: ・空URL・重複）}
+function bmParseHtml(text){
+  const doc=new DOMParser().parseFromString(text,'text/html');
+  const items=[],seen=new Set();let excluded=0;
+  const walk=(node,path)=>{
+    let pending=null;
+    for(const c of node.children){
+      const t=c.tagName;
+      if(t==='H3'){pending=(c.textContent||'').trim()||'(名称なし)';}
+      else if(t==='A'){
+        const url=(c.getAttribute('href')||'').trim();
+        if(!url||/^javascript:/i.test(url)){excluded++;continue;}
+        const key=path.join('\u0000')+'\u0001'+url;
+        if(seen.has(key)){excluded++;continue;}
+        seen.add(key);
+        items.push({folder:path.slice(),title:(c.textContent||'').trim(),url,addedAt:bmDateIso(c.getAttribute('add_date')),pos:items.length});
+      }
+      else if(t==='DL'){walk(c,pending!==null?path.concat(pending):path);pending=null;}
+      else walk(c,path);
+    }
+  };
+  walk(doc.body,[]);
+  return{items,excluded};
+}
+async function bmHash(items){
+  // 内容が同じファイルの取り込み直しを検出するための指紋（並び順・日付は含めない）
+  const s=items.map(i=>i.folder.join('\u0000')+'\u0001'+i.title+'\u0001'+i.url).join('\n');
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function bmLoad(force){
+  const st=bmState();
+  if(st.loading)return;
+  if(st.rows&&!force)return;
+  if(!window._SB)return;
+  st.loading=true;st.error='';
+  try{
+    const pr=await window._SB.from('bookmark_profiles').select('profile_key,profile_name,account_email,source,item_count,synced_at').order('profile_name');
+    if(pr.error)throw pr.error;
+    const rows=[];
+    // PostgRESTは1リクエスト最大1000行なのでページングする
+    for(let from=0;;from+=1000){
+      const{data,error}=await window._SB.from('bookmarks')
+        .select('id,profile_key,title,url,folder,pos,added_at')
+        .order('profile_key').order('pos').order('id').range(from,from+999);
+      if(error)throw error;
+      rows.push(...data);
+      if(data.length<1000)break;
+    }
+    st.profiles=pr.data;st.rows=rows;
+  }catch(e){
+    console.error('bmLoad',e);
+    st.error='ブックマークを読み込めませんでした（'+String(e&&e.message||e).slice(0,60)+'）';
+  }finally{st.loading=false;}
+  if(S.view==='bookmarks')renderContent();
+}
+function bmProfName(p){return p.profile_name||p.profile_key;}
+function bmFiltered(){
+  const st=bmState();const q=st.q.trim().toLowerCase();
+  return(st.rows||[]).filter(r=>(st.pk===BM_ALL||r.profile_key===st.pk)
+    &&(!q||(r.title||'').toLowerCase().includes(q)||r.url.toLowerCase().includes(q)||(r.folder||[]).join('/').toLowerCase().includes(q)));
+}
+function bmBuildTree(rows,multi){
+  const st=bmState();
+  const nameOf=k=>{const p=st.profiles.find(x=>x.profile_key===k);return p?bmProfName(p):k;};
+  const root={dirs:new Map(),items:[],count:0};
+  for(const r of rows){
+    const segs=(r.folder||[]).slice();
+    // 複数アカウント分を一度に見るときは、先頭にアカウント名の階層を足して混ざらないようにする
+    if(multi)segs.unshift(nameOf(r.profile_key));
+    let n=root;n.count++;
+    for(const s of segs){
+      let d=n.dirs.get(s);
+      if(!d){d={dirs:new Map(),items:[],count:0};n.dirs.set(s,d);}
+      d.count++;n=d;
+    }
+    n.items.push(r);
+  }
+  return root;
+}
+function bmRenderItem(r){
+  const href=bmSafeHref(r.url);
+  const title=r.title||r.url;
+  let host='';try{host=new URL(r.url).hostname;}catch(e){}
+  return'<div class="bm-item"><div class="bm-main">'
+    +(href?'<a class="bm-title" href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">'+esc(title)+'</a>':'<span class="bm-title">'+esc(title)+'</span>')
+    +'<span class="bm-url">'+esc(host||r.url)+'</span></div>'
+    +'<button class="bm-del" data-bmid="'+esc(r.id)+'" title="削除" aria-label="削除">×</button></div>';
+}
+function bmRenderNode(n,depth,openAll){
+  let h='';
+  for(const[name,d]of n.dirs){
+    h+='<details class="bm-dir"'+((openAll||depth===0)?' open':'')+'><summary><span>'+esc(name)+'</span><span class="bm-cnt">'+d.count+'</span></summary>'
+      +'<div class="bm-children">'+bmRenderNode(d,depth+1,openAll)+'</div></details>';
+  }
+  for(const r of n.items)h+=bmRenderItem(r);
+  return h;
+}
+function bmTreeHtml(){
+  const st=bmState();
+  const rows=bmFiltered();
+  if(!rows.length)return'<div class="bm-empty">'+(st.q.trim()?'一致するブックマークがありません':'このアカウントにはブックマークがありません')+'</div>';
+  const multi=st.pk===BM_ALL&&st.profiles.length>1;
+  return bmRenderNode(bmBuildTree(rows,multi),0,!!st.q.trim());
+}
+function bmSubHtml(){
+  const st=bmState();
+  const total=(st.rows||[]).length,shown=bmFiltered().length;
+  const p=st.profiles.find(x=>x.profile_key===st.pk);
+  return'<span>'+(shown===total?total+'件':shown+'件を表示（全'+total+'件）')+'</span>'
+    +(p&&p.account_email?'<span>'+esc(p.account_email)+'</span>':'')
+    +(p&&p.synced_at?'<span>最終取り込み '+esc(fmtDate(String(p.synced_at).slice(0,10)))+'</span>':'')
+    +(p?'<button class="bm-link-btn" id="bm-del-label">このアカウント分を削除</button>':'');
+}
+function renderBookmarks(){
+  const st=bmState();
+  if(st.error)return'<div class="bm-wrap"><div class="bm-empty">'+esc(st.error)+'<br><button class="btn btn-primary" id="bm-retry" style="margin-top:10px">再読み込み</button></div></div>';
+  if(!st.rows)return'<div class="bm-wrap"><div class="bm-empty">読み込み中…</div></div>';
+  if(st.pk!==BM_ALL&&!st.profiles.some(p=>p.profile_key===st.pk))st.pk=BM_ALL;
+  if(!st.profiles.length){
+    return'<div class="bm-wrap"><div class="bm-empty">ブックマークはまだありません。<br>Chrome で書き出した HTML を取り込むと、ここに一覧できます。'
+      +'<ol><li>取り込みたい Google アカウントの Chrome プロファイルを開く</li>'
+      +'<li>Chrome の「ブックマーク マネージャ」（Ctrl+Shift+O）を開く</li>'
+      +'<li>右上の「⋮」→「ブックマークをエクスポート」で HTML を保存</li>'
+      +'<li>下のボタンから、その HTML を選ぶ</li></ol><br>'
+      +'<button class="btn btn-primary" id="bm-import" style="margin-top:12px">Chromeのブックマークを取り込む</button></div></div>';
+  }
+  return'<div class="bm-wrap"><div class="bm-bar">'
+    +(st.profiles.length>1?'<select id="bm-label"><option value="'+BM_ALL+'">すべてのアカウント</option>'
+      +st.profiles.map(p=>'<option value="'+esc(p.profile_key)+'"'+(st.pk===p.profile_key?' selected':'')+'>'+esc(bmProfName(p))+'</option>').join('')+'</select>':'')
+    +'<input type="search" id="bm-q" placeholder="タイトル・URL・フォルダで検索" value="'+esc(st.q)+'">'
+    +'<button class="btn btn-primary" id="bm-import">取り込む</button></div>'
+    +'<div class="bm-sub" id="bm-sub">'+bmSubHtml()+'</div>'
+    +'<div id="bm-tree">'+bmTreeHtml()+'</div></div>';
+}
+function bmRefreshList(){
+  const t=document.getElementById('bm-tree'),s=document.getElementById('bm-sub');
+  if(t)t.innerHTML=bmTreeHtml();
+  if(s){s.innerHTML=bmSubHtml();bmBindDelLabel();}
+}
+function bmBindDelLabel(){
+  const b=document.getElementById('bm-del-label');if(!b)return;
+  b.onclick=async()=>{
+    const st=bmState();const pk=st.pk;
+    const p=st.profiles.find(x=>x.profile_key===pk);
+    if(!p)return;
+    const n=st.rows.filter(r=>r.profile_key===pk).length;
+    if(!confirm('「'+bmProfName(p)+'」のブックマーク '+n+'件を Taskra から削除します。\nChrome 側のブックマークは消えません。よろしいですか？'))return;
+    // bookmarks は bookmark_profiles への外部キーが on delete cascade なので、プロファイルを消せば中身も消える
+    const{error}=await window._SB.from('bookmark_profiles').delete().eq('profile_key',pk);
+    if(error){console.error('bmDelProfile',error);toast('⚠ 削除に失敗しました');return;}
+    st.rows=st.rows.filter(r=>r.profile_key!==pk);st.profiles=st.profiles.filter(x=>x.profile_key!==pk);st.pk=BM_ALL;
+    toast('🗑 '+n+'件を削除しました');renderContent();
+  };
+}
+function attachBookmarkEvents(){
+  const st=bmState();
+  const $=id=>document.getElementById(id);
+  if($('bm-retry'))$('bm-retry').onclick=()=>{st.error='';renderContent();};
+  if($('bm-import'))$('bm-import').onclick=bmPickFile;
+  if($('bm-label'))$('bm-label').onchange=e=>{st.pk=e.target.value;bmRefreshList();};
+  if($('bm-q')){
+    let tm=null;
+    $('bm-q').oninput=e=>{const v=e.target.value;clearTimeout(tm);tm=setTimeout(()=>{st.q=v;bmRefreshList();},120);};
+  }
+  if($('bm-tree'))$('bm-tree').onclick=async e=>{
+    const b=e.target.closest('.bm-del');if(!b)return;
+    const id=b.dataset.bmid;
+    const{error}=await window._SB.from('bookmarks').delete().eq('id',id);
+    if(error){console.error('bmDel',error);toast('⚠ 削除に失敗しました');return;}
+    st.rows=st.rows.filter(r=>String(r.id)!==id);
+    bmRefreshList();
+  };
+  bmBindDelLabel();
+}
+function bmPickFile(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.html,.htm,text/html';
+  inp.onchange=async e=>{
+    const f=e.target.files[0];if(!f)return;
+    let parsed;
+    try{parsed=bmParseHtml(await f.text());}
+    catch(err){console.error('bmParse',err);toast('⚠ ファイルを読み込めませんでした');return;}
+    if(!parsed.items.length){toast('⚠ ブックマークが見つかりません。Chromeで書き出した HTML を選んでください');return;}
+    bmOpenImportModal(parsed,f.name);
+  };
+  inp.click();
+}
+function bmOpenImportModal(parsed,fileName){
+  const{items,excluded}=parsed;
+  const st=bmState();
+  const folders=new Set(items.map(i=>i.folder.join('\u0000')).filter(Boolean)).size;
+  const cur=st.profiles.find(p=>p.profile_key===st.pk);
+  const initial=cur?bmProfName(cur):(st.profiles.length===1?bmProfName(st.profiles[0]):'');
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal"><div class="modal-title">Chromeのブックマークを取り込む</div>'
+    +'<p style="font-size:13px;line-height:1.7;color:var(--text2);margin:0 0 12px"><b>'+esc(fileName)+'</b><br>'+items.length+'件のブックマーク・'+folders+'個のフォルダが見つかりました'
+    +(excluded?'（bookmarklet・重複など '+excluded+'件は除外）':'')+'。</p>'
+    +'<label style="font-size:12px;color:var(--text3)">どのアカウントのブックマークか（名前を付けてください）</label>'
+    +'<input id="bm-imp-label" type="text" maxlength="40" placeholder="例：仕事用 / 個人用" value="'+esc(initial)+'" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:14px;box-sizing:border-box">'
+    +(st.profiles.length?'<div class="bm-chips">'+st.profiles.map(p=>'<button type="button" class="bm-chip" data-l="'+esc(bmProfName(p))+'">'+esc(bmProfName(p))+'</button>').join('')+'</div>':'')
+    +'<label style="font-size:12px;color:var(--text3);display:block;margin-top:12px">Googleアカウントのメールアドレス（任意・見分け用）</label>'
+    +'<input id="bm-imp-email" type="email" maxlength="100" placeholder="例：name@gmail.com" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:14px;box-sizing:border-box">'
+    +'<p id="bm-imp-note" style="font-size:12px;line-height:1.6;color:var(--text3);margin:10px 0 0">同じ名前で取り込み直すと、そのアカウントの内容がこのファイルの内容に入れ替わります（Chrome で削除したブックマークも Taskra から消えます）。</p>'
+    +'<div class="modal-foot"><button class="btn btn-ghost" id="bm-imp-cancel">キャンセル</button><button class="btn btn-primary" id="bm-imp-go">取り込む</button></div></div>';
+  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));
+  const close=()=>{ov.classList.remove('open');setTimeout(()=>ov.remove(),200);};
+  const inpL=ov.querySelector('#bm-imp-label'),inpE=ov.querySelector('#bm-imp-email'),go=ov.querySelector('#bm-imp-go'),note=ov.querySelector('#bm-imp-note');
+  const keyOf=n=>'html:'+n.trim().toLowerCase();
+  // 既存の名前と一致したら、入れ替えになることを具体的な件数で見せる。メールも引き継ぐ
+  const syncNote=()=>{
+    const p=st.profiles.find(x=>x.profile_key===keyOf(inpL.value));
+    if(p){
+      const n=(st.rows||[]).filter(r=>r.profile_key===p.profile_key).length;
+      note.innerHTML='<b style="color:var(--text2)">「'+esc(bmProfName(p))+'」には現在 '+n+'件あります。</b>取り込むと、このファイルの '+items.length+'件に入れ替わります（Chrome で削除したブックマークも Taskra から消えます）。';
+      if(!inpE.value&&p.account_email)inpE.value=p.account_email;
+    }else note.textContent='新しいアカウントとして登録します。';
+  };
+  inpL.oninput=syncNote;syncNote();
+  ov.querySelectorAll('.bm-chip').forEach(b=>b.onclick=()=>{inpL.value=b.dataset.l;syncNote();});
+  ov.querySelector('#bm-imp-cancel').onclick=close;
+  ov.onclick=e=>{if(e.target===ov&&!go.disabled)close();};
+  go.onclick=async()=>{
+    const name=inpL.value.trim();
+    if(!name){toast('⚠ アカウントの名前を入力してください');inpL.focus();return;}
+    const uidv=window._currentUser?.id;
+    if(!uidv){toast('⚠ ログインが確認できません');return;}
+    go.disabled=true;
+    const SBc=window._SB,key=keyOf(name);
+    const existing=st.profiles.find(p=>p.profile_key===key);
+    let failed=false,done=0,skippedSame=false;
+    try{
+      const hash=await bmHash(items);
+      const{data:prev}=await SBc.from('bookmark_profiles').select('content_hash').eq('profile_key',key).maybeSingle();
+      if(prev&&prev.content_hash===hash){
+        // 前回と同じ内容。何も書き換えず、確認した時刻だけ更新する
+        skippedSame=true;
+        await SBc.from('bookmark_profiles').update({checked_at:new Date().toISOString()}).eq('profile_key',key);
+      }else{
+        const now=new Date().toISOString();
+        // content_hash を空にして先に書いておく。途中で失敗しても、次の取り込みが「同じ内容」と誤判定して飛ばさない
+        let r=await SBc.from('bookmark_profiles').upsert({user_id:uidv,profile_key:key,profile_name:name,account_email:inpE.value.trim(),source:'html',device:'',
+          item_count:items.length,excluded_count:excluded,content_hash:'',synced_at:now,checked_at:now},{onConflict:'user_id,profile_key'});
+        if(r.error)throw r.error;
+        r=await SBc.from('bookmarks').delete().eq('profile_key',key);
+        if(r.error)throw r.error;
+        for(let i=0;i<items.length;i+=500){
+          const chunk=items.slice(i,i+500).map(it=>({profile_key:key,title:it.title,url:it.url,folder:it.folder,pos:it.pos,added_at:it.addedAt}));
+          r=await SBc.from('bookmarks').insert(chunk);
+          if(r.error)throw r.error;
+          done+=chunk.length;go.textContent='取り込み中… '+done+'/'+items.length;
+        }
+        r=await SBc.from('bookmark_profiles').update({content_hash:hash}).eq('profile_key',key);
+        if(r.error)throw r.error;
+      }
+    }catch(err){
+      failed=true;console.error('bmImport',err);
+      toast('⚠ 取り込みに失敗しました（'+done+'件まで）。もう一度取り込むと入れ替えをやり直せます：'+String(err&&err.message||err).slice(0,40));
+    }
+    close();
+    st.rows=null;st.error='';st.pk=key;st.q='';
+    if(S.view==='bookmarks')renderContent();
+    if(!failed)toast(skippedSame?'前回から変更はありませんでした':'✅ '+items.length+'件を取り込みました'+(existing?'（入れ替え）':''));
+  };
+}
+
 function renderContent(){
   const el=document.getElementById('content');
   applyViewFilterDefaults(S.view);
-  const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',overdue:'Overdue',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Logbook',notes:'Notes',nextview:'Next',gantt:'Gantt',
+  const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',overdue:'Overdue',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Logbook',notes:'Notes',bookmarks:'Bookmarks',nextview:'Next',gantt:'Gantt',
     project:S.projects.find(p=>p.id===S.projId)?.name||'',
     tag:S.tagId==='__none__'?'タグなし':S.tags.find(t=>t.id===S.tagId)?.name||'',
     'forecast-day':S.forecastDate?fmtDate(S.forecastDate)+'の予定':'Forecast'};
@@ -5507,7 +5821,7 @@ function renderContent(){
   // qabarを表示/非表示
   const qabar=document.getElementById('qabar');
   if(qabar){
-    const qaHidden=['search','forecast','review','completed','notes','gantt'];
+    const qaHidden=['search','forecast','review','completed','notes','gantt','bookmarks'];
     if(qaHidden.includes(S.view)){qabar.style.display='none';}
     else if(window.innerWidth<=768){qabar.style.display='';}
     else{qabar.style.display='';}
@@ -5521,6 +5835,13 @@ function renderContent(){
   if(S.view!=='notes'&&S.view!=='search'){const dr=document.getElementById('drawer');if(dr&&S.noteOpen){const _ct3=document.getElementById('content');if(_ct3)_ct3.style.overflow='';if(!(S.drawerOpen&&S.taskId)){dr.style.display='none';dr.classList.remove('open');const _m3=document.querySelector('.main');if(_m3)_m3.style.maxWidth='';}}}
 
   if(S.view==='dashboard'){el.innerHTML=archNoticeHtml()+renderDashboard();attachDashboardEvents();return}
+  if(S.view==='bookmarks'){
+    // タスク用のフィルタバーは使わない。前のビューの表示が残らないよう空にする
+    const _tfBm=document.getElementById('task-filters');if(_tfBm)_tfBm.innerHTML='';
+    const _bm=bmState();
+    if(!_bm.rows&&!_bm.loading&&!_bm.error)bmLoad();
+    el.innerHTML=renderBookmarks();attachBookmarkEvents();return
+  }
   renderTaskFilters();
   if(S.view==='forecast'){el.innerHTML=renderForecast();return}
   if(S.view==='forecast-day'){
