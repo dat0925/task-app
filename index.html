@@ -3017,17 +3017,21 @@ function _updateDayLabel(lbl,checked){
   lbl.style.borderColor=checked?'var(--accent)':'var(--border)';
   lbl.style.color=checked?'var(--accent)':'';
 }
-function _onRepeatDayChange(){document.querySelectorAll('.repeat-day-lbl').forEach(lbl=>{const cb=lbl.querySelector('input');if(cb)_updateDayLabel(lbl,cb.checked);});}
+// 曜日・日付ボタンは #dt-repeat の change を経由しないと autosave が走らない。
+// 以前は見た目だけ切り替わって保存されず、開き直すと元の曜日に戻っていた（2026-10-22）
+function _saveRepeatRule(){document.getElementById('dt-repeat')?.dispatchEvent(new Event('change'));}
+function _onRepeatDayChange(){document.querySelectorAll('.repeat-day-lbl').forEach(lbl=>{const cb=lbl.querySelector('input');if(cb)_updateDayLabel(lbl,cb.checked);});_saveRepeatRule();}
 function _setRepeatDays(days){
   document.querySelectorAll('.repeat-day-lbl').forEach(lbl=>{
     const cb=lbl.querySelector('input');if(!cb)return;
     cb.checked=days.includes(cb.dataset.day);
     _updateDayLabel(lbl,cb.checked);
   });
+  _saveRepeatRule();
 }
 function _onRepeatMdayChange(){}
-function _onRepeatMdayBtn(btn){btn.classList.toggle('sel');}
-function _clearRepeatMdays(){document.querySelectorAll('.repeat-mday-btn.sel').forEach(b=>b.classList.remove('sel'));}
+function _onRepeatMdayBtn(btn){btn.classList.toggle('sel');_saveRepeatRule();}
+function _clearRepeatMdays(){document.querySelectorAll('.repeat-mday-btn.sel').forEach(b=>b.classList.remove('sel'));_saveRepeatRule();}
 function getRepeatRule(){
   const sel=document.getElementById('dt-repeat');if(!sel)return null;
   const v=sel.value;
