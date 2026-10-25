@@ -3111,7 +3111,9 @@ function showSaveStatus(state){
   clearTimeout(_saveTimer);
   el.classList.add('show');
   dot.className='';
-  if(state==='saving'){dot.classList.add('saving');lbl.textContent='保存中…'}
+  dot.style.background='';
+  if(state==='pending'){dot.style.background='#f59e0b';const _n=typeof window._outboxCount==='function'?window._outboxCount():0;lbl.textContent='未同期 '+_n+'件（通信が戻り次第、自動で送信します）'}
+  else if(state==='saving'){dot.classList.add('saving');lbl.textContent='保存中…'}
   else if(state==='saved'){dot.classList.add('saved');lbl.textContent='保存済み';_saveTimer=setTimeout(()=>el.classList.remove('show'),2000)}
   else if(state==='error'){dot.style.background='var(--p1)';lbl.textContent='保存失敗'}
 }
@@ -3144,6 +3146,7 @@ async function loadAll(){
   // 手元のデータを上書きしない。「タスクが全部消えた」ように見えるのを防ぐ
   if(window._maint&&(S.tasks||[]).length)return;
   S.tags=tags;S.notes=notes;S.tasks=tasks;S.projects=projects;
+  if(typeof window._applyOutbox==='function')window._applyOutbox(); // 未送信の変更をサーバー側の古い値で消さない
   if(typeof archResetCache==='function')archResetCache();
   // 差分同期の起点（この時点までにサーバーで付いた synced_at の最大値）を記録する
   if(typeof window._setSyncMarks==='function')window._setSyncMarks();
@@ -3320,9 +3323,9 @@ async function saveTask(t){
   // 文字数チェック
   if((t.title||'').length>CHAR_LIMITS.taskTitle){toast('タスクタイトルは'+CHAR_LIMITS.taskTitle+'文字以内で入力してください');throw new Error('char_limit');}
   if((t.notes||'').length>CHAR_LIMITS.taskNotes){toast('タスクメモは'+CHAR_LIMITS.taskNotes+'文字以内で入力してください');throw new Error('char_limit');}
-  showSaveStatus('saving');try{window._lastSelfSave = Date.now(); t.updatedAt=now();await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
+  showSaveStatus('saving');try{window._lastSelfSave = Date.now(); t.updatedAt=now();const _r=await dbPut('tasks',t);const i=S.tasks.findIndex(x=>x.id===t.id);i>=0?S.tasks[i]=t:S.tasks.push(t);showSaveStatus((_r&&_r.queued)||(window._outboxCount&&window._outboxCount())?'pending':'saved');return _r}catch(e){showSaveStatus('error');throw e}}
 async function delTask(id){const ch=S.tasks.filter(t=>t.parentTaskId===id);for(const c of ch)await delTask(c.id);await _attPurgeForParent('task',id);await dbDel('tasks',id);S.tasks=S.tasks.filter(t=>t.id!==id);if(window.SecretMemo){try{window.SecretMemo.onEntityDeleted('task',id);}catch(_e){}}}
-async function saveProject(p){showSaveStatus('saving');try{p.updatedAt=now();await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus('saved')}catch(e){showSaveStatus('error');throw e}}
+async function saveProject(p){showSaveStatus('saving');try{p.updatedAt=now();const _r=await dbPut('projects',p);const i=S.projects.findIndex(x=>x.id===p.id);i>=0?S.projects[i]=p:S.projects.push(p);showSaveStatus((_r&&_r.queued)||(window._outboxCount&&window._outboxCount())?'pending':'saved');return _r}catch(e){showSaveStatus('error');throw e}}
 async function saveTag(t){await dbPut('tags',t);const i=S.tags.findIndex(x=>x.id===t.id);i>=0?S.tags[i]=t:S.tags.push(t)}
 async function deleteProject(id){
   // プロジェクト配下のタスクを全削除
@@ -9344,17 +9347,19 @@ function setupQA(){
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submitQA()}});
 }
 
-async function submitQA(){
+function submitQA(){
   const inp=document.getElementById('qainput');
   if(!inp||!inp.value.trim())return;
   if(window._sbReady&&isPlanFree()&&getActiveTaskCount()>=getPlanDef().taskLimit){showUpgradeModal('tasks');return;}
-  const p=parseQA(inp.value);
+  const raw=inp.value;
+  const p=parseQA(raw);
   if(!p.title){toast('タイトルを入力してください');return}
-  // 未登録タグを自動作成
+  // 未登録タグを自動作成（画面には先に反映し、保存は裏で行う）
+  const newTags=[];
   if(p._newTagNames&&p._newTagNames.length){
     for(const name of p._newTagNames){
       const nt=mkTag({name,color:'#7c3aed'});
-      await saveTag(nt);
+      S.tags.push(nt);newTags.push(nt);
       p.tagIds.push(nt.id);
     }
   }
@@ -9365,13 +9370,29 @@ async function submitQA(){
   const _newProjId=p.projectId||(S.view==='project'?S.projId:null);
   const status=_newProjId?'active':'inbox';// @プロジェクト指定時はビューに関わらずactiveにする（プロジェクト付きなのにInboxに残るバグの修正）
   const task=mkTask({...p,status,projectId:_newProjId,order:_newProjId?topOrderInProject(_newProjId):Date.now()});
-  await saveTask(task);
+  // 楽観的更新: 通信を待たずに画面へ出して入力欄を空にする。
+  // 以前は保存完了後に空にしていたため、回線が遅いと「反応なし」に見えて連打され、新しいIDで同じタスクが何件も作られた（2026-10-25）。
+  // 入力欄はここで同期的に空になるので、2回目のタップは先頭の空チェックで止まり、1回の入力から作られるタスクは必ず1件（IDも1つ）になる
+  S.tasks.push(task);
   inp.value='';
   document.getElementById('qachips').innerHTML='';
   document.getElementById('qabtn').style.display='none';
   playSE('add');
   toast('"'+task.title+'" を追加しました');
   render();
+  (async()=>{
+    try{
+      for(const nt of newTags)await saveTag(nt);
+      const r=await saveTask(task);
+      if(r&&r.queued)toast('通信が不安定なため、あとで自動送信します（未同期）');
+    }catch(e){
+      // 文字数超過などで保存できなかったときは、画面から外して入力を元に戻す
+      S.tasks=S.tasks.filter(x=>x.id!==task.id);
+      const cur=document.getElementById('qainput');
+      if(cur&&!cur.value){cur.value=raw;cur.dispatchEvent(new Event('input'));}
+      render();
+    }
+  })();
 }
 
 // ===== NOTE STAMP BUTTONS: プレビュー中→編集モードへ自動切替（キャプチャで全ケース対応）=====
@@ -13487,23 +13508,104 @@ async function setupSB(){
       if(rows===null){console.error('SB.dbAllNoFilter',s,'page fetch failed');return[]}
       return rows.map(frDB);
     };
+    /*OUTBOX-BEGIN*/
+    // ===== 未送信キュー（outbox）=====
+    // 背景(2026-10-25): 回線が不安定なとき、保存の通信が応答しないまま待ち続け、失敗してもエラーを握りつぶして
+    // 「保存済み」と表示していた。入力欄が空にならないので連打され、押すたびに新しいIDで同じタスクが作られた。
+    // 対策: ①保存に8秒のタイムアウト ②失敗した分は端末(localStorage)に残して自動再送 ③未同期の件数を画面に出す。
+    // upsert は同じIDなら上書きなので、再送しても重複しない。
+    const _OB_KEY='taskra_outbox_v1',_OB_TIMEOUT=8000;
+    const _obMap=new Map();
+    let _obFlushing=false,_obTimer=null;
+    try{(JSON.parse(localStorage.getItem(_OB_KEY)||'[]')).forEach(e=>{if(e&&e.s&&e.row&&e.row.id)_obMap.set(e.s+':'+e.row.id,e)})}catch(_e){}
+    const _obSave=()=>{try{localStorage.setItem(_OB_KEY,JSON.stringify([..._obMap.values()]))}catch(_e){}};
+    window._outboxCount=()=>_obMap.size;
+    // 保存を投げて、タイムアウトか通信失敗なら error を返す（成功は null）
+    const _obUpsert=async(s,row)=>{
+      const ctrl=typeof AbortController==='function'?new AbortController():null;
+      let tm;
+      try{
+        let q=SB.from(s).upsert(row,{onConflict:'id'});
+        if(ctrl&&typeof q.abortSignal==='function')q=q.abortSignal(ctrl.signal);
+        const to=new Promise(r=>{tm=setTimeout(()=>{if(ctrl)ctrl.abort();r({error:{message:'timeout'}})},_OB_TIMEOUT)});
+        const res=await Promise.race([q,to]);
+        return res&&res.error?res.error:null;
+      }catch(e){return e&&typeof e==='object'?e:{message:String(e||'network')}}
+      finally{clearTimeout(tm)}
+    };
+    // code が付いていればサーバーが内容を拒否した（RLS・制約など）ので、再送しても通らない。code 無しは通信の問題
+    const _obTransient=err=>!err.code;
+    const _obSchedule=()=>{if(!_obTimer)_obTimer=setInterval(_obFlush,10000)};
+    const _obFlush=async()=>{
+      if(_obFlushing||!_obMap.size)return;
+      if(window._maint||navigator.onLine===false)return;
+      const uid=window._currentUser?.id;
+      if(!uid)return;
+      _obFlushing=true;
+      let sent=0;
+      try{
+        for(const[key,ent]of[..._obMap]){
+          if(ent.row.user_id!==uid){_obMap.delete(key);continue}
+          const err=await _obUpsert(ent.s,ent.row);
+          if(err&&_obTransient(err))break; // まだ回線が戻っていない。残りは次の周期で
+          if(err)console.error('SB.outbox rejected',ent.s,err);
+          else sent++;
+          // 送信中に同じ項目が更新されていたら、新しい方を残す
+          if(_obMap.get(key)===ent)_obMap.delete(key);
+        }
+      }finally{
+        _obFlushing=false;_obSave();
+        if(_obMap.size){if(typeof showSaveStatus==='function')showSaveStatus('pending')}
+        else{
+          if(_obTimer){clearInterval(_obTimer);_obTimer=null}
+          if(sent&&typeof showSaveStatus==='function')showSaveStatus('saved');
+          if(sent&&typeof toast==='function')toast('未同期だった変更 '+sent+'件を送信しました');
+        }
+      }
+    };
+    // 同期(loadAll・差分同期)で取り直した値の上に、未送信の変更を重ねる（サーバー側の古い値で消さない）
+    window._applyOutbox=()=>{
+      const m={tasks:'tasks',projects:'projects',tags:'tags',notes:'notes'};
+      for(const ent of _obMap.values()){
+        const k=m[ent.s];
+        if(!k||typeof S==='undefined'||!Array.isArray(S[k]))continue;
+        const it=frDB(ent.row);
+        const i=S[k].findIndex(x=>x.id===it.id);
+        i>=0?S[k][i]=it:S[k].push(it);
+      }
+    };
+    window.addEventListener('online',_obFlush);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')_obFlush()});
+    if(_obMap.size){_obSchedule();setTimeout(()=>{if(typeof showSaveStatus==='function')showSaveStatus('pending')},1500)}
+    /*OUTBOX-END*/
     window.dbPut=async(s,i)=>{
       const uid=window._currentUser?.id;
       if(!uid)return;
       const row=toDB(i);
       row.user_id=uid;
-      const{error}=await SB.from(s).upsert(row,{onConflict:'id'});
-      if(error){
-        console.error('SB.dbPut error',s,error);
-        const msg='⚠ 同期エラー('+s+'): '+(error.message||JSON.stringify(error)).slice(0,60);
-        const now2=Date.now();
-        // メンテナンス表示中は画面上部の帯で知らせているので、保存のたびのトーストは出さない
-        if(!window._maint&&typeof toast==='function'&&(msg!==_lastErrMsg||now2-_lastErrTs>5000)){
-          toast(msg);_lastErrMsg=msg;_lastErrTs=now2;
-        }
+      const key=s+':'+row.id;
+      // 同じ項目の古い版が未送信で残っているときは、順序が入れ替わらないよう直接送らずキューの版を差し替える
+      if(_obMap.has(key)){
+        _obMap.set(key,{s,row,at:Date.now()});_obSave();_obSchedule();_obFlush();
+        return{queued:true};
+      }
+      const error=await _obUpsert(s,row);
+      if(!error)return;
+      console.error('SB.dbPut error',s,error);
+      if(_obTransient(error)){
+        _obMap.set(key,{s,row,at:Date.now()});_obSave();_obSchedule();
+        return{queued:true};
+      }
+      const msg='⚠ 同期エラー('+s+'): '+(error.message||JSON.stringify(error)).slice(0,60);
+      const now2=Date.now();
+      // メンテナンス表示中は画面上部の帯で知らせているので、保存のたびのトーストは出さない
+      if(!window._maint&&typeof toast==='function'&&(msg!==_lastErrMsg||now2-_lastErrTs>5000)){
+        toast(msg);_lastErrMsg=msg;_lastErrTs=now2;
       }
     };
     window.dbDel=async(s,id)=>{
+      // 未送信の保存が残っていると、削除したあとに復活してしまうので先に取り除く
+      if(_obMap.delete(s+':'+id))_obSave();
       const{error}=await SB.from(s).delete().eq('id',id);
       if(error){console.error('SB.dbDel',s,error);if(typeof toast==='function')toast('⚠ 削除エラー: '+(error.message||'').slice(0,60));}
     };
@@ -13702,6 +13804,7 @@ async function setupSB(){
         }
         window._syncFp=fp;
         window._lastSync=Date.now();
+        if(typeof window._applyOutbox==='function')window._applyOutbox();
         render();
       }catch(e){console.error('_syncNow',e);}
     };
