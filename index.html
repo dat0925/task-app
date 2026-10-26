@@ -3101,6 +3101,50 @@ function nextRepeat(task){
   return result;
 }
 
+// ===== 完了の連打対策 =====
+// チェック・スペース・完了ボタン・ダッシュボード・一括完了のどこから完了しても、
+// 連打や保存待ち（最大8秒）の間の再操作で、繰り返しの次回タスクが重複しないようにする
+const _doneBusy=new Set();          // 完了・解除を保存中のタスクID
+const _doneAt={};                   // タスクID → 最後に完了・解除を受け付けた時刻
+let _lastDoneAt=0,_lastDoneId=null; // 直近に完了したタスクと時刻
+const _spawning=new Set();          // 作成中の次回タスクのキー
+// 完了・解除の操作を受け付けてよいか
+function canToggleDone(id){
+  const t=Date.now();
+  if(_doneBusy.has(id))return false;                  // 保存中
+  if(t-(_doneAt[id]||0)<1000)return false;            // 同じタスクの1秒以内の再タップ（完了→即解除にしない）
+  if(id!==_lastDoneId&&t-_lastDoneAt<500)return false; // 完了直後0.5秒は別タスクも無視（行が繰り上がって下のタスクに当たるため）
+  return true;
+}
+function markDone(id,completed){const t=Date.now();_doneAt[id]=t;if(completed){_lastDoneAt=t;_lastDoneId=id;}}
+// 繰り返しの次回タスクを作る。同じ次回が既にある・作成中なら作らない。
+// S.tasks に載るのは保存完了後なので、並行して走る保存同士は _spawning で止める
+async function spawnNextRepeat(task){
+  if(!task.repeatRule||!task.dueAt||task.status!=='completed')return null; // 保存中に解除されていたら作らない
+  const next=nextRepeat(task);
+  if(!next)return null;
+  const key=[task.title||'',task.repeatRule,task.parentTaskId||'',next.dueAt].join('\u0001');
+  // 完了と完了解除を往復しても、同じ次回タスクを増やさない（解除側は作った分を消さない）
+  const dup=_spawning.has(key)||S.tasks.some(t=>t.id!==task.id&&t.dueAt===next.dueAt
+    &&t.repeatRule===task.repeatRule&&(t.title||'')===(task.title||'')
+    &&(t.parentTaskId||null)===(task.parentTaskId||null)
+    &&t.status!=='completed'&&t.status!=='archived');
+  if(dup)return next;
+  _spawning.add(key);
+  try{await saveTask(next);}finally{_spawning.delete(key);}
+  return next;
+}
+// 1件を完了にして、繰り返しなら次回を作る。既に完了・保存中なら何もしない（null を返す）
+async function completeTaskOnce(task){
+  if(task.status==='completed'||_doneBusy.has(task.id))return null;
+  markDone(task.id,true);_doneBusy.add(task.id);
+  try{
+    task.status='completed';task.completedAt=now();
+    await saveTask(task);
+    return{next:await spawnNextRepeat(task)};
+  }finally{_doneBusy.delete(task.id);markDone(task.id,true);}
+}
+
 // ===== SAVE STATUS =====
 let _saveTimer=null;
 function showSaveStatus(state){
@@ -9222,9 +9266,11 @@ async function handleBulkEdit(field){
     toast(tasks.length+'件を'+(anyUnflagged?'フラグ付き':'フラグなし')+'に設定しました');render();
   } else if(field==='complete'){
     openConfirmModal(tasks.length+'件を完了にする',tasks.length+'件のタスクを完了にしますか？',async()=>{
-      for(const t of tasks){t.status='completed';t.completedAt=now();await saveTask(t);}
+      // 完了済み・保存中のものは飛ばすので、確認を2回通しても次回タスクは増えない
+      let nextCnt=0;
+      for(const t of tasks){const r=await completeTaskOnce(t);if(r&&r.next)nextCnt++;}
       S.selectMode=false;S.selectedIds=[];
-      toast(tasks.length+'件を完了にしました');render();
+      toast(tasks.length+'件を完了にしました'+(nextCnt?'（繰り返しの次回 '+nextCnt+'件）':''));render();
     },'完了にする',false);
   } else if(field==='parent'){
     openSetParentModal(tasks.map(t=>t.id),async(parentId)=>{
@@ -9619,16 +9665,16 @@ else if(a==='db-complete'){
     e.stopPropagation();
     const tid=el.dataset.id;
     const task=S.tasks.find(t=>t.id===tid);
-    if(!task)return;
+    if(!task||task.status==='completed'||!canToggleDone(tid))return;
+    markDone(tid,false); // 消えるアニメーション（350ms）の間の再タップを無視
     el.style.background='var(--green)';
     el.style.borderColor='var(--green)';
     el.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
     const row=el.closest('.db-task-row');
     if(row){row.style.transition='opacity .35s,transform .35s';row.style.opacity='0';row.style.transform='translateX(8px)';}
     setTimeout(async()=>{
-      task.status='completed';
-      task.completedAt=new Date().toISOString();
-      await saveTask(task);
+      const r=await completeTaskOnce(task);
+      if(r&&r.next)toast('"'+task.title+'" 完了。次回: '+fmtDate(r.next.dueAt));
       render();
     },350);
   }
@@ -9726,32 +9772,28 @@ else if(a==='scroll-to-comments'){
     e.stopPropagation();
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(!task)return;
+    if(!canToggleDone(task.id))return; // 連打・保存中の再操作は無視
     if(task.status==='completed'){
-      task.status=task.projectId?'active':'inbox';task.completedAt=null;
-      await saveTask(task);
+      markDone(task.id,false);_doneBusy.add(task.id);
+      try{
+        task.status=task.projectId?'active':'inbox';task.completedAt=null;
+        await saveTask(task);
+      }finally{_doneBusy.delete(task.id);markDone(task.id,false);}
       redrawAfterRowAction(task);
     } else {
       const snap=JSON.stringify(task);
       const incompleteSubs=!task.parentTaskId?S.tasks.filter(t=>t.parentTaskId===task.id&&t.status!=='completed'):[];
       const doComplete=async()=>{
-        task.status='completed';task.completedAt=now();
-        await saveTask(task);
+        const r=await completeTaskOnce(task);
+        if(!r)return; // 確認モーダルが重なった・保存中
         // サブタスクも完了にする
         if(!task.parentTaskId){
           const subs=S.tasks.filter(t=>t.parentTaskId===task.id&&t.status!=='completed');
           for(const sub of subs){sub.status='completed';sub.completedAt=now();await saveTask(sub);}
         }
         playSE('complete');
-        if(task.repeatRule&&task.dueAt&&task.status==='completed'){ // status確認: 非同期処理中にundoされていたらnextRepeatしない
-          const next=nextRepeat(task);
-          // 次回タスクが既にある場合は作らない。完了と完了解除を往復すると
-          // 完了するたびに同じ次回タスクが1件ずつ増えてしまう（解除側は作った分を消さない）
-          const dup=next&&S.tasks.some(t=>t.id!==task.id&&t.dueAt===next.dueAt
-            &&t.repeatRule===task.repeatRule&&(t.title||'')===(task.title||'')
-            &&(t.parentTaskId||null)===(task.parentTaskId||null)
-            &&t.status!=='completed'&&t.status!=='archived');
-          if(next&&!dup)await saveTask(next);
-          if(next)toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt));
+        if(task.repeatRule&&task.dueAt){
+          if(r.next)toast('"'+task.title+'" 完了。次回: '+fmtDate(r.next.dueAt));
           else toast('"'+task.title+'" 完了 ✓');
         } else {
           toast('"'+(task.title||'無題')+'" 完了 ✓',async()=>{
@@ -9765,8 +9807,10 @@ else if(a==='scroll-to-comments'){
         }
         if(!task.parentTaskId&&S.taskId===task.id){S.drawerOpen=false;S.taskId=null}
         redrawAfterRowAction(task);
+        markDone(task.id,true); // 行が消えて繰り上がった時点から 0.5秒を数える
       };
       if(incompleteSubs.length>0){
+        markDone(task.id,false); // 1秒以内の再タップで確認モーダルを重ねない
         openConfirmModal('未完了のサブタスクがあります',incompleteSubs.length+'件の未完了サブタスクがあります。完了にするとサブタスクもすべて完了になります。',doComplete,'完了にする',false);
       } else {
         await doComplete();
@@ -10313,20 +10357,27 @@ else if(a==='scroll-to-comments'){
   }
   else if(a==='complete'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
-    if(task){
-      task.status='completed';task.completedAt=now();await saveTask(task);
-      if(task.repeatRule&&task.dueAt&&task.status==='completed'){const next=nextRepeat(task);if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}}
-      S.drawerOpen=false;S.taskId=null;render();
+    if(task&&canToggleDone(task.id)){
+      const r=await completeTaskOnce(task);
+      if(r){
+        if(r.next)toast('"'+task.title+'" 完了。次回: '+fmtDate(r.next.dueAt));
+        S.drawerOpen=false;S.taskId=null;render();
+      }
     }
   }
   else if(a==='complete-confirm'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
-    if(!task)return;
-    openConfirmModal('タスクを完了','"'+(task.title||'無題')+'" を完了にしますか？',async()=>{
-      task.status='completed';task.completedAt=now();await saveTask(task);playSE('complete');
-      if(task.repeatRule&&task.dueAt&&task.status==='completed'){const next=nextRepeat(task);if(next){await saveTask(next);toast('"'+task.title+'" 完了。次回: '+fmtDate(next.dueAt))}}
+    if(!task||task.status==='completed'||!canToggleDone(task.id))return;
+    // 2回押しても確認モーダルを重ねない（2枚とも「完了にする」を押すと次回タスクが2件できていた）
+    if(document.querySelector('.overlay[data-done-confirm="'+task.id+'"]'))return;
+    const ov=openConfirmModal('タスクを完了','"'+(task.title||'無題')+'" を完了にしますか？',async()=>{
+      const r=await completeTaskOnce(task);
+      if(!r)return;
+      playSE('complete');
+      if(r.next)toast('"'+task.title+'" 完了。次回: '+fmtDate(r.next.dueAt));
       S.drawerOpen=false;S.taskId=null;render();
     },'完了にする',false);
+    if(ov)ov.dataset.doneConfirm=task.id;
   }
   else if(a==='del-confirm-hdr'){
     const id=el.dataset.id;
@@ -11103,6 +11154,7 @@ document.addEventListener('keydown',e=>{
       const active=document.activeElement;
       if(active&&active.matches('input,textarea,select,[contenteditable]'))return;
       e.preventDefault();
+      if(e.repeat)return; // 押しっぱなしで完了⇔解除が往復しないように
       const chkBtn=document.querySelector('.trow[data-id="'+S.taskId+'"] .chk');
       if(chkBtn)chkBtn.click();
     }
@@ -11669,6 +11721,7 @@ function openConfirmModal(title,message,onOk,okLabel='削除',danger=true){
   });
   // オーバーレイ外クリックで閉じる
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  return ov;
 }
 
 function showNewProjectModal(workspaceId=null){
