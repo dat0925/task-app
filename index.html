@@ -166,6 +166,8 @@ a.bm-title:hover{color:var(--accent);text-decoration:underline}
 .chip-date{background:var(--blue-bg);color:var(--blue)}
 .chip-pri{background:var(--accent-bg);color:var(--accent)}
 .chip-tag{background:var(--purple-bg);color:var(--purple)}
+.chip-suggest{background:transparent;color:var(--purple);border:1.5px dashed var(--purple);cursor:pointer}
+.chip-suggest.off{opacity:.38;text-decoration:line-through}
 
 /* Content */
 .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -9367,6 +9369,16 @@ function renderInstant(){
 }
 
 // ===== QUICK ADD =====
+// タグ自動提案（試作）: #タグ未指定のとき、過去の「タイトル→タグ」履歴から候補を1つだけ提案する。
+// 判定は src/lib/tag-suggest.js（端末内のみ・外部送信なし）。チップは採用状態で表示し、タップで外せる。
+let _qaTagSuggest=null;
+let _qaTagModel=null,_qaTagModelSig='';
+function qaSuggestTagFor(title){
+  if(!window.TagSuggest||!title)return null;
+  const sig=S.tasks.length+':'+S.tags.length;
+  if(_qaTagModelSig!==sig){_qaTagModel=TagSuggest.buildTagModel(S.tasks,S.tags);_qaTagModelSig=sig;}
+  return TagSuggest.suggestTag(title,S.tags,_qaTagModel);
+}
 function setupQA(){
   const inp=document.getElementById('qainput');
   const btn=document.getElementById('qabtn');
@@ -9387,7 +9399,15 @@ function setupQA(){
     if(p.dueAt)h+='<span class="chip chip-date">📅 '+fmtDate(p.dueAt)+'</span>';
     if(p.priority<4)h+='<span class="chip chip-pri">P'+p.priority+'</span>';
     p.tagIds.forEach(id=>{const t=S.tags.find(x=>x.id===id);if(t)h+='<span class="chip chip-tag">#'+esc(t.name)+'</span>'});
+    // タグ自動提案チップ（#タグ指定が無いときだけ。採用が初期状態で、タップで外せる）
+    _qaTagSuggest=null;
+    if(!p.tagIds.length&&!(p._newTagNames&&p._newTagNames.length)&&p.title){
+      const sg=qaSuggestTagFor(p.title);
+      if(sg){const t=S.tags.find(x=>x.id===sg.tagId);if(t){_qaTagSuggest={tagId:t.id,accepted:true};h+='<span class="chip chip-tag chip-suggest" id="qasuggest" title="タップで提案を外す">#'+esc(t.name)+' <span style="font-size:9px;opacity:.75">自動提案</span> ✕</span>';}}
+    }
     chips.innerHTML=h;
+    const sgEl=document.getElementById('qasuggest');
+    if(sgEl)sgEl.addEventListener('click',()=>{if(!_qaTagSuggest)return;_qaTagSuggest.accepted=!_qaTagSuggest.accepted;sgEl.classList.toggle('off',!_qaTagSuggest.accepted);});
     btn.style.display=inp.value.trim()?'':'none';
   });
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submitQA()}});
@@ -9409,6 +9429,8 @@ function submitQA(){
       p.tagIds.push(nt.id);
     }
   }
+  // タグ自動提案の採用（#タグ指定が無く、チップが採用状態のままのとき）
+  if(!p.tagIds.length&&_qaTagSuggest&&_qaTagSuggest.accepted)p.tagIds=[_qaTagSuggest.tagId];
   const _t=today();
   const _d3=ymdShift(3);
   if(!p.dueAt)p.dueAt=_d3;
@@ -9421,6 +9443,7 @@ function submitQA(){
   // 入力欄はここで同期的に空になるので、2回目のタップは先頭の空チェックで止まり、1回の入力から作られるタスクは必ず1件（IDも1つ）になる
   S.tasks.push(task);
   inp.value='';
+  _qaTagSuggest=null;
   document.getElementById('qachips').innerHTML='';
   document.getElementById('qabtn').style.display='none';
   playSE('add');
@@ -13951,6 +13974,7 @@ setupSB();
 
 <!-- シークレットメモ（E2EE フェーズ1）。純関数の暗号ユーティリティを別モジュールに分離。
      secret_note は検索・AI・LINE通知の対象外。詳細は src/secret-memo.js / src/lib/crypto.js 参照。 -->
+<script type="module">import * as TagSuggest from './src/lib/tag-suggest.js';window.TagSuggest=TagSuggest;</script>
 <script type="module" src="src/secret-memo.js"></script>
 
 
