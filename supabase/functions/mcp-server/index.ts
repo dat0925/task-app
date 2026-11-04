@@ -272,6 +272,95 @@ async function addSubtask(userId: string, a: any) {
   return { added: a.title + '（' + parent.title + 'のサブタスク）' };
 }
 
+// ── 繰り返しの次回期限計算（アプリ版 nextRepeat の移植） ─────────────
+// アプリ（index.html）の nextRepeat と同じ結果になること。未知のルールでは null。
+function nextRepeatDue(dueAt: string, rule: string): string | null {
+  const [dy, dm, dd] = dueAt.split('-').map(Number);
+  const d = new Date(Date.UTC(dy, dm - 1, dd));
+  if (rule === 'daily') d.setUTCDate(d.getUTCDate() + 1);
+  else if (rule === 'weekly') d.setUTCDate(d.getUTCDate() + 7);
+  else if (rule === 'monthly') d.setUTCMonth(d.getUTCMonth() + 1);
+  else if (rule === 'yearly') d.setUTCFullYear(d.getUTCFullYear() + 1);
+  else if (rule === 'weekdays') { do { d.setUTCDate(d.getUTCDate() + 1); } while (d.getUTCDay() === 0 || d.getUTCDay() === 6); }
+  else if (rule.startsWith('weekly:')) {
+    const DAY_MAP: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+    const days = rule.slice(7).split(',').map((x) => DAY_MAP[x]).filter((x) => x !== undefined).sort((a, b) => a - b);
+    if (!days.length) return null;
+    d.setUTCDate(d.getUTCDate() + 1);
+    for (let i = 0; i < 14; i++) { if (days.includes(d.getUTCDay())) break; d.setUTCDate(d.getUTCDate() + 1); }
+  }
+  else if (rule.startsWith('monthly:')) {
+    // 複数日対応: monthly:12,18,21（アプリ版と同じく末日で丸める）
+    const targetDays = rule.slice(8).split(',').map(Number).filter((n) => n >= 1 && n <= 31).sort((a, b) => a - b);
+    if (!targetDays.length) return null;
+    const curDay = d.getUTCDate();
+    const curMonth = d.getUTCMonth();
+    const curYear = d.getUTCFullYear();
+    let found = false;
+    for (let mOffset = 0; mOffset <= 2 && !found; mOffset++) {
+      const tryMonth = curMonth + mOffset;
+      const tryYear = curYear + Math.floor(tryMonth / 12);
+      const tryMonthMod = tryMonth % 12;
+      const maxDay = new Date(Date.UTC(tryYear, tryMonthMod + 1, 0)).getUTCDate();
+      for (const td of targetDays) {
+        const actualDay = Math.min(td, maxDay);
+        if (mOffset === 0 && actualDay <= curDay) continue;
+        d.setUTCFullYear(tryYear, tryMonthMod, actualDay);
+        found = true; break;
+      }
+    }
+    if (!found) return null;
+  }
+  else return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function shiftDateStr(dateStr: string, shiftMs: number): string {
+  const [y, m, dd] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, dd) + shiftMs).toISOString().slice(0, 10);
+}
+
+// タスクを完了し、繰り返しならアプリと同じルールで次回タスクを生成する。
+// update_task の status='completed' では次回は作られないため、完了は原則こちらを使う。
+async function completeTask(userId: string, a: any) {
+  if (!a.task_id) return { error: 'task_idが必要です' };
+  const { data: t } = await sb.from('tasks').select('*').eq('user_id', userId).eq('id', a.task_id).maybeSingle();
+  if (!t) return { error: '対象のタスクが見つかりません' };
+  if (t.status === 'completed') return { completed: t.title, already_completed: true };
+  const ts = now();
+  const { error: upErr } = await sb.from('tasks').update({ status: 'completed', completed_at: ts, updated_at: ts }).eq('id', t.id);
+  if (upErr) throw upErr;
+  const out: Record<string, unknown> = { completed: t.title };
+  if (t.repeat_rule && t.due_at) {
+    const dueDate = String(t.due_at).slice(0, 10);
+    const nextDue = nextRepeatDue(dueDate, t.repeat_rule);
+    if (nextDue) {
+      // 重複チェック（アプリ版 spawnNextRepeat と同じ条件：同タイトル・同ルール・同親・同次回期限で未完了のものがあれば作らない）
+      let q = sb.from('tasks').select('id').eq('user_id', userId)
+        .eq('title', t.title).eq('repeat_rule', t.repeat_rule).eq('due_at', nextDue)
+        .not('status', 'in', '("completed","archived")');
+      q = t.parent_task_id ? q.eq('parent_task_id', t.parent_task_id) : q.is('parent_task_id', null);
+      const { data: dups } = await q.limit(1);
+      if (dups && dups.length) {
+        out.next = { due_at: nextDue, already_exists: true };
+      } else {
+        const [dy, dm, dd] = dueDate.split('-').map(Number);
+        const shift = new Date(nextDue + 'T00:00:00Z').getTime() - Date.UTC(dy, dm - 1, dd);
+        const row: Record<string, unknown> = {
+          ...t, id: genId(), status: 'active', completed_at: null,
+          created_at: ts, updated_at: ts, synced_at: ts,
+          due_at: nextDue, planned_start_at: jstDate(0),
+        };
+        if (t.start_at) row.start_at = shiftDateStr(String(t.start_at).slice(0, 10), shift);
+        const { error: insErr } = await sb.from('tasks').insert(row);
+        if (insErr) throw insErr;
+        out.next = { id: row.id, due_at: nextDue };
+      }
+    }
+  }
+  return out;
+}
+
 // ── MCPツール定義（tools/list用） ───────────────────────────────────
 const TOOLS = [
   {
@@ -330,6 +419,17 @@ const TOOLS = [
         append_note: { type: 'string', description: 'notesへの追記' },
         status: { type: 'string', enum: ['active', 'inbox', 'completed', 'archived'], description: '完了にする場合はcompleted。未完了に戻す場合はactive/inbox。アーカイブはarchived' },
       },
+    },
+  },
+  {
+    name: 'complete_task',
+    description: 'タスクを完了する。繰り返しタスクの場合はアプリと同じルールで次回タスクを自動生成する（update_taskのstatus=completedでは次回は作られないので、完了にはこちらを使う）。既に完了済みの場合は何もしない',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task_id: { type: 'string' },
+      },
+      required: ['task_id'],
     },
   },
   {
@@ -407,6 +507,7 @@ async function callTool(userId: string, name: string, a: any) {
     case 'list_tasks': return await listTasks(userId, a);
     case 'add_task': return await addTask(userId, a);
     case 'update_task': return await updateTask(userId, a);
+    case 'complete_task': return await completeTask(userId, a);
     case 'delete_task': return await deleteTask(userId, a);
     case 'add_subtask': return await addSubtask(userId, a);
     case 'list_projects': return await listProjects(userId);
