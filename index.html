@@ -177,6 +177,28 @@ a.bm-title:hover{color:var(--accent);text-decoration:underline}
 #ptr-spinner.spinning{animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* Skeleton（初回読み込み中） */
+/* 起動直後はデータ取得が終わるまで #content と #sidenav が空で、「読み込み中か
+   固まったのか分からない」状態だった。静的HTMLに骨組みを置いておき、最初の
+   render()/renderSidebar() が innerHTML を差し替えた時点で自然に消える。
+   同期（loadAll→render）のたびに出すものではないので、JSからは表示しない。 */
+.skel-b{border-radius:6px;background:linear-gradient(100deg,var(--bg3) 40%,var(--bg2) 50%,var(--bg3) 60%);background-size:200% 100%;animation:skel-shimmer 1.2s linear infinite}
+@keyframes skel-shimmer{from{background-position:180% 0}to{background-position:-20% 0}}
+.skel-list{padding:8px 16px 80px}
+.skel-sec{width:88px;height:11px;margin:14px 0 8px}
+.skel-row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;margin-bottom:2px}
+.skel-chk{width:24px;height:24px;min-width:24px;border-radius:50%;flex-shrink:0;margin-top:2px}
+.skel-body{flex:1;min-width:0}
+.skel-title{height:13px;margin-top:3px}
+.skel-meta{display:flex;gap:5px;margin-top:7px}
+.skel-chip{height:15px;border-radius:4px}
+.skel-nav{padding:6px 10px;display:flex;flex-direction:column;gap:4px}
+.skel-nav-row{display:flex;align-items:center;gap:9px;padding:7px 8px}
+.skel-nav-ico{width:18px;height:18px;border-radius:5px;flex-shrink:0}
+.skel-nav-txt{height:12px}
+.skel-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media(prefers-reduced-motion:reduce){.skel-b{animation:none}}
+
 /* Task List */
 .tlist{padding:8px 16px 80px}
 .tsec-head{display:flex;align-items:center;gap:6px;padding:10px 0 3px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);cursor:pointer}
@@ -1249,7 +1271,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="logo"><img src="icon-192.png" alt="Taskra"></div>
       <span class="app-name">Taskra</span>
     </div>
-    <div class="sidebar-body" id="sidenav"></div>
+    <div class="sidebar-body" id="sidenav"><div class="skel-nav" aria-hidden="true"><div class="skel-nav-row"><div class="skel-b skel-nav-ico"></div><div class="skel-b skel-nav-txt" style="width:62%"></div></div><div class="skel-nav-row"><div class="skel-b skel-nav-ico"></div><div class="skel-b skel-nav-txt" style="width:44%"></div></div><div class="skel-nav-row"><div class="skel-b skel-nav-ico"></div><div class="skel-b skel-nav-txt" style="width:55%"></div></div><div class="skel-nav-row"><div class="skel-b skel-nav-ico"></div><div class="skel-b skel-nav-txt" style="width:48%"></div></div><div class="skel-nav-row"><div class="skel-b skel-nav-ico"></div><div class="skel-b skel-nav-txt" style="width:58%"></div></div><div class="skel-nav-row"><div class="skel-b skel-nav-ico"></div><div class="skel-b skel-nav-txt" style="width:40%"></div></div></div></div>
     <div class="sidebar-foot" id="sidebar-foot">
       <button class="sidebar-user-btn" id="sidebar-user-btn" aria-label="ユーザーメニュー">
         <div class="sidebar-avatar" id="sidebar-avatar">?</div>
@@ -1302,6 +1324,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div id="task-filters" style="display:none"></div>
     <div class="content" id="content" style="position:relative">
       <div id="ptr-indicator"><div id="ptr-spinner"></div><span id="ptr-label">引っ張って更新</span></div>
+      <div class="skel-list" id="skel-list" role="status"><span class="skel-sr">読み込み中…</span><div class="skel-b skel-sec"></div><div class="skel-row"><div class="skel-b skel-chk"></div><div class="skel-body"><div class="skel-b skel-title" style="width:72%"></div><div class="skel-meta"><div class="skel-b skel-chip" style="width:52px"></div><div class="skel-b skel-chip" style="width:38px"></div></div></div></div><div class="skel-row"><div class="skel-b skel-chk"></div><div class="skel-body"><div class="skel-b skel-title" style="width:54%"></div><div class="skel-meta"><div class="skel-b skel-chip" style="width:44px"></div></div></div></div><div class="skel-row"><div class="skel-b skel-chk"></div><div class="skel-body"><div class="skel-b skel-title" style="width:83%"></div><div class="skel-meta"><div class="skel-b skel-chip" style="width:60px"></div><div class="skel-b skel-chip" style="width:34px"></div></div></div></div><div class="skel-row"><div class="skel-b skel-chk"></div><div class="skel-body"><div class="skel-b skel-title" style="width:63%"></div><div class="skel-meta"><div class="skel-b skel-chip" style="width:40px"></div></div></div></div><div class="skel-b skel-sec"></div><div class="skel-row"><div class="skel-b skel-chk"></div><div class="skel-body"><div class="skel-b skel-title" style="width:47%"></div><div class="skel-meta"><div class="skel-b skel-chip" style="width:50px"></div></div></div></div><div class="skel-row"><div class="skel-b skel-chk"></div><div class="skel-body"><div class="skel-b skel-title" style="width:68%"></div><div class="skel-meta"><div class="skel-b skel-chip" style="width:36px"></div><div class="skel-b skel-chip" style="width:46px"></div></div></div></div><div class="skel-row"><div class="skel-b skel-chk"></div><div class="skel-body"><div class="skel-b skel-title" style="width:58%"></div><div class="skel-meta"><div class="skel-b skel-chip" style="width:42px"></div></div></div></div></div>
     </div>
   </div>
 
