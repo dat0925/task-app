@@ -199,21 +199,22 @@ a.bm-title:hover{color:var(--accent);text-decoration:underline}
 .skel-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media(prefers-reduced-motion:reduce){.skel-b{animation:none}}
 
-/* View Transition（ビュー切替アニメーション・試作 2026-11-12） */
+/* View Transition（ビュー切替アニメーション・試作 2026-11-12、修正版） */
 /* 対象は #content と #viewTitle だけ。ルート（画面全体）はアニメーションさせず、
    サイドバーやトップバーは今までどおり即時に切り替わる。
    発火条件はJS側（renderContent）で「ビューが変わったときだけ」に絞る。
-   同期（120秒ポーリング等）や同じビュー内の再描画では包まない。 */
+   同期（120秒ポーリング等）や同じビュー内の再描画では包まない。
+   修正版の方針（初版の実機動画で文字が二重に透けて読めなくなったため）:
+   旧画面は最初から出さない（クロスフェードしない＝二重露光しない）、
+   新画面だけを 0.15秒のフェードインで出す。上下の移動も付けない。 */
 #content{view-transition-name:vt-content}
 #viewTitle{view-transition-name:vt-title}
 ::view-transition-old(root),::view-transition-new(root){animation:none}
-::view-transition-old(vt-content){animation:vt-out .16s ease-out}
-::view-transition-new(vt-content){animation:vt-in .22s ease-out}
-::view-transition-old(vt-title){animation:vt-fade-out .18s ease}
-::view-transition-new(vt-title){animation:vt-fade-in .18s ease}
-@keyframes vt-out{to{opacity:0;transform:translateY(-4px)}}
-@keyframes vt-in{from{opacity:0;transform:translateY(6px)}}
-@keyframes vt-fade-out{to{opacity:0}}
+::view-transition-old(vt-content){animation:vt-none .15s linear both}
+::view-transition-new(vt-content){animation:vt-fade-in .15s ease-out}
+::view-transition-old(vt-title){animation:vt-none .15s linear both}
+::view-transition-new(vt-title){animation:vt-fade-in .15s ease}
+@keyframes vt-none{from,to{opacity:0}}
 @keyframes vt-fade-in{from{opacity:0}}
 @media(prefers-reduced-motion:reduce){::view-transition-old(vt-content),::view-transition-new(vt-content),::view-transition-old(vt-title),::view-transition-new(vt-title){animation:none}}
 
@@ -5898,7 +5899,10 @@ function bmOpenImportModal(parsed,fileName){
 // 包まない（スケルトンを同期で出さないのと同じ理由：チラつきと操作感の悪化を避ける）。
 // 初回描画（_vtLastKey が null）はスケルトンの置換なので包まない。
 // 非対応ブラウザ・背面タブ・prefers-reduced-motion では通常描画にフォールバックする。
-let _vtLastKey=null,_vtApplying=false;
+// モバイルでサイドバーを開いたまま切り替えるときは _vtSkipNext が立ち、1回だけ包まない
+// （VTの映像は最前面レイヤーに出るため、サイドバーの開閉アニメーションと重なって
+// 　文字が二重に透けて見えた。サイドバーが閉じる動き自体が遷移として見えるので不要）。
+let _vtLastKey=null,_vtApplying=false,_vtSkipNext=false;
 function _vtViewKey(){return [S.view,S.projId||'',S.tagId||'',S.forecastDate||''].join('|');}
 
 function renderContent(){
@@ -5906,7 +5910,8 @@ function renderContent(){
     const _vk=_vtViewKey();
     const _vtChanged=_vtLastKey!==null&&_vk!==_vtLastKey;
     _vtLastKey=_vk;
-    if(_vtChanged&&document.visibilityState==='visible'&&typeof document.startViewTransition==='function'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    const _vtSkip=_vtSkipNext;_vtSkipNext=false;
+    if(_vtChanged&&!_vtSkip&&document.visibilityState==='visible'&&typeof document.startViewTransition==='function'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
       try{
         document.startViewTransition(()=>{_vtApplying=true;try{renderContent();}finally{_vtApplying=false;}});
         return;
@@ -9562,7 +9567,7 @@ document.addEventListener('click',async e=>{
   if(!_noDebounce.has(a)){const _now=Date.now();if(_now-_lastActionAt<350)return;_lastActionAt=_now;}
 
   if(a==='open-folder-path'){if(_touchMoved)return;e.stopPropagation();openFolderPathAction(el.dataset.path||'');}
-  else if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob){playSE('toggle');_tappingView=el.dataset.v;if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{_tappingView=null;S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
+  else if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob&&S.sidebarOpen)_vtSkipNext=true;if(_isMob){playSE('toggle');_tappingView=el.dataset.v;if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{_tappingView=null;S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
   else if(a==='forecast-day'){if(_touchMoved)return;S.view='forecast-day';S.forecastDate=el.dataset.date;S.projId=null;S.tagId=null;render();}
   else if(a==='tog-fc-overdue'){if(_touchMoved)return;S.fcOverdueOpen=!S.fcOverdueOpen;render();}
   else if(a==='fc-overdue-today'){
@@ -9577,8 +9582,8 @@ document.addEventListener('click',async e=>{
       render();
     })();
   }
-  else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
-  else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
+  else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&S.sidebarOpen)_vtSkipNext=true;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
+  else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768&&S.sidebarOpen)_vtSkipNext=true;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='shared-projs-toggle'){playSE('toggle');S.sharedProjsOpen=!S.sharedProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='views-toggle'){if(_touchMoved)return;if(window.innerWidth<=768&&!_touchTargetIsChev)return;playSE('toggle');S.viewsOpen=!S.viewsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
