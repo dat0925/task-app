@@ -199,6 +199,24 @@ a.bm-title:hover{color:var(--accent);text-decoration:underline}
 .skel-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media(prefers-reduced-motion:reduce){.skel-b{animation:none}}
 
+/* View Transition（ビュー切替アニメーション・試作 2026-11-12） */
+/* 対象は #content と #viewTitle だけ。ルート（画面全体）はアニメーションさせず、
+   サイドバーやトップバーは今までどおり即時に切り替わる。
+   発火条件はJS側（renderContent）で「ビューが変わったときだけ」に絞る。
+   同期（120秒ポーリング等）や同じビュー内の再描画では包まない。 */
+#content{view-transition-name:vt-content}
+#viewTitle{view-transition-name:vt-title}
+::view-transition-old(root),::view-transition-new(root){animation:none}
+::view-transition-old(vt-content){animation:vt-out .16s ease-out}
+::view-transition-new(vt-content){animation:vt-in .22s ease-out}
+::view-transition-old(vt-title){animation:vt-fade-out .18s ease}
+::view-transition-new(vt-title){animation:vt-fade-in .18s ease}
+@keyframes vt-out{to{opacity:0;transform:translateY(-4px)}}
+@keyframes vt-in{from{opacity:0;transform:translateY(6px)}}
+@keyframes vt-fade-out{to{opacity:0}}
+@keyframes vt-fade-in{from{opacity:0}}
+@media(prefers-reduced-motion:reduce){::view-transition-old(vt-content),::view-transition-new(vt-content),::view-transition-old(vt-title),::view-transition-new(vt-title){animation:none}}
+
 /* Task List */
 .tlist{padding:8px 16px 80px}
 .tsec-head{display:flex;align-items:center;gap:6px;padding:10px 0 3px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);cursor:pointer}
@@ -5873,7 +5891,28 @@ function bmOpenImportModal(parsed,fileName){
   };
 }
 
+// ===== VIEW TRANSITION（ビュー切替アニメーション・試作）=====
+// renderContent() の入口でビューの同一性（view＋projId＋tagId＋forecastDate）を
+// 前回と比較し、変わったときだけ startViewTransition で本来の描画を包む。
+// 同一ビュー内の再描画（完了チェック・絞り込み・検索入力・120秒ポーリング同期）は
+// 包まない（スケルトンを同期で出さないのと同じ理由：チラつきと操作感の悪化を避ける）。
+// 初回描画（_vtLastKey が null）はスケルトンの置換なので包まない。
+// 非対応ブラウザ・背面タブ・prefers-reduced-motion では通常描画にフォールバックする。
+let _vtLastKey=null,_vtApplying=false;
+function _vtViewKey(){return [S.view,S.projId||'',S.tagId||'',S.forecastDate||''].join('|');}
+
 function renderContent(){
+  if(!_vtApplying){
+    const _vk=_vtViewKey();
+    const _vtChanged=_vtLastKey!==null&&_vk!==_vtLastKey;
+    _vtLastKey=_vk;
+    if(_vtChanged&&document.visibilityState==='visible'&&typeof document.startViewTransition==='function'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      try{
+        document.startViewTransition(()=>{_vtApplying=true;try{renderContent();}finally{_vtApplying=false;}});
+        return;
+      }catch(e){/* 非対応・失敗時は通常描画にフォールバック */}
+    }
+  }
   const el=document.getElementById('content');
   applyViewFilterDefaults(S.view);
   const titles={dashboard:'Dashboard',inbox:'Inbox',today:'Today',overdue:'Overdue',upcoming:'Upcoming',forecast:'Forecast',flagged:'Flagged',assigned:'Assigned',review:'Review',search:'Search',completed:'Logbook',notes:'Notes',bookmarks:'Bookmarks',nextview:'Next',gantt:'Gantt',
