@@ -883,6 +883,16 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   clip-path:inset(0 100% 0 0);
   transition:clip-path .2s;
 }
+.task-swipe-tomorrow-bg.full{width:100%;background:#d97706;justify-content:flex-start;padding-left:18px;}
+/* 行の下余白はラッパーの外へ（背景レイヤーと行の高さを一致させ、下部の線を防ぐ） */
+.note-swipe-wrap[data-task-swipe-id]{margin-bottom:2px}
+.note-swipe-wrap[data-task-swipe-id] .trow{margin-bottom:0}
+/* 長押しメニュー：時刻ずらしチップ */
+.time-shift-chips{display:flex;gap:6px;flex-wrap:wrap;padding:4px 6px 6px}
+.proj-edit-popup button.shift-chip{width:auto;flex-direction:column;align-items:center;gap:1px;padding:7px 11px;border:1px solid var(--border);border-radius:999px;font-size:12px;background:var(--bg2)}
+.proj-edit-popup button.shift-chip small{font-size:10px;color:var(--sub)}
+.proj-edit-popup button.shift-chip:disabled{opacity:.38;cursor:default}
+.time-shift-note{font-size:10px;color:var(--sub);padding:0 12px 6px;line-height:1.5}
 /* AI button in topbar (PC専用。モバイルは下部ナビのAIボタンに統合済みのため非表示) */
 .ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#a78bfa);color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation;transition:opacity .15s,transform .15s}
 .ai-topbar-btn:hover{opacity:.85;transform:scale(1.05)}
@@ -4054,6 +4064,34 @@ async function postponeTaskToTomorrow(taskId){
   toast('"'+(task.title||'無題')+'" を明日へずらしました',async()=>{await saveTask(JSON.parse(snap));render();});
 }
 
+// 長押しメニュー「開始時刻をずらす」：ずらし先を計算（対象外は null）
+// 時刻あり → 開始時刻をそのまま+X分（日を跨いだら開始日も+1）
+// 時刻なし → 「今からX分後」に開始（スヌーズ）。開始日が未来のものは対象外
+function computeShiftDest(t,minutes){
+  const pad2=n=>String(n).padStart(2,'0');
+  if(t.startTime){
+    const base=t.startAt||ymd(new Date());
+    const parts=String(t.startTime).split(':');const h=parseInt(parts[0],10)||0,m=parseInt(parts[1],10)||0;
+    const d=new Date(base+'T00:00:00');d.setHours(h,m+minutes,0,0);
+    return {date:ymd(d),time:pad2(d.getHours())+':'+pad2(d.getMinutes())};
+  }
+  const today=ymd(new Date());
+  if(t.startAt&&t.startAt>today)return null;
+  const d=new Date(Date.now()+minutes*60000);
+  return {date:ymd(d),time:pad2(d.getHours())+':'+pad2(d.getMinutes())};
+}
+async function shiftTaskTime(taskId,minutes){
+  const task=S.tasks.find(t=>t.id===taskId);if(!task)return;
+  const dest=computeShiftDest(task,minutes);if(!dest)return;
+  const snap=JSON.stringify(task);
+  task.startAt=dest.date;task.startTime=dest.time;task.plannedStartAt=dest.date;
+  if(task.dueAt&&task.dueAt<dest.date)task.dueAt=dest.date;
+  task.updatedAt=now();
+  await saveTask(task);
+  render();
+  toast('開始を '+dest.time+' にずらしました',async()=>{await saveTask(JSON.parse(snap));render();});
+}
+
 // タスク一覧スワイプ（左=完了/戻す、右=明日へ、長い左=即完了）
 function initTaskSwipe(container){
   container.querySelectorAll('.note-swipe-wrap[data-task-swipe-id]').forEach(wrap=>{
@@ -4062,12 +4100,12 @@ function initTaskSwipe(container){
     if(!inner||!taskId)return;
     const THRESH=72;
     const fullAt=()=>Math.max(180,(wrap.offsetWidth||320)*0.55);
-    let sx=0,sy=0,dx=0,active=false,opened=false,openedRight=false,fullArmed=false;
+    let sx=0,sy=0,dx=0,active=false,opened=false,openedRight=false,fullArmed=false,fullArmedR=false;
     const bgC=()=>wrap.querySelector('.task-swipe-complete-bg');
     const bgT=()=>wrap.querySelector('.task-swipe-tomorrow-bg');
     const hideBg=el=>{if(el){el.style.clipPath=el.classList.contains('task-swipe-tomorrow-bg')?'inset(0 100% 0 0)':'inset(0 0 0 100%)';el.style.pointerEvents='none';el.classList.remove('full');}};
     const showBg=(el,pe)=>{if(el){el.style.clipPath='inset(0 0 0 0)';el.style.pointerEvents=pe?'auto':'none';if(pe)el.style.cursor='pointer';}};
-    const closeBoth=()=>{opened=false;openedRight=false;fullArmed=false;inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';inner.style.transform='';hideBg(bgC());hideBg(bgT());};
+    const closeBoth=()=>{opened=false;openedRight=false;fullArmed=false;fullArmedR=false;inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';inner.style.transform='';hideBg(bgC());hideBg(bgT());};
 
     inner.addEventListener('touchstart',e=>{
       if(e.touches.length>1)return;
@@ -4084,7 +4122,7 @@ function initTaskSwipe(container){
       if(dy>Math.abs(dx)*1.5){active=false;inner.classList.remove('swiping');inner.style.transform=opened?'translateX(-'+THRESH+'px)':openedRight?'translateX('+THRESH+'px)':'';return;}
       const base=opened?-THRESH:openedRight?THRESH:0;
       const pos=dx+base;
-      const tx=Math.max(-fullAt()-40,Math.min(THRESH+20,pos));
+      const tx=Math.max(-fullAt()-40,Math.min(fullAt()+40,pos));
       inner.style.transform='translateX('+tx+'px)';
       // 背景はドラッグ量に応じて少しずつ覗かせる（開く前から行き先が見えるように）
       const c=bgC(),t=bgT();
@@ -4094,6 +4132,9 @@ function initTaskSwipe(container){
       const isFull=pos<=-fullAt();
       if(isFull&&!fullArmed){fullArmed=true;if(c){c.classList.add('full');showBg(c,false);}try{navigator.vibrate&&navigator.vibrate(10);}catch(_e){}}
       else if(!isFull&&fullArmed){fullArmed=false;if(c)c.classList.remove('full');}
+      const isFullR=pos>=fullAt()&&!!t;
+      if(isFullR&&!fullArmedR){fullArmedR=true;t.classList.add('full');showBg(t,false);try{navigator.vibrate&&navigator.vibrate(10);}catch(_e){}}
+      else if(!isFullR&&fullArmedR){fullArmedR=false;if(t)t.classList.remove('full');}
     },{passive:true});
 
     inner.addEventListener('touchend',async e=>{
@@ -4110,6 +4151,12 @@ function initTaskSwipe(container){
         closeBoth();
         const chkBtn=wrap.querySelector('.chk');
         if(chkBtn)chkBtn.click();
+        return;
+      }
+      if(!opened&&!openedRight&&pos>=fullAt()&&t){
+        // 右フルスワイプ → そのまま明日へ（Undo トーストが出る）
+        closeBoth();
+        postponeTaskToTomorrow(taskId);
         return;
       }
       if(!openedRight&&pos<-THRESH){
@@ -4276,6 +4323,43 @@ function showTaskContextMenu(row, taskId){
     toast('"'+(d.title)+'" を複製しました');
   };
   popup.appendChild(dupBtn);
+
+  // 明日へ（右スワイプと同じ操作の、目に見える入口）
+  if(task.status!=='completed'){
+    const tmBtn=document.createElement('button');
+    tmBtn.innerHTML='🌅 明日へ';
+    tmBtn.onclick=ev=>{ev.stopPropagation();popup.remove();postponeTaskToTomorrow(taskId);};
+    popup.appendChild(tmBtn);
+  }
+
+  // 開始時刻をずらす（チップにずらし先の時刻を表示）
+  const shiftLabel=document.createElement('div');
+  shiftLabel.style.cssText='font-size:11px;color:var(--sub);padding:6px 11px 0';
+  shiftLabel.textContent='⏱ 開始時刻をずらす';
+  popup.appendChild(shiftLabel);
+  const chips=document.createElement('div');chips.className='time-shift-chips';
+  const baseDate=task.startTime?(task.startAt||ymd(new Date())):ymd(new Date());
+  let anyShift=false;
+  [10,30,60,180].forEach(min=>{
+    const dest=computeShiftDest(task,min);
+    const chip=document.createElement('button');chip.className='shift-chip';
+    const dLabel=min<60?(min+'分後'):(min/60)+'時間後';
+    if(dest){
+      anyShift=true;
+      const dayMark=dest.date>baseDate?'翌日 ':'';
+      chip.innerHTML=dLabel+'<small>→ '+dayMark+dest.time+'</small>';
+      chip.onclick=ev=>{ev.stopPropagation();popup.remove();shiftTaskTime(taskId,min);};
+    }else{
+      chip.innerHTML=dLabel+'<small>対象外</small>';chip.disabled=true;
+    }
+    chips.appendChild(chip);
+  });
+  popup.appendChild(chips);
+  if(!anyShift){
+    const note=document.createElement('div');note.className='time-shift-note';
+    note.textContent='開始日が未来で時刻が未設定のため、時刻ずらしは使えません';
+    popup.appendChild(note);
+  }
 
   // 区切り
   const sep=document.createElement('div');
