@@ -5921,7 +5921,69 @@ function bmOpenImportModal(parsed,fileName){
 let _vtLastKey=null,_vtApplying=false,_vtSkipNext=false;
 function _vtViewKey(){return [S.view,S.projId||'',S.tagId||'',S.forecastDate||''].join('|');}
 
+// ===== FLIP（リスト行の移動アニメーション＋軽い差分更新・試作）=====
+// renderContent() をラッパーにし、本体（_renderContentBody）の前後で挟む。
+//  First: 再描画前に表示中のタスク行（.trow[data-id]）の位置を id ごとに記録する。
+//  Last/Invert/Play: 再描画後の新しい行の位置と比べ、ズレた行だけを WAAPI で
+//   旧位置から滑らかに戻す。innerHTML の全面再構築でも data-id で同一性を追える
+//   （行単位の差分描画エンジン化はしない、という判断に基づく）。
+// あわせて軽い差分更新を同梱する:
+//  - 再描画結果の HTML が前回と完全一致なら、元の DOM ノードを差し戻して
+//    スワイプの開閉状態や行ごとのイベントリスナーを保持する。
+//  - #content のスクロール位置が再描画で動いていたら元に戻す。
+// 発火は「同じビューのまま一覧が変わったとき」だけ。ビュー切替は VT が担当し、
+// VT 適用中（_vtApplying）は包まない。対象はリスト系ビューに限る（検索・ノート・
+// ダッシュボード等は行の出入りがアニメーション向きでないため除外）。
+// 同期（_syncNow 経由）では window._flipSkipOnce が立ち、移動アニメーションは
+// しない（他端末の変更で画面が勝手に滑らないように）。ただし HTML 一致時の
+// 差し戻しとスクロール保持は同期でも行う。
+// prefers-reduced-motion・背面タブでは無効。行が消える側（完了した行自体）は
+// 対象外で、下の行が詰めて滑る動きが本体。
+const _FLIP_VIEWS=['inbox','today','overdue','upcoming','flagged','assigned','completed','project','tag','forecast-day','nextview'];
+function _flipCapture(){
+  if(_vtApplying)return null;
+  if(_vtLastKey===null||_vtViewKey()!==_vtLastKey)return null;
+  if(!_FLIP_VIEWS.includes(S.view))return null;
+  if(document.visibilityState!=='visible')return null;
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return null;
+  const el=document.getElementById('content');if(!el)return null;
+  const rows=el.querySelectorAll('.trow[data-id]');if(!rows.length)return null;
+  const map=new Map();
+  rows.forEach(r=>{const rc=r.getBoundingClientRect();map.set(r.dataset.id,{x:rc.left,y:rc.top});});
+  return {map,scrollTop:el.scrollTop,html:el.innerHTML,nodes:[...el.childNodes]};
+}
+function _flipPlay(first,fromSync){
+  const el=document.getElementById('content');if(!el||!first)return;
+  // 軽い差分: HTML が完全一致なら元のノードを差し戻す（状態・リスナー保持）
+  if(el.innerHTML===first.html){
+    el.replaceChildren(...first.nodes);
+    if(el.scrollTop!==first.scrollTop)el.scrollTop=first.scrollTop;
+    return;
+  }
+  if(el.scrollTop!==first.scrollTop)el.scrollTop=first.scrollTop;
+  if(fromSync)return;
+  el.querySelectorAll('.trow[data-id]').forEach(r=>{
+    const f=first.map.get(r.dataset.id);if(!f)return;
+    const rc=r.getBoundingClientRect();
+    const dx=f.x-rc.left,dy=f.y-rc.top;
+    if((Math.abs(dx)>=4||Math.abs(dy)>=4)&&Math.abs(dx)<=400&&Math.abs(dy)<=1200){
+      try{r.animate([{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'translate(0px,0px)'}],{duration:240,easing:'cubic-bezier(.25,.8,.35,1)'});}catch(e){}
+    }
+  });
+  // 新しく現れた行（Undo 復元など）は、数が少ないときだけ軽くフェードインさせる
+  const newRows=[...el.querySelectorAll('.trow[data-id]')].filter(r=>!first.map.has(r.dataset.id));
+  if(newRows.length>=1&&newRows.length<=5){
+    newRows.forEach(r=>{try{r.animate([{opacity:'0',transform:'translateY(6px)'},{opacity:'1',transform:'translateY(0px)'}],{duration:180,easing:'ease-out'});}catch(e){}});
+  }
+}
 function renderContent(){
+  const _fromSync=!!window._flipSkipOnce;window._flipSkipOnce=false;
+  const _first=_flipCapture();
+  _renderContentBody();
+  if(_first)_flipPlay(_first,_fromSync);
+}
+
+function _renderContentBody(){
   if(!_vtApplying){
     const _vk=_vtViewKey();
     const _vtChanged=_vtLastKey!==null&&_vk!==_vtLastKey;
@@ -5929,7 +5991,7 @@ function renderContent(){
     const _vtSkip=_vtSkipNext;_vtSkipNext=false;
     if(_vtChanged&&!_vtSkip&&document.visibilityState==='visible'&&typeof document.startViewTransition==='function'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
       try{
-        document.startViewTransition(()=>{_vtApplying=true;try{renderContent();}finally{_vtApplying=false;}});
+        document.startViewTransition(()=>{_vtApplying=true;try{_renderContentBody();}finally{_vtApplying=false;}});
         return;
       }catch(e){/* 非対応・失敗時は通常描画にフォールバック */}
     }
@@ -13974,6 +14036,7 @@ async function setupSB(){
         window._syncFp=fp;
         window._lastSync=Date.now();
         if(typeof window._applyOutbox==='function')window._applyOutbox();
+        window._flipSkipOnce=true; // 同期由来の再描画では FLIP の移動アニメーションをしない（差し戻し・スクロール保持は行う）
         render();
       }catch(e){console.error('_syncNow',e);}
     };
