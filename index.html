@@ -893,6 +893,21 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
 .proj-edit-popup button.shift-chip small{font-size:10px;color:var(--sub)}
 .proj-edit-popup button.shift-chip:disabled{opacity:.38;cursor:default}
 .time-shift-note{font-size:10px;color:var(--sub);padding:0 12px 6px;line-height:1.5}
+/* コマンドパレット（Cmd+K） */
+.cmdk-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;display:flex;align-items:flex-start;justify-content:center;padding:10vh 14px 14px}
+.cmdk-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.28);width:100%;max-width:560px;max-height:72vh;display:flex;flex-direction:column;overflow:hidden}
+.cmdk-input{width:100%;border:none;outline:none;background:none;font-size:16px;color:var(--text);padding:14px 16px;border-bottom:1px solid var(--border);font-family:var(--font)}
+.cmdk-list{overflow-y:auto;padding:4px 0 8px}
+.cmdk-group{font-size:11px;color:var(--sub);padding:8px 14px 2px}
+.cmdk-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;font-size:14px;color:var(--text)}
+.cmdk-item.sel{background:var(--accent-bg)}
+.cmdk-item .ic{flex-shrink:0;width:20px;text-align:center;font-size:14px;color:var(--sub);display:flex;justify-content:center}
+.cmdk-item .ic svg{width:16px;height:16px}
+.cmdk-item .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmdk-item .sb{flex-shrink:0;font-size:11px;color:var(--sub)}
+.cmdk-empty{padding:22px;text-align:center;color:var(--sub);font-size:13px}
+#cmdk-hint{flex-shrink:0;font-size:11px;color:var(--text3);border:1px solid var(--border);border-radius:5px;padding:1px 6px;cursor:pointer;background:var(--surface);font-family:var(--font)}
+@media(max-width:768px){#cmdk-hint{display:none}}
 /* AI button in topbar (PC専用。モバイルは下部ナビのAIボタンに統合済みのため非表示) */
 .ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#a78bfa);color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation;transition:opacity .15s,transform .15s}
 .ai-topbar-btn:hover{opacity:.85;transform:scale(1.05)}
@@ -1345,6 +1360,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div id="global-srch-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="global-srch" type="search" placeholder="検索…" autocomplete="off">
+          <span id="cmdk-hint" title="コマンドパレットを開く">⌘K</span>
           <button id="srch-clear" title="クリア">✕</button>
         </div>
         <button class="ai-topbar-btn" data-a="ai-open" title="AI">✦</button>
@@ -11467,6 +11483,147 @@ document.addEventListener('keydown',e=>{
     }
   }
 });
+
+// ===== COMMAND PALETTE (Cmd+K / Ctrl+K) =====
+// タスク・ノート検索、ビュー/プロジェクト/タグへのジャンプ、主要アクションを
+// 1つの入力欄からキーボードで実行する。モバイルは従来の上部検索を温存し、
+// パレットはキーボード前提（PC）の入口として ⌘K チップからも開ける。
+function cmdkScore(text,q){
+  if(!q)return 0;
+  const t=(text||'').toLowerCase(),s=q.toLowerCase();
+  if(t.startsWith(s))return 3;
+  if(t.split(/[\s　]+/).some(w=>w.startsWith(s)))return 2;
+  if(t.includes(s))return 1;
+  return -1;
+}
+const CMDK_GROUP_ORDER={'最近のタスク':0,'タスク':0,'ノート':1,'ビュー':2,'プロジェクト':3,'タグ':4,'アクション':5};
+function cmdkFilterItems(items,q){
+  const scored=[];
+  items.forEach((it,i)=>{
+    const sc=cmdkScore((it.label||'')+' '+(it.alias||''),q);
+    if(sc>=0)scored.push({it,sc,i});
+  });
+  scored.sort((a,b)=>((CMDK_GROUP_ORDER[a.it.kind]??9)-(CMDK_GROUP_ORDER[b.it.kind]??9))||(b.sc-a.sc)||(a.i-b.i));
+  const limits={'タスク':8,'ノート':4};
+  const counts={};
+  return scored.filter(s=>{
+    const k=s.it.kind;
+    if(limits[k]!=null){counts[k]=(counts[k]||0)+1;if(counts[k]>limits[k])return false;}
+    return true;
+  }).map(s=>s.it);
+}
+function cmdkGoView(v){
+  S.view=v;S.projId=null;S.tagId=null;S.taskId=null;S.drawerOpen=false;
+  if(v!=='search')S.search='';
+  render();
+}
+function cmdkBuildItems(q){
+  const items=[];
+  const navIcon=v=>{const n=ALL_NAV_ITEMS.find(x=>x.v===v);return n?n.icon():'';};
+  const viewDefs=[
+    ['dashboard','Dashboard','ダッシュボード'],['inbox','Inbox','受信箱'],['today','Today','今日'],
+    ['nextview','Next','次のタスク'],['overdue','Overdue','期限切れ'],['upcoming','Upcoming','今後'],
+    ['forecast','Forecast','予報 週間'],['flagged','Flagged','フラグ'],['assigned','Assigned','担当'],
+    ['review','Review','レビュー'],['completed','Logbook','完了 履歴'],['notes','Notes','ノート メモ'],
+    ['bookmarks','Bookmarks','ブックマーク'],['search','Search','検索']];
+  viewDefs.forEach(([v,label,alias])=>items.push({kind:'ビュー',icon:navIcon(v)||'▸',label,alias,run:()=>cmdkGoView(v)}));
+  getSortedProjects('active').forEach(p=>items.push({kind:'プロジェクト',icon:'📁',label:p.name||'無題',run:()=>{S.view='project';S.projId=p.id;S.tagId=null;S.taskId=null;S.drawerOpen=false;render();}}));
+  getSortedTags().forEach(t=>items.push({kind:'タグ',icon:'🏷',label:t.name||'無題',run:()=>{S.view='tag';S.tagId=t.id;S.projId=null;S.taskId=null;S.drawerOpen=false;render();}}));
+  items.push({kind:'アクション',icon:'➕',label:'新規タスクを作成',alias:'new task 追加',sub:'n キーでも可',run:()=>{document.getElementById('qainput')?.focus();}});
+  items.push({kind:'アクション',icon:'⚙️',label:'設定を開く',alias:'settings',run:()=>{openSettingsModal();}});
+  items.push({kind:'アクション',icon:'📦',label:'バックアップを開く',alias:'backup',run:()=>{openBackupModal();}});
+  if(q){
+    S.tasks.filter(t=>(t.title||'').toLowerCase().includes(q.toLowerCase()))
+      .sort((a,b)=>((a.status==='completed'?1:0)-(b.status==='completed'?1:0))||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))
+      .forEach(t=>{
+      const proj=t.projectId?S.projects.find(p=>p.id===t.projectId):null;
+      items.push({kind:'タスク',icon:t.status==='completed'?'☑':'☐',label:t.title||'無題',
+        sub:(t.status==='completed'?'完了済み':(proj?proj.name:'')),
+        run:()=>{S.taskId=t.id;S.drawerOpen=true;S.noteOpen=false;renderDrawer();renderContent();}});
+    });
+    S.notes.filter(n=>(n.title||'').toLowerCase().includes(q.toLowerCase())).forEach(n=>{
+      items.push({kind:'ノート',icon:'📄',label:n.title||'無題',
+        run:()=>{S.view='notes';S.projId=null;S.tagId=null;S.noteId=n.id;S.noteOpen=true;render();}});
+    });
+  }else{
+    [...S.tasks].filter(t=>t.status!=='completed').sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||''))).slice(0,5)
+      .forEach(t=>items.push({kind:'最近のタスク',icon:'🕘',label:t.title||'無題',
+        run:()=>{S.taskId=t.id;S.drawerOpen=true;S.noteOpen=false;renderDrawer();renderContent();}}));
+  }
+  return items;
+}
+let _cmdkEl=null,_cmdkItems=[],_cmdkSel=0,_cmdkPrevFocus=null;
+function closeCmdkPalette(){
+  if(!_cmdkEl)return;
+  _cmdkEl.remove();_cmdkEl=null;_cmdkItems=[];
+  if(_cmdkPrevFocus&&_cmdkPrevFocus.focus)try{_cmdkPrevFocus.focus();}catch(e){}
+  _cmdkPrevFocus=null;
+}
+function renderCmdkList(){
+  const list=_cmdkEl?.querySelector('.cmdk-list');if(!list)return;
+  if(!_cmdkItems.length){list.innerHTML='<div class="cmdk-empty">見つかりませんでした</div>';return;}
+  let html='',lastKind=null;
+  _cmdkItems.forEach((it,i)=>{
+    if(it.kind!==lastKind){html+='<div class="cmdk-group">'+it.kind+'</div>';lastKind=it.kind;}
+    html+='<div class="cmdk-item'+(i===_cmdkSel?' sel':'')+'" data-cmdk-idx="'+i+'"><span class="ic">'+it.icon+'</span><span class="lb"></span>'+(it.sub?'<span class="sb"></span>':'')+'</div>';
+  });
+  list.innerHTML=html;
+  _cmdkItems.forEach((it,i)=>{
+    const row=list.querySelector('[data-cmdk-idx="'+i+'"]');if(!row)return;
+    row.querySelector('.lb').textContent=it.label;
+    if(it.sub)row.querySelector('.sb').textContent=it.sub;
+    row.addEventListener('click',()=>{cmdkRunItem(it);});
+    row.addEventListener('mousemove',()=>{if(_cmdkSel!==i){_cmdkSel=i;renderCmdkList();}});
+  });
+  list.querySelector('.cmdk-item.sel')?.scrollIntoView({block:'nearest'});
+}
+function cmdkRefresh(q){
+  _cmdkItems=cmdkFilterItems(cmdkBuildItems(q),q);
+  _cmdkSel=0;
+  renderCmdkList();
+}
+function cmdkRunItem(it){
+  closeCmdkPalette();
+  if(it&&it.run)it.run();
+}
+function openCmdkPalette(){
+  if(_cmdkEl){closeCmdkPalette();return;}
+  _cmdkPrevFocus=document.activeElement;
+  const ov=document.createElement('div');ov.className='cmdk-overlay';
+  ov.innerHTML='<div class="cmdk-panel"><input class="cmdk-input" type="text" placeholder="タスク・ノート・ビュー・プロジェクトを検索…" autocomplete="off"><div class="cmdk-list"></div></div>';
+  document.body.appendChild(ov);
+  _cmdkEl=ov;
+  const panel=ov.querySelector('.cmdk-panel');
+  try{panel.animate([{opacity:'0',transform:'translateY(-8px) scale(.99)'},{opacity:'1',transform:'translateY(0) scale(1)'}],{duration:160,easing:'cubic-bezier(.25,.8,.35,1)'});}catch(e){}
+  const inp=ov.querySelector('.cmdk-input');
+  cmdkRefresh('');
+  inp.focus();
+  inp.addEventListener('input',e=>{if(!e.isComposing)cmdkRefresh(inp.value.trim());});
+  inp.addEventListener('compositionend',()=>cmdkRefresh(inp.value.trim()));
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault();e.stopPropagation();
+      if(e.isComposing)return;
+      const d=e.key==='ArrowDown'?1:-1;
+      if(_cmdkItems.length){_cmdkSel=(_cmdkSel+d+_cmdkItems.length)%_cmdkItems.length;renderCmdkList();}
+    }else if(e.key==='Enter'){
+      e.preventDefault();e.stopPropagation();
+      if(e.isComposing)return;
+      if(_cmdkItems[_cmdkSel])cmdkRunItem(_cmdkItems[_cmdkSel]);
+    }else if(e.key==='Escape'){
+      e.preventDefault();e.stopPropagation();
+      closeCmdkPalette();
+    }
+  });
+  ov.addEventListener('mousedown',e=>{if(e.target===ov)closeCmdkPalette();});
+}
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){
+    e.preventDefault();
+    openCmdkPalette();
+  }
+});
+document.getElementById('cmdk-hint')?.addEventListener('click',e=>{e.stopPropagation();openCmdkPalette();});
 
 // ===== BACKUP =====
 async function saveBackup(label){
