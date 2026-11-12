@@ -159,7 +159,22 @@ a.bm-title:hover{color:var(--accent);text-decoration:underline}
 .qabar.bulk-sticky{position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.08);}
 .qawrap{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;transition:border-color .15s}
 .qawrap:focus-within{border-color:var(--accent)}
-.qawrap input{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--text)}
+.qawrap input{flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--text);font-family:inherit}
+/* クイック追加のライブハイライト（入力欄の背後に解釈結果を重ねる） */
+.qa-input-wrap{position:relative;flex:1;display:flex;min-width:0}
+.qa-hl-backdrop{position:absolute;inset:0;overflow:hidden;pointer-events:none;display:flex;align-items:center}
+.qa-hl-inner{white-space:pre;font-size:15px;color:var(--text);will-change:transform}
+#qainput.hl-on{color:transparent;caret-color:var(--text);position:relative;z-index:1}
+#qainput.hl-on::selection{background:rgba(59,130,246,.28)}
+.qa-hl-inner .hl{border-radius:3px}
+.hl-date{background:rgba(59,130,246,.20);color:#3b82f6}
+.hl-tag{background:rgba(124,58,237,.18);color:#8b5cf6}
+.hl-tag-new{color:#8b5cf6;text-decoration:underline dotted;text-underline-offset:3px}
+.hl-proj{background:rgba(217,119,6,.20);color:#d97706}
+.hl-proj-none{color:var(--text3);text-decoration:line-through dotted;text-underline-offset:3px}
+.hl-pri{background:rgba(239,68,68,.16);color:#ef4444}
+.hl-rep{background:rgba(16,185,129,.18);color:#10b981}
+.hl-flag{background:rgba(245,158,11,.28);color:#d97706}
 .qawrap input::placeholder{color:var(--text3);font-size:16px}
 .qa-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;min-height:0}
 .chip{display:inline-flex;align-items:center;gap:3px;padding:1px 10px;border-radius:20px;font-size:11px;font-weight:500}
@@ -1372,7 +1387,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="qabar" id="qabar">
       <div class="qawrap" id="qawrap">
         <span style="color:var(--text3);font-size:16px;flex-shrink:0;touch-action:manipulation;cursor:text">+</span>
-        <input id="qainput" type="text" placeholder="タスクを追加… #タグ !高 @プロジェクト 明日" autocomplete="off" style="touch-action:manipulation">
+        <div class="qa-input-wrap"><div class="qa-hl-backdrop" aria-hidden="true"><div class="qa-hl-inner" id="qahl-inner"></div></div><input id="qainput" type="text" placeholder="タスクを追加… #タグ !高 @プロジェクト 明日" autocomplete="off" style="touch-action:manipulation"></div>
         <button class="btn btn-primary" id="qabtn" style="display:none;padding:6px 14px;font-size:13px;font-weight:600;flex-shrink:0;border-radius:8px" data-a="qa-submit">追加</button>
       </div>
       <div class="qa-chips" id="qachips"></div>
@@ -3020,6 +3035,71 @@ function parseQA(input){
   }
   r.title=title.replace(/\s+/g,' ').trim();
   return r;
+}
+
+// クイック追加のライブハイライト用：parseQA と同じ順序・同じ規則で、
+// 「送信時に読み取られるトークン」の範囲を返す（文字インデックス→種別）。
+// ハイライト＝実際に適用される解釈、が崩れないよう parseQA の模倣に徹する。
+function qaTokenSpans(text){
+  let chars=text.split('').map((ch,idx)=>({ch,idx}));
+  const kind=new Map();
+  const cur=()=>chars.map(c=>c.ch).join('');
+  function consumeRange(start,end,k){
+    for(let i=start;i<end;i++)kind.set(chars[i].idx,k);
+    chars=chars.slice(0,start).concat(chars.slice(end));
+  }
+  function consumeAll(re,kFn){
+    const s=cur();const ms=[];let m;re.lastIndex=0;
+    while((m=re.exec(s))!==null){ms.push(m);if(m[0].length===0)re.lastIndex++;}
+    for(let i=ms.length-1;i>=0;i--)consumeRange(ms[i].index,ms[i].index+ms[i][0].length,kFn(ms[i]));
+  }
+  // 優先度 !高/!1 !中/!2 !低/!3
+  consumeAll(/!(高|1|中|2|低|3)/g,()=>'pri');
+  // タグ（既存はベタ塗り、未登録は点線＝送信時に新規作成される）
+  consumeAll(/#([\w\u3040-\u9FFF\u30A0-\u30FF]+)/g,m=>S.tags.some(x=>x.name===m[1])?'tag':'tag-new');
+  // プロジェクト（見つからない @ は打ち消し＝文字だけ消えて割当なし）
+  consumeAll(/@([\w\u3040-\u9FFF\u30A0-\u30FF]+)/g,m=>S.projects.some(x=>x.name===m[1])?'proj':'proj-none');
+  // フラグ *
+  consumeAll(/\*/g,()=>'flag');
+  // 繰り返し（parseQA と同じく最初に見つかったカテゴリだけ）
+  const repCats=[/毎日|daily/gi,/毎週|weekly/gi,/毎月|monthly/gi,/平日|weekdays/gi];
+  for(const re of repCats){if(re.test(cur())){consumeAll(new RegExp(re.source,'gi'),()=>'rep');break;}}
+  // 日付（最初に見つかった1つだけが採用される）
+  let dateDone=false;
+  const dateKeys=['今日','きょう','明日','あした','明後日','tomorrow','today'];
+  for(const k of dateKeys){
+    const s=cur();const idx=s.toLowerCase().indexOf(k);
+    if(idx>=0){consumeRange(idx,idx+k.length,'date');dateDone=true;break;}
+  }
+  if(!dateDone){
+    const wk=['日','月','火','水','木','金','土'];const s=cur();
+    for(let i=0;i<7;i++){
+      const dc=wk[i];
+      const inBracket=new RegExp('[（(]'+dc+'[）)]').test(s);
+      const youbiIdx=s.indexOf(dc+'曜');
+      const aloneM=inBracket?null:s.match(new RegExp('(^|\\s)'+dc+'(?=\\s|$)'));
+      if(youbiIdx>=0){consumeRange(youbiIdx,youbiIdx+2,'date');dateDone=true;break;}
+      if(aloneM){const st=aloneM.index+aloneM[1].length;consumeRange(st,st+1,'date');dateDone=true;break;}
+    }
+  }
+  if(!dateDone){
+    const m=cur().match(/(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})/);
+    if(m)consumeRange(m.index,m.index+m[0].length,'date');
+  }
+  return kind;
+}
+function qaHighlightHTML(text){
+  const kind=qaTokenSpans(text);
+  const escH=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let html='',runKind=null,run='';
+  const flush=()=>{if(run){html+=runKind?'<span class="hl hl-'+runKind+'">'+escH(run)+'</span>':escH(run);run='';}};
+  text.split('').forEach((ch,idx)=>{
+    const k=kind.get(idx)||null;
+    if(k!==runKind){flush();runKind=k;}
+    run+=ch;
+  });
+  flush();
+  return html;
 }
 
 function _showAiHelp(btn){
@@ -9707,6 +9787,21 @@ function setupQA(){
     btn.style.display=inp.value.trim()?'':'none';
   });
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submitQA()}});
+  // ライブハイライトの同期（IME変換中は止めて、変換確定で再開する）
+  const hlInner=document.getElementById('qahl-inner');
+  let qaComposing=false;
+  const syncHl=()=>{
+    if(!hlInner)return;
+    if(!inp.value){hlInner.innerHTML='';inp.classList.remove('hl-on');return;}
+    inp.classList.add('hl-on');
+    hlInner.innerHTML=qaHighlightHTML(inp.value);
+    hlInner.style.transform='translateX('+(-inp.scrollLeft)+'px)';
+  };
+  window._qaSyncHl=syncHl;
+  inp.addEventListener('input',()=>{if(!qaComposing)syncHl();});
+  inp.addEventListener('scroll',()=>{if(hlInner)hlInner.style.transform='translateX('+(-inp.scrollLeft)+'px)';});
+  inp.addEventListener('compositionstart',()=>{qaComposing=true;inp.classList.remove('hl-on');});
+  inp.addEventListener('compositionend',()=>{qaComposing=false;syncHl();});
 }
 
 function submitQA(){
@@ -9739,6 +9834,7 @@ function submitQA(){
   // 入力欄はここで同期的に空になるので、2回目のタップは先頭の空チェックで止まり、1回の入力から作られるタスクは必ず1件（IDも1つ）になる
   S.tasks.push(task);
   inp.value='';
+  if(window._qaSyncHl)window._qaSyncHl();
   _qaTagSuggest=null;
   document.getElementById('qachips').innerHTML='';
   document.getElementById('qabtn').style.display='none';
