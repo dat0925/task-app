@@ -3189,6 +3189,21 @@ async function completeTaskOnce(task){
   }finally{_doneBusy.delete(task.id);markDone(task.id,true);}
 }
 
+// ===== 完了・削除の Undo（適用範囲の拡大）=====
+// 従来は行のチェック（chk）と右クリック削除にしか Undo が無く、詳細画面・
+// ダッシュボード・一括操作からは戻せなかった。方式は chk の実績どおり
+// 「操作前のスナップショットを保存し直す」。繰り返しタスクは次回が作られるため
+// Undo 対象外（従来どおり次回トーストのみ）。
+// 削除は対象と子孫のスナップショットを親から順に戻す。ただし添付ファイルは
+// 削除時に実体も消えるため戻らない（従来の右クリック削除の Undo と同じ限界）。
+function collectTreeSnaps(id){const out=[];const walk=tid=>{const t=S.tasks.find(x=>x.id===tid);if(!t)return;out.push(JSON.stringify(t));S.tasks.filter(x=>x.parentTaskId===tid).forEach(c=>walk(c.id));};walk(id);return out;}
+function collectTreesSnaps(ids){const seen=new Set();const out=[];for(const id of ids){for(const s of collectTreeSnaps(id)){const tid=JSON.parse(s).id;if(!seen.has(tid)){seen.add(tid);out.push(s);}}}return out;}
+function undoRestoreFn(snaps){return async()=>{for(const s of snaps){await saveTask(JSON.parse(s));}render();};}
+function toastCompleted(task,next,undoFn){
+  if(next)toast('"'+(task.title||'無題')+'" 完了。次回: '+fmtDate(next.dueAt));
+  else toast('"'+(task.title||'無題')+'" 完了 ✓',undoFn);
+}
+
 // ===== SAVE STATUS =====
 let _saveTimer=null;
 function showSaveStatus(state){
@@ -3504,7 +3519,7 @@ function toast(msg,undoFn){
   el.innerHTML='<span>'+esc(msg)+'</span>';
   if(undoFn){const b=document.createElement('button');b.className='toast-undo';b.textContent='Undo';b.onclick=()=>{undoFn();el.remove()};el.appendChild(b)}
   c.appendChild(el);
-  setTimeout(()=>el.remove(),3150);
+  setTimeout(()=>el.remove(),undoFn?6000:3150); // Undo付きは判断の時間を確保して長めに残す
 }
 function toastTop(msg){
   let c=document.getElementById('toasts-top');
@@ -4222,12 +4237,12 @@ function showTaskContextMenu(row, taskId){
   delBtn.className='red';delBtn.innerHTML='🗑 削除';
   delBtn.onclick=async ev=>{
     ev.stopPropagation();popup.remove();
-    const snap=JSON.stringify(task);
+    const snaps=collectTreeSnaps(taskId);
     const incompleteSubs=S.tasks.filter(t=>t.parentTaskId===taskId&&t.status!=='completed');
     const doDel=async()=>{
       if(S.taskId===taskId){S.drawerOpen=false;S.taskId=null;}
       await delTask(taskId);
-      toast('"'+(task.title||'無題')+'" を削除',async()=>{await saveTask(JSON.parse(snap));render();});
+      toast('"'+(task.title||'無題')+'" を削除',undoRestoreFn(snaps));
       render();
     };
     if(incompleteSubs.length>0){
@@ -9336,10 +9351,10 @@ async function handleBulkEdit(field){
   } else if(field==='complete'){
     openConfirmModal(tasks.length+'件を完了にする',tasks.length+'件のタスクを完了にしますか？',async()=>{
       // 完了済み・保存中のものは飛ばすので、確認を2回通しても次回タスクは増えない
-      let nextCnt=0;
-      for(const t of tasks){const r=await completeTaskOnce(t);if(r&&r.next)nextCnt++;}
+      let nextCnt=0;const undoSnaps=[];
+      for(const t of tasks){const snap=JSON.stringify(t);const r=await completeTaskOnce(t);if(r){if(r.next)nextCnt++;else if(!t.repeatRule)undoSnaps.push(snap);}}
       S.selectMode=false;S.selectedIds=[];
-      toast(tasks.length+'件を完了にしました'+(nextCnt?'（繰り返しの次回 '+nextCnt+'件）':''));render();
+      toast(tasks.length+'件を完了にしました'+(nextCnt?'（繰り返しの次回 '+nextCnt+'件）':''),undoSnaps.length?undoRestoreFn(undoSnaps):undefined);render();
     },'完了にする',false);
   } else if(field==='parent'){
     openSetParentModal(tasks.map(t=>t.id),async(parentId)=>{
@@ -9352,10 +9367,11 @@ async function handleBulkEdit(field){
     S.selectMode=false;S.selectedIds=[];
     toast(tasks.length+'件を独立したタスクにしました');render();
   } else if(field==='delete'){
-    openConfirmModal(tasks.length+'件を削除',tasks.length+'件のタスクを削除しますか？この操作は取り消せません。',async()=>{
+    openConfirmModal(tasks.length+'件を削除',tasks.length+'件のタスクを削除しますか？',async()=>{
+      const snaps=collectTreesSnaps(tasks.map(t=>t.id));
       for(const t of tasks)await delTask(t.id);
       S.selectMode=false;S.selectedIds=[];
-      toast(tasks.length+'件を削除しました');render();
+      toast(tasks.length+'件を削除しました',undoRestoreFn(snaps));render();
     });
   }
 }
@@ -9762,9 +9778,10 @@ else if(a==='db-complete'){
     el.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
     const row=el.closest('.db-task-row');
     if(row){row.style.transition='opacity .35s,transform .35s';row.style.opacity='0';row.style.transform='translateX(8px)';}
+    const snap=JSON.stringify(task);
     setTimeout(async()=>{
       const r=await completeTaskOnce(task);
-      if(r&&r.next)toast('"'+task.title+'" 完了。次回: '+fmtDate(r.next.dueAt));
+      if(r)toastCompleted(task,r.next,undoRestoreFn([snap]));
       render();
     },350);
   }
@@ -10448,9 +10465,10 @@ else if(a==='scroll-to-comments'){
   else if(a==='complete'){
     const task=S.tasks.find(t=>t.id===el.dataset.id);
     if(task&&canToggleDone(task.id)){
+      const snap=JSON.stringify(task);
       const r=await completeTaskOnce(task);
       if(r){
-        if(r.next)toast('"'+task.title+'" 完了。次回: '+fmtDate(r.next.dueAt));
+        toastCompleted(task,r.next,undoRestoreFn([snap]));
         S.drawerOpen=false;S.taskId=null;render();
       }
     }
@@ -10461,10 +10479,11 @@ else if(a==='scroll-to-comments'){
     // 2回押しても確認モーダルを重ねない（2枚とも「完了にする」を押すと次回タスクが2件できていた）
     if(document.querySelector('.overlay[data-done-confirm="'+task.id+'"]'))return;
     const ov=openConfirmModal('タスクを完了','"'+(task.title||'無題')+'" を完了にしますか？',async()=>{
+      const snap=JSON.stringify(task);
       const r=await completeTaskOnce(task);
       if(!r)return;
       playSE('complete');
-      if(r.next)toast('"'+task.title+'" 完了。次回: '+fmtDate(r.next.dueAt));
+      toastCompleted(task,r.next,undoRestoreFn([snap]));
       S.drawerOpen=false;S.taskId=null;render();
     },'完了にする',false);
     if(ov)ov.dataset.doneConfirm=task.id;
@@ -10473,11 +10492,12 @@ else if(a==='scroll-to-comments'){
     const id=el.dataset.id;
     const task=S.tasks.find(t=>t.id===id);
     if(!task)return;
-    openConfirmModal('タスクを削除','"'+(task.title||'無題')+'" を削除します。この操作は取り消せません。',async()=>{
+    const snaps=collectTreeSnaps(id);
+    openConfirmModal('タスクを削除','"'+(task.title||'無題')+'" を削除しますか？',async()=>{
       if(S.taskId===id){S.drawerOpen=false;S.taskId=null;}
       await delTask(id);
       playSE('delete');
-      toast('"'+(task.title||'無題')+'" を削除しました');
+      toast('"'+(task.title||'無題')+'" を削除しました',undoRestoreFn(snaps));
       render();
     });
   }
