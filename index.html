@@ -702,7 +702,7 @@ a.bm-title:hover{color:var(--accent);text-decoration:underline}
 .nav-label-row.collapsed{background:#64748b;box-shadow:none}
 .nav-label-row.collapsed .nav-label{color:rgba(255,255,255,.85);font-weight:500;font-size:11px;letter-spacing:.2px}
 .nav-label-row.collapsed .toggle-chevron{transform:rotate(-90deg);color:rgba(255,255,255,.7)}
-.proj-edit-popup{position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:4px;min-width:130px}
+.proj-edit-popup{position:fixed;margin:0;inset:auto;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:4px;min-width:130px}
 .proj-edit-popup button{display:flex;align-items:center;gap:7px;width:100%;padding:9px 11px;border-radius:6px;font-size:13px;text-align:left;background:none;border:none;cursor:pointer;color:var(--text);transition:background .12s;font-family:var(--font);touch-action:manipulation}
 .proj-edit-popup button:hover,.proj-edit-popup button:active{background:var(--bg2)}
 .proj-edit-popup button.red:hover,.proj-edit-popup button.red:active{background:rgba(239,68,68,.1);color:var(--p1)}
@@ -3772,6 +3772,22 @@ function startTagRename(span){
   input.addEventListener('click',e=>e.stopPropagation());
   input.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
 }
+// ===== ポップアップメニューの土台（Popover API） =====
+// .proj-edit-popup 系メニューを、対応ブラウザでは Popover として開く。
+// トップレイヤーに描かれ、外側クリックと Esc のクローズをブラウザが担う。
+// 非対応ブラウザでは従来どおりの通常要素として開き、各メニューの
+// 手動クローズ処理（呼び出し側で _popOn が false のときだけ登録）が効く。
+function mountPopupMenu(popup){
+  document.body.appendChild(popup);
+  if(typeof popup.showPopover!=='function')return false;
+  try{
+    popup.setAttribute('popover','auto');
+    popup.addEventListener('toggle',e=>{if(e.newState==='closed'&&popup.isConnected)popup.remove();});
+    popup.showPopover();
+    return true;
+  }catch(e){return false;}
+}
+
 function showTagEditPopup(btn,tagId,tagName){
   document.querySelectorAll('.proj-edit-popup').forEach(el=>el.remove());
   const popup=document.createElement('div');popup.className='proj-edit-popup';
@@ -3822,7 +3838,7 @@ function showTagEditPopup(btn,tagId,tagName){
     },'削除',true);
   };
   popup.appendChild(renameBtn);popup.appendChild(colorBtn);popup.appendChild(delBtn);
-  document.body.appendChild(popup);
+  const _popOn=mountPopupMenu(popup);
   const r=btn.getBoundingClientRect();
   const pw=popup.offsetWidth||140;
   const ph=popup.offsetHeight||100;
@@ -3831,7 +3847,7 @@ function showTagEditPopup(btn,tagId,tagName){
   if(top+ph>window.innerHeight-12)top=r.top-ph-4;
   if(top<4)top=4;
   popup.style.top=top+'px';popup.style.left=left+'px';
-  setTimeout(()=>{
+  if(!_popOn)setTimeout(()=>{
     const close=ev=>{if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('click',close);document.removeEventListener('touchstart',close);}};
     document.addEventListener('click',close);
     document.addEventListener('touchstart',close,{passive:true});
@@ -4347,7 +4363,7 @@ function showNoteContextMenu(row,noteId){
   };
   popup.appendChild(delBtn);
 
-  document.body.appendChild(popup);
+  const _popOn=mountPopupMenu(popup);
   // 位置: rowの右端付近
   const r=row.getBoundingClientRect();
   const pw=popup.offsetWidth||150;
@@ -4362,8 +4378,10 @@ function showNoteContextMenu(row,noteId){
     if(_noteSkip){_noteSkip=false;return;}
     if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('touchstart',closeNote);document.removeEventListener('click',closeNote);}
   };
-  document.addEventListener('touchstart',closeNote,{passive:true});
-  document.addEventListener('click',closeNote);
+  if(!_popOn){
+    document.addEventListener('touchstart',closeNote,{passive:true});
+    document.addEventListener('click',closeNote);
+  }
 }
 
 // タスク一覧コンテキストメニュー
@@ -4483,7 +4501,7 @@ function showTaskContextMenu(row, taskId){
   };
   popup.appendChild(delBtn);
 
-  document.body.appendChild(popup);
+  const _popOn=mountPopupMenu(popup);
   const r=row.getBoundingClientRect();
   const pw=popup.offsetWidth||160;
   const ph=popup.offsetHeight||140;
@@ -4497,8 +4515,10 @@ function showTaskContextMenu(row, taskId){
     if(_taskSkip){_taskSkip=false;return;}
     if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('touchstart',closeTask);document.removeEventListener('click',closeTask);}
   };
-  document.addEventListener('touchstart',closeTask,{passive:true});
-  document.addEventListener('click',closeTask);
+  if(!_popOn){
+    document.addEventListener('touchstart',closeTask,{passive:true});
+    document.addEventListener('click',closeTask);
+  }
 }
 
 function showProjEditPopup(btn, projId, projName){
@@ -4598,7 +4618,7 @@ function showProjEditPopup(btn, projId, projName){
   }
 
   popup.appendChild(delBtn);
-  document.body.appendChild(popup);
+  const _popOn=mountPopupMenu(popup);
 
   const r=btn.getBoundingClientRect();
   const pw=popup.offsetWidth||140;
@@ -4609,7 +4629,7 @@ function showProjEditPopup(btn, projId, projName){
   popup.style.top=top+'px';
   popup.style.left=left+'px';
 
-  setTimeout(()=>{
+  if(!_popOn)setTimeout(()=>{
     const close=ev=>{if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('click',close);document.removeEventListener('touchstart',close);}};
     document.addEventListener('click',close);
     document.addEventListener('touchstart',close,{passive:true});
@@ -4643,7 +4663,7 @@ function showHiddenProjEditPopup(btn, projId, projName){
 
   popup.appendChild(showBtn);
   popup.appendChild(delBtn);
-  document.body.appendChild(popup);
+  const _popOn=mountPopupMenu(popup);
 
   const r=btn.getBoundingClientRect();
   const pw=popup.offsetWidth||140;
@@ -4654,7 +4674,7 @@ function showHiddenProjEditPopup(btn, projId, projName){
   popup.style.top=top+'px';
   popup.style.left=left+'px';
 
-  setTimeout(()=>{
+  if(!_popOn)setTimeout(()=>{
     const close=ev=>{if(!popup.contains(ev.target)){popup.remove();document.removeEventListener('click',close);document.removeEventListener('touchstart',close);}};
     document.addEventListener('click',close);
     document.addEventListener('touchstart',close,{passive:true});
