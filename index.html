@@ -9773,7 +9773,7 @@ function setupQA(){
     const p=parseQA(inp.value);
     let h='';
     if(p.dueAt)h+='<span class="chip chip-date">📅 '+fmtDate(p.dueAt)+'</span>';
-    if(p.priority<4)h+='<span class="chip chip-pri">P'+p.priority+'</span>';
+    if(p.priority<4)h+='<span class="chip chip-pri">優先度：'+({1:'高',2:'中',3:'低'}[p.priority]||'')+'</span>';
     p.tagIds.forEach(id=>{const t=S.tags.find(x=>x.id===id);if(t)h+='<span class="chip chip-tag">#'+esc(t.name)+'</span>'});
     // タグ自動提案チップ（#タグ指定が無いときだけ。採用が初期状態で、タップで外せる）
     _qaTagSuggest=null;
