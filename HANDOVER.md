@@ -4,6 +4,29 @@
 
 ---
 
+## トーストが画面幅を超えて Undo ボタンが見切れる不具合を修正（2026-11-12）
+
+### 症状（本人の実機動画で確認）
+長いタイトルのタスクを完了すると、完了トーストが画面幅を超え、Undo ボタンが右端の外にはみ出してほぼ押せない（本文も左端から見切れる）。Undo 自体は効いており、戻ることは確認できた。
+
+### 原因
+`.toast` に幅の上限が無く `white-space:nowrap` のため、本文の長さそのままに広がった。`.toast-wrap` は `left:50% + translateX(-50%)` の中央寄せなので、超過分は左右両方にはみ出した。Undo ボタンを全経路に広げたことで、長いタイトルでの完了トーストが常態化して表面化した。
+
+### 対応（index.html、sw.js）
+- `.toast-wrap` に `max-width:calc(100vw - 24px)` と `align-items:center` を追加。
+- `.toast` に `max-width:calc(100vw - 24px)` と `box-sizing:border-box` を追加（上部トースト `toastTop` の経路でも効くように要素側にも上限）。
+- 本文の `span` に `overflow:hidden;text-overflow:ellipsis;min-width:0` を付け、長い本文は省略表示にする。Undo ボタン（`.toast-undo`）には `flex-shrink:0` を付け、必ず画面内に残す。
+- sw.js の CACHE_NAME を taskra-v87 に更新。
+
+### 動作確認
+- 全インラインスクリプトの構文チェック（node --check）済み（変更は CSS と sw.js のみ）。
+- 実機での目視確認はマージ後に本人（同じ長いタイトルのテストタスクで再確認する想定）。
+
+### セキュリティ関連の状態
+認証・決済・DB・RLS の変更なし。
+
+---
+
 ## 完了・削除の Undo トーストを全経路に拡大（2026-11-12）
 
 ### 背景（調査で判明）
