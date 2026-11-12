@@ -5967,13 +5967,13 @@ function _flipPlay(first,fromSync){
     const rc=r.getBoundingClientRect();
     const dx=f.x-rc.left,dy=f.y-rc.top;
     if((Math.abs(dx)>=4||Math.abs(dy)>=4)&&Math.abs(dx)<=400&&Math.abs(dy)<=1200){
-      try{r.animate([{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'translate(0px,0px)'}],{duration:240,easing:'cubic-bezier(.25,.8,.35,1)'});}catch(e){}
+      try{r.animate([{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'translate(0px,0px)'}],{duration:360,easing:'cubic-bezier(.25,.8,.35,1)'});}catch(e){}
     }
   });
   // 新しく現れた行（Undo 復元など）は、数が少ないときだけ軽くフェードインさせる
   const newRows=[...el.querySelectorAll('.trow[data-id]')].filter(r=>!first.map.has(r.dataset.id));
   if(newRows.length>=1&&newRows.length<=5){
-    newRows.forEach(r=>{try{r.animate([{opacity:'0',transform:'translateY(6px)'},{opacity:'1',transform:'translateY(0px)'}],{duration:180,easing:'ease-out'});}catch(e){}});
+    newRows.forEach(r=>{try{r.animate([{opacity:'0',transform:'translateY(6px)'},{opacity:'1',transform:'translateY(0px)'}],{duration:260,easing:'ease-out'});}catch(e){}});
   }
 }
 function renderContent(){
