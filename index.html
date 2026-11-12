@@ -872,6 +872,17 @@ html.dark .del-btn:hover{background:#3b1818;border-color:#991b1b;}
   clip-path:inset(0 0 0 100%);
   transition:clip-path .2s;
 }
+.task-swipe-complete-bg.uncomplete{background:#64748b;}
+.task-swipe-complete-bg.full{width:100%;background:#16a34a;justify-content:flex-end;padding-right:18px;}
+.task-swipe-complete-bg.uncomplete.full{background:#475569;}
+.task-swipe-tomorrow-bg{
+  position:absolute;top:0;left:0;bottom:0;width:80px;
+  background:#f59e0b;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:13px;font-weight:600;gap:4px;
+  pointer-events:none;z-index:0;
+  clip-path:inset(0 100% 0 0);
+  transition:clip-path .2s;
+}
 /* AI button in topbar (PC専用。モバイルは下部ナビのAIボタンに統合済みのため非表示) */
 .ai-topbar-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#a78bfa);color:#fff;font-size:17px;flex-shrink:0;border:none;cursor:pointer;touch-action:manipulation;transition:opacity .15s,transform .15s}
 .ai-topbar-btn:hover{opacity:.85;transform:scale(1.05)}
@@ -4022,20 +4033,47 @@ function initNoteSwipe(container){
   });
 }
 
-// タスク一覧スワイプ削除
+// スワイプ「明日へ」: 開始日・期限・予定日をまとめて+1日（開始時刻は保持する。
+// 詳細画面の date-adj が開始時刻を消すのは手編集時の都合で、先送りでは時刻も含めて
+// 明日へ持ち越す方が自然なため、あえて分けた）。日付が1つも無いタスクは
+// 開始日・予定日を明日（ymdShift(1)）にする。Undo はスナップショット復元。
+function _shiftDayStr(dstr){if(!dstr)return dstr;const d=new Date(dstr+'T00:00:00');d.setDate(d.getDate()+1);return ymd(d);}
+async function postponeTaskToTomorrow(taskId){
+  const task=S.tasks.find(t=>t.id===taskId);if(!task||task.status==='completed')return;
+  const snap=JSON.stringify(task);
+  if(!task.startAt&&!task.dueAt&&!task.plannedStartAt){
+    task.startAt=ymdShift(1);task.plannedStartAt=task.startAt;
+  }else{
+    if(task.startAt)task.startAt=_shiftDayStr(task.startAt);
+    if(task.plannedStartAt)task.plannedStartAt=_shiftDayStr(task.plannedStartAt);
+    if(task.dueAt)task.dueAt=_shiftDayStr(task.dueAt);
+  }
+  task.updatedAt=now();
+  await saveTask(task);
+  render();
+  toast('"'+(task.title||'無題')+'" を明日へずらしました',async()=>{await saveTask(JSON.parse(snap));render();});
+}
+
+// タスク一覧スワイプ（左=完了/戻す、右=明日へ、長い左=即完了）
 function initTaskSwipe(container){
   container.querySelectorAll('.note-swipe-wrap[data-task-swipe-id]').forEach(wrap=>{
     const inner=wrap.querySelector('.note-swipe-inner');
     const taskId=wrap.dataset.taskSwipeId;
     if(!inner||!taskId)return;
     const THRESH=72;
-    let sx=0,sy=0,dx=0,active=false,opened=false;
+    const fullAt=()=>Math.max(180,(wrap.offsetWidth||320)*0.55);
+    let sx=0,sy=0,dx=0,active=false,opened=false,openedRight=false,fullArmed=false;
+    const bgC=()=>wrap.querySelector('.task-swipe-complete-bg');
+    const bgT=()=>wrap.querySelector('.task-swipe-tomorrow-bg');
+    const hideBg=el=>{if(el){el.style.clipPath=el.classList.contains('task-swipe-tomorrow-bg')?'inset(0 100% 0 0)':'inset(0 0 0 100%)';el.style.pointerEvents='none';el.classList.remove('full');}};
+    const showBg=(el,pe)=>{if(el){el.style.clipPath='inset(0 0 0 0)';el.style.pointerEvents=pe?'auto':'none';if(pe)el.style.cursor='pointer';}};
+    const closeBoth=()=>{opened=false;openedRight=false;fullArmed=false;inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';inner.style.transform='';hideBg(bgC());hideBg(bgT());};
 
     inner.addEventListener('touchstart',e=>{
       if(e.touches.length>1)return;
       if(e.target.closest('button,.chk,.task-drag-handle'))return;// ボタン類は除外
       sx=e.touches[0].clientX;sy=e.touches[0].clientY;
-      dx=0;active=true;
+      dx=0;active=true;fullArmed=false;
       inner.classList.add('swiping');
     },{passive:true});
 
@@ -4043,54 +4081,65 @@ function initTaskSwipe(container){
       if(!active)return;
       dx=e.touches[0].clientX-sx;
       const dy=Math.abs(e.touches[0].clientY-sy);
-      if(dy>Math.abs(dx)*1.5){active=false;inner.classList.remove('swiping');inner.style.transform='';return;}
-      if(dx>0&&!opened){inner.style.transform='';return;}
-      const tx=Math.max(-THRESH-20,Math.min(0,dx+(opened?-THRESH:0)));
+      if(dy>Math.abs(dx)*1.5){active=false;inner.classList.remove('swiping');inner.style.transform=opened?'translateX(-'+THRESH+'px)':openedRight?'translateX('+THRESH+'px)':'';return;}
+      const base=opened?-THRESH:openedRight?THRESH:0;
+      const pos=dx+base;
+      const tx=Math.max(-fullAt()-40,Math.min(THRESH+20,pos));
       inner.style.transform='translateX('+tx+'px)';
+      // 背景はドラッグ量に応じて少しずつ覗かせる（開く前から行き先が見えるように）
+      const c=bgC(),t=bgT();
+      if(tx<0){const r=Math.min(1,-tx/THRESH);if(c)c.style.clipPath='inset(0 0 0 '+((1-r)*100)+'%)';if(t&&!openedRight)hideBg(t);}
+      else if(tx>0){const r=Math.min(1,tx/THRESH);if(t)t.style.clipPath='inset(0 '+((1-r)*100)+'% 0 0)';if(c&&!opened)hideBg(c);}
+      // フルスワイプ到達の合図（背景が全面＋濃く＋軽い振動）
+      const isFull=pos<=-fullAt();
+      if(isFull&&!fullArmed){fullArmed=true;if(c){c.classList.add('full');showBg(c,false);}try{navigator.vibrate&&navigator.vibrate(10);}catch(_e){}}
+      else if(!isFull&&fullArmed){fullArmed=false;if(c)c.classList.remove('full');}
     },{passive:true});
 
     inner.addEventListener('touchend',async e=>{
       if(!active){active=false;return;}
       inner.classList.remove('swiping');
       active=false;
-      const finalDx=dx+(opened?-THRESH:0);
-      if(dx>10&&opened){
-        opened=false;
-        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
-        inner.style.transform='';
-        const bg=wrap.querySelector('.task-swipe-complete-bg');
-        if(bg){bg.style.clipPath='inset(0 0 0 100%)';bg.style.pointerEvents='none';}
-      } else if(finalDx<-THRESH){
+      const base=opened?-THRESH:openedRight?THRESH:0;
+      const pos=dx+base;
+      const c=bgC(),t=bgT();
+      if(opened&&dx>10){closeBoth();return;}
+      if(openedRight&&dx<-10){closeBoth();return;}
+      if(!opened&&!openedRight&&pos<=-fullAt()){
+        // フルスワイプ → そのまま完了/戻す（chk のトグルに委ねる。Undo トーストが出る）
+        closeBoth();
+        const chkBtn=wrap.querySelector('.chk');
+        if(chkBtn)chkBtn.click();
+        return;
+      }
+      if(!openedRight&&pos<-THRESH){
+        opened=true;fullArmed=false;if(c)c.classList.remove('full');
         inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
         inner.style.transform='translateX(-'+THRESH+'px)';
-        const bg=wrap.querySelector('.task-swipe-complete-bg');
-        if(bg){bg.style.clipPath='inset(0 0 0 0)';bg.style.pointerEvents='auto';bg.style.cursor='pointer';}
-        opened=true;
-        if(bg&&!bg._bound){
-          bg._bound=true;
-          bg.addEventListener('click',()=>{
-            opened=false;
-            inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
-            inner.style.transform='';
-            bg.style.clipPath='inset(0 0 0 100%)';bg.style.pointerEvents='none';
-            const chkBtn=wrap.querySelector('.chk');
-            if(chkBtn)chkBtn.click();
-          });
-        }
-      } else {
-        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
-        inner.style.transform=opened?'translateX(-'+THRESH+'px)':'';
+        showBg(c,true);
+        if(c&&!c._bound){c._bound=true;c.addEventListener('click',()=>{closeBoth();const chkBtn=wrap.querySelector('.chk');if(chkBtn)chkBtn.click();});}
+        return;
       }
+      if(!opened&&pos>THRESH){
+        if(!t)return;
+        openedRight=true;
+        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+        inner.style.transform='translateX('+THRESH+'px)';
+        showBg(t,true);
+        if(!t._bound){t._bound=true;t.addEventListener('click',()=>{closeBoth();postponeTaskToTomorrow(taskId);});}
+        return;
+      }
+      // 閾値未満 → 開いている側の位置に戻す（無ければ閉じた状態）
+      inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
+      inner.style.transform=opened?'translateX(-'+THRESH+'px)':openedRight?'translateX('+THRESH+'px)':'';
+      if(opened)showBg(c,true);else hideBg(c);
+      if(openedRight)showBg(t,true);else hideBg(t);
+      fullArmed=false;
     },{passive:true});
 
+    // 他のrowを触ったら閉じる
     container.addEventListener('touchstart',e=>{
-      if(opened&&!wrap.contains(e.target)){
-        opened=false;
-        inner.style.transition='transform .2s cubic-bezier(.25,.1,.25,1)';
-        inner.style.transform='';
-        const bg=wrap.querySelector('.task-swipe-complete-bg');
-        if(bg){bg.style.clipPath='inset(0 0 0 100%)';bg.style.pointerEvents='none';}
-      }
+      if((opened||openedRight)&&!wrap.contains(e.target))closeBoth();
     },{passive:true});
   });
 }
@@ -6676,7 +6725,8 @@ function renderRow(task){
   const updStr=task.updatedAt?'<span class="mc" style="margin-left:auto">✏️ '+fmtDate(task.updatedAt.slice(0,10))+'</span>':'';
 
   let html=(!S.selectMode?'<div class="note-swipe-wrap" data-task-swipe-id="'+task.id+'">'
-    +'<div class="task-swipe-complete-bg">✓ 完了</div>'
+    +(done?'':'<div class="task-swipe-tomorrow-bg">明日へ</div>')
+    +'<div class="task-swipe-complete-bg'+(done?' uncomplete':'')+'">'+(done?'↩ 戻す':'✓ 完了')+'</div>'
     +'<div class="note-swipe-inner">':'')
   +'<div class="trow'+(done?' done':'')+(S.taskId===task.id&&!S.selectMode?' sel':'')+(pclass?' '+pclass:'')+(isSel?' bulk-sel':'')+'" data-a="sel" data-id="'+task.id+'" data-order="'+(task.order||0)+'">'
     +(!S.selectMode?'<span class="task-drag-handle" data-drag-task="'+task.id+'" title="ドラッグで並び替え" ontouchstart="event.stopPropagation()">⠿</span>':'')
