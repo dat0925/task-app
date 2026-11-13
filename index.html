@@ -3777,15 +3777,39 @@ function startTagRename(span){
 // トップレイヤーに描かれ、外側クリックと Esc のクローズをブラウザが担う。
 // 非対応ブラウザでは従来どおりの通常要素として開き、各メニューの
 // 手動クローズ処理（呼び出し側で _popOn が false のときだけ登録）が効く。
+// タッチ／マウスのジェスチャ中かどうか（長押しメニューの誤クローズ防止に使う）
+let _gestureActive=false;
+document.addEventListener('pointerdown',()=>{_gestureActive=true;},true);
+document.addEventListener('pointerup',()=>{_gestureActive=false;},true);
+document.addEventListener('pointercancel',()=>{_gestureActive=false;},true);
+
 function mountPopupMenu(popup){
   document.body.appendChild(popup);
   if(typeof popup.showPopover!=='function')return false;
   try{
-    popup.setAttribute('popover','auto');
-    popup.addEventListener('toggle',e=>{if(e.newState==='closed'&&popup.isConnected)popup.remove();});
+    popup.setAttribute('popover','manual');
     popup.showPopover();
-    return true;
   }catch(e){return false;}
+  // 閉じる処理はここで一元化する。ネイティブの自動クローズ（light dismiss）は
+  // 長押し中に開いたメニューが「指を離した瞬間」に閉じてしまうため使わない
+  // （実機で確認された不具合）。代わりに、開いたジェスチャが終わってから
+  // 外側 pointerdown の監視を有効化する（旧 _skip 方式の考え方を土台側へ集約）。
+  let armed=false;
+  const dismiss=e=>{if(armed&&!popup.contains(e.target))close();};
+  const onKey=e=>{if(e.key==='Escape')close();};
+  const cleanup=()=>{document.removeEventListener('pointerdown',dismiss);document.removeEventListener('keydown',onKey);};
+  const close=()=>{cleanup();try{popup.hidePopover();}catch(e){}popup.remove();};
+  popup.addEventListener('toggle',e=>{if(e.newState==='closed')cleanup();});
+  document.addEventListener('pointerdown',dismiss);
+  document.addEventListener('keydown',onKey);
+  if(_gestureActive){
+    const arm=()=>{armed=true;document.removeEventListener('pointerup',arm);document.removeEventListener('touchend',arm);};
+    document.addEventListener('pointerup',arm);
+    document.addEventListener('touchend',arm);
+  }else{
+    setTimeout(()=>{armed=true;},0);
+  }
+  return true;
 }
 
 function showTagEditPopup(btn,tagId,tagName){
