@@ -3754,13 +3754,30 @@ function getSortedTags(){
     if(ai===-1&&bi===-1)return(a.order||0)-(b.order||0);if(ai===-1)return 1;if(bi===-1)return -1;return ai-bi;
   });
 }
+// インライン編集の入力欄を、キーボードの上に見える位置へ寄せる。
+// フォーカスだけだと、サイドバー下部やリスト下部の行がキーボードの裏に隠れて
+// 編集が見えなくなる（iOS は --app-h 連動のレイアウト変化に追随してスクロール
+// し直さない）。キーボードの開き切りとレイアウト収束に合わせて複数回寄せる。
+function _revealAboveKeyboard(el){
+  if(!el)return;
+  const go=()=>{if(el.isConnected){try{el.scrollIntoView({block:'center'});}catch(_){}}};
+  go();
+  setTimeout(go,120);
+  setTimeout(go,380);
+  if(window.visualViewport){
+    const vv=window.visualViewport;let n=0;
+    const onR=()=>{go();if(++n>=4){vv.removeEventListener('resize',onR);}};
+    vv.addEventListener('resize',onR);
+    setTimeout(()=>vv.removeEventListener('resize',onR),1500);
+  }
+}
 function startTagRename(span){
   const t=S.tags.find(x=>x.id===span.dataset.tagId);
   if(!t||span.querySelector('input'))return;
   const input=document.createElement('input');
   input.value=t.name;
   input.style.cssText='flex:1;min-width:0;width:100%;font:inherit;font-size:inherit;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:0 5px;color:var(--text);outline:none;';
-  span.innerHTML='';span.appendChild(input);input.focus();input.select();
+  span.innerHTML='';span.appendChild(input);input.focus();input.select();_revealAboveKeyboard(input);
   let committed=false;
   async function commit(){
     if(committed)return;committed=true;
@@ -4003,7 +4020,7 @@ function startProjRename(span){
   input.style.cssText='flex:1;min-width:0;width:100%;font:inherit;font-size:inherit;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:0 5px;color:var(--text);outline:none;';
   span.innerHTML='';
   span.appendChild(input);
-  input.focus();input.select();
+  input.focus();input.select();_revealAboveKeyboard(input);
   let committed=false;
   async function commit(){
     if(committed)return;committed=true;
@@ -4365,7 +4382,7 @@ function showNoteContextMenu(row,noteId){
     const inp=document.createElement('input');
     inp.value=note.title||'';inp.className='note-title-edit-inp';
     titleEl.innerHTML='';titleEl.appendChild(inp);
-    inp.focus();inp.select();
+    inp.focus();inp.select();_revealAboveKeyboard(inp);
     let committed=false;
     async function commit(){
       if(committed)return;committed=true;
@@ -11418,7 +11435,7 @@ document.addEventListener('dblclick',e=>{
   inp.value=note.title||'';
   inp.className='note-title-edit-inp';
   el.innerHTML='';el.appendChild(inp);
-  inp.focus();inp.select();
+  inp.focus();inp.select();_revealAboveKeyboard(inp);
   let committed=false;
   async function commit(){
     if(committed)return;committed=true;
@@ -11443,7 +11460,7 @@ function startTaskInlineEdit(el){
   inp.style.cssText='width:100%;font:inherit;font-size:inherit;background:var(--bg2);border:1px solid var(--accent);border-radius:4px;padding:1px 5px;color:var(--text);outline:none;box-sizing:border-box';
   el.innerHTML='';
   el.appendChild(inp);
-  inp.focus();inp.select();
+  inp.focus();inp.select();_revealAboveKeyboard(inp);
   let committed=false;
   async function commit(){
     if(committed)return;committed=true;
