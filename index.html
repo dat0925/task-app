@@ -6211,9 +6211,11 @@ function bmOpenImportModal(parsed,fileName){
 // 包まない（スケルトンを同期で出さないのと同じ理由：チラつきと操作感の悪化を避ける）。
 // 初回描画（_vtLastKey が null）はスケルトンの置換なので包まない。
 // 非対応ブラウザ・背面タブ・prefers-reduced-motion では通常描画にフォールバックする。
-// モバイルでサイドバーを開いたまま切り替えるときは _vtSkipNext が立ち、1回だけ包まない
-// （VTの映像は最前面レイヤーに出るため、サイドバーの開閉アニメーションと重なって
-// 　文字が二重に透けて見えた。サイドバーが閉じる動き自体が遷移として見えるので不要）。
+// モバイルでサイドバーを開いたまま切り替えるときは包まない。ナビ経由は
+// _vtSkipNext が立ち、それ以外（プロジェクト作成モーダル等サイドバーを開いたまま
+// render する経路）は _renderContentBody 側の S.sidebarOpen 判定で一括して止める
+// （VTの映像は最前面レイヤーに出るため、ドロワーの裏にあるはずの新画面が
+// 　サイドバーの上に二重に透けて見えた。2026-11-13 実機動画で確認）。
 let _vtLastKey=null,_vtApplying=false,_vtSkipNext=false;
 function _vtViewKey(){return [S.view,S.projId||'',S.tagId||'',S.forecastDate||''].join('|');}
 
@@ -6284,7 +6286,7 @@ function _renderContentBody(){
     const _vk=_vtViewKey();
     const _vtChanged=_vtLastKey!==null&&_vk!==_vtLastKey;
     _vtLastKey=_vk;
-    const _vtSkip=_vtSkipNext;_vtSkipNext=false;
+    const _vtSkip=_vtSkipNext||(window.innerWidth<=768&&!!S.sidebarOpen);_vtSkipNext=false;
     if(_vtChanged&&!_vtSkip&&document.visibilityState==='visible'&&typeof document.startViewTransition==='function'&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
       try{
         document.startViewTransition(()=>{_vtApplying=true;try{_renderContentBody();}finally{_vtApplying=false;}});
