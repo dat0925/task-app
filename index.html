@@ -508,8 +508,10 @@ a.bm-title:hover{color:var(--accent);text-decoration:underline}
 /* Modal */
 /* z-index:510 → タスク詳細の全画面表示(.expand-overlay, z-index:500)より確実に手前に出す。
    これが低いと、全画面表示中に完了確認などのモーダルを開いた際にモーダルが背面に回り込み押せなくなる */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:510;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}
-.overlay.open{opacity:1;pointer-events:all}
+dialog.overlay-dlg{position:fixed;inset:0;width:auto;height:auto;max-width:none;max-height:none;margin:0;padding:20px;border:none;background:transparent}
+dialog.overlay-dlg[open]{display:flex;align-items:center;justify-content:center;animation:dlgFadeIn .2s ease}
+dialog.overlay-dlg::backdrop{background:rgba(0,0,0,.5);animation:dlgFadeIn .2s ease}
+@keyframes dlgFadeIn{from{opacity:0}to{opacity:1}}
 .modal{background:var(--surface);border-radius:12px;padding:22px;max-width:420px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch}
 .modal-title{font-size:16px;font-weight:600;margin-bottom:14px}
 .modal-foot{display:flex;justify-content:flex-end;gap:7px;margin-top:18px}
@@ -1867,7 +1869,7 @@ function isAdmin(){return ADMIN_EMAILS.includes(window._currentUser?.email);}
 // ===== QRコード共有モーダル（スマホで開く） =====
 function showQRShareModal(){
   const url='https://app.taskra.jp';
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   ov.innerHTML='<div class="modal" style="max-width:440px;width:95vw;max-height:92vh;overflow-y:auto">'
     +'<div class="modal-title" style="display:flex;align-items:center;gap:8px">📱 スマホで開く</div>'
     +'<div style="font-size:12px;color:var(--text2);margin-bottom:12px">スマホのカメラでQRコードを読み取ると、Taskraをすぐに開けます。</div>'
@@ -2072,7 +2074,7 @@ async function unsubscribeFromPush(){
 
 // プッシュ通知の設定モーダル
 async function openPushSettingsModal(){
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   ov.innerHTML='<div class="modal" style="max-width:420px;width:95vw;max-height:90vh;overflow-y:auto">'
     +'<div class="modal-title">🔔 プッシュ通知の設定</div>'
     +'<div id="push-modal-body" style="font-size:13px;color:var(--text2);text-align:center;padding:20px">読み込み中...</div>'
@@ -2256,7 +2258,7 @@ function showUpgradeModal(feature){
     return base+(qp.toString()?'?'+qp.toString():'');
   }
 
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
 
   if(_isStd){
     // スタンダード → プレミアムへの誘導（1択）
@@ -2409,8 +2411,7 @@ async function openMyPlan(){
     +'</div>';
   }
 
-  const ov=document.createElement('div');
-  ov.className='overlay';
+  const ov=createOverlay();
   ov.innerHTML=
     '<div class="modal" style="max-width:500px;width:95vw;max-height:90vh;overflow-y:auto">'
       +'<div class="modal-title">📋 マイプラン</div>'
@@ -2658,9 +2659,9 @@ async function openPlanAdmin(){
     });
   }
 
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   // すでに管理者パネルが開いている場合は閉じてから開き直す
-  document.querySelectorAll('.overlay').forEach(el=>{if(el.querySelector('#admin-content-wrap'))el.remove();});
+  document.querySelectorAll('.overlay-dlg').forEach(el=>{if(el.querySelector('#admin-content-wrap'))el.remove();});
   ov.innerHTML='<div class="modal" style="max-width:640px;width:95vw">'
     +'<div class="modal-title" style="display:flex;align-items:center;gap:8px">🔑 管理者パネル<span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:auto">管理者専用</span></div>'
     +'<div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:12px">'
@@ -3783,6 +3784,27 @@ document.addEventListener('pointerdown',()=>{_gestureActive=true;},true);
 document.addEventListener('pointerup',()=>{_gestureActive=false;},true);
 document.addEventListener('pointercancel',()=>{_gestureActive=false;},true);
 
+// ===== モーダルの土台（<dialog>） =====
+// 従来の .overlay(div) の置き換え。各モーダルは createOverlay() で得た要素に
+// .modal を内包させ、従来どおり rAF で class 'open' を付けると表示される。
+// 土台側が 'open' の付与を MutationObserver で検知して showModal() し、
+// 'open' が外れたら close() する。これにより Esc クローズ・背景の inert 化・
+// フォーカスの閉じ込めをブラウザが担い、見た目（フェード・余白・中央寄せ）は
+// CSS で従来の .overlay と一致させてある。閉じる操作は従来どおり ov.remove()。
+function createOverlay(){
+  const dlg=document.createElement('dialog');
+  dlg.className='overlay-dlg';
+  if(typeof dlg.showModal==='function'){
+    const obs=new MutationObserver(()=>{
+      if(dlg.classList.contains('open')&&!dlg.open){try{dlg.showModal();}catch(e){}}
+      else if(!dlg.classList.contains('open')&&dlg.open){try{dlg.close();}catch(e){}}
+    });
+    obs.observe(dlg,{attributes:true,attributeFilter:['class']});
+    dlg.addEventListener('close',()=>obs.disconnect());
+  }
+  return dlg;
+}
+
 function mountPopupMenu(popup){
   document.body.appendChild(popup);
   if(typeof popup.showPopover!=='function')return false;
@@ -3837,7 +3859,7 @@ function showTagEditPopup(btn,tagId,tagName){
   colorBtn.onclick=ev=>{
     ev.stopPropagation();popup.remove();
     const tag=S.tags.find(x=>x.id===tagId);if(!tag)return;
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal"><div class="modal-title">タグのカラー変更</div>'
       +'<div class="fg"><label class="flabel">カラー</label><input type="color" id="m-color" value="'+tag.color+'" style="width:100%;height:44px;border:none;border-radius:6px;cursor:pointer;padding:2px"></div>'
       +'<div class="modal-foot"><button class="btn btn-ghost" id="m-cancel">キャンセル</button><button class="btn btn-primary" id="m-ok">変更</button></div>'
@@ -4017,7 +4039,7 @@ function _openWsSettingsModal(wsId){
   if(!ws)return;
   const isOwner=ws.owner_id===window._currentUser?.id;
   const members=S.wsMembers[wsId]||[];
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   ov.innerHTML='<div class="modal" style="max-width:400px">'
     +'<div class="modal-title">'+esc(ws.name)+'</div>'
     +'<div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:8px">メンバー ('+members.length+'人)</div>'
@@ -4572,7 +4594,7 @@ function showProjEditPopup(btn, projId, projName){
   colorBtn.onclick=ev=>{
     ev.stopPropagation();popup.remove();
     const proj=S.projects.find(x=>x.id===projId);if(!proj)return;
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal"><div class="modal-title">プロジェクトのカラー変更</div>'
       +'<div class="fg"><label class="flabel">カラー</label><input type="color" id="m-color" value="'+proj.color+'" style="width:100%;height:44px;border:none;border-radius:6px;cursor:pointer;padding:2px"></div>'
       +'<div class="modal-foot"><button class="btn btn-ghost" id="m-cancel">キャンセル</button><button class="btn btn-primary" id="m-ok">変更</button></div>'
@@ -5415,7 +5437,7 @@ function showUserMenu(){
     playSE('toggle');
     closeUserMenu();
     const isMobile=/iPhone|iPad|Android/i.test(navigator.userAgent);
-    const ov2=document.createElement('div');ov2.className='overlay active';ov2.style.cssText='opacity:1;pointer-events:auto;z-index:9999';
+    const ov2=createOverlay();
     ov2.innerHTML='<div class="modal" style="max-width:340px;text-align:center">'
       +'<div class="modal-title" style="display:flex;align-items:center;gap:8px">💬 LINE 友だち追加</div>'
       +(isMobile
@@ -5425,9 +5447,10 @@ function showUserMenu(){
          +'<div style="font-size:12px;color:var(--text3);margin-bottom:8px">LINEアプリでQRコードを読み取ってください</div>'
       )
       +'<div style="font-size:12px;color:var(--text2);margin:12px 0">友だち追加後、設定から<b>連携コードを発行</b>して連携してください。</div>'
-      +'<div class="modal-foot"><button class="btn btn-primary" onclick="this.closest(\'.overlay\').remove()">閉じる</button></div>'
+      +'<div class="modal-foot"><button class="btn btn-primary" onclick="this.closest(\'dialog\').remove()">閉じる</button></div>'
     +'</div>';
     document.body.appendChild(ov2);
+    ov2.classList.add('open');
     ov2.addEventListener('click',e=>{if(e.target===ov2)ov2.remove();});
   });
   menu.querySelector('#um-settings')?.addEventListener('click',()=>{playSE('toggle');closeUserMenu();openSettingsModal();});
@@ -5576,7 +5599,7 @@ function renderBotNav(){
   }
 }
 function openNavEdit(){
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   ov.innerHTML='<div class="modal" style="max-height:90vh;overflow-y:auto"><div class="modal-title">ナビ並び替え</div>'
     +'<div id="nav-edit-list"></div>'
     +'<div id="nav-edit-avail"></div>'
@@ -6109,7 +6132,7 @@ function bmOpenImportModal(parsed,fileName){
   const folders=new Set(items.map(i=>i.folder.join('\u0000')).filter(Boolean)).size;
   const cur=st.profiles.find(p=>p.profile_key===st.pk);
   const initial=cur?bmProfName(cur):(st.profiles.length===1?bmProfName(st.profiles[0]):'');
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   ov.innerHTML='<div class="modal"><div class="modal-title">Chromeのブックマークを取り込む</div>'
     +'<p style="font-size:13px;line-height:1.7;color:var(--text2);margin:0 0 12px"><b>'+esc(fileName)+'</b><br>'+items.length+'件のブックマーク・'+folders+'個のフォルダが見つかりました'
     +(excluded?'（bookmarklet・重複など '+excluded+'件は除外）':'')+'。</p>'
@@ -9411,7 +9434,7 @@ async function handleBulkEdit(field){
   const tasks=S.tasks.filter(t=>S.selectedIds.includes(t.id));
   if(!tasks.length){toast('タスクを選択してください');return;}
   if(field==='dates'){
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal" style="max-width:370px">'
       +'<div class="modal-title">日付を一括設定</div>'
       +'<div style="font-size:11px;color:var(--text3);margin:-4px 0 12px">空欄のままにしたフィールドは変更されません</div>'
@@ -9573,7 +9596,7 @@ async function handleBulkEdit(field){
       toast(tasks.length+'件を更新しました');render();
     };
   } else if(field==='tags'){
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括設定</div>'
       +'<select id="bulk-tag-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
       +S.tags.map(t=>'<option value="'+t.id+'">#'+esc(t.name)+'</option>').join('')
@@ -9593,7 +9616,7 @@ async function handleBulkEdit(field){
       toast(tasks.length+'件のタグを設定しました');render();
     };
   } else if(field==='priority'){
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal"><div class="modal-title">優先度を一括設定</div>'
       +'<div class="pri-grid" style="margin-bottom:12px">'
         +[1,2,3,4].map(p=>'<button class="pbtn'+(p<4?' on':'')+'" data-p="'+p+'" id="bulk-pri-'+p+'">'+pLabels[p]+'</button>').join('')
@@ -9613,7 +9636,7 @@ async function handleBulkEdit(field){
       };
     });
   } else if(field==='project'){
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal"><div class="modal-title">プロジェクトを一括設定</div>'
       +'<select id="bulk-proj-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
       +S.projects.filter(p=>p.status==='active').map(p=>'<option value="'+p.id+'">'+(p.workspaceId?'👥 ':'')+esc(p.name)+'</option>').join('')
@@ -9662,7 +9685,7 @@ async function handleBulkEdit(field){
     S.selectMode=false;S.selectedIds=[];
     toast(movedCount+'件を最上部に移動しました');render();
   } else if(field==='repeat'){
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal"><div class="modal-title">繰り返しを一括設定</div>'
       +'<select id="bulk-rep-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
       +['daily:毎日','weekly:毎週','monthly:毎月','yearly:毎年'].map(x=>{const[v,l]=x.split(':');return'<option value="'+v+'">'+l+'</option>'}).join('')
@@ -9716,7 +9739,7 @@ async function handleBulkEdit(field){
 
 // ===== 親タスク選択モーダル =====
 function openSetParentModal(taskIds,onSelect){  // 選択対象自身とその子孫は除外
-  const excluded=new Set(Array.isArray(taskIds)?taskIds:[taskIds]);  const addDescendants=(id)=>{S.tasks.filter(t=>t.parentTaskId===id).forEach(t=>{excluded.add(t.id);addDescendants(t.id);});};  excluded.forEach(id=>addDescendants(id));  const candidates=S.tasks.filter(t=>!excluded.has(t.id)&&t.status!=='completed'&&t.status!=='archived'&&!t.parentTaskId);  let q='';  const render=()=>{    const filtered=q?candidates.filter(t=>(t.title||'').includes(q)):candidates;    listEl.innerHTML=filtered.slice(0,50).map(t=>      '<button class="act-btn" data-id="'+t.id+'" style="display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:13px;border-bottom:1px solid var(--border)">'+esc(t.title||'無題')+'</button>'    ).join('');    listEl.querySelectorAll('[data-id]').forEach(btn=>{      btn.onclick=()=>{ov.remove();onSelect(btn.dataset.id);};    });  };  const ov=document.createElement('div');ov.className='overlay';  ov.innerHTML='<div class="modal" style="max-width:380px">'    +'<div class="modal-title">親タスクを選択</div>'    +'<input id="parent-search" class="finput" placeholder="タスク名で検索…" autocomplete="off" style="margin-bottom:10px">'    +'<div id="parent-list" style="max-height:280px;overflow-y:auto"></div>'    +'<div class="modal-foot" style="margin-top:8px"><button class="btn btn-ghost" id="parent-cancel">キャンセル</button></div>'  +'</div>';  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));  const listEl=ov.querySelector('#parent-list');  ov.querySelector('#parent-search').addEventListener('input',e=>{q=e.target.value;render();});  ov.querySelector('#parent-cancel').onclick=()=>ov.remove();  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});  render();}
+  const excluded=new Set(Array.isArray(taskIds)?taskIds:[taskIds]);  const addDescendants=(id)=>{S.tasks.filter(t=>t.parentTaskId===id).forEach(t=>{excluded.add(t.id);addDescendants(t.id);});};  excluded.forEach(id=>addDescendants(id));  const candidates=S.tasks.filter(t=>!excluded.has(t.id)&&t.status!=='completed'&&t.status!=='archived'&&!t.parentTaskId);  let q='';  const render=()=>{    const filtered=q?candidates.filter(t=>(t.title||'').includes(q)):candidates;    listEl.innerHTML=filtered.slice(0,50).map(t=>      '<button class="act-btn" data-id="'+t.id+'" style="display:block;width:100%;text-align:left;padding:8px 10px;border-radius:6px;font-size:13px;border-bottom:1px solid var(--border)">'+esc(t.title||'無題')+'</button>'    ).join('');    listEl.querySelectorAll('[data-id]').forEach(btn=>{      btn.onclick=()=>{ov.remove();onSelect(btn.dataset.id);};    });  };  const ov=createOverlay();  ov.innerHTML='<div class="modal" style="max-width:380px">'    +'<div class="modal-title">親タスクを選択</div>'    +'<input id="parent-search" class="finput" placeholder="タスク名で検索…" autocomplete="off" style="margin-bottom:10px">'    +'<div id="parent-list" style="max-height:280px;overflow-y:auto"></div>'    +'<div class="modal-foot" style="margin-top:8px"><button class="btn btn-ghost" id="parent-cancel">キャンセル</button></div>'  +'</div>';  document.body.appendChild(ov);requestAnimationFrame(()=>ov.classList.add('open'));  const listEl=ov.querySelector('#parent-list');  ov.querySelector('#parent-search').addEventListener('input',e=>{q=e.target.value;render();});  ov.querySelector('#parent-cancel').onclick=()=>ov.remove();  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});  render();}
 
 // ===== 未保存ドラフト検出 =====
 // バックグラウンド同期（_syncNow等）による再描画が、入力途中のコメント・メモを
@@ -9971,7 +9994,7 @@ document.addEventListener('click',async e=>{
     renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();
   }
   else if(a==='ws-create'){
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal" style="max-width:360px">'
       +'<div class="modal-title">チームを作成</div>'
       +'<div class="fg"><label class="flabel">チーム名</label>'
@@ -10071,7 +10094,7 @@ document.addEventListener('click',async e=>{
   }
   else if(a==='gantt-open'){S.taskId=el.dataset.id;S.drawerOpen=true;render();}
   else if(a==='gantt-help'){
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     // 以前は「サブタスクを持つタスクのみ表示」と書いていたが、renderGantt が除外するのは
     // 繰り返しタスクだけで、サブタスクの有無は見ていない。実装に合わせて書き直した。
     ov.innerHTML='<div class="modal"><div class="modal-title">ガントチャートについて</div>'
@@ -11072,7 +11095,7 @@ else if(a==='scroll-to-comments'){
     const targets=S.tasks.filter(t=>t.status==='completed'&&t.completedAt&&t.completedAt.slice(0,10)<=cutoff);
     if(!targets.length){toast('アーカイブ対象がありません（'+cutoff+' 以前の完了タスクなし）');return;}
     const cnt=targets.length;
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal"><div class="modal-title">アーカイブの確認</div>'
       +'<p style="font-size:14px;color:var(--text2);margin:8px 0 16px">'+cutoff+' 以前に完了した <b style="color:var(--text)">'+cnt+'件</b> をアーカイブします。<br>アーカイブしたタスクは一覧から非表示になります（削除ではありません）。</p>'
       +'<div style="display:flex;gap:8px">'
@@ -11241,7 +11264,7 @@ else if(a==='scroll-to-comments'){
   else if(a==='note-bulk-tag'){
     if(!S.selectedNoteIds.length){toast('ノートを選択してください');return;}
     const notes=S.notes.filter(n=>S.selectedNoteIds.includes(n.id));
-    const ov=document.createElement('div');ov.className='overlay';
+    const ov=createOverlay();
     ov.innerHTML='<div class="modal"><div class="modal-title">タグを一括設定</div>'
       +'<select id="note-bulk-tag-sel" class="finput fselect" style="margin-bottom:12px"><option value="">なし</option>'
       +S.tags.map(t=>'<option value="'+t.id+'">#'+esc(t.name)+'</option>').join('')
@@ -11808,7 +11831,7 @@ async function restoreBackup(backup){
 }
 
 async function openBackupModal(){
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   ov.innerHTML='<div class="modal" style="max-width:400px;max-height:80vh;display:flex;flex-direction:column">'
     +'<div class="modal-title">バックアップ</div>'
     +'<div id="bk-list" style="flex:1;overflow-y:auto;min-height:80px"><div style="color:var(--text3);font-size:13px;text-align:center;padding:20px">読み込み中…</div></div>'
@@ -11918,7 +11941,7 @@ function applySettings(){
 function openSettingsModal(){
   // 二重開き防止
   if(document.querySelector('.overlay #s-close'))return;
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   const aiEnabled=getSetting('aiChat',true);
   const seEnabled=getSetting('soundFx',true);
   const planLabel=getPlanDef().label;
@@ -12301,7 +12324,7 @@ function openSettingsModal(){
 
 // ===== CONFIRM MODAL =====
 function openConfirmModal(title,message,onOk,okLabel='削除',danger=true){
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   ov.innerHTML='<div class="modal">'
     +'<div class="modal-title">'+esc(title)+'</div>'
     +'<div style="font-size:13px;color:var(--text2);line-height:1.6">'+esc(message)+'</div>'
@@ -12332,7 +12355,7 @@ function showNewProjectModal(workspaceId=null){
   if(!workspaceId&&!getPlanDef().team){showUpgradeModal('team');return;}
   if(!workspaceId&&getActiveProjectCount()>=getPlanDef().projectLimit){showUpgradeModal('projects');return;}
   const wsName=workspaceId?S.workspaces.find(w=>w.id===workspaceId)?.name:'';
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   ov.innerHTML='<div class="modal"><div class="modal-title">新規プロジェクト'+(wsName?' <span style="font-size:12px;color:var(--accent)">'+esc(wsName)+'</span>':'')+'</div>'
     +'<div class="fg"><label class="flabel">名前</label><input class="finput" id="m-name" placeholder="プロジェクト名"></div>'
     +'<div class="fg"><label class="flabel">カラー</label><input type="color" id="m-color" value="#3b82f6" style="width:100%;height:34px;border:none;border-radius:6px;cursor:pointer"></div>'
@@ -12365,7 +12388,7 @@ function showNewProjectModal(workspaceId=null){
 // ===== MODAL =====
 function openModal(type){
   if((type==='project'||type==='proj')&&isPlanFree()&&getActiveProjectCount()>=getPlanDef().projectLimit){showUpgradeModal('projects');return;}
-  const ov=document.createElement('div');ov.className='overlay';
+  const ov=createOverlay();
   if(type==='project'||type==='proj'){
     ov.innerHTML='<div class="modal"><div class="modal-title">新規プロジェクト</div>'
       +'<div class="fg"><label class="flabel">名前</label><input class="finput" id="m-name" placeholder="プロジェクト名"></div>'
@@ -13083,8 +13106,7 @@ const EXTRACT_ACCEPT='image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx';
 function openExtractModal(){
   _extractAttachment=null;
   const premium=isPlanPremium();
-  const ov=document.createElement('div');
-  ov.className='overlay';ov.id='extract-ov';
+  const ov=createOverlay();ov.id='extract-ov';
   ov.innerHTML=
     '<div class="modal" style="max-width:460px;max-height:82vh;display:flex;flex-direction:column">'
       +'<div class="modal-title">メール・チャット・添付から起票</div>'
