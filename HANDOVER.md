@@ -4,6 +4,29 @@
 
 ---
 
+## モーダル全27か所を <dialog> に載せ替え（2026-11-13）
+
+### 背景
+UI 洗練リストの9位・第2弾（本人が「26か所全部やる」と判断）。設定・バックアップ・確認ダイアログ等のモーダルは `.overlay`（自作 div）で26か所＋変則形1か所（ユーザーメニューの LINE 友だち追加）が各自に実装され、Esc で閉じられるか・フォーカスの扱いがバラバラだった。ブラウザ標準の `<dialog>` に寄せて挙動を統一する。
+
+### 対応（index.html、sw.js）
+- 共通ヘルパー `createOverlay()` を追加。全モーダルはこれで得た `<dialog class="overlay-dlg">` に従来どおり `.modal` を内包し、従来どおり rAF で class `open` を付けると表示される。土台が MutationObserver で `open` の付与を検知して `showModal()` し、`open` が外れたら（フェードアウト式に閉じる2か所）`close()` する。各モーダルの本体コード・閉じ方（ov.remove()、背後クリック判定）は無変更。
+- CSS は従来の `.overlay` と一致させた（余白20px・中央寄せ・背景 rgba(0,0,0,.5)・フェード .2s）。dialog の UA スタイルは `margin:0 / width・height:auto / max 制約なし` で打ち消し、display:flex は `[open]` のときだけ有効化。
+- 得られる統一挙動：Esc で全モーダルが閉じる、開いている間は背景が inert（触れない・フォーカスが漏れない）、モーダルの重なりはトップレイヤーのスタック順で正しく処理される。
+- 変則形の LINE 友だち追加モーダル（`overlay active`＋インライン style 方式）も createOverlay 経由に統一し、閉じるボタンの `closest('.overlay')` を `closest('dialog')` に追随。管理画面の掃除セレクタ `.overlay` → `.overlay-dlg` も追随。
+- 対象外：タスク詳細の全画面表示（.expand-overlay）、AIパネル（#ai-overlay）、Cmd+K（.cmdk-overlay）、ユーザーメニュー（.user-menu-overlay）はモーダルではないため触っていない。
+- sw.js の CACHE_NAME を taskra-v99 に更新。
+
+### 動作確認
+- 全インラインスクリプトの構文チェック（node --check）済み。
+- createOverlay を抜き出して Node で単体試験13項目すべて合格（open 付与→showModal／二重オープン防止／open 除去→close／監視解除／27か所の変換と append→open 順序の静的監査／backdrop 色の一致）。
+- 実機での目視確認（設定・確認ダイアログ・新規プロジェクト等の開閉、Esc、重なり）はマージ後に本人。
+
+### セキュリティ関連の状態
+認証・決済・DB・RLS の変更なし。
+
+---
+
 ## ポップアップメニューを Popover API に載せ替え（2026-11-13）
 
 ### 背景
