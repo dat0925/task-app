@@ -862,29 +862,34 @@
   async function deleteRow(rid) {
     var rec = recById(rid);
     if (!rec) return;
-    // 元に戻せるよう、暗号文ごと控えてから消す
-    var secrets = [];
-    var sf = st.fields.filter(function (f) { return f.type === 'secret' && st.hasSecret[key(rid, f.id)]; });
-    if (sf.length) {
-      var s = await SB().from('table_record_secrets').select('record_id,field_id,cipher').eq('record_id', rid);
-      if (s.error) return fail('deleteRow', s.error);
-      secrets = s.data || [];
-    }
-    var r = await SB().from('table_records').delete().eq('id', rid);
-    if (r.error) return fail('deleteRow', r.error);
-    st.records = st.records.filter(function (x) { return x.id !== rid; });
-    sf.forEach(function (f) { delete st.hasSecret[key(rid, f.id)]; delete st.revealed[key(rid, f.id)]; });
-    closeDrawer(); refreshBody();
-    say('行を削除しました', async function () {
-      var ins = await SB().from('table_records').insert({ id: rec.id, table_id: rec.table_id, values: rec.values, sort_order: rec.sort_order });
-      if (ins.error) return fail('undoDeleteRow', ins.error);
-      if (secrets.length) {
-        var is = await SB().from('table_record_secrets').insert(secrets);
-        if (is.error) fail('undoDeleteRow', is.error);
-        secrets.forEach(function (x) { st.hasSecret[key(x.record_id, x.field_id)] = true; });
+    // 誤操作防止のため、消す前に確認を挟む（列の削除と同じ confirmSheet）
+    var pf = primaryField();
+    var title = (pf && strVal(rec, pf)) || EMPTY_PRIMARY;
+    confirmSheet('行を削除しますか？', '「' + title + '」を削除します。直後なら「Undo」で元に戻せます。', '削除する', async function () {
+      // 元に戻せるよう、暗号文ごと控えてから消す
+      var secrets = [];
+      var sf = st.fields.filter(function (f) { return f.type === 'secret' && st.hasSecret[key(rid, f.id)]; });
+      if (sf.length) {
+        var s = await SB().from('table_record_secrets').select('record_id,field_id,cipher').eq('record_id', rid);
+        if (s.error) return fail('deleteRow', s.error);
+        secrets = s.data || [];
       }
-      st.records.push(rec); st.records.sort(function (a, b) { return a.sort_order - b.sort_order; });
-      refreshBody(); say('元に戻しました');
+      var r = await SB().from('table_records').delete().eq('id', rid);
+      if (r.error) return fail('deleteRow', r.error);
+      st.records = st.records.filter(function (x) { return x.id !== rid; });
+      sf.forEach(function (f) { delete st.hasSecret[key(rid, f.id)]; delete st.revealed[key(rid, f.id)]; });
+      closeDrawer(); refreshBody();
+      say('行を削除しました', async function () {
+        var ins = await SB().from('table_records').insert({ id: rec.id, table_id: rec.table_id, values: rec.values, sort_order: rec.sort_order });
+        if (ins.error) return fail('undoDeleteRow', ins.error);
+        if (secrets.length) {
+          var is = await SB().from('table_record_secrets').insert(secrets);
+          if (is.error) fail('undoDeleteRow', is.error);
+          secrets.forEach(function (x) { st.hasSecret[key(x.record_id, x.field_id)] = true; });
+        }
+        st.records.push(rec); st.records.sort(function (a, b) { return a.sort_order - b.sort_order; });
+        refreshBody(); say('元に戻しました');
+      });
     });
   }
 
