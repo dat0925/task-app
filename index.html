@@ -185,7 +185,7 @@ a.bm-title:hover{color:var(--accent);text-decoration:underline}
 .chip-suggest.off{opacity:.38;text-decoration:line-through}
 
 /* Content */
-.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}
 /* pull to refresh */
 #ptr-indicator{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:8px;height:56px;font-size:13px;color:var(--text2);background:var(--surface);border-bottom:1px solid var(--border);transform:translateY(-56px);transition:opacity .2s;pointer-events:none;z-index:10;font-weight:500}
 #ptr-spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%}
@@ -6291,6 +6291,19 @@ function _flipPlay(first,fromSync){
     newRows.forEach(r=>{try{r.animate([{opacity:'0',transform:'translateY(6px)'},{opacity:'1',transform:'translateY(0px)'}],{duration:220,easing:'ease-out'});}catch(e){}});
   }
 }
+// ===== 選択ハイライトの軽い更新（PCの一覧クリック／↑↓キー用）=====
+// タスク選択で一覧全体を描き直すと、再描画のちらつき・FLIPの位置アニメーション・
+// ドロワー開閉によるメイン幅の変化が重なって「選択時に一覧がゆれる」見え方に
+// なっていた（2026-11-15 実機動画で指摘）。選択で変わるのは .sel の付け先だけ
+// なので、DOM上のクラス付け替えで済ませて一覧の再描画はしない。
+function _updateSelHighlight(){
+  document.querySelectorAll('.trow.sel').forEach(r=>{
+    if(r.dataset.id!==S.taskId)r.classList.remove('sel');
+  });
+  if(S.drawerOpen&&S.taskId&&!S.selectMode){
+    document.querySelectorAll('.trow[data-id="'+S.taskId+'"]').forEach(r=>r.classList.add('sel'));
+  }
+}
 function renderContent(){
   const _fromSync=!!window._flipSkipOnce;window._flipSkipOnce=false;
   const _first=_flipCapture();
@@ -10160,7 +10173,9 @@ else if(a==='sel'){
   const id=el.dataset.id;
   if(S.taskId===id&&S.drawerOpen){S.drawerOpen=false;S.taskId=null}
   else{S.taskId=id;S.drawerOpen=true;playSE('open');}
-  renderContent();renderSidebar();renderDrawer();
+  // 一覧は描き直さない（選択時のゆれ対策。_updateSelHighlight のコメント参照）。
+  // ドロワーを先に更新してメイン幅を確定させ、ハイライトはその後で付ける。
+  renderDrawer();_updateSelHighlight();renderSidebar();
 }
 else if(a==='db-complete'){
     e.stopPropagation();
@@ -11647,7 +11662,7 @@ document.addEventListener('keydown',e=>{
       const next=vt[ni];
       if(!next||next.id===S.taskId)return;
       S.taskId=next.id;S.drawerOpen=true;S.noteOpen=false;
-      renderDrawer();renderContent();
+      renderDrawer();_updateSelHighlight();
       // スクロールして選択行を表示
       requestAnimationFrame(()=>{
         document.querySelector('.trow[data-id="'+next.id+'"]')?.scrollIntoView({block:'nearest',behavior:'smooth'});
