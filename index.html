@@ -540,10 +540,9 @@ dialog.overlay-dlg::backdrop{background:rgba(0,0,0,.5);animation:dlgFadeIn .2s e
 .bnav svg{width:21px;height:21px}
 .bnav-ai{color:#3b82f6}
 .bnav-sidebar{color:var(--text2)}
-/* モバイル: サイドバー(左)・AI(右)を固定フランクとして区切り線で分離 */
+/* モバイル: サイドバー(左)だけを固定フランクとして区切り線で分離する。AIは通常項目なので右の区切り線・固定幅は付けない */
 @media(max-width:768px){
   .bnav-sidebar{border-right:1px solid var(--border);flex:0 0 58px}
-  .bnav-ai{border-left:1px solid var(--border);flex:0 0 58px}
 }
 /* Prev / Next step buttons */
 .bnav-step{
@@ -5616,15 +5615,14 @@ function renderBotNav(){
       +((!isAI&&!isEdit&&!isSidebar)?(' data-v="'+i.v+'"'):'')+'>'+i.icon()+'<span>'+i.label+'</span></div>';
   };
   if(isMobile){
-    // モバイル: 左固定=サイドバー、右固定=AI、中央=カスタマイズ可能なビュー
+    // モバイル: 左固定=サイドバーのみ。AIも通常項目として、保存済みの順序に入っているときだけ中央の並びに含める
     const sidebarItem=ALL_NAV_ITEMS.find(x=>x.special==='sidebar');
-    const aiItem=ALL_NAV_ITEMS.find(x=>x.special==='ai');
     const viewItems=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean)
-      .filter(i=>!i.special&&i.v!=='gantt');
+      .filter(i=>i.special!=='sidebar'&&i.special!=='edit'&&i.v!=='gantt')
+      .filter(i=>i.special!=='ai'||aiEnabled);
     const leftFixed=sidebarItem?mkItem(sidebarItem):'';
-    const rightFixed=(aiEnabled&&aiItem)?mkItem(aiItem):'';
     document.getElementById('botnav').innerHTML=
-      leftFixed+'<div class="bot-nav-inner">'+viewItems.map(mkItem).join('')+'</div>'+rightFixed;
+      leftFixed+'<div class="bot-nav-inner">'+viewItems.map(mkItem).join('')+'</div>';
   }else{
     const items=order.map(v=>ALL_NAV_ITEMS.find(x=>x.v===v)).filter(Boolean)
       .filter(i=>i.special!=='ai'||aiEnabled).filter(i=>i.special!=='edit').filter(i=>i.v!=='gantt');
