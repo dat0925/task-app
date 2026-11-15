@@ -923,6 +923,8 @@
     var pf = primaryField();
     var title = (pf && strVal(rec, pf)) || EMPTY_PRIMARY;
     var fmt = function (s) { try { return new Date(s).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }); } catch (e) { return ''; } };
+    var prevBody = d.querySelector('.tb-drawer-body');
+    var prevTop = prevBody ? prevBody.scrollTop : 0; // 再描画でスクロール位置が先頭へ戻らないよう控える（グリッド側 redrawGrid と同じやり方）
     var hid = cfg().hidden_field_ids;
     var shownF = st.fields.filter(function (f) { return f.is_primary || hid.indexOf(f.id) < 0; });
     var hiddenF = st.fields.filter(function (f) { return !f.is_primary && hid.indexOf(f.id) >= 0; });
@@ -933,6 +935,8 @@
       + '</div>'
       + '<div class="tb-drawer-foot"><span>作成 ' + fmt(rec.created_at) + '　更新 ' + fmt(rec.updated_at) + '</span><span class="tb-spacer"></span>'
       + '<button class="tb-btn danger" data-dw="delete-row">行を削除</button></div>';
+    var newBody = d.querySelector('.tb-drawer-body');
+    if (newBody) newBody.scrollTop = prevTop;
     d.querySelectorAll('[data-field-input]').forEach(function (inp) {
       var f = fieldById(inp.dataset.fieldInput);
       var ev = inp.type === 'checkbox' || inp.tagName === 'SELECT' || inp.type === 'date' ? 'change' : 'change';

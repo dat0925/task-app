@@ -35,7 +35,7 @@
 .tb-sortgroup{display:flex;align-items:center;gap:4px}
 
 /* ---- グリッド ---- */
-.tb-scroll{flex:1;overflow:auto;position:relative}
+.tb-scroll{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;position:relative}
 .tb-grid{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:13px}
 .tb-grid th,.tb-grid td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:0 10px;height:34px;box-sizing:border-box;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:var(--surface);text-align:left}
 .tb-grid thead th{position:sticky;top:0;z-index:2;background:var(--bg2);font-weight:600;color:var(--text2);cursor:pointer;user-select:none}
@@ -89,11 +89,11 @@
 /* ---- 行の詳細パネル ---- */
 .tb-drawer-bg{position:fixed;inset:0;z-index:9980;background:rgba(15,23,42,.18);opacity:0;transition:opacity .18s}
 .tb-drawer-bg.on{opacity:1}
-.tb-drawer{position:fixed;top:0;right:0;bottom:0;z-index:9981;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--border);box-shadow:-10px 0 30px rgba(15,23,42,.12);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .2s ease-out}
+.tb-drawer{position:fixed;top:0;right:0;bottom:0;height:100vh;height:100dvh;height:var(--app-h,100dvh);z-index:9981;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--border);box-shadow:-10px 0 30px rgba(15,23,42,.12);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .2s ease-out}
 .tb-drawer.on{transform:none}
 .tb-drawer-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)}
 .tb-drawer-head .tb-drawer-title{flex:1;font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tb-drawer-body{flex:1;overflow-y:auto;padding:14px 16px 30px}
+.tb-drawer-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 30px}
 .tb-field{margin-bottom:16px}
 .tb-field-label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px}
 .tb-input,.tb-textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:14px;background:var(--bg);color:var(--text);outline:none;box-sizing:border-box;font-family:inherit}
