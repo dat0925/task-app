@@ -1,8 +1,29 @@
 # Taskra（タスクラ）引き継ぎ書
 
-最終更新: 2026-11-15
+最終更新: 2026-11-16
 
 ---
+
+## 下部ナビの並び替え候補に不足ビューを追加（2026-11-16、v108）
+サイドバーのビュー定義（ALL_SYS）には15ビューあるのに、下部ナビの定義（ALL_NAV_ITEMS）には Table・Bookmark・Assigned・Logbook が無く、「ナビ並び替え」ダイアログの追加候補にも出てこなかった（本人から「Tableがない」と指摘）。ALL_NAV_ITEMS に4ビューを追加し、候補に出るようにした。他に不足がないかも ALL_SYS と突き合わせて確認済み（残る差分は Gantt のみで、これは対象外が設計どおり）。
+
+### 対応（index.html、sw.js）
+- index.html の `ALL_NAV_ITEMS` に4件を追加（label・icon はサイドバー側 ALL_SYS の定義に合わせた）
+  - `{v:'assigned', label:'Assigned', icon: ICONS.assigned}` を Flagged の後ろに
+  - `{v:'completed', label:'Logbook', icon: ICONS.archive}` を Review の後ろに
+  - `{v:'bookmarks', label:'Bookmark'}` と `{v:'tables', label:'Table'}`（icon は ALL_SYS と同じ ico(...) 定義）を Note の後ろに
+  - 既存項目の順序は変更なし。影響は追加候補チップの表示順と、追加した項目の初期位置だけ
+- Gantt は従来どおり下部ナビ対象外のまま（renderBotNav の除外・追加候補の除外は変更なし）
+- sw.js の CACHE_NAME を taskra-v108 に更新
+
+### 動作確認
+- index.html のインラインスクリプト全4ブロックの構文チェック（node --check）済み。ALL_NAV_ITEMS を実評価し、4件の追加と全 icon 関数の呼び出しを確認
+- 遷移はコードで確認：下部ナビのタップは汎用ハンドラ（data-a="view"）が `S.view = data-v` で切り替える作りで、追加4ビューもそのまま遷移できる。render() 側も assigned（担当タスクの絞り込み）／completed（Logbook）／bookmarks／tables の分岐が既存（いずれもサイドバーから利用中）
+- 実機での目視確認（並び替えダイアログに候補が出て、追加して遷移できること）はマージ後に本人
+
+### セキュリティ関連の状態
+- 変更はナビ定義のみ。DB・RLS・認証の変更なし
+
 
 ## テーブル画面のツールバーをスマホで2段に収めた（2026-11-15、v107）
 テーブル画面のツールバー（`.tb-bar`）がスマホ幅（約390px）で3段に折り返し、縦に場所を取っていた。ボタンの文言短縮と狭幅での詰めで、ボタン類を2段に収めた（検索欄は従来どおり、その下に全幅で出る）。
