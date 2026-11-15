@@ -645,6 +645,8 @@ async function moveLineToSecret(entity, notesEl, line, chip) {
 function lock() {
   if (_masterKey) { try { _masterKey.fill(0); } catch (_e) {} }
   _masterKey = null;
+  // テーブル機能（biz/tables.js）が表示中の平文を伏せ字に戻すための合図【会社用で追加】
+  try { window.dispatchEvent(new Event('secretmemo:lock')); } catch (_e) {}
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
@@ -696,7 +698,40 @@ function mountNoteSection(note) {
   mountSection(entity, anchor);
 }
 
+// =====================================================================
+// テーブル機能（biz/tables.js）から使う口【会社用で追加 2026-11-15】
+//   secret 型の列を、シークレットメモと同じマスター鍵で暗号化・復号する。
+//   鍵はこのモジュールの外に出さない。平文はブラウザの中だけで扱う。
+// =====================================================================
+// 解錠済みなら true。未設定なら作成、設定済みなら解錠のシートを開き、閉じたときの状態を返す
+function requireUnlock() {
+  if (isUnlocked()) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    let settled = false;
+    let obs = null;
+    const finish = (v) => { if (settled) return; settled = true; if (obs) obs.disconnect(); resolve(v); };
+    loadMaterial(true).then((material) => {
+      const onDone = () => finish(true);
+      if (material) openUnlock(onDone); else openSetup(onDone);
+      // シートが全部閉じたら終わり（「合言葉を忘れた」は次のシートに替わるだけなので続ける）
+      obs = new MutationObserver(() => {
+        if (!document.querySelector('.sm-overlay')) finish(isUnlocked());
+      });
+      obs.observe(document.body, { childList: true });
+    }).catch(() => finish(false));
+  });
+}
+async function encryptText(plaintext) {
+  if (!_masterKey) throw new Error('locked');
+  return C.encryptNote(_masterKey, String(plaintext));
+}
+async function decryptText(blob) {
+  if (!_masterKey) throw new Error('locked');
+  return C.decryptNote(_masterKey, blob);
+}
+
 window.SecretMemo = {
   mountTaskSection, mountNoteSection, onNotesInput,
   moveSecret, onEntityDeleted, lock,
+  isUnlocked, requireUnlock, encryptText, decryptText, copyText,
 };

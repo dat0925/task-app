@@ -1,9 +1,9 @@
 // Taskra - Service Worker v63 (stale-while-revalidate)
-const CACHE_NAME = 'taskra-v103';
+const CACHE_NAME = 'taskra-v104';
 const CDN_CACHE  = 'taskra-cdn-v33';
 
 // キャッシュするアセット
-const APP_ASSETS = ['./', './index.html', './icon-192.png', './icon-512.png'];
+const APP_ASSETS = ['./', './index.html', './icon-192.png', './icon-512.png', './src/tables.js', './src/tables.css'];
 const CDN_ASSETS = [
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
   'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js',

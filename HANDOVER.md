@@ -4,6 +4,31 @@
 
 ---
 
+## テーブル機能とサイドバーの「ツール」アコーディオンを追加（2026-11-15、v104）
+会社用 Taskra（taskra-biz）で同日に作られたテーブル機能とサイドバーの改修を、会社側 Claude からの申し送り（Slack #muse-inbox、添付 zip `taskra-table-port.zip`、SHA-256 照合済み）に基づいて個人用へ移植した。コードは会社用の実物そのまま。
+
+### 変更内容
+- DB：`supabase/migrations/20261115_tables_feature.sql` で5表（tables / table_fields / table_records / table_views / table_record_secrets）を追加。行の値は `table_records.values`（jsonb、列 id がキー）。secret 型の値は values に入れず、`table_record_secrets.cipher`（base64(iv＋暗号文)）にだけ置く
+- RLS：5表とも enable＋force、ポリシーは `own_rows`（authenticated、`user_id = auth.uid()`）のみ。会社用 SQL 末尾の `service_all` ポリシー（service_role 用）は Supabase では不要（service_role は RLS を越える）として外した。anon 権限なし。適用後に pg_class / pg_policies で読み戻して確認済み
+- `src/tables.js` / `src/tables.css` を新規追加（会社用の実物）。表の画面・CSV 取り込み／書き出し・フィルタ・並び替え・ビュー保存までこの2ファイルで完結
+- `src/secret-memo.js`：同梱の secret-memo.patch を適用。ロック時に `secretmemo:lock` イベントを発火し、`window.SecretMemo` に isUnlocked / requireUnlock / encryptText / decryptText / copyText を公開（鍵はモジュールの外に出さない）。パッチは v103 時点のファイルにそのまま当たった
+- `index.html`：入口6か所（ALL_SYS に tables 追加、titles、qaHidden、_renderContentBody の分岐、cmdk の viewDefs、CSS/JS の読み込み）＋サイドバーの「ビュー」から Search・Note・Bookmark・Table・Gantt を「ツール」アコーディオンへ分離（tools-toggle のクリック分岐、開閉状態は `S.toolsOpen`）
+- `sw.js`：APP_ASSETS に `src/tables.js`・`src/tables.css` を追加し、CACHE_NAME を taskra-v104 に更新
+
+### 動作確認
+- 全インラインスクリプト（4本）と tables.js / secret-memo.js / sw.js の構文チェック（node --check）済み
+- グローバル整合：tables.js が使う `S`（index.html の let S）・`window._SB`・`window.toast`（typeof ガード付きで使用）・`window.SecretMemo` はすべて個人用に存在する。cmdk の navIcon は ALL_NAV_ITEMS に tables が無いため '▸' フォールバックになる（アイコン表示だけの差）
+- 実機での目視確認（Table ビューが開けること、共有プロジェクトの相手にテーブルが見えないこと）はマージ後に本人
+
+### セキュリティ関連の状態
+- 新規5表と RLS は上記のとおり（CLAUDE.md のセキュリティチェック実施済み：RLS の有効化とポリシーを実 DB で確認）
+- 認証・決済フローの変更なし。secret の平文はブラウザの中だけで扱い、DB・MCP・LINE・AI チャットには暗号文しか渡らない構造
+- 触れていない箇所：既存テーブルと既存データ（新規5表の追加のみ）
+
+### 次にやること
+- 個人 Notion の IDPASS データベースをこのテーブルへ移行する（別作業）。移行元の件数と取り込み後の件数の照合が済むまで Notion 側は消さない
+
+
 ## 詳細パネルで開始日を変えても一覧が描き直されない問題の修正（2026-11-15、v103）
 会社用 Taskra（taskra-biz）で先に直した不具合の横展開。会社側 Claude から Slack #muse-inbox 経由で修正依頼が届き、個人用にも同じコードがあることを確認して同じ修正を入れた。
 
