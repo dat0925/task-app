@@ -148,6 +148,15 @@
   .tb-sum{grid-template-columns:1fr 1fr}
 }
 
+/* 狭幅ではツールバーのボタン類を2段に収める（ラベル短縮＋詰め） */
+.tb-lbl-short{display:none}
+@media (max-width:560px){
+  .tb-bar{gap:4px}
+  .tb-btn{padding:0 7px}
+  .tb-lbl-full{display:none}
+  .tb-lbl-short{display:inline}
+}
+
 /* ダークモード（本家は html.dark / [data-dark]） */
 html.dark .tb-alert,[data-dark] .tb-alert{background:rgba(234,88,12,.12);color:#fdba74;border-color:rgba(234,88,12,.35)}
 
