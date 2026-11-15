@@ -10014,7 +10014,7 @@ document.addEventListener('click',async e=>{
   if(!_noDebounce.has(a)){const _now=Date.now();if(_now-_lastActionAt<350)return;_lastActionAt=_now;}
 
   if(a==='open-folder-path'){if(_touchMoved)return;e.stopPropagation();openFolderPathAction(el.dataset.path||'');}
-  else if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob&&S.sidebarOpen)_vtSkipNext=true;if(_isMob){playSE('toggle');_tappingView=el.dataset.v;if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{_tappingView=null;S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
+  else if(a==='view'){if(_touchMoved)return;closeViewHelp();if(el.dataset.v!=='search')S.search='';S.view=el.dataset.v;S.projId=null;S.tagId=null;const _isMob=window.innerWidth<=768;if(_isMob&&(S.sidebarOpen||el.closest('#botnav')))_vtSkipNext=true;if(_isMob){playSE('toggle');_tappingView=el.dataset.v;if(Date.now()-_projDragEndedAt>400)setTimeout(()=>{_tappingView=null;S.sidebarOpen=false;render();},360);}if(el.dataset.v==='search'&&_isMob){const _gs=document.getElementById('global-srch');if(_gs)_gs.focus();}render();if(el.dataset.v==='search')setTimeout(()=>document.getElementById('srch')?.focus(),80);}
   else if(a==='forecast-day'){if(_touchMoved)return;S.view='forecast-day';S.forecastDate=el.dataset.date;S.projId=null;S.tagId=null;render();}
   else if(a==='tog-fc-overdue'){if(_touchMoved)return;S.fcOverdueOpen=!S.fcOverdueOpen;render();}
   else if(a==='fc-overdue-today'){
@@ -14037,6 +14037,7 @@ async function init(){
         if(item.type==='view'){S.view=item.v;}
         else if(item.type==='proj'){S.view='project';S.projId=item.id;}
         else if(item.type==='tag'){S.view='tag';S.tagId=item.id;}
+        _vtSkipNext=true;
         playSE('toggle');render();
       };
       const prevBtn=botnav.querySelector('.bnav-prev');
