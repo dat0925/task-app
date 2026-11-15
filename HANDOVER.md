@@ -4,6 +4,30 @@
 
 ---
 
+## テーブルの行詳細ドロワーがスマホで下までスクロールできない問題の修正（2026-11-15、v105）
+v104 で入れたテーブル機能の実機確認で見つかった不具合の修正。パスワードの表示・コピーは正常だった。
+
+### 症状
+スマホで行詳細ドロワー（`.tb-drawer`）を開き、入力欄をタップしてキーボードが出ると、下部の欄（備考02・Notion・削除ボタン等）にスクロールで到達できない。
+
+### 原因
+- 本家 index.html はキーボード表示時に visualViewport.height を CSS 変数 `--app-h`（documentElement）へ入れ、本家の `.drawer` 等は `height:var(--app-h,...)` で可視領域に追随する。一方 `.tb-drawer` は `position:fixed;top:0;bottom:0` で `--app-h` に追随しないため、ドロワー下部がキーボードの裏に隠れた。さらに内容の高さがドロワー高さ未満だと `.tb-drawer-body` に overflow が発生せず、スクロール自体ができなかった
+- 副次的問題：`drawDrawer()`（src/tables.js）が innerHTML を再構築する際、`.tb-drawer-body` の scrollTop を保存・復元していなかった（グリッド側は redrawGrid で保存・復元している）。シークレット表示切替や保存のたびにスクロールが先頭へ戻っていた
+
+### 対応（src/tables.css、src/tables.js、sw.js）
+- `.tb-drawer` に `height:100vh;height:100dvh;height:var(--app-h,100dvh)` を追加（top:0 は維持。height が効く環境では bottom より優先され、キーボード時は `--app-h` の高さに縮む。`--app-h` 未設定・dvh 未対応環境では従来どおりの全高になる）
+- `.tb-drawer-body` と `.tb-scroll`（グリッドのスクロール領域）に `min-height:0` と `-webkit-overflow-scrolling:touch` を追加
+- `drawDrawer()`：再描画前に既存 `.tb-drawer-body` の scrollTop を控え、innerHTML 再構築後に新しい `.tb-drawer-body` へ復元する（redrawGrid と同じやり方）
+- sw.js の CACHE_NAME を taskra-v105 に更新
+
+### 動作確認
+- src/tables.js の構文チェック（node --check）済み
+- 実機での目視確認（キーボード表示時に下部の欄と削除ボタンまでスクロールできること）はマージ後に本人
+
+### セキュリティ関連の状態
+- 変更は表示まわり（CSS）とドロワーの再描画時のスクロール復元のみ。DB・認証・決済フローの変更なし。触れていない箇所：index.html、既存テーブルと既存データ
+
+
 ## テーブル機能とサイドバーの「ツール」アコーディオンを追加（2026-11-15、v104）
 会社用 Taskra（taskra-biz）で同日に作られたテーブル機能とサイドバーの改修を、会社側 Claude からの申し送り（Slack #muse-inbox、添付 zip `taskra-table-port.zip`、SHA-256 照合済み）に基づいて個人用へ移植した。コードは会社用の実物そのまま。
 
