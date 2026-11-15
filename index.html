@@ -4223,6 +4223,7 @@ function initNoteSwipe(container){
 // 明日へ持ち越す方が自然なため、あえて分けた）。日付が1つも無いタスクは
 // 開始日・予定日を明日（ymdShift(1)）にする。Undo はスナップショット復元。
 function _shiftDayStr(dstr){if(!dstr)return dstr;const d=new Date(dstr+'T00:00:00');d.setDate(d.getDate()+1);return ymd(d);}
+function _refreshListAfterDateEdit(){try{renderSidebar();renderContent();}catch(e){console.error('refreshListAfterDateEdit',e)}}
 async function postponeTaskToTomorrow(taskId){
   const task=S.tasks.find(t=>t.id===taskId);if(!task||task.status==='completed')return;
   const snap=JSON.stringify(task);
@@ -8497,6 +8498,7 @@ function renderDrawer(){
       if(!drEl||drEl._taskId!==t2.id||!document.getElementById('dt-title')){setInd('');return;}
       const prevStatus=t2.status;
       const prevProjectId=t2.projectId;
+      const prevDates=[t2.startAt,t2.startTime,t2.dueAt].join('|');
       // 各入力欄は「存在する場合のみ」反映する（拡大モーダル側のsaveと同じガード方針に統一）
       const _elTitle=document.getElementById('dt-title');if(_elTitle)t2.title=_elTitle.value;
       const _elNotes=document.getElementById('dt-notes');if(_elNotes)t2.notes=_elNotes.value;
@@ -8528,7 +8530,8 @@ function renderDrawer(){
       setInd('saved');
 
       const drawerInputIds=['dt-title','dt-notes','dt-due','dt-start','dt-proj','dt-assignee','dt-repeat','sub-inp','lp-text','lp-url','nt-title','nt-body'];
-      if(t2.status!==prevStatus||(!drawerInputIds.includes(activeId)&&!activeInDrawer)){
+      const datesChanged=[t2.startAt,t2.startTime,t2.dueAt].join('|')!==prevDates;
+      if(t2.status!==prevStatus||datesChanged||(!drawerInputIds.includes(activeId)&&!activeInDrawer)){
         renderSidebar();renderContent();
       }
     },400);
@@ -10676,7 +10679,7 @@ else if(a==='scroll-to-comments'){
           document.querySelectorAll('#dt-start-wd').forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
         }
       }
-      await saveTask(task);
+      await saveTask(task);_refreshListAfterDateEdit();
     }
   }
   else if(a==='date-clear'){
@@ -10691,13 +10694,13 @@ else if(a==='scroll-to-comments'){
       if(field==='start'){task.startAt=null;task.startTime=null;const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';}
       else if(field==='planned-start') task.plannedStartAt=null;
       else task.dueAt=null;
-      await saveTask(task);
+      await saveTask(task);_refreshListAfterDateEdit();
     }
   }
   else if(a==='start-time-clear'){
     const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');if(sti)sti.value='';
     const task=S.tasks.find(t=>t.id===S.taskId);
-    if(task){task.startTime=null;await saveTask(task);}
+    if(task){task.startTime=null;await saveTask(task);_refreshListAfterDateEdit();}
   }
   else if(a==='start-time-adj-min'){
     const mins=parseInt(el.dataset.mins||'10');
@@ -10714,7 +10717,7 @@ else if(a==='scroll-to-comments'){
     const newVal=String(base.getHours()).padStart(2,'0')+':'+String(base.getMinutes()).padStart(2,'0');
     sti.value=newVal;
     const task=S.tasks.find(t=>t.id===S.taskId);
-    if(task){task.startTime=newVal;await saveTask(task);}
+    if(task){task.startTime=newVal;await saveTask(task);_refreshListAfterDateEdit();}
   }
   else if(a==='start-time-adj'){
     const hours=parseInt(el.dataset.hours||'0');
@@ -10732,7 +10735,7 @@ else if(a==='scroll-to-comments'){
     const newVal=String(base.getHours()).padStart(2,'0')+':'+String(base.getMinutes()).padStart(2,'0');
     sti.value=newVal;
     const task=S.tasks.find(t=>t.id===S.taskId);
-    if(task){task.startTime=newVal;await saveTask(task);}
+    if(task){task.startTime=newVal;await saveTask(task);_refreshListAfterDateEdit();}
   }
   else if(a==='start-time-zero-min'){
     const sti=el.closest('.expand-modal')?.querySelector('#dt-start-time')||document.getElementById('dt-start-time');
@@ -10747,7 +10750,7 @@ else if(a==='scroll-to-comments'){
     const newVal=String(h).padStart(2,'0')+':00';
     sti.value=newVal;
     const task=S.tasks.find(t=>t.id===S.taskId);
-    if(task){task.startTime=newVal;await saveTask(task);}
+    if(task){task.startTime=newVal;await saveTask(task);_refreshListAfterDateEdit();}
   }
   else if(a==='start-time-set'){
     const hhmm=el.dataset.hhmm;if(!hhmm)return;
@@ -10755,7 +10758,7 @@ else if(a==='scroll-to-comments'){
     if(!sti)return;
     sti.value=hhmm;
     const task=S.tasks.find(t=>t.id===S.taskId);
-    if(task){task.startTime=hhmm;await saveTask(task);}
+    if(task){task.startTime=hhmm;await saveTask(task);_refreshListAfterDateEdit();}
   }
   else if(a==='date-today'){
     const field=el.dataset.field;
@@ -10791,7 +10794,7 @@ else if(a==='scroll-to-comments'){
           document.querySelectorAll('#dt-start-wd').forEach(s=>{s.textContent='('+(wdStr(newVal).replace('曜','')||'　')+')';s.style.color=wdColor(newVal);});
         }
       }
-      await saveTask(task);
+      await saveTask(task);_refreshListAfterDateEdit();
     }
   }
   else if(a==='clear-task-notes'){

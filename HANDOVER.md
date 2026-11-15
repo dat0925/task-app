@@ -4,6 +4,32 @@
 
 ---
 
+## 詳細パネルで開始日を変えても一覧が描き直されない問題の修正（2026-11-15、v103）
+会社用 Taskra（taskra-biz）で先に直した不具合の横展開。会社側 Claude から Slack #muse-inbox 経由で修正依頼が届き、個人用にも同じコードがあることを確認して同じ修正を入れた。
+
+### 症状
+Nextビューで「現在」フィルタをかけた状態で、詳細パネルの日付ボタン（+1日など）で開始日を未来にしても、タスクが一覧から消えない。パネルを閉じるか再読み込みすると消える。
+
+### 原因
+- 詳細パネルの `date-adj` / `date-clear` / `date-today` / `start-time-clear` / `start-time-adj-min` / `start-time-adj` / `start-time-zero-min` / `start-time-set` の各ハンドラは `await saveTask(task);` で保存するだけで、一覧を描き直していなかった
+- 日付欄を直接変えたときの autosave も、フォーカスが詳細パネルの中にあると `renderContent()` を呼ばない（`drawerInputIds` / `activeInDrawer` の条件）
+
+### 対応（index.html、sw.js）
+- 共通ヘルパー `_refreshListAfterDateEdit()` を追加（`postponeTaskToTomorrow` の直前）。一覧とサイドバーだけを描き直し、詳細パネルは開いたままにする。例外は握って console に残す
+- 上記8ハンドラの `await saveTask(task);`（8か所すべて）に `_refreshListAfterDateEdit();` を続けた
+- ドロワーの autosave で、入力反映前の日付3点（`startAt` / `startTime` / `dueAt`）を `prevDates` に控え、末尾の描き直し条件に `datesChanged` を加えた。日付が変わっていれば、フォーカスがパネル内にあっても描き直す
+- sw.js の CACHE_NAME を taskra-v103 に更新
+
+### 動作確認
+- 全インラインスクリプトの構文チェック（node --check、4本）済み
+- `_refreshListAfterDateEdit` を抜き出して Node で単体試験4項目すべて合格（通常時の呼び出し順／描き直し側が例外を投げても外へ漏れない／`datesChanged` の同一・相違判定）
+- 実機での目視確認（Nextビュー・現在フィルタで開始日を+1日にして、パネルを開いたまま一覧から消えるか）はマージ後に本人
+
+### セキュリティ関連の状態
+認証・決済・DB・RLS の変更なし。
+
+---
+
 ## PCでタスク選択時に一覧がゆれる問題の修正（2026-11-15、v102）
 本人の実機動画で発見：PCのNextビュー等でタスク行をクリックするたびに、一覧全体が小刻みにゆれる。行の枠線は通常時も1px透明で持っており選択時は色だけが変わるため、枠線の太さは原因ではない。原因は選択ハンドラ（data-a="sel"）が `renderContent(); renderSidebar(); renderDrawer()` と呼んでいたことで、(1) 一覧の全面再描画そのもののちらつき、(2) FLIP（行移動アニメーション）の発火余地、(3) ドロワー開閉によるメイン幅（maxWidth）変更が再描画の後から効く2段階レイアウト変化、が重なっていた。選択で実際に変わるのは `.sel` の付け先だけである。
 
