@@ -3789,6 +3789,9 @@ function startTagRename(span){
   input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();input.blur();}if(e.key==='Escape'){committed=true;render();}});
   input.addEventListener('click',e=>e.stopPropagation());
   input.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
+  // touchend も止める（プロジェクト名変更と同じ理由。FAST TAP 経由で
+  // タグ行のタップに解決され、サイドバーが閉じてしまうのを防ぐ）
+  input.addEventListener('touchend',e=>e.stopPropagation(),{passive:true});
 }
 // ===== ポップアップメニューの土台（Popover API） =====
 // .proj-edit-popup 系メニューを、対応ブラウザでは Popover として開く。
@@ -4036,6 +4039,9 @@ function startProjRename(span){
   // クリックがプロジェクト選択に伝播しないように
   input.addEventListener('click',e=>e.stopPropagation());
   input.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
+  // touchend も止める。FAST TAP（document の touchend）が入力欄タップを
+  // プロジェクト行のタップに解決してサイドバーを閉じてしまうため
+  input.addEventListener('touchend',e=>e.stopPropagation(),{passive:true});
 }
 
 function openWsSettings(wsId){
@@ -13563,6 +13569,12 @@ async function extractConfirm(ov){
 (function(){
   let _ft=false;
   document.addEventListener('touchend',function(e){
+    // 入力欄へのタップは対象外。インライン編集中の入力欄は [data-a] の行
+    // （プロジェクト行・タスク行など）の中にあり、closest で行に解決されて
+    // 合成クリックが飛ぶと、行アクション（モバイルのプロジェクト選択＝
+    // サイドバーを閉じる等）が誤発して編集が続けられなくなる。
+    // プロジェクト名変更で実機報告あり（2026-11-16）。
+    if(e.target.closest&&e.target.closest('input,textarea,select,[contenteditable]'))return;
     const el=e.target.closest('[data-a],[data-k],button');
     if(!el)return;
     // drawerが開いている時、drawer外の要素をFAST TAPしない
