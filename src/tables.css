@@ -229,3 +229,20 @@ html.dark .c-purple,[data-dark] .c-purple{background:rgba(139,92,246,.2);color:#
   .tb-cond .tb-select{max-width:none;flex:1}
   .tb-cond-val{flex-basis:100%}
 }
+
+/* ===== グラフビュー（2026-11-17） ===== */
+.tb-chart-wrap{padding:14px}
+.tb-chart-ctl{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:10px}
+.tb-ch-field{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.tb-ch-gran{display:inline-flex;gap:4px;margin-left:auto}
+.tb-chart-note{font-size:12px;color:var(--text2);margin:-2px 0 8px}
+.tb-chart-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:6px;font-size:12.5px}
+.tb-ch-leg{display:inline-flex;align-items:center;gap:6px}
+.tb-ch-leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.tb-chart-svg{width:100%;height:auto;display:block}
+.tb-ch-grid{stroke:var(--border);stroke-width:1}
+.tb-ch-tick{font-size:11px;fill:var(--text2)}
+@media (max-width:768px){
+  .tb-chart-wrap{padding:10px}
+  .tb-ch-gran{margin-left:0}
+}
