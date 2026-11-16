@@ -4,6 +4,64 @@
 
 ---
 
+## 家族MCP（family-mcp）を追加（2026-11-16）
+粧子さん専用の Muse「もち」から、Taskra / Tavera / Flowra を**粧子さん本人のアカウントとしてだけ**操作できるようにする remote MCP サーバー。
+雛形は既存の `mcp-server`（Taskra MCP）。**既存の `mcp-server` は一切変更していない**（政宗さんの既存接続はそのまま）。
+設計の正本は本人側の `mochi-mcp-design.md` / 実装依頼文（リポジトリ外）。
+
+### 構成
+- Edge Function `family-mcp`（`supabase/functions/family-mcp/index.ts`、Taskra プロジェクト内、`verify_jwt=false`）
+  - URL：`https://sfhtvtcmgueystyuhzvd.supabase.co/functions/v1/family-mcp`
+  - POST のみ。`FAMILY_MCP_SECRET_TOKEN` を URL末尾 / `?token=` / `Authorization: Bearer` のどれかで照合、不一致は 401
+- Edge Function シークレット（**値はこのリポジトリに書かない**。トークンは本人の非公開の保管先にある）
+
+| 名前 | 中身 |
+|---|---|
+| `FAMILY_MCP_SECRET_TOKEN` | 家族MCP専用の共有トークン（Taskra MCP の `MCP_SECRET_TOKEN` とは別物。期限なし） |
+| `FAMILY_MCP_USER_EMAIL` | 操作対象の利用者（粧子さん）のメール。Taskra 側・Flowra 側の auth id はそれぞれのプロジェクトでこのメールから解決（両者は別の値） |
+| `FLOWRA_SERVICE_ROLE_KEY` | Flowra プロジェクトのサービスロールキー。Flowra の PostgREST をここから叩く |
+| `SB_SERVICE_ROLE_KEY` | 既存（Taskra MCP と共用） |
+
+- 対象の Tavera 世帯と Flowra チームは**コード内の定数で固定**（`TAVERA_HOUSEHOLD_ID` / `FLOWRA_TEAM_ID`）。呼び出しのたびに利用者がそのメンバーかを確認し、外れていれば何もしない
+  - Tavera は「メンバー2人の本番世帯」。2026-05-31 に一括作成された重複テスト世帯「わが家」（記録183件）と取り違えないこと
+  - Flowra は「我が家」チーム。「生活費」チームなど他チームは対象外
+
+### 権限の線（変えるときは本人に確認）
+- 利用者は1人に固定。ツール引数で利用者・チーム・世帯は指定できない（`user_id` / `team_id` / `household_id` 等が来ても捨てる）
+- Taskra：利用者の `user_id` の行だけ。**政宗さんのタスク・プロジェクト・ノートには共有の形でも触らない**（2026-11-16 本人決定「共有なし」）
+- Flowra：サービスロールは RLS を素通りするため、**「非公開口座（`is_private`）は作成者本人にしか見えない」RLS をコード内で再現**している（`flowraCtx` / `txVisible` / `hiddenFilter`）。我が家チームには他メンバーの非公開口座があるので、ここを外すと見えてはいけない口座が見える
+- 削除ツールは持たせていない
+
+### ツール（21）
+- Taskra（10）：雛形から `delete_task` を除いたもの。挙動は雛形と同じ（`complete_task` の繰り返し次回生成を含む）
+- Tavera（4）：献立と食事記録は同じ `menu_logs`（世帯×日付×朝昼夜で1件、UNIQUE 制約あり）
+  - `get_today_menu`：今日（JST）の朝昼夜
+  - `list_menus`：`from`/`to`（省略時 13日前〜7日後）・`meal_type`・`keyword`・`limit`（既定50/最大100）
+  - `add_meal_record`：`dish_name` 必須、`date`（既定今日）・`meal_type`（既定 dinner。朝/昼/夜・夕食などの日本語も可）・`memo`・`rating`(1〜5)・`ingredients`。**同じ枠に登録があれば上書きせずエラーで既存内容を返す**。`created_by` は利用者
+  - `set_menu`：`date`・`meal_type`・`dish_name` 必須。あれば書き換え（変更前の内容も返す）、なければ新規。**給食取り込み（`source='kyushoku'`）の枠は書き換えない**
+- Flowra（7）：`list_transactions` / `add_transaction` / `update_transaction` / `list_accounts` / `get_balance` / `list_categories` / `monthly_summary`
+  - カテゴリはタグ方式。存在しないカテゴリ名は作らずエラー。金額は正の整数のみ。残高は DB トリガー任せ（直接書き換えない）。`created_by` / `updated_by` は利用者の Flowra 側 auth id
+  - `get_balance` の合計と `monthly_summary` の収入・支出はアプリのホーム画面と同じ定義。カテゴリ別は集計シートと同じく「集計除外」を除く
+
+### テスト結果（2026-11-16、すべて合格）
+1. `initialize` / `tools/list`（21個、削除系なし）。トークン不一致・なしは 401、3方式のトークン指定はいずれも 200
+2. Taskra：`add_task`→`list_tasks`→DB で利用者の行であることを確認→`complete_task`。政宗さんのタスク件数は不変・テスト中の更新 0件
+3. Tavera：`get_today_menu` が DB（アプリと同じ条件）と一致。`add_meal_record`→重複ガード→`set_menu` 上書き→読み戻し。DB で世帯・記録者を確認
+4. Flowra：口座一覧・残高合計・当月収支・件数・直近5件の並びが「利用者として RLS を効かせた DB 集計」と完全一致。他メンバーの非公開口座は出ない。1円の支出で現金残高が1円減り、修正（1→2→1円）でも残高が追従
+5. 否定テスト：他ユーザー / 他チーム / テスト世帯を引数で指定しても対象は広がらない。政宗さんのタスクIDや他チームの取引IDを指定すると「見つかりません」
+6. テストデータは DB 直接操作で削除。Flowra は現金残高・総額がテスト前の値に戻ったこと、利用者の Taskra データがテスト前とハッシュ一致することを確認
+
+### セキュリティ関連の状態
+- 新規/変更テーブル：なし（RLS の変更なし）。新規は Edge Function 1本とシークレット3つ
+- 認証・決済フローの変更なし。既存 `mcp-server` は無変更
+- 配信物（index.html / src / sw.js）は無変更のため SW の `CACHE_NAME` は据え置き
+- デプロイは Management API ではなく Supabase MCP の `deploy_edge_function` で実施（v1 は送信途中で切れた不完全版、即 v2 で置換。v2 とリポジトリのソースは一致を確認済み）
+
+### 次にやること（実装側の担当外）
+- もち側の Muse に専用コネクタ（`custom.family-mcp`、api_key / Bearer、接続先ホスト `sfhtvtcmgueystyuhzvd.supabase.co`）を登録（政宗さんが粧子さんの隣で1回だけ。手順文は Muse 側が用意）
+- 接続後、もちに「今日の献立は？」等で実機確認
+- 政宗さん用 Flowra MCP は**別件で未実装**（本件で代わりにはならない）
+- トークンを替えるとき：Secrets の `FAMILY_MCP_SECRET_TOKEN` を更新し、もち側のコネクタも差し替える
 ## サイドバーのプロジェクトだけ閉じるのが速い問題の修正（2026-11-16、v114）
 本人から実機動画で報告：メニュータップ後に閉じるスピードが、プロジェクトは速すぎる。「気のせいかな？」との確認だったが、気のせいではなかった。
 
@@ -5202,6 +5260,7 @@ notesの `user_id` カラムは `text` 型だが、このSupabaseプロジェク
 | `stripe-portal` | Stripeカスタマーポータル |
 | `stripe-webhook` | Stripe Webhook受信 |
 | `mcp-server` | Claude.ai用 remote MCPサーバー（詳細は次セクション） |
+| `family-mcp` | 家族MCP（粧子さん専用・Taskra/Tavera/Flowra。詳細は冒頭の「家族MCP」節） |
 
 ---
 
