@@ -1424,7 +1424,7 @@ let _touchStartY = 0;
 let _touchStartX = 0;
 let _drawerClosedAt = 0;
 let _touchMoved = false;
-let _tappingView = null;
+let _tappingView = null; let _tappingProj = null; let _tappingTag = null;
 let _clickTarget = null; // クリックのe.target保持（アコーディオン制御用）
 let _touchTargetIsChev = false; // touchstart時にchevronをタップしたか
 let _lastFilterClickAt = 0; // フィルタ連打防止
@@ -5217,7 +5217,7 @@ function renderSidebar(){
   // 個人プロジェクト
   getSortedProjects('active').filter(p=>!p.workspaceId).forEach(p=>{
     h+='<div class="proj-drop-line" data-drop-before="'+p.id+'"></div>';
-    h+='<div class="nav-item proj-item'+(S.view==='project'&&S.projId===p.id?' on':'')+'" data-a="proj" data-id="'+p.id+'">'
+    h+='<div class="nav-item proj-item'+(S.view==='project'&&S.projId===p.id?' on':'')+(_tappingProj===p.id?' tapping':'')+'" data-a="proj" data-id="'+p.id+'">'
       +'<span class="pdot" style="background:'+esc(p.color)+'"></span>'
       +'<span class="proj-name-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-proj-id="'+p.id+'">'+esc(p.name)+'</span>'
       +'<div class="proj-actions">'
@@ -5265,7 +5265,7 @@ function renderSidebar(){
     h+='</div>';
     // ワークスペースのプロジェクト
     wsProjects.forEach(p=>{
-      h+='<div class="nav-item proj-item'+(S.view==='project'&&S.projId===p.id?' on':'')+'" data-a="proj" data-id="'+p.id+'">'
+      h+='<div class="nav-item proj-item'+(S.view==='project'&&S.projId===p.id?' on':'')+(_tappingProj===p.id?' tapping':'')+'" data-a="proj" data-id="'+p.id+'">'
         +'<span class="pdot" style="background:'+esc(p.color)+'"></span>'
         +'<span class="proj-name-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-proj-id="'+p.id+'">'+esc(p.name)+'</span>'
         +'<span style="font-size:9px;color:var(--accent);flex-shrink:0" title="共有プロジェクト">👥</span>'
@@ -5312,13 +5312,13 @@ function renderSidebar(){
     +'</div>';
   h+='<div class="proj-section-wrap'+(tagsOpen?'':' collapsed')+'" id="tags-section-wrap">';
   h+='<div class="proj-section-inner">';
-  h+='<div class="nav-item'+(S.view==='tag'&&S.tagId==='__none__'?' on':'')+'" data-a="tag" data-id="__none__">'
+  h+='<div class="nav-item'+(S.view==='tag'&&S.tagId==='__none__'?' on':'')+(_tappingTag==='__none__'?' tapping':'')+'" data-a="tag" data-id="__none__">'
     +'<span style="color:var(--text3)">⬡</span>'
     +'<span>タグなし</span>'
   +'</div>';
   getSortedTags().forEach(t=>{
     h+='<div class="tag-drop-line" data-tdrop-before="'+t.id+'" style="height:2px;background:var(--accent);border-radius:2px;margin:0 4px;pointer-events:none;display:none"></div>';
-    h+='<div class="nav-item tag-item'+(S.view==='tag'&&S.tagId===t.id?' on':'')+'" data-a="tag" data-id="'+t.id+'">'
+    h+='<div class="nav-item tag-item'+(S.view==='tag'&&S.tagId===t.id?' on':'')+(_tappingTag===t.id?' tapping':'')+'" data-a="tag" data-id="'+t.id+'">'
       +'<span style="color:'+esc(t.color)+'">⬡</span>'
       +'<span class="tag-name-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-tag-id="'+t.id+'">'+esc(t.name)+'</span>'
       +'<div class="tag-actions">'
@@ -10033,8 +10033,8 @@ document.addEventListener('click',async e=>{
       render();
     })();
   }
-  else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&S.sidebarOpen)_vtSkipNext=true;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
-  else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768&&S.sidebarOpen)_vtSkipNext=true;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400)S.sidebarOpen=false;}render()}
+  else if(a==='proj'||a==='goto-proj'||a==='go-proj'){if(_touchMoved)return;e.stopPropagation();S.search='';S.view='project';S.projId=el.dataset.id;if(window.innerWidth<=768&&S.sidebarOpen)_vtSkipNext=true;if(window.innerWidth<=768){playSE('toggle');S.drawerOpen=false;if(Date.now()-_projDragEndedAt>400){if(S.sidebarOpen){_tappingProj=el.dataset.id;setTimeout(()=>{_tappingProj=null;S.sidebarOpen=false;render();},360);}else S.sidebarOpen=false;}}render()}
+  else if(a==='tag'){if(_touchMoved)return;S.search='';S.view='tag';S.tagId=el.dataset.id;if(window.innerWidth<=768&&S.sidebarOpen)_vtSkipNext=true;if(window.innerWidth<=768){playSE('toggle');if(Date.now()-_projDragEndedAt>400){if(S.sidebarOpen){_tappingTag=el.dataset.id;setTimeout(()=>{_tappingTag=null;S.sidebarOpen=false;render();},360);}else S.sidebarOpen=false;}}render()}
   else if(a==='hidden-proj-noop'){/* no-op: clicking hidden project area does nothing */}
   else if(a==='shared-projs-toggle'){playSE('toggle');S.sharedProjsOpen=!S.sharedProjsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
   else if(a==='views-toggle'){if(_touchMoved)return;if(window.innerWidth<=768&&!_touchTargetIsChev)return;playSE('toggle');S.viewsOpen=!S.viewsOpen;renderSidebar();attachProjRenameListeners();attachProjDragListeners();attachTagDragListeners();}
