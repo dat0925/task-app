@@ -45,6 +45,7 @@
     eyeOff: svg('<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>', 14),
     copy: svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', 14),
     edit: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>', 14),
+    download: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>', 14),
     ext: svg('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>', 14),
     close: svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', 16),
     x: svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', 13),
@@ -538,7 +539,6 @@
       + '<button class="tb-btn' + (ns ? ' on' : '') + '" data-tb="sort">' + ICO.sortAsc + '並べ替え' + (ns ? '<b class="tb-badge">' + ns + '</b>' : '') + '</button>'
       + '<button class="tb-btn' + (nh ? ' on' : '') + '" data-tb="hide">' + ICO.hide + '<span class="tb-lbl-full">列の表示</span><span class="tb-lbl-short">列表示</span>' + (nh ? '<b class="tb-badge">' + nh + '</b>' : '') + '</button>'
       + '<button class="tb-btn" data-tb="import">CSV取込</button><input type="file" id="tb-file" accept=".csv,text/csv" hidden>'
-      + '<button class="tb-btn" data-tb="export">書き出す</button>'
       + '<button class="tb-icon-btn" data-tb="table-menu" title="テーブルの操作">' + ICO.more + '</button>'
       + '</div>'
       + '<div class="tb-scroll" id="tb-scroll">' + tableHtml(rows) + '</div>'
@@ -680,7 +680,6 @@
       if (act === 'sort') return sortPanel(a);
       if (act === 'hide') return hidePanel(a);
       if (act === 'import') return pickCsv();
-      if (act === 'export') return exportSheet();
       if (act === 'table-menu') return tableMenu(a);
       if (act === 'col-menu') { if (e.target.closest('.tb-resize')) return; return colMenu(a); }
       if (act === 'add-col') return addColSheet();
@@ -1139,8 +1138,9 @@
   }
 
   function tableMenu(btn) {
-    openMenu(btn, '<button data-m="rename">' + ICO.edit + 'テーブル名を変更</button><hr><button data-m="delete" class="danger">テーブルを削除</button>', function (act) {
+    openMenu(btn, '<button data-m="rename">' + ICO.edit + 'テーブル名を変更</button><button data-m="export">' + ICO.download + '書き出す</button><hr><button data-m="delete" class="danger">テーブルを削除</button>', function (act) {
       var t = curTable(); if (!t) return;
+      if (act === 'export') return exportSheet();
       if (act === 'rename') {
         textSheet('テーブル名を変更', '', t.name, '変更する', async function (v) {
           var r = await SB().from('tables').update({ name: v, updated_at: nowIso() }).eq('id', t.id);
