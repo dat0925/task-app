@@ -938,8 +938,9 @@
       + '<div class="tb-drawer-body">' + shownF.map(function (f) { return fieldEditor(rec, f); }).join('')
       + (hiddenF.length ? '<div class="tb-drawer-sep">このビューで隠している列</div>' + hiddenF.map(function (f) { return fieldEditor(rec, f); }).join('') : '')
       + '</div>'
-      + '<div class="tb-drawer-foot"><span>作成 ' + fmt(rec.created_at) + '　更新 ' + fmt(rec.updated_at) + '</span><span class="tb-spacer"></span>'
-      + '<button class="tb-btn danger" data-dw="delete-row">行を削除</button></div>';
+      + '<div class="tb-drawer-foot"><button class="tb-btn danger" data-dw="delete-row">行を削除</button>'
+      + '<span class="tb-foot-meta">作成 ' + fmt(rec.created_at) + '　更新 ' + fmt(rec.updated_at) + '</span>'
+      + '<button class="tb-btn" data-dw="close">閉じる</button></div>';
     var newBody = d.querySelector('.tb-drawer-body');
     if (newBody) newBody.scrollTop = prevTop;
     d.querySelectorAll('[data-field-input]').forEach(function (inp) {
@@ -1962,5 +1963,5 @@
     lastView = S.view;
   }, 400);
 
-  window.BizTables = { render: render };
+  window.BizTables = { render: render, closeDrawer: closeDrawer, isDrawerOpen: function () { return !!st.drawerId; } };
 })();

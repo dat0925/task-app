@@ -11577,6 +11577,11 @@ renderContent=function(){
   document.addEventListener('touchstart',e=>{
     if(window.innerWidth>768)return;
     const t=e.touches[0];
+    // テーブル詳細ドロワーが最前面に開いている間は、左端スワイプを背面のサイドバーではなくドロワーに効かせる（右スワイプでドロワーを閉じる）
+    if(window.BizTables&&BizTables.isDrawerOpen()){
+      if(t.clientX<=EDGE){startX=t.clientX;startY=t.clientY;tracking='tbclose';}
+      return;
+    }
     if(t.clientX<=EDGE&&!S.sidebarOpen){
       // 左端から右スワイプ → 開く候補
       startX=t.clientX;startY=t.clientY;tracking='open';
@@ -11593,7 +11598,9 @@ renderContent=function(){
     const dy=e.changedTouches[0].clientY-startY;
     // 縦成分が横成分より大きい場合は無視
     if(Math.abs(dy)>Math.abs(dx)*ANGLE){tracking=false;return;}
-    if(tracking==='open'&&dx>=MIN_DIST){
+    if(tracking==='tbclose'&&dx>=MIN_DIST){
+      BizTables.closeDrawer();
+    } else if(tracking==='open'&&dx>=MIN_DIST){
       S.sidebarOpen=true;S._sidebarJustOpened=Date.now();render();
     } else if(tracking==='close'&&dx<=-MIN_DIST){
       S.sidebarOpen=false;render();
