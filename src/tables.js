@@ -51,6 +51,7 @@
     x: svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', 13),
     table: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="20"/>', 16),
     grid: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/>', 14),
+    chart: svg('<polyline points="3 17 9 10 13 13 21 5"/><polyline points="15 5 21 5 21 11"/>', 14),
     more: svg('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>', 16),
     filter: svg('<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>', 14),
     hide: svg('<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><line x1="1" y1="1" x2="23" y2="23"/>', 14),
@@ -185,6 +186,7 @@
     if (!Array.isArray(c.filters.conditions)) c.filters.conditions = [];
     if (!Array.isArray(c.sorts)) c.sorts = [];
     if (!Array.isArray(c.hidden_field_ids)) c.hidden_field_ids = [];
+    if (!c.chart || typeof c.chart !== 'object') c.chart = { x: '', y1: '', y2: '', gran: 'day' };
     if (v) v.config = c;
     return c;
   }
@@ -215,6 +217,7 @@
       if (!onlyFilters) {
         if (c.sorts) c.sorts = c.sorts.filter(function (x) { return x.fieldId !== fid; });
         if (c.hidden_field_ids) c.hidden_field_ids = c.hidden_field_ids.filter(function (x) { return x !== fid; });
+        if (c.chart) { if (c.chart.x === fid) c.chart.x = ''; if (c.chart.y1 === fid) c.chart.y1 = ''; if (c.chart.y2 === fid) c.chart.y2 = ''; }
       }
     });
   }
@@ -397,7 +400,7 @@
       if (!st.loadingTable) openTable(st.tableId);
       return;
     }
-    if (st.tableId && curTable()) el.innerHTML = gridHtml();
+    if (st.tableId && curTable()) { var cv = curView(); el.innerHTML = (cv && cv.type === 'chart') ? chartHtml() : gridHtml(); }
     else { st.tableId = null; el.innerHTML = listHtml(); }
     bind(el.firstChild);
   }
@@ -521,17 +524,15 @@
   }
 
   // ---- グリッド ----
-  function gridHtml() {
+  function barHtml(rows) {
     var t = curTable();
     var v = curView();
     var c = cfg();
-    var rows = visibleRecords();
     var nf = activeConds().length, ns = c.sorts.length, nh = c.hidden_field_ids.filter(function (id) { return fieldById(id); }).length;
-    return '<div class="tb-wrap" data-key="' + t.id + '">'
-      + '<div class="tb-bar">'
+    return '<div class="tb-bar">'
       + '<button class="tb-back" data-tb="back">‹ テーブル</button>'
       + '<span class="tb-title" title="' + h(t.name) + '">' + h(t.name) + '</span>'
-      + '<button class="tb-btn tb-viewbtn" data-tb="view-menu" title="ビューを切り替える">' + ICO.grid + '<span>' + h(v ? v.name : '') + '</span>' + ICO.chev + '</button>'
+      + '<button class="tb-btn tb-viewbtn" data-tb="view-menu" title="ビューを切り替える">' + (v && v.type === 'chart' ? ICO.chart : ICO.grid) + '<span>' + h(v ? v.name : '') + '</span>' + ICO.chev + '</button>'
       + '<span class="tb-count" id="tb-count">' + countText(rows.length) + '</span>'
       + '<span class="tb-spacer"></span>'
       + '<input type="search" class="tb-search" id="tb-q" placeholder="検索（シークレット列は対象外）" value="' + h(st.q) + '">'
@@ -540,9 +541,185 @@
       + '<button class="tb-btn' + (nh ? ' on' : '') + '" data-tb="hide">' + ICO.hide + '<span class="tb-lbl-full">列の表示</span><span class="tb-lbl-short">列表示</span>' + (nh ? '<b class="tb-badge">' + nh + '</b>' : '') + '</button>'
       + '<button class="tb-btn" data-tb="import">CSV取込</button><input type="file" id="tb-file" accept=".csv,text/csv" hidden>'
       + '<button class="tb-icon-btn" data-tb="table-menu" title="テーブルの操作">' + ICO.more + '</button>'
-      + '</div>'
+      + '</div>';
+  }
+
+  function gridHtml() {
+    var t = curTable();
+    var rows = visibleRecords();
+    return '<div class="tb-wrap" data-key="' + t.id + '">'
+      + barHtml(rows)
       + '<div class="tb-scroll" id="tb-scroll">' + tableHtml(rows) + '</div>'
       + '</div>';
+  }
+
+  // ---- グラフ（折れ線・棒の併用、二軸まで） ----
+  function defaultChartConfig() {
+    var d = st.fields.find(function (f) { return f.type === 'date'; });
+    var n = st.fields.find(function (f) { return f.type === 'number'; });
+    return { x: d ? d.id : '', y1: n ? n.id : '', y2: '', y1t: 'line', y2t: 'bar', gran: 'day' };
+  }
+  var CH_COLORS = ['#2563eb', '#ea580c'];
+  var CH_GRANS = [['day', '日'], ['week', '週'], ['month', '月'], ['year', '年']];
+
+  function chartCfg() {
+    var ch = cfg().chart;
+    var dates = st.fields.filter(function (f) { return f.type === 'date'; });
+    var nums = st.fields.filter(function (f) { return f.type === 'number'; });
+    if (!fieldById(ch.x) || fieldById(ch.x).type !== 'date') ch.x = dates.length ? dates[0].id : '';
+    if (!fieldById(ch.y1) || fieldById(ch.y1).type !== 'number') ch.y1 = nums.length ? nums[0].id : '';
+    if (ch.y2 && (!fieldById(ch.y2) || fieldById(ch.y2).type !== 'number' || ch.y2 === ch.y1)) ch.y2 = '';
+    if (ch.y1t !== 'bar') ch.y1t = 'line';
+    if (ch.y2t !== 'line') ch.y2t = 'bar';
+    if (!CH_GRANS.some(function (g) { return g[0] === ch.gran; })) ch.gran = 'day';
+    return ch;
+  }
+
+  function chParse(iso) { var p = iso.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function chIso(d) { function z(n) { return (n < 10 ? '0' : '') + n; } return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
+  function chBucket(iso, gran) {
+    if (gran === 'day') return iso;
+    if (gran === 'month') return iso.slice(0, 7) + '-01';
+    if (gran === 'year') return iso.slice(0, 4) + '-01-01';
+    var d = chParse(iso); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return chIso(d); // 週は月曜始まり
+  }
+  function chNext(key, gran) {
+    var d = chParse(key);
+    if (gran === 'day') d.setDate(d.getDate() + 1);
+    else if (gran === 'week') d.setDate(d.getDate() + 7);
+    else if (gran === 'month') d.setMonth(d.getMonth() + 1);
+    else d.setFullYear(d.getFullYear() + 1);
+    return chIso(d);
+  }
+  function chLabel(key, gran) {
+    if (gran === 'day') return fmtDate(key);
+    if (gran === 'week') return fmtDate(key) + 'の週';
+    if (gran === 'month') return key.slice(0, 4) + '年' + (+key.slice(5, 7)) + '月';
+    return key.slice(0, 4) + '年';
+  }
+
+  // 期間ごとに平均を取る（値が無い期間は null で線を切る・棒を出さない）
+  function chSeries(rows, xf, yf, gran) {
+    var acc = {};
+    rows.forEach(function (r) {
+      var xv = rawVal(r, xf), yv = rawVal(r, yf);
+      if (!isIsoDate(xv) || typeof yv !== 'number') return;
+      var k = chBucket(xv, gran);
+      if (!acc[k]) acc[k] = { s: 0, n: 0 };
+      acc[k].s += yv; acc[k].n += 1;
+    });
+    return acc;
+  }
+
+  function chScale(vals) {
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    if (lo === hi) { lo -= 1; hi += 1; }
+    var pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+    var raw = (hi - lo) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    var step = [1, 2, 2.5, 5, 10].map(function (m) { return m * mag; }).find(function (s) { return raw <= s; }) || 10 * mag;
+    lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+    var ticks = [];
+    for (var v = lo; v <= hi + step * 0.001; v += step) ticks.push(Math.round(v * 1000) / 1000);
+    return { lo: lo, hi: hi, ticks: ticks };
+  }
+  function chTick(v) { return v.toLocaleString('ja-JP', { maximumFractionDigits: 2 }); }
+
+  function chartHtml() {
+    var t = curTable();
+    var rows = visibleRecords();
+    var ch = chartCfg();
+    var dates = st.fields.filter(function (f) { return f.type === 'date'; });
+    var nums = st.fields.filter(function (f) { return f.type === 'number'; });
+    var head = '<div class="tb-wrap" data-key="' + t.id + '">' + barHtml(rows);
+    if (!dates.length || !nums.length) {
+      return head + '<div class="tb-chart-wrap"><div class="tb-empty">グラフには日付の列と数値の列が必要です。</div></div></div>';
+    }
+    var xf = fieldById(ch.x), y1f = fieldById(ch.y1), y2f = ch.y2 ? fieldById(ch.y2) : null;
+    var sel = function (key, cur, fs, allowNone) {
+      return '<select class="tb-select" data-ch="' + key + '">' + (allowNone ? '<option value="">なし</option>' : '')
+        + fs.map(function (f) { return '<option value="' + f.id + '"' + (f.id === cur ? ' selected' : '') + '>' + h(f.name) + '</option>'; }).join('') + '</select>';
+    };
+    var typeSel = function (key, cur) {
+      return '<select class="tb-select" data-ch="' + key + '"><option value="line"' + (cur === 'line' ? ' selected' : '') + '>線</option><option value="bar"' + (cur === 'bar' ? ' selected' : '') + '>棒</option></select>';
+    };
+    var ctl = '<div class="tb-chart-ctl">'
+      + '<label class="tb-ch-field">横軸 ' + sel('x', ch.x, dates, false) + '</label>'
+      + '<label class="tb-ch-field">縦軸 ' + sel('y1', ch.y1, nums, false) + ' ' + typeSel('y1t', ch.y1t) + '</label>'
+      + '<label class="tb-ch-field">縦軸2 ' + sel('y2', ch.y2, nums, true) + ' ' + typeSel('y2t', ch.y2t) + '</label>'
+      + '<span class="tb-ch-gran">' + CH_GRANS.map(function (g) { return '<button class="tb-btn' + (ch.gran === g[0] ? ' on' : '') + '" data-tb="ch-gran" data-v="' + g[0] + '">' + g[1] + '</button>'; }).join('') + '</span>'
+      + '</div>'
+      + (ch.gran !== 'day' ? '<div class="tb-chart-note">週・月・年は、その期間の平均です。</div>' : '');
+    return head + '<div class="tb-chart-wrap">' + ctl + chartSvg(rows, ch, xf, y1f, y2f) + '</div></div>';
+  }
+
+  function chartSvg(rows, ch, xf, y1f, y2f) {
+    var defs = [{ f: y1f, type: ch.y1t, color: CH_COLORS[0], side: 'left' }];
+    if (y2f) defs.push({ f: y2f, type: ch.y2t, color: CH_COLORS[1], side: 'right' });
+    var accs = defs.map(function (d) { return chSeries(rows, xf, d.f, ch.gran); });
+    var keys = {};
+    accs.forEach(function (a) { Object.keys(a).forEach(function (k) { keys[k] = true; }); });
+    var sorted = Object.keys(keys).sort();
+    if (!sorted.length) return '<div class="tb-empty">表示できるデータがありません。</div>';
+    var buckets = [];
+    var cur = sorted[0], last = sorted[sorted.length - 1], guard = 0;
+    while (cur <= last && guard++ < 2000) { buckets.push(cur); cur = chNext(cur, ch.gran); }
+    var W = 960, H = 320, mL = 58, mR = y2f ? 58 : 18, mT = 16, mB = 34;
+    var iw = W - mL - mR, ih = H - mT - mB;
+    var scales = defs.map(function (d, i) {
+      var vals = buckets.map(function (k) { return accs[i][k] ? accs[i][k].s / accs[i][k].n : null; }).filter(function (v) { return v != null; });
+      d.vals = buckets.map(function (k) { return accs[i][k] ? accs[i][k].s / accs[i][k].n : null; });
+      return chScale(vals.length ? vals : [0, 1]);
+    });
+    var X = function (i) { return buckets.length === 1 ? mL + iw / 2 : mL + iw * i / (buckets.length - 1); };
+    var Y = function (si, v) { var s = scales[si]; return mT + ih * (1 - (v - s.lo) / (s.hi - s.lo)); };
+    var out = ['<svg class="tb-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img">'];
+    scales[0].ticks.forEach(function (tv) {
+      var y = Y(0, tv);
+      out.push('<line x1="' + mL + '" y1="' + y + '" x2="' + (W - mR) + '" y2="' + y + '" class="tb-ch-grid"/>');
+      out.push('<text x="' + (mL - 8) + '" y="' + (y + 4) + '" text-anchor="end" class="tb-ch-tick" fill="' + CH_COLORS[0] + '">' + chTick(tv) + '</text>');
+    });
+    if (y2f) scales[1].ticks.forEach(function (tv) {
+      var y = Y(1, tv);
+      out.push('<text x="' + (W - mR + 8) + '" y="' + (y + 4) + '" class="tb-ch-tick" fill="' + CH_COLORS[1] + '">' + chTick(tv) + '</text>');
+    });
+    var stepLbl = Math.max(1, Math.ceil(buckets.length / 8));
+    buckets.forEach(function (k, i) {
+      if (i % stepLbl !== 0 && i !== buckets.length - 1) return;
+      out.push('<text x="' + X(i) + '" y="' + (H - 10) + '" text-anchor="middle" class="tb-ch-tick">' + h(chLabel(k, ch.gran)) + '</text>');
+    });
+    var barCount = defs.filter(function (d) { return d.type === 'bar'; }).length;
+    var slot = buckets.length === 1 ? iw / 2 : iw / (buckets.length - 1);
+    defs.forEach(function (d, si) {
+      if (d.type !== 'bar') return;
+      var bi = defs.slice(0, si).filter(function (x) { return x.type === 'bar'; }).length;
+      var bw = Math.max(2, Math.min(26, slot * 0.62 / barCount));
+      var base = Y(si, Math.max(scales[si].lo, Math.min(0, scales[si].hi)));
+      d.vals.forEach(function (v, i) {
+        if (v == null) return;
+        var x = X(i) - (bw * barCount) / 2 + bw * bi;
+        var y = Y(si, v);
+        out.push('<rect x="' + x.toFixed(1) + '" y="' + Math.min(y, base).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.abs(base - y).toFixed(1) + '" fill="' + d.color + '" opacity="0.75"><title>' + h(chLabel(buckets[i], ch.gran) + '：' + d.f.name + ' ' + chTick(Math.round(v * 100) / 100)) + '</title></rect>');
+      });
+    });
+    defs.forEach(function (d, si) {
+      if (d.type !== 'line') return;
+      var path = '', pen = false;
+      d.vals.forEach(function (v, i) {
+        if (v == null) { pen = false; return; }
+        path += (pen ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(si, v).toFixed(1);
+        pen = true;
+      });
+      out.push('<path d="' + path + '" fill="none" stroke="' + d.color + '" stroke-width="2"/>');
+      if (buckets.length <= 160) d.vals.forEach(function (v, i) {
+        if (v == null) return;
+        out.push('<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(si, v).toFixed(1) + '" r="3" fill="' + d.color + '"><title>' + h(chLabel(buckets[i], ch.gran) + '：' + d.f.name + ' ' + chTick(Math.round(v * 100) / 100)) + '</title></circle>');
+      });
+    });
+    out.push('</svg>');
+    var legend = '<div class="tb-chart-legend">' + defs.map(function (d) {
+      return '<span class="tb-ch-leg"><i style="background:' + d.color + '"></i>' + h(d.f.name) + '（' + (d.type === 'bar' ? '棒' : '線') + (y2f ? (d.side === 'left' ? '・左軸' : '・右軸') : '') + '）</span>';
+    }).join('') + '</div>';
+    return legend + out.join('');
   }
 
   function countText(n) { return (n === st.records.length ? '' : n + ' / ') + st.records.length + '件'; }
@@ -619,7 +796,7 @@
   }
   function refreshBody() {
     var body = document.getElementById('tb-body');
-    if (!body) return;
+    if (!body) { var v0 = curView(); if (v0 && v0.type === 'chart') draw(); return; }
     var rows = visibleRecords();
     body.innerHTML = bodyHtml(rows);
     var c = document.getElementById('tb-count'); if (c) c.textContent = countText(rows.length);
@@ -654,6 +831,9 @@
     }
     var fi = wrap.querySelector('#tb-file');
     if (fi) fi.addEventListener('change', function () { onCsvChosen(fi); });
+    wrap.querySelectorAll('select[data-ch]').forEach(function (sel) {
+      sel.addEventListener('change', function () { chartCfg()[sel.dataset.ch] = sel.value; saveView(); draw(); });
+    });
     wrap.addEventListener('pointerdown', onResizeStart);
   }
 
@@ -680,6 +860,7 @@
       if (act === 'sort') return sortPanel(a);
       if (act === 'hide') return hidePanel(a);
       if (act === 'import') return pickCsv();
+      if (act === 'ch-gran') { chartCfg().gran = a.dataset.v; saveView(); draw(); return; }
       if (act === 'table-menu') return tableMenu(a);
       if (act === 'col-menu') { if (e.target.closest('.tb-resize')) return; return colMenu(a); }
       if (act === 'add-col') return addColSheet();
@@ -1165,15 +1346,18 @@
     var v = curView();
     openMenu(btn, '<div class="tb-menu-label">ビュー</div>'
       + st.views.map(function (x) { return '<button data-m="go:' + x.id + '">' + (x.id === st.viewId ? ICO.check : '<span style="width:14px;display:inline-block"></span>') + h(x.name) + '</button>'; }).join('')
-      + '<hr><button data-m="new">＋ 新しいビュー</button><button data-m="dup">このビューを複製</button><button data-m="rename">' + ICO.edit + 'このビューの名前を変更</button>'
+      + '<hr><button data-m="new">＋ 新しいビュー</button><button data-m="new-chart">＋ 新しいグラフビュー</button><button data-m="dup">このビューを複製</button><button data-m="rename">' + ICO.edit + 'このビューの名前を変更</button>'
       + '<button data-m="delete" class="danger"' + (st.views.length <= 1 ? ' disabled title="ビューが1つのときは消せません"' : '') + '>このビューを削除</button>',
       function (act) {
         if (act.indexOf('go:') === 0) { st.viewId = act.slice(3); try { localStorage.setItem('tb-view-' + st.tableId, st.viewId); } catch (e) {} return redrawGrid(); }
-        if (act === 'new' || act === 'dup') {
-          textSheet(act === 'new' ? '新しいビュー' : 'ビューを複製', act === 'new' ? 'フィルタ・並べ替え・隠す列を、ビューごとに保存できます。' : '', act === 'new' ? '' : v.name + 'のコピー', '作る', async function (name) {
-            var config = act === 'new' ? { filters: { conj: 'and', conditions: [] }, sorts: [], hidden_field_ids: [] } : JSON.parse(JSON.stringify(cfg()));
+        if (act === 'new' || act === 'dup' || act === 'new-chart') {
+          var isChart = act === 'new-chart';
+          textSheet(isChart ? '新しいグラフビュー' : (act === 'new' ? '新しいビュー' : 'ビューを複製'), act === 'new' ? 'フィルタ・並べ替え・隠す列を、ビューごとに保存できます。' : (isChart ? '日付の列を横軸に、数値の列を縦軸にした折れ線・棒グラフです。軸や種類はあとから変えられます。' : ''), act === 'dup' ? v.name + 'のコピー' : '', '作る', async function (name) {
+            var config = act === 'dup' ? JSON.parse(JSON.stringify(cfg()))
+              : isChart ? { filters: { conj: 'and', conditions: [] }, sorts: [], hidden_field_ids: [], chart: defaultChartConfig() }
+              : { filters: { conj: 'and', conditions: [] }, sorts: [], hidden_field_ids: [] };
             var max = st.views.reduce(function (m, x) { return Math.max(m, x.sort_order || 0); }, 0);
-            var r = await SB().from('table_views').insert({ table_id: st.tableId, name: name, type: 'grid', sort_order: max + 1, config: config }).select().single();
+            var r = await SB().from('table_views').insert({ table_id: st.tableId, name: name, type: isChart ? 'chart' : (act === 'dup' ? (v.type || 'grid') : 'grid'), sort_order: max + 1, config: config }).select().single();
             if (r.error) { fail('newView', r.error); return; }
             st.views.push(r.data); st.viewId = r.data.id;
             try { localStorage.setItem('tb-view-' + st.tableId, st.viewId); } catch (e) {}
